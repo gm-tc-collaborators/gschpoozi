@@ -1,0 +1,203 @@
+{
+  "description": "Temperature sensor types for hotend, bed, and chamber monitoring",
+
+  "categories": {
+    "thermistor": {
+      "name": "Thermistors (NTC)",
+      "description": "Negative Temperature Coefficient resistors, most common for 3D printing",
+      "accuracy": "±1-2°C typical",
+      "range": "-40°C to 300°C typical",
+      "interface": "analog"
+    },
+    "rtd": {
+      "name": "RTD (PT100/PT1000)",
+      "description": "Resistance Temperature Detectors, higher accuracy and stability",
+      "accuracy": "±0.1-0.5°C typical",
+      "range": "-200°C to 600°C",
+      "interface": "MAX31865 amplifier board"
+    },
+    "thermocouple": {
+      "name": "Thermocouples",
+      "description": "High temperature measurement, requires amplifier",
+      "accuracy": "±1-2°C typical",
+      "range": "-200°C to 1350°C (Type K)",
+      "interface": "MAX31855 or MAX31856 amplifier"
+    }
+  },
+
+  "thermistors": {
+    "Generic 3950": {
+      "name": "Generic NTC 100K 3950",
+      "resistance": "100K",
+      "beta": 3950,
+      "description": "Most common thermistor, default for many hotends and beds",
+      "klipper_sensor_type": "Generic 3950"
+    },
+    "ATC Semitec 104GT-2": {
+      "name": "ATC Semitec 104GT-2",
+      "resistance": "100K",
+      "description": "High quality thermistor, common on E3D hotends",
+      "klipper_sensor_type": "ATC Semitec 104GT-2"
+    },
+    "ATC Semitec 104NT-4-R025H42G": {
+      "name": "ATC Semitec 104NT-4",
+      "resistance": "100K",
+      "description": "Slice Engineering thermistor, good for high temps",
+      "klipper_sensor_type": "ATC Semitec 104NT-4-R025H42G"
+    },
+    "Honeywell 100K 135-104LAG-J01": {
+      "name": "Honeywell 100K",
+      "resistance": "100K",
+      "description": "Industrial grade thermistor",
+      "klipper_sensor_type": "Honeywell 100K 135-104LAG-J01"
+    },
+    "SliceEngineering 450": {
+      "name": "Slice Engineering 450°C Thermistor",
+      "resistance": "500K",
+      "description": "High temperature thermistor for exotic materials",
+      "klipper_sensor_type": "SliceEngineering 450"
+    },
+    "NTC 100K MGB18-104F39050L32": {
+      "name": "Keenovo NTC 100K",
+      "resistance": "100K",
+      "description": "Common on Keenovo heated beds",
+      "klipper_sensor_type": "NTC 100K MGB18-104F39050L32"
+    },
+    "EPCOS 100K B57560G104F": {
+      "name": "EPCOS 100K",
+      "resistance": "100K",
+      "description": "Common budget thermistor",
+      "klipper_sensor_type": "EPCOS 100K B57560G104F"
+    }
+  },
+
+  "rtd_sensors": {
+    "PT100": {
+      "name": "PT100 RTD",
+      "resistance_at_0c": 100,
+      "description": "Platinum RTD, requires MAX31865 amplifier",
+      "amplifier": "MAX31865",
+      "klipper_sensor_type": "PT100 ITS90",
+      "klipper_config": {
+        "temperature_sensor": {
+          "sensor_type": "PT100 ITS90",
+          "spi_bus": "ASSIGN_IN_WIZARD",
+          "cs_pin": "ASSIGN_IN_WIZARD",
+          "rtd_nominal_r": 100,
+          "rtd_reference_r": 430,
+          "rtd_num_of_wires": 2
+        }
+      }
+    },
+    "PT1000": {
+      "name": "PT1000 RTD",
+      "resistance_at_0c": 1000,
+      "description": "Platinum RTD, requires MAX31865 amplifier, more noise resistant than PT100",
+      "amplifier": "MAX31865",
+      "klipper_sensor_type": "PT1000",
+      "klipper_config": {
+        "temperature_sensor": {
+          "sensor_type": "PT1000",
+          "spi_bus": "ASSIGN_IN_WIZARD",
+          "cs_pin": "ASSIGN_IN_WIZARD",
+          "rtd_nominal_r": 1000,
+          "rtd_reference_r": 4300,
+          "rtd_num_of_wires": 2
+        }
+      }
+    }
+  },
+
+  "thermocouples": {
+    "Type K": {
+      "name": "Type K Thermocouple",
+      "range": "-200°C to 1350°C",
+      "description": "Most common thermocouple, good general purpose",
+      "amplifier": ["MAX31855", "MAX31856"],
+      "klipper_config_max31855": {
+        "temperature_sensor": {
+          "sensor_type": "MAX31855",
+          "spi_bus": "ASSIGN_IN_WIZARD",
+          "cs_pin": "ASSIGN_IN_WIZARD"
+        }
+      }
+    },
+    "Type J": {
+      "name": "Type J Thermocouple", 
+      "range": "-40°C to 750°C",
+      "description": "Good for lower temperature ranges",
+      "amplifier": "MAX31856"
+    },
+    "Type T": {
+      "name": "Type T Thermocouple",
+      "range": "-200°C to 350°C",
+      "description": "Good for cryogenic to moderate temps",
+      "amplifier": "MAX31856"
+    }
+  },
+
+  "functions": {
+    "hotend": {
+      "name": "Hotend Temperature",
+      "typical_sensors": ["Generic 3950", "ATC Semitec 104GT-2", "PT1000"],
+      "typical_range": "0-300°C",
+      "notes": "PT1000 recommended for high-temp printing (>300°C)"
+    },
+    "heated_bed": {
+      "name": "Heated Bed Temperature",
+      "typical_sensors": ["Generic 3950", "NTC 100K MGB18-104F39050L32"],
+      "typical_range": "0-120°C"
+    },
+    "chamber": {
+      "name": "Chamber Temperature",
+      "typical_sensors": ["Generic 3950"],
+      "typical_range": "0-80°C",
+      "klipper_config": {
+        "temperature_sensor chamber": {
+          "sensor_type": "Generic 3950",
+          "sensor_pin": "ASSIGN_IN_WIZARD"
+        }
+      }
+    },
+    "mcu": {
+      "name": "MCU Temperature",
+      "description": "Built-in temperature sensor on microcontroller",
+      "klipper_config": {
+        "temperature_sensor mcu": {
+          "sensor_type": "temperature_mcu"
+        }
+      }
+    },
+    "raspberry_pi": {
+      "name": "Raspberry Pi Temperature",
+      "description": "Built-in temperature sensor on Raspberry Pi host",
+      "klipper_config": {
+        "temperature_sensor raspberry_pi": {
+          "sensor_type": "temperature_host"
+        }
+      }
+    }
+  },
+
+  "amplifier_boards": {
+    "MAX31865": {
+      "name": "MAX31865 RTD Amplifier",
+      "supports": ["PT100", "PT1000"],
+      "interface": "SPI",
+      "notes": "Required for PT100/PT1000 sensors"
+    },
+    "MAX31855": {
+      "name": "MAX31855 Thermocouple Amplifier",
+      "supports": ["Type K"],
+      "interface": "SPI",
+      "notes": "Simple K-type thermocouple amplifier"
+    },
+    "MAX31856": {
+      "name": "MAX31856 Universal Thermocouple Amplifier",
+      "supports": ["Type K", "Type J", "Type T", "Type N", "Type E", "Type S", "Type R", "Type B"],
+      "interface": "SPI",
+      "notes": "Supports all thermocouple types"
+    }
+  }
+}
+

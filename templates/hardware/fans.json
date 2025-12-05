@@ -1,0 +1,138 @@
+{
+  "description": "Fan hardware types - assign to functions (part cooling, hotend, controller, exhaust, filter) in port configuration",
+  
+  "voltages": ["5V", "12V", "24V"],
+  "control_methods": ["pwm", "on_off"],
+  "pin_configurations": ["2-pin", "3-pin", "4-pin"],
+
+  "types": {
+    "2-pin-dc": {
+      "name": "2-Pin DC Fan",
+      "pins": 2,
+      "control": "on_off",
+      "tachometer": false,
+      "description": "Simple on/off fan, no speed control or feedback",
+      "klipper_config": {
+        "fan": {
+          "pin": "ASSIGN_IN_WIZARD"
+        }
+      }
+    },
+    "2-pin-pwm": {
+      "name": "2-Pin PWM Fan",
+      "pins": 2,
+      "control": "pwm",
+      "tachometer": false,
+      "description": "PWM speed control via voltage modulation, no feedback",
+      "klipper_config": {
+        "fan": {
+          "pin": "ASSIGN_IN_WIZARD"
+        }
+      }
+    },
+    "3-pin-tach": {
+      "name": "3-Pin Fan with Tachometer",
+      "pins": 3,
+      "control": "on_off",
+      "tachometer": true,
+      "description": "On/off control with RPM feedback for stall detection",
+      "klipper_config": {
+        "fan": {
+          "pin": "ASSIGN_IN_WIZARD",
+          "tachometer_pin": "ASSIGN_IN_WIZARD",
+          "tachometer_ppr": 2,
+          "tachometer_poll_interval": 0.0015
+        }
+      }
+    },
+    "4-pin-pwm-tach": {
+      "name": "4-Pin PWM Fan with Tachometer",
+      "pins": 4,
+      "control": "pwm",
+      "tachometer": true,
+      "description": "Full PWM control with RPM feedback - recommended for hotend fans",
+      "klipper_config": {
+        "fan": {
+          "pin": "ASSIGN_IN_WIZARD",
+          "tachometer_pin": "ASSIGN_IN_WIZARD",
+          "tachometer_ppr": 2,
+          "tachometer_poll_interval": 0.0015
+        }
+      }
+    }
+  },
+
+  "functions": {
+    "part_cooling": {
+      "name": "Part Cooling Fan",
+      "klipper_section": "fan",
+      "description": "Cools printed parts, slicer controlled via M106/M107",
+      "typical_voltage": "24V",
+      "typical_type": "2-pin-pwm"
+    },
+    "hotend": {
+      "name": "Hotend Cooling Fan",
+      "klipper_section": "heater_fan hotend_fan",
+      "description": "Cools hotend heatsink, activates above threshold temperature",
+      "typical_voltage": "24V",
+      "typical_type": "4-pin-pwm-tach",
+      "klipper_config": {
+        "heater_fan hotend_fan": {
+          "pin": "ASSIGN_IN_WIZARD",
+          "heater": "extruder",
+          "heater_temp": 50.0,
+          "fan_speed": 1.0
+        }
+      }
+    },
+    "controller": {
+      "name": "Controller/Electronics Fan",
+      "klipper_section": "controller_fan",
+      "description": "Cools mainboard/stepper drivers, activates when steppers active",
+      "typical_voltage": "24V",
+      "typical_type": "2-pin-pwm",
+      "klipper_config": {
+        "controller_fan electronics_fan": {
+          "pin": "ASSIGN_IN_WIZARD",
+          "stepper": "stepper_x, stepper_y, stepper_z",
+          "idle_timeout": 60,
+          "idle_speed": 0.5
+        }
+      }
+    },
+    "exhaust": {
+      "name": "Chamber Exhaust Fan",
+      "klipper_section": "fan_generic",
+      "description": "Exhausts chamber air, manually controlled or temperature triggered",
+      "typical_voltage": "24V",
+      "typical_type": "2-pin-pwm",
+      "klipper_config": {
+        "fan_generic exhaust_fan": {
+          "pin": "ASSIGN_IN_WIZARD"
+        }
+      }
+    },
+    "filter": {
+      "name": "Filter Fan (Nevermore/Carbon)",
+      "klipper_section": "fan_generic",
+      "description": "Circulates air through activated carbon filter",
+      "typical_voltage": "24V",
+      "typical_type": "2-pin-pwm",
+      "klipper_config": {
+        "fan_generic filter_fan": {
+          "pin": "ASSIGN_IN_WIZARD"
+        }
+      }
+    },
+    "auxiliary": {
+      "name": "Auxiliary Fan",
+      "klipper_section": "fan_generic",
+      "description": "General purpose fan for custom uses",
+      "typical_voltage": "24V",
+      "typical_type": "2-pin-pwm"
+    }
+  },
+
+  "multi_pin_note": "For redundant fans (e.g., dual part cooling), use Klipper's [multi_pin] to combine multiple fan pins into one logical fan"
+}
+

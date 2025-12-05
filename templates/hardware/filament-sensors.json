@@ -1,0 +1,88 @@
+{
+  "description": "Filament sensor types for runout detection and jam prevention",
+
+  "types": {
+    "switch": {
+      "name": "Simple Switch Sensor",
+      "detection": ["runout"],
+      "description": "Mechanical or optical switch that detects filament presence only",
+      "examples": ["Generic microswitch", "Optical endstop style"],
+      "klipper_config": {
+        "filament_switch_sensor filament_sensor": {
+          "switch_pin": "ASSIGN_IN_WIZARD",
+          "pause_on_runout": true,
+          "runout_gcode": "PAUSE",
+          "insert_gcode": ""
+        }
+      }
+    },
+    "motion": {
+      "name": "Motion/Encoder Sensor",
+      "detection": ["runout", "jam", "clog"],
+      "description": "Detects filament movement, can identify jams and clogs",
+      "examples": ["BTT Smart Filament Sensor", "Biqu Filament Motion Sensor"],
+      "klipper_config": {
+        "filament_motion_sensor filament_sensor": {
+          "switch_pin": "ASSIGN_IN_WIZARD",
+          "detection_length": 7.0,
+          "extruder": "extruder",
+          "pause_on_runout": true,
+          "runout_gcode": "PAUSE",
+          "insert_gcode": ""
+        }
+      }
+    }
+  },
+
+  "sensors": {
+    "btt_sfs_v1": {
+      "name": "BTT Smart Filament Sensor v1.0",
+      "type": "motion",
+      "manufacturer": "BigTreeTech",
+      "detection_length": 7.0,
+      "notes": "Encoder-based, detects runout and jams"
+    },
+    "btt_sfs_v2": {
+      "name": "BTT Smart Filament Sensor v2.0",
+      "type": "motion", 
+      "manufacturer": "BigTreeTech",
+      "detection_length": 7.0,
+      "notes": "Improved version with better reliability"
+    },
+    "biqu_motion": {
+      "name": "BIQU Filament Motion Sensor",
+      "type": "motion",
+      "manufacturer": "BIQU",
+      "detection_length": 7.0,
+      "notes": "Budget motion sensor option"
+    },
+    "generic_switch": {
+      "name": "Generic Microswitch Sensor",
+      "type": "switch",
+      "manufacturer": "Various",
+      "notes": "Simple lever microswitch, runout only"
+    },
+    "generic_optical": {
+      "name": "Generic Optical Sensor",
+      "type": "switch",
+      "manufacturer": "Various",
+      "notes": "IR optical sensor, runout only"
+    }
+  },
+
+  "functions": {
+    "runout": {
+      "name": "Filament Runout Detection",
+      "description": "Pauses print when filament runs out",
+      "action": "PAUSE"
+    },
+    "jam": {
+      "name": "Jam/Clog Detection",
+      "description": "Pauses print when filament stops moving (requires motion sensor)",
+      "action": "PAUSE"
+    }
+  },
+
+  "location_note": "Sensor typically mounted between spool and extruder, or integrated into toolhead"
+}
+

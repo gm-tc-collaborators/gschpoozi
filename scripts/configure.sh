@@ -356,11 +356,6 @@ show_main_menu() {
         motor_count=$((motor_count + 1))  # Add extruder
     fi
     
-    # Quick Start option
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Quick Start:${NC}"
-    print_menu_item "P" "" "Load Printer Profile" "${WIZARD_STATE[profile_name]:-select a preset}"
-    
-    echo -e "${BCYAN}${BOX_V}${NC}"
     echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Step 1: Define Your Setup${NC}"
     print_menu_item "1" "$(get_step_status toolboard)" "Toolhead Board" "${WIZARD_STATE[toolboard_name]:-none}"
     
@@ -401,7 +396,6 @@ show_main_menu() {
     read -r choice
     
     case "$choice" in
-        [pP]) menu_profiles ;;
         1) menu_toolboard ;;
         2) menu_kinematics ;;
         3) menu_steppers ;;
@@ -465,135 +459,6 @@ menu_ports() {
     
     # Reload hardware state
     load_hardware_state
-}
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# PRINTER PROFILES
-# ═══════════════════════════════════════════════════════════════════════════════
-
-menu_profiles() {
-    clear_screen
-    print_header "Load Printer Profile"
-    
-    echo -e "${BCYAN}${BOX_V}${NC}  ${WHITE}Select a profile to pre-fill settings:${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    
-    # List available profiles
-    local profiles_dir="${TEMPLATES_DIR}/profiles"
-    local -a profile_files=()
-    local -a profile_names=()
-    local num=1
-    
-    if [[ -d "${profiles_dir}" ]]; then
-        for profile_file in "${profiles_dir}"/*.json; do
-            [[ -f "$profile_file" ]] || continue
-            profile_files+=("$profile_file")
-            
-            # Extract profile name using Python
-            local name
-            name=$(python3 -c "import json; print(json.load(open('$profile_file'))['name'])" 2>/dev/null)
-            local desc
-            desc=$(python3 -c "import json; print(json.load(open('$profile_file')).get('description', ''))" 2>/dev/null)
-            
-            profile_names+=("$name")
-            print_menu_item "$num" "" "$name" "$desc"
-            ((num++))
-        done
-    fi
-    
-    if [[ ${#profile_files[@]} -eq 0 ]]; then
-        echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}No profiles found in ${profiles_dir}${NC}"
-    fi
-    
-    print_separator
-    print_action_item "B" "Back to Main Menu"
-    print_footer
-    
-    echo -en "${BYELLOW}Select profile${NC}: "
-    read -r choice
-    
-    case "$choice" in
-        [bB]) return ;;
-        *)
-            if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#profile_files[@]} )); then
-                local idx=$((choice - 1))
-                load_profile "${profile_files[$idx]}"
-            fi
-            ;;
-    esac
-}
-
-load_profile() {
-    local profile_file="$1"
-    
-    echo -e "\n${CYAN}Loading profile...${NC}"
-    
-    # Use Python to parse and apply profile
-    python3 << EOF
-import json
-
-with open('$profile_file') as f:
-    profile = json.load(f)
-
-printer = profile.get('printer', {})
-stepper = profile.get('stepper_config', {})
-heater = profile.get('heater_config', {})
-recommended = profile.get('recommended_hardware', {})
-
-# Build wizard state
-state_lines = []
-
-# Profile info
-state_lines.append(f"profile_id={profile['id']}")
-state_lines.append(f"profile_name={profile['name']}")
-
-# Printer settings
-if 'kinematics' in printer:
-    state_lines.append(f"kinematics={printer['kinematics']}")
-if 'bed_size_x' in printer:
-    state_lines.append(f"bed_size_x={printer['bed_size_x']}")
-if 'bed_size_y' in printer:
-    state_lines.append(f"bed_size_y={printer['bed_size_y']}")
-if 'bed_size_z' in printer:
-    state_lines.append(f"bed_size_z={printer['bed_size_z']}")
-if 'z_stepper_count' in printer:
-    state_lines.append(f"z_stepper_count={printer['z_stepper_count']}")
-if 'leveling_method' in printer:
-    state_lines.append(f"leveling_method={printer['leveling_method']}")
-
-# Heater settings
-if 'extruder' in heater:
-    if 'thermistor' in heater['extruder']:
-        state_lines.append(f"hotend_thermistor={heater['extruder']['thermistor']}")
-if 'heater_bed' in heater:
-    if 'thermistor' in heater['heater_bed']:
-        state_lines.append(f"bed_thermistor={heater['heater_bed']['thermistor']}")
-
-# Recommended hardware (just store, don't auto-apply)
-if 'main_board' in recommended:
-    state_lines.append(f"recommended_board={recommended['main_board']}")
-if 'toolboard' in recommended:
-    state_lines.append(f"recommended_toolboard={recommended['toolboard']}")
-if 'probe' in recommended:
-    state_lines.append(f"recommended_probe={recommended['probe']}")
-
-# Write to state file
-with open('${STATE_FILE}', 'w') as f:
-    f.write('\n'.join(state_lines) + '\n')
-
-print(f"Loaded: {profile['name']}")
-print(f"  Kinematics: {printer.get('kinematics', 'N/A')}")
-print(f"  Bed Size: {printer.get('bed_size_x', '?')}x{printer.get('bed_size_y', '?')}x{printer.get('bed_size_z', '?')}mm")
-print(f"  Z Motors: {printer.get('z_stepper_count', '?')} ({printer.get('leveling_method', 'N/A')})")
-if recommended:
-    print(f"  Recommended: {recommended.get('main_board', '')} + {recommended.get('toolboard', 'no toolboard')}")
-EOF
-
-    # Reload state
-    load_state
-    
-    echo -e "${GREEN}Profile loaded! Review and adjust settings as needed.${NC}"
-    wait_for_key
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1013,13 +878,32 @@ menu_extras() {
     clear_screen
     print_header "Extra Features"
     
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Optional Features:${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Sensors:${NC}"
     
     local fs_status=$([[ "${WIZARD_STATE[has_filament_sensor]}" == "yes" ]] && echo "[x]" || echo "[ ]")
     local cs_status=$([[ "${WIZARD_STATE[has_chamber_sensor]}" == "yes" ]] && echo "[x]" || echo "[ ]")
     
     echo -e "${BCYAN}${BOX_V}${NC}  1) ${fs_status} Filament Sensor"
     echo -e "${BCYAN}${BOX_V}${NC}  2) ${cs_status} Chamber Temperature Sensor"
+    
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Displays:${NC}"
+    
+    local ks_status=$([[ "${WIZARD_STATE[has_klipperscreen]}" == "yes" ]] && echo "[x]" || echo "[ ]")
+    local lcd_status=$([[ "${WIZARD_STATE[has_lcd_display]}" == "yes" ]] && echo "[x]" || echo "[ ]")
+    
+    echo -e "${BCYAN}${BOX_V}${NC}  3) ${ks_status} KlipperScreen (HDMI/DSI touchscreen)"
+    echo -e "${BCYAN}${BOX_V}${NC}  4) ${lcd_status} LCD Display (Mini12864/ST7920)"
+    
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Lighting:${NC}"
+    
+    local led_status=$([[ "${WIZARD_STATE[has_leds]}" == "yes" ]] && echo "[x]" || echo "[ ]")
+    local cl_status=$([[ "${WIZARD_STATE[has_caselight]}" == "yes" ]] && echo "[x]" || echo "[ ]")
+    
+    echo -e "${BCYAN}${BOX_V}${NC}  5) ${led_status} Status LEDs (NeoPixel on toolhead)"
+    echo -e "${BCYAN}${BOX_V}${NC}  6) ${cl_status} Case Lighting"
+    
     print_separator
     print_action_item "B" "Back to Main Menu"
     print_footer
@@ -1033,6 +917,8 @@ menu_extras() {
                 WIZARD_STATE[has_filament_sensor]=""
             else
                 WIZARD_STATE[has_filament_sensor]="yes"
+                # Ask for sensor type
+                select_filament_sensor_type
             fi
             menu_extras  # Refresh
             ;;
@@ -1044,8 +930,105 @@ menu_extras() {
             fi
             menu_extras  # Refresh
             ;;
+        3)
+            if [[ "${WIZARD_STATE[has_klipperscreen]}" == "yes" ]]; then
+                WIZARD_STATE[has_klipperscreen]=""
+                WIZARD_STATE[klipperscreen_type]=""
+            else
+                WIZARD_STATE[has_klipperscreen]="yes"
+                select_klipperscreen_type
+            fi
+            menu_extras  # Refresh
+            ;;
+        4)
+            if [[ "${WIZARD_STATE[has_lcd_display]}" == "yes" ]]; then
+                WIZARD_STATE[has_lcd_display]=""
+                WIZARD_STATE[lcd_display_type]=""
+            else
+                WIZARD_STATE[has_lcd_display]="yes"
+                select_lcd_display_type
+            fi
+            menu_extras  # Refresh
+            ;;
+        5)
+            if [[ "${WIZARD_STATE[has_leds]}" == "yes" ]]; then
+                WIZARD_STATE[has_leds]=""
+            else
+                WIZARD_STATE[has_leds]="yes"
+            fi
+            menu_extras  # Refresh
+            ;;
+        6)
+            if [[ "${WIZARD_STATE[has_caselight]}" == "yes" ]]; then
+                WIZARD_STATE[has_caselight]=""
+            else
+                WIZARD_STATE[has_caselight]="yes"
+            fi
+            menu_extras  # Refresh
+            ;;
         [bB]) return ;;
         *) ;;
+    esac
+}
+
+select_filament_sensor_type() {
+    clear_screen
+    print_header "Filament Sensor Type"
+    
+    echo -e "${BCYAN}${BOX_V}${NC}  1) Simple Switch (runout only)"
+    echo -e "${BCYAN}${BOX_V}${NC}  2) Motion Sensor (runout + jam detection)"
+    print_footer
+    
+    echo -en "${BYELLOW}Select type${NC}: "
+    read -r choice
+    
+    case "$choice" in
+        1) WIZARD_STATE[filament_sensor_type]="switch" ;;
+        2) WIZARD_STATE[filament_sensor_type]="motion" ;;
+    esac
+}
+
+select_klipperscreen_type() {
+    clear_screen
+    print_header "KlipperScreen Display Type"
+    
+    echo -e "${BCYAN}${BOX_V}${NC}  ${WHITE}Select your touchscreen connection:${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  1) HDMI Touchscreen (BTT HDMI5/7, Waveshare, etc.)"
+    echo -e "${BCYAN}${BOX_V}${NC}  2) DSI Display (Raspberry Pi official display)"
+    echo -e "${BCYAN}${BOX_V}${NC}  3) SPI TFT (small 3.5\" displays)"
+    print_footer
+    
+    echo -en "${BYELLOW}Select type${NC}: "
+    read -r choice
+    
+    case "$choice" in
+        1) WIZARD_STATE[klipperscreen_type]="hdmi" ;;
+        2) WIZARD_STATE[klipperscreen_type]="dsi" ;;
+        3) WIZARD_STATE[klipperscreen_type]="spi_tft" ;;
+    esac
+}
+
+select_lcd_display_type() {
+    clear_screen
+    print_header "LCD Display Type"
+    
+    echo -e "${BCYAN}${BOX_V}${NC}  ${WHITE}Select your display type:${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  1) Mini 12864 (BTT/FYSETC Mini12864 - Voron style)"
+    echo -e "${BCYAN}${BOX_V}${NC}  2) Full Graphic 12864 (RepRap ST7920)"
+    echo -e "${BCYAN}${BOX_V}${NC}  3) BTT TFT35/TFT50 (12864 emulation mode)"
+    echo -e "${BCYAN}${BOX_V}${NC}  4) OLED 128x64 (SSD1306/SH1106)"
+    print_footer
+    
+    echo -en "${BYELLOW}Select type${NC}: "
+    read -r choice
+    
+    case "$choice" in
+        1) WIZARD_STATE[lcd_display_type]="mini12864" ;;
+        2) WIZARD_STATE[lcd_display_type]="st7920" ;;
+        3) WIZARD_STATE[lcd_display_type]="emulated_st7920" ;;
+        4) WIZARD_STATE[lcd_display_type]="oled" ;;
     esac
 }
 

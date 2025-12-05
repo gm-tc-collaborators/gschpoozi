@@ -1,0 +1,95 @@
+{
+  "id": "btt-eddy",
+  "name": "BTT Eddy",
+  "manufacturer": "BigTreeTech",
+  "type": "eddy_current",
+  "variants": ["Eddy USB", "Eddy Coil"],
+  "source": "https://github.com/bigtreetech/Eddy",
+  "description": "Eddy current probe with rapid bed mesh scanning. Eddy USB connects via USB, Eddy Coil via I2C to toolhead boards.",
+
+  "features": {
+    "rapid_scan": true,
+    "temperature_compensation": true,
+    "z_homing": true,
+    "adaptive_mesh": true
+  },
+
+  "notes": {
+    "eddy_usb": "Standalone USB device with temperature compensation",
+    "eddy_coil": "Connects via I2C to toolhead boards, no temperature compensation - less reliable for homing in sealed chambers"
+  },
+
+  "klipper_config": {
+    "mcu eddy": {
+      "_comment": "For Eddy USB only - Eddy Coil uses toolhead MCU",
+      "serial": "/dev/serial/by-id/usb-Klipper_rp2040_XXXXXXXX-if00"
+    },
+    "probe_eddy_current btt_eddy": {
+      "sensor_type": "ldc1612",
+      "z_offset": 1.0,
+      "i2c_mcu": "eddy",
+      "i2c_bus": "i2c0f",
+      "x_offset": 0,
+      "y_offset": 0,
+      "speed": 40,
+      "lift_speed": 5,
+      "data_rate": 500,
+      "reg_drive_current": 15
+    },
+    "temperature_probe btt_eddy": {
+      "_comment": "Eddy USB only - for temperature drift compensation",
+      "sensor_type": "Generic 3950",
+      "sensor_pin": "eddy:gpio26",
+      "horizontal_move_z": 2
+    },
+    "stepper_z": {
+      "endstop_pin": "probe:z_virtual_endstop",
+      "homing_retract_dist": 0
+    },
+    "bed_mesh": {
+      "horizontal_move_z": 2,
+      "speed": 400,
+      "probe_count": "9, 9",
+      "algorithm": "bicubic",
+      "scan_overshoot": 8
+    }
+  },
+
+  "klipper_config_coil": {
+    "_comment": "Alternative config for Eddy Coil on toolhead board (e.g., EBB36)",
+    "probe_eddy_current btt_eddy": {
+      "sensor_type": "ldc1612",
+      "z_offset": 1.0,
+      "i2c_mcu": "EBBCan",
+      "i2c_bus": "i2c3_PB3_PB4",
+      "x_offset": 0,
+      "y_offset": 0,
+      "speed": 40,
+      "lift_speed": 5
+    }
+  },
+
+  "calibration_commands": [
+    "PROBE_EDDY_CURRENT_CALIBRATE CHIP=btt_eddy",
+    "TEMPERATURE_PROBE_CALIBRATE PROBE=btt_eddy TARGET=70"
+  ],
+
+  "bed_mesh_command": "BED_MESH_CALIBRATE METHOD=rapid_scan ADAPTIVE=1",
+
+  "installation_notes": [
+    "Eddy probe should be 2-3mm above bed when nozzle touches bed (2.5mm optimal)",
+    "For rapid scanning, use: BED_MESH_CALIBRATE METHOD=rapid_scan",
+    "Remove KAMP - use Klipper's built-in ADAPTIVE=1 parameter instead",
+    "Temperature calibration recommended for consistent results across temperature range",
+    "If getting 'Eddy current sensor error', check probe height or increase reg_drive_current to 16"
+  ],
+
+  "recommended_height_mm": 2.5,
+
+  "troubleshooting": {
+    "sensor_error": "Check probe height (2-3mm), recalibrate, or increase reg_drive_current to 16",
+    "probe_triggered_before_movement": "Raise gantry between successive PROBE commands",
+    "z_hops_during_mesh": "Use METHOD=rapid_scan, remove KAMP adaptive meshing"
+  }
+}
+

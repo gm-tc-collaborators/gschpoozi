@@ -1,0 +1,130 @@
+{
+  "description": "LED/Light hardware types for status indication, chamber lighting, and effects",
+
+  "types": {
+    "neopixel": {
+      "name": "NeoPixel (WS2812/SK6812)",
+      "protocol": "ws2812",
+      "addressable": true,
+      "colors": ["RGB", "RGBW", "GRB", "GRBW"],
+      "description": "Single-wire addressable LEDs, most common for 3D printers",
+      "klipper_config": {
+        "neopixel": {
+          "pin": "ASSIGN_IN_WIZARD",
+          "chain_count": 1,
+          "color_order": "GRB",
+          "initial_RED": 0.0,
+          "initial_GREEN": 0.0,
+          "initial_BLUE": 0.0
+        }
+      }
+    },
+    "dotstar": {
+      "name": "DotStar (APA102/SK9822)",
+      "protocol": "apa102",
+      "addressable": true,
+      "colors": ["RGB"],
+      "description": "SPI-based addressable LEDs, higher refresh rate than NeoPixel",
+      "klipper_config": {
+        "dotstar": {
+          "data_pin": "ASSIGN_IN_WIZARD",
+          "clock_pin": "ASSIGN_IN_WIZARD",
+          "chain_count": 1,
+          "initial_RED": 0.0,
+          "initial_GREEN": 0.0,
+          "initial_BLUE": 0.0
+        }
+      }
+    },
+    "pca9632": {
+      "name": "PCA9632 LED Driver",
+      "protocol": "i2c",
+      "addressable": false,
+      "colors": ["RGBW"],
+      "description": "I2C LED driver, common on some toolhead boards",
+      "klipper_config": {
+        "pca9632": {
+          "i2c_mcu": "ASSIGN_IN_WIZARD",
+          "i2c_bus": "ASSIGN_IN_WIZARD"
+        }
+      }
+    },
+    "fcob_white": {
+      "name": "FCOB White LED Strip",
+      "protocol": "pwm",
+      "addressable": false,
+      "colors": ["white"],
+      "description": "Flexible COB LED strip, single color PWM controlled",
+      "klipper_config": {
+        "output_pin caselight": {
+          "pin": "ASSIGN_IN_WIZARD",
+          "pwm": true,
+          "value": 0,
+          "cycle_time": 0.01
+        }
+      }
+    },
+    "rgb_strip": {
+      "name": "Non-Addressable RGB Strip",
+      "protocol": "pwm",
+      "addressable": false,
+      "colors": ["RGB"],
+      "description": "3-channel PWM controlled RGB strip (12V/24V)",
+      "klipper_config": {
+        "output_pin caselight_red": {
+          "pin": "ASSIGN_IN_WIZARD",
+          "pwm": true
+        },
+        "output_pin caselight_green": {
+          "pin": "ASSIGN_IN_WIZARD",
+          "pwm": true
+        },
+        "output_pin caselight_blue": {
+          "pin": "ASSIGN_IN_WIZARD",
+          "pwm": true
+        }
+      }
+    }
+  },
+
+  "functions": {
+    "status_leds": {
+      "name": "Toolhead Status LEDs",
+      "description": "LEDs on toolhead showing printer state (homing, heating, printing, etc.)",
+      "typical_type": "neopixel",
+      "typical_count": "1-3",
+      "location": "toolhead"
+    },
+    "caselight": {
+      "name": "Chamber/Case Lighting",
+      "description": "Illuminates print chamber for visibility and timelapses",
+      "typical_type": ["neopixel", "fcob_white"],
+      "typical_count": "varies",
+      "location": "chamber"
+    },
+    "logo_led": {
+      "name": "Logo/Accent LED",
+      "description": "Decorative LED for branding or accent lighting",
+      "typical_type": "neopixel",
+      "typical_count": "1",
+      "location": "varies"
+    },
+    "display_led": {
+      "name": "Display Backlight",
+      "description": "LCD/OLED display backlight control",
+      "typical_type": "neopixel",
+      "typical_count": "1",
+      "location": "display"
+    }
+  },
+
+  "color_orders": {
+    "RGB": "Red-Green-Blue (standard)",
+    "GRB": "Green-Red-Blue (most WS2812)",
+    "RGBW": "RGB + dedicated White LED",
+    "GRBW": "GRB + dedicated White LED"
+  },
+
+  "effects_note": "For LED effects (breathing, rainbow, status-based colors), consider installing led_effect plugin: https://github.com/julianschill/klipper-led_effect"
+}
+

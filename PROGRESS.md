@@ -17,7 +17,6 @@
 
 ### Wizard Features
 - [x] KIAUH-style text menu interface
-- [x] Printer profile loading (P key)
 - [x] Board selection with port count validation
 - [x] Toolboard selection
 - [x] Kinematics selection (CoreXY, CoreXY AWD, Cartesian, CoreXZ)
@@ -25,6 +24,7 @@
 - [x] Per-axis stepper driver selection
 - [x] Extruder conditional on toolboard (smart port calculation)
 - [x] State persistence between sessions
+- [x] Extras menu (filament sensor, chamber sensor, KlipperScreen, LCD, LEDs, caselight)
 
 ### Leveling Methods (Auto-configured)
 - [x] 1 Z motor: No leveling
@@ -80,17 +80,12 @@
 | **LDO Nitehawk-36** | RP2040 | USB | Manual |
 | **Orbitool SO3** | STM32F042 | USB | Manual |
 
-### Printer Profiles (3 total)
-| Profile | Kinematics | Z Motors | Leveling |
-|---------|------------|----------|----------|
-| Voron 2.4 250mm | CoreXY | 4 | QGL |
-| Voron 2.4 300mm | CoreXY | 4 | QGL |
-| Voron 2.4 350mm | CoreXY | 4 | QGL |
-
-### Probes (1 total)
-| Probe | Type | Source |
-|-------|------|--------|
-| Beacon | Eddy Current (USB) | Manual |
+### Probes (3 total)
+| Probe | Type | Connection | Source |
+|-------|------|------------|--------|
+| Beacon | Eddy Current | USB | Manual |
+| Cartographer 3D | Eddy Current | USB/CAN | Manual |
+| BTT Eddy | Eddy Current | USB/I2C | Manual |
 
 ### Extruder Profiles (9 total)
 | Extruder | Gear Ratio | Rotation Distance |
@@ -104,6 +99,15 @@
 | LGX Lite | 44:8 | 8 |
 | BMG | 50:17 | 22.6789511 |
 | WW-BMG | 50:17 | 22.6789511 |
+
+### Hardware Components (5 templates)
+| Template | Contents | Approach |
+|----------|----------|----------|
+| `fans.json` | 4 fan types, 6 functions | Type + function assignment |
+| `lights.json` | 5 LED types (NeoPixel, DotStar, FCOB, etc.) | Type + location |
+| `filament-sensors.json` | 2 types (switch, motion), 5 sensors | Detection capability |
+| `temperature-sensors.json` | Thermistors, RTDs, Thermocouples | Sensor type + amplifier |
+| `displays.json` | KlipperScreen + LCD/OLED displays | Screen type + Moonraker entry |
 
 ---
 
@@ -120,16 +124,14 @@
 
 ## 🧪 Beta Tester Coverage
 
-### Neptunus (Voron 2.4 300mm)
+### Neptunus (CoreXY AWD, 300x300 bed, 4x Z)
 | Component | Template | Status |
 |-----------|----------|--------|
 | BTT Octopus v1.0 | `btt-octopus.json` | ✅ |
 | LDO Nitehawk-36 | `ldo-nitehawk-36.json` | ✅ |
 | Beacon Rev H | `beacon.json` | ✅ |
 | Sherpa Mini | `extruders.json` | ✅ |
-| Orbiter v2.5 | `extruders.json` | ✅ |
-| Voron 2.4 300mm | `voron-2.4-300.json` | ✅ |
-| AWD upgrade | `corexy-awd` | ✅ |
+| CoreXY AWD kinematics | `corexy-awd` | ✅ |
 
 ---
 
@@ -142,7 +144,6 @@
 - [ ] Macro templates (PRINT_START, PRINT_END, etc.)
 
 ### Medium Priority
-- [ ] More printer profiles (Voron Trident, VzBot, Ratrig)
 - [ ] More probe templates (Klicky, TAP, BLTouch)
 - [ ] Input shaper configuration
 - [ ] Bed mesh configuration
@@ -166,9 +167,9 @@ gschpoozi/
 ├── templates/
 │   ├── boards/                # 27 main boards
 │   ├── toolboards/            # 17 toolhead boards
-│   ├── profiles/              # Printer profiles
-│   ├── probes/                # Probe templates
-│   └── extruders/             # Extruder profiles
+│   ├── probes/                # Probe templates (3)
+│   ├── extruders/             # Extruder profiles (9)
+│   └── hardware/              # Generic hardware (fans, lights, sensors)
 ├── README.md
 ├── PROGRESS.md                # This file
 └── LICENSE                    # GPL-3.0
@@ -182,4 +183,6 @@ gschpoozi/
 - Orbitool SO3 from [Orbiter-Toolboards](https://github.com/RobertLorincz/Orbiter-Toolboards)
 - LDO Nitehawk-36 from [MotorDynamicsLab](https://github.com/MotorDynamicsLab/Nitehawk-36)
 - Beacon probe from [beacon3d.com](https://beacon3d.com/)
+- Cartographer 3D from [docs.cartographer3d.com](https://docs.cartographer3d.com/)
+- BTT Eddy from [bigtreetech/Eddy](https://github.com/bigtreetech/Eddy)
 

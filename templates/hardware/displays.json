@@ -1,0 +1,187 @@
+{
+  "description": "Display configurations for Klipper - both direct LCD/OLED displays and KlipperScreen touchscreens",
+
+  "klipperscreen": {
+    "name": "KlipperScreen",
+    "type": "touchscreen",
+    "description": "Touch-enabled graphical interface for Klipper, runs on host (Pi/CB1)",
+    "requires_installation": true,
+    "source": "https://github.com/KlipperScreen/KlipperScreen",
+    
+    "installation": {
+      "command": "cd ~ && git clone https://github.com/KlipperScreen/KlipperScreen.git && cd KlipperScreen && ./scripts/KlipperScreen-install.sh",
+      "alternative": "KIAUH provides KlipperScreen installation option"
+    },
+
+    "moonraker_update_manager": {
+      "update_manager KlipperScreen": {
+        "type": "git_repo",
+        "path": "~/KlipperScreen",
+        "origin": "https://github.com/KlipperScreen/KlipperScreen.git",
+        "virtualenv": "~/.KlipperScreen-env",
+        "requirements": "scripts/KlipperScreen-requirements.txt",
+        "system_dependencies": "scripts/system-dependencies.json",
+        "managed_services": "KlipperScreen"
+      }
+    },
+
+    "display_types": {
+      "hdmi": {
+        "name": "HDMI Touchscreen",
+        "description": "Standard HDMI display with USB touch (e.g., BTT HDMI5/HDMI7)",
+        "connection": "HDMI + USB",
+        "examples": ["BTT HDMI5", "BTT HDMI7", "Waveshare 5inch HDMI", "Generic HDMI touchscreen"]
+      },
+      "dsi": {
+        "name": "DSI Touchscreen",
+        "description": "Raspberry Pi DSI ribbon cable display",
+        "connection": "DSI + I2C/SPI touch",
+        "examples": ["Official Raspberry Pi 7\" Display", "Waveshare DSI displays"]
+      },
+      "spi_tft": {
+        "name": "SPI TFT Display",
+        "description": "Small SPI-connected TFT displays",
+        "connection": "SPI + GPIO touch",
+        "examples": ["3.5\" RPi TFT", "2.8\" TFT displays"],
+        "notes": "May require fbcp or specific drivers"
+      }
+    },
+
+    "config_file": "~/KlipperScreen/KlipperScreen.conf",
+    "config_example": {
+      "printer default": {
+        "moonraker_host": "127.0.0.1",
+        "moonraker_port": 7125
+      }
+    }
+  },
+
+  "lcd_displays": {
+    "description": "Direct LCD/OLED displays connected to mainboard, configured in printer.cfg",
+
+    "types": {
+      "uc1701": {
+        "name": "Mini 12864 (UC1701)",
+        "type": "lcd",
+        "driver": "uc1701",
+        "resolution": "128x64",
+        "description": "Common Voron display, includes encoder and NeoPixel",
+        "connection": "SPI (directly or via EXP1/EXP2)",
+        "klipper_config": {
+          "display": {
+            "lcd_type": "uc1701",
+            "cs_pin": "ASSIGN_IN_WIZARD",
+            "a0_pin": "ASSIGN_IN_WIZARD",
+            "rst_pin": "ASSIGN_IN_WIZARD",
+            "contrast": 63,
+            "encoder_pins": "^ASSIGN_IN_WIZARD, ^ASSIGN_IN_WIZARD",
+            "click_pin": "^!ASSIGN_IN_WIZARD",
+            "spi_software_sclk_pin": "ASSIGN_IN_WIZARD",
+            "spi_software_mosi_pin": "ASSIGN_IN_WIZARD",
+            "spi_software_miso_pin": "ASSIGN_IN_WIZARD"
+          },
+          "neopixel fysetc_mini12864": {
+            "pin": "ASSIGN_IN_WIZARD",
+            "chain_count": 3,
+            "color_order": "RGB",
+            "initial_RED": 0.4,
+            "initial_GREEN": 0.4,
+            "initial_BLUE": 0.4
+          }
+        }
+      },
+      "st7920": {
+        "name": "RepRap Full Graphic 12864 (ST7920)",
+        "type": "lcd",
+        "driver": "st7920",
+        "resolution": "128x64",
+        "description": "Classic RepRap LCD with encoder, very common",
+        "connection": "EXP1/EXP2 headers",
+        "klipper_config": {
+          "display": {
+            "lcd_type": "st7920",
+            "cs_pin": "ASSIGN_IN_WIZARD",
+            "sclk_pin": "ASSIGN_IN_WIZARD",
+            "sid_pin": "ASSIGN_IN_WIZARD",
+            "encoder_pins": "^ASSIGN_IN_WIZARD, ^ASSIGN_IN_WIZARD",
+            "click_pin": "^!ASSIGN_IN_WIZARD"
+          }
+        }
+      },
+      "emulated_st7920": {
+        "name": "BTT TFT35/TFT50 (Emulated ST7920)",
+        "type": "lcd",
+        "driver": "emulated_st7920",
+        "description": "BTT touchscreen displays running in 12864 emulation mode",
+        "connection": "EXP1/EXP2 headers",
+        "klipper_config": {
+          "display": {
+            "lcd_type": "emulated_st7920",
+            "en_pin": "ASSIGN_IN_WIZARD",
+            "spi_software_sclk_pin": "ASSIGN_IN_WIZARD",
+            "spi_software_mosi_pin": "ASSIGN_IN_WIZARD",
+            "spi_software_miso_pin": "ASSIGN_IN_WIZARD",
+            "encoder_pins": "^ASSIGN_IN_WIZARD, ^ASSIGN_IN_WIZARD",
+            "click_pin": "^!ASSIGN_IN_WIZARD"
+          }
+        }
+      },
+      "ssd1306": {
+        "name": "OLED 128x64 (SSD1306)",
+        "type": "oled",
+        "driver": "ssd1306",
+        "resolution": "128x64",
+        "description": "Small I2C or SPI OLED display",
+        "connection": "I2C or SPI",
+        "klipper_config_i2c": {
+          "display": {
+            "lcd_type": "ssd1306",
+            "i2c_mcu": "ASSIGN_IN_WIZARD",
+            "i2c_bus": "ASSIGN_IN_WIZARD"
+          }
+        }
+      },
+      "sh1106": {
+        "name": "OLED 128x64 (SH1106)",
+        "type": "oled",
+        "driver": "sh1106",
+        "resolution": "128x64",
+        "description": "Alternative OLED driver, similar to SSD1306",
+        "connection": "I2C or SPI"
+      }
+    }
+  },
+
+  "common_displays": {
+    "btt_mini12864_v2": {
+      "name": "BTT Mini12864 V2.0",
+      "type": "uc1701",
+      "manufacturer": "BigTreeTech",
+      "features": ["Encoder", "RGB NeoPixels", "Beeper"],
+      "connection": "EXP1/EXP2"
+    },
+    "fysetc_mini12864": {
+      "name": "FYSETC Mini 12864",
+      "type": "uc1701",
+      "manufacturer": "FYSETC",
+      "features": ["Encoder", "RGB NeoPixels"],
+      "connection": "EXP1/EXP2"
+    },
+    "btt_tft35_e3": {
+      "name": "BTT TFT35 E3 V3.0",
+      "type": "dual_mode",
+      "manufacturer": "BigTreeTech",
+      "description": "Can run as touchscreen OR 12864 emulation mode",
+      "modes": ["Touch mode (Marlin)", "12864 emulation (Klipper)"],
+      "connection": "EXP1/EXP2 or dedicated TFT header"
+    },
+    "waveshare_2.42_oled": {
+      "name": "Waveshare 2.42\" OLED",
+      "type": "ssd1306",
+      "manufacturer": "Waveshare",
+      "resolution": "128x64",
+      "connection": "I2C or SPI"
+    }
+  }
+}
+

@@ -1,0 +1,84 @@
+{
+  "id": "cartographer",
+  "name": "Cartographer 3D Probe",
+  "manufacturer": "Cartographer3D",
+  "type": "eddy_current",
+  "connection": ["USB", "CAN"],
+  "source": "https://docs.cartographer3d.com/",
+  "description": "Eddy current probe with scan and touch modes. Requires Cartographer3D Klipper plugin.",
+
+  "features": {
+    "scan_mode": true,
+    "touch_mode": true,
+    "accelerometer": true,
+    "temperature_sensor": true,
+    "mesh_calibration": true
+  },
+
+  "klipper_config": {
+    "mcu cartographer": {
+      "_comment": "Remove either serial or canbus_uuid depending on your setup",
+      "serial": "/dev/serial/by-id/usb-Cartographer_XXXXXXXX",
+      "canbus_uuid": "XXXXXXXX",
+      "restart_method": "command"
+    },
+    "cartographer": {
+      "mcu": "cartographer",
+      "x_offset": 0,
+      "y_offset": 0,
+      "verbose": "yes"
+    },
+    "stepper_z": {
+      "endstop_pin": "probe:z_virtual_endstop",
+      "homing_retract_dist": 0
+    },
+    "bed_mesh": {
+      "zero_reference_position": "150, 150",
+      "speed": 300,
+      "horizontal_move_z": 3,
+      "probe_count": "20, 20",
+      "adaptive_margin": 10,
+      "mesh_pps": "0, 0"
+    },
+    "temperature_sensor cartographer": {
+      "sensor_type": "temperature_mcu",
+      "sensor_mcu": "cartographer",
+      "min_temp": 5,
+      "max_temp": 105
+    },
+    "adxl345": {
+      "cs_pin": "cartographer:PA3",
+      "spi_bus": "spi1"
+    },
+    "resonance_tester": {
+      "accel_chip": "adxl345",
+      "probe_points": "150, 150, 20"
+    }
+  },
+
+  "installation_notes": [
+    "Cartographer requires the Cartographer3D Klipper plugin",
+    "Install via: curl -s -L https://raw.githubusercontent.com/Cartographer3D/cartographer3d-plugin/refs/heads/main/scripts/install.sh | bash -s -- --klipper ~/klipper --klippy-env ~/klippy-env",
+    "Add Moonraker update manager section for automatic updates",
+    "Use scan mode for general homing, touch mode just before printing",
+    "Adjust x_offset and y_offset to match your probe mounting position"
+  ],
+
+  "moonraker_update_manager": {
+    "update_manager cartographer_plugin": {
+      "type": "python",
+      "channel": "stable",
+      "virtualenv": "~/klippy-env",
+      "project_name": "cartographer3d-plugin",
+      "is_system_service": false,
+      "managed_services": "klipper",
+      "info_tags": "desc=Cartographer Plugin"
+    }
+  },
+
+  "calibration_commands": [
+    "CARTOGRAPHER_CALIBRATE",
+    "CARTOGRAPHER_TOUCH_HOME"
+  ]
+}
+
