@@ -1,0 +1,308 @@
+# Safety Checks - Don't Brick The Printer
+
+## CRITICAL: SAFETY IS PARAMOUNT
+
+**A 3D printer is a safety-critical device:**
+- Heaters can cause fires
+- Steppers can crash into limits
+- Bad configs can destroy hardware
+- Updates may happen remotely without supervision
+
+**Your responsibility:** Ensure every change is safe and reversible.
+
+## PRE-DEPLOYMENT SAFETY CHECKLIST
+
+### Before ANY Config Change:
+
+- [ ] **Syntax validated** (colons not equals)
+- [ ] **Tested on dev printer** first
+- [ ] **Rollback plan** documented
+- [ ] **Breaking changes** identified and communicated
+- [ ] **Thermal limits** not exceeded (if touching heaters)
+- [ ] **Movement limits** verified (if touching steppers)
+- [ ] **Pin assignments** don't conflict
+- [ ] **Dependencies** met (required macros/sections exist)
+
+### Temperature Safety
+
+```ini
+# SAFE: Reasonable temperature limits
+[extruder]
+min_temp: 0
+max_temp: 300      # Safe for all-metal hotend
+
+[heater_bed]
+min_temp: 0
+max_temp: 130      # Safe for aluminum bed
+
+# DANGEROUS: Exceeds safe limits
+[extruder]
+max_temp: 500      # WAY TOO HIGH - can melt hotend
+min_temp: -50      # Disables safety - sensor could fail
+
+[heater_bed]
+max_temp: 200      # Too high - could warp bed or start fire
+```
+
+**NEVER:**
+- Set `min_temp` below 0 (disables sensor failure detection)
+- Set `max_temp` above hardware specifications
+- Disable thermal runaway protection
+- Set unrealistic `min_extrude_temp` values
+
+### Movement Safety
+
+```ini
+# SAFE: Within mechanical limits
+[stepper_x]
+position_min: 0
+position_max: 300      # Must match YOUR printer
+homing_speed: 50       # Safe homing speed
+second_homing_speed: 10  # Slow precision homing
+
+# DANGEROUS: Exceeds physical limits
+[stepper_x]
+position_max: 400      # Carriage will crash into frame!
+homing_speed: 200      # Too fast - could skip steps or crash
+position_min: -50      # Allows crashing into wrong side
+```
+
+**NEVER:**
+- Set `position_max` beyond physical travel
+- Set `position_min` to allow travel into danger zones
+- Set homing speeds too fast
+- Disable endstops without proper configuration
+
+### Pin Conflict Detection
+
+```bash
+# Check for duplicate pin assignments
+grep -rh "^[^#]*_pin:" *.cfg | \
+    sed 's/.*: //' | \
+    sed 's/[!^~]//g' | \
+    sort | \
+    uniq -d
+
+# Expected output: (none)
+# If pins are listed, you have conflicts!
+```
+
+**Common pin conflicts:**
+```ini
+# DANGEROUS: Same pin used twice
+[stepper_x]
+step_pin: PE9
+
+[stepper_y]
+step_pin: PE9    # CONFLICT - same as stepper_x!
+
+# SAFE: Each component has unique pins
+[stepper_x]
+step_pin: PE9
+
+[stepper_y]
+step_pin: PE11   # Different pin
+```
+
+## DANGEROUS CHANGES (REQUIRE EXTRA VALIDATION)
+
+### HIGH RISK - Requires Manual Supervision
+
+**Heater Configuration:**
+- PID tuning values (`pid_Kp`, `pid_Ki`, `pid_Kd`)
+- Temperature limits (`min_temp`, `max_temp`)
+- Sensor types (`sensor_type`)
+- Thermal protection settings
+
+**Stepper Configuration:**
+- Endstop positions (`position_endstop`)
+- Movement limits (`position_max`, `position_min`)
+- Rotation distance (affects steps/mm)
+- Microstepping settings
+
+**MCU Communication:**
+- Serial ports
+- Baud rates
+- Pin mappings
+
+**Testing required:**
+1. Heat to target temperature and verify stable
+2. Home all axes and verify correct positions
+3. Manually jog near limits and verify software stops
+4. Trigger emergency stop and verify all heaters/motors stop
+
+### MEDIUM RISK - Automated Testing OK
+
+**Macros:**
+- Print start/end sequences
+- Filament change procedures
+- Pause/resume logic
+- Auto-leveling routines
+
+**Fans:**
+- PWM settings
+- Temperature curves
+- Fan speeds
+
+**Display/Interface:**
+- Menu configurations
+- Display settings
+
+**Testing required:**
+1. Execute macro and observe behavior
+2. Verify no crashes or thermal issues
+3. Test cancel/abort scenarios
+
+### LOW RISK - Review Sufficient
+
+**Documentation:**
+- Comments
+- Descriptions
+- README updates
+
+**Non-Critical Features:**
+- LED colors
+- Beeper tones
+- Display messages
+
+## CONFIGURABLE SAFETY LIMITS
+
+Since gschpoozi supports multiple printer types, safety limits should be configurable per-printer. Example structure:
+
+```ini
+# In printer's variables.cfg
+[gcode_macro _PRINTER_LIMITS]
+variable_x_max: 300
+variable_y_max: 300
+variable_z_max: 350
+variable_extruder_max_temp: 300
+variable_bed_max_temp: 120
+
+# Macros can reference these
+[gcode_macro SAFE_MOVE]
+gcode:
+    {% set limits = printer["gcode_macro _PRINTER_LIMITS"] %}
+    {% if params.X|float > limits.x_max %}
+        { action_raise_error("X position exceeds safe limit!") }
+    {% endif %}
+    G1 X{params.X} F3000
+```
+
+## TESTING PROTOCOL
+
+### Level 1: Syntax & Static Analysis
+```bash
+# Run before committing
+./scripts/validate-config.sh your_config.cfg
+```
+
+### Level 2: Development Printer Test
+```bash
+# Deploy to test printer
+scp *.cfg user@testprinter:~/printer_data/config/
+
+# Monitor logs
+ssh user@testprinter "tail -f ~/printer_data/logs/klippy.log"
+
+# Manual test checklist:
+# [ ] Klipper starts successfully
+# [ ] All axes home correctly
+# [ ] Temperature sensors reading correctly
+# [ ] Heaters reach target temperature
+# [ ] No error messages in log
+# [ ] Emergency stop works
+```
+
+### Level 3: Production Use
+```bash
+# Only after successful Level 2 test
+
+# Monitor for 24 hours
+# [ ] No printer crashes
+# [ ] Prints complete successfully
+# [ ] No thermal runaway warnings
+# [ ] No unusual behavior
+```
+
+## EMERGENCY PROCEDURES
+
+### Thermal Runaway Detected
+```
+ACTION: Immediately power off printer
+CAUSE: Heater not responding to control
+RISK: Fire hazard
+
+Recovery:
+1. Physically disconnect printer power
+2. Roll back configuration: git revert HEAD
+3. Inspect hardware (heater, thermistor, connections)
+4. Re-tune PID if necessary
+5. Test thoroughly before redeploying
+```
+
+### Stepper Crash / Skipping
+```
+ACTION: Emergency stop (M112)
+CAUSE: Movement command exceeded safe limits
+RISK: Mechanical damage, belt skipping
+
+Recovery:
+1. Send M112 (emergency stop)
+2. Power cycle printer
+3. Inspect for mechanical damage
+4. Check belt tension
+5. Verify position_max/min in config
+6. Re-home carefully
+```
+
+### Communication Loss
+```
+ACTION: Printer appears offline
+CAUSE: Serial communication failure
+RISK: Loss of control during print
+
+Recovery:
+1. Don't power cycle during print (if possible)
+2. Check USB connection
+3. Review klippy.log for errors
+4. If safe, send M112 via console
+5. Investigate MCU/serial configuration
+```
+
+## SIGN-OFF REQUIREMENTS
+
+### Before Production Deployment:
+
+**For HIGH RISK changes:**
+- [ ] User explicitly approved change
+- [ ] Tested on development printer
+- [ ] Validation scripts passed
+- [ ] Rollback procedure documented
+- [ ] Someone available during deployment
+
+**For MEDIUM RISK changes:**
+- [ ] Validation scripts passed
+- [ ] Tested basic functionality
+- [ ] User aware of deployment
+
+**For LOW RISK changes:**
+- [ ] Code review completed
+- [ ] No conflicts with existing configs
+
+## ROLLBACK DECISION TREE
+
+```
+Issue detected after deployment?
+|
++-- YES, printer safety compromised (thermal/movement)
+|   +-> IMMEDIATE ROLLBACK
+|       +-> git revert && redeploy
+|
++-- YES, feature not working as expected
+|   +-> Can it wait for fix?
+|       +-- NO (affecting prints) -> ROLLBACK
+|       +-- YES (minor issue) -> Create issue, fix in next update
+|
++-- NO issues
+    +-> Monitor for 24 hours before next deployment
+```

@@ -1,0 +1,263 @@
+# Git Workflow - Safe Configuration Development
+
+## BRANCH STRATEGY
+
+### Simple Branch Model
+```
+main ─────────────────────────── (stable, tested)
+  │
+  └── feature/xxx ──────────────  (development work)
+```
+
+### Workflow Rules
+
+**Development on feature branches, merge to main when tested**
+```bash
+# Create feature branch
+git checkout -b feature/add-filament-macros
+
+# Work on changes
+# ... edit files ...
+
+# Commit with clear message
+git add macros/filament.cfg
+git commit -m "feat: add LOAD_FILAMENT and UNLOAD_FILAMENT macros"
+
+# Push and create PR (or merge directly for solo work)
+git push origin feature/add-filament-macros
+```
+
+## COMMIT STANDARDS
+
+### Commit Message Format
+```
+<type>: <short summary> (max 50 chars)
+
+<detailed description>
+- Why this change was needed
+- What specific problem it solves
+- Any side effects or considerations
+
+Testing:
+- Tested on: [printer type]
+- Test procedure: [specific steps]
+- Results: [what happened]
+
+Rollback:
+git revert <commit-hash>
+```
+
+### Commit Types:
+- `feat:` New feature (macro, module, etc.)
+- `fix:` Bug fix
+- `config:` Configuration change
+- `docs:` Documentation only
+- `refactor:` Code restructuring (no behavior change)
+- `test:` Adding tests
+- `chore:` Maintenance tasks
+
+### Examples:
+
+```
+# GOOD
+feat: add LOAD_FILAMENT macro with configurable speed
+
+Adds a macro for loading filament with user-adjustable parameters:
+- SPEED: extrusion speed in mm/min (default: 300)
+- LENGTH: extrusion length in mm (default: 50)
+
+Testing:
+- Tested on: Voron 2.4
+- Loaded PLA at various speeds
+- Results: Works correctly, no jams
+
+Rollback: git revert abc123
+
+
+# BAD
+fixed stuff
+
+Updated some files
+```
+
+## ATOMIC COMMITS
+
+### One Logical Change Per Commit
+```bash
+# GOOD: Separate, focused commits
+git add macros/filament.cfg
+git commit -m "feat: add LOAD_FILAMENT macro"
+
+git add macros/print_start.cfg
+git commit -m "fix: correct bed mesh loading order"
+
+# BAD: Everything in one commit
+git add .
+git commit -m "updates"  # What changed? Why? How to rollback?
+```
+
+### Why Atomic Commits Matter:
+1. **Easy rollback** - Can revert specific changes
+2. **Clear history** - Understand what changed when
+3. **Debugging** - Use `git bisect` to find when issue appeared
+4. **Selective deployment** - Deploy only specific fixes
+
+## DEPLOYMENT OPTIONS
+
+### Option 1: Manual Copy
+```bash
+# Copy specific files to printer
+scp macros/*.cfg user@printer:~/printer_data/config/gschpoozi/macros/
+
+# Restart Klipper
+ssh user@printer "sudo systemctl restart klipper"
+```
+
+### Option 2: Git Clone on Printer
+```bash
+# On the printer host
+cd ~/printer_data/config
+git clone https://github.com/user/gschpoozi.git
+
+# Update later
+cd gschpoozi && git pull
+```
+
+### Option 3: Moonraker Update Manager
+```ini
+# In moonraker.conf
+[update_manager gschpoozi]
+type: git_repo
+primary_branch: main
+path: ~/printer_data/config/gschpoozi
+origin: https://github.com/user/gschpoozi.git
+is_system_service: False
+```
+
+## EMERGENCY ROLLBACK
+
+### Scenario: Bad change deployed
+
+```bash
+# Find the bad commit
+git log --oneline -10
+
+# Option 1: Revert specific commit (RECOMMENDED)
+git revert abc123
+git push origin main
+
+# Option 2: Checkout specific file from previous commit
+git checkout HEAD~1 macros/print_start.cfg
+git commit -m "fix: rollback print_start.cfg to previous working version"
+git push origin main
+```
+
+### NEVER Force Push to main
+```bash
+# NEVER DO THIS
+git push --force origin main
+
+# Use revert instead
+git revert abc123
+git push origin main
+```
+
+## CONFIGURATION MANAGEMENT
+
+### Shared vs User-Specific Files
+
+**Shared Configs** (in gschpoozi repo):
+- Macro definitions
+- Hardware templates
+- Default profiles
+- Should work for multiple users
+
+**User-Specific Configs** (NOT in repo):
+- printer.cfg (user's main config)
+- Pin assignments
+- Calibration values
+- Personal preferences
+
+### Include Pattern
+```ini
+# In user's printer.cfg
+[include gschpoozi/macros/print_start.cfg]
+[include gschpoozi/macros/homing.cfg]
+
+# User overrides AFTER includes
+[gcode_macro PRINT_START]
+variable_my_custom_var: 100  # User customization
+```
+
+## VALIDATION BEFORE PUSH
+
+### Pre-Commit Checks
+```bash
+# 1. Run local validation scripts
+./scripts/validate-config.sh macros/new_macro.cfg
+
+# 2. Check for syntax errors
+grep -E '^[^#;]*= ' macros/*.cfg  # Should find nothing
+
+# 3. Review changes
+git diff --cached
+```
+
+## COLLABORATION GUIDELINES
+
+### Code Review Checklist
+- [ ] Config syntax correct? (colons not equals)
+- [ ] No redundant functions/macros?
+- [ ] Follows existing patterns?
+- [ ] Testing documented?
+- [ ] Rollback plan clear?
+- [ ] Commit message descriptive?
+- [ ] No hardcoded printer-specific values?
+
+## GIT ALIASES (OPTIONAL HELPERS)
+
+```bash
+# Add to ~/.gitconfig
+[alias]
+    # Show concise log
+    lg = log --oneline --graph --decorate --all -20
+
+    # Show files changed in last commit
+    last = diff --name-only HEAD~1 HEAD
+
+    # Undo last commit (keep changes)
+    undo = reset --soft HEAD~1
+
+    # Show recent commits
+    recent = log --oneline -10
+```
+
+## DISASTER RECOVERY
+
+### Scenario: Need to restore previous version
+
+```bash
+# See what files changed in a commit
+git show --name-only abc123
+
+# Restore a single file from history
+git checkout abc123 -- macros/print_start.cfg
+
+# Restore entire directory from history
+git checkout abc123 -- macros/
+
+# Create a commit with the restoration
+git commit -m "fix: restore macros to known working state"
+```
+
+### Scenario: Accidentally committed secrets/passwords
+
+```bash
+# Remove file from history (CAREFUL - rewrites history)
+git filter-branch --force --index-filter \
+  "git rm --cached --ignore-unmatch secrets.cfg" \
+  --prune-empty --tag-name-filter cat -- --all
+
+# Force push (only if absolutely necessary)
+git push origin --force --all
+```

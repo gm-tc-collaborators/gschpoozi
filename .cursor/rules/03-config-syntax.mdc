@@ -1,0 +1,394 @@
+# Config Syntax Validation - Prevent Breaking Changes
+
+## KLIPPER CONFIG FILE SYNTAX
+
+### THE GOLDEN RULE: COLON, NOT EQUALS
+
+```ini
+# CORRECT - This will work
+[stepper_x]
+step_pin: PE9
+dir_pin: PF1
+enable_pin: !PF2
+microsteps: 16
+
+# WRONG - This will cause Klipper to fail
+[stepper_x]
+step_pin = PE9  # NO! Use : not =
+dir_pin = PF1
+enable_pin = !PF2
+microsteps = 16
+```
+
+**Why it matters:**
+- Klipper parser is STRICT
+- Wrong syntax = printer won't start
+- One wrong character = entire config rejected
+
+## SECTION HEADERS
+
+### Valid Section Syntax
+```ini
+# CORRECT
+[section_name]
+[section_name object_name]
+[section_name object_name:additional_id]
+
+# Examples:
+[stepper_x]                              # Single section
+[extruder]                               # Main extruder
+[extruder1]                             # Second extruder
+[temperature_sensor chamber]             # Named sensor
+[gcode_macro PRINT_START]               # Named macro
+[filament_switch_sensor e0_sensor]      # Named filament sensor
+
+# WRONG
+[stepper-x]          # NO - use underscore not dash
+[Stepper_X]          # NO - case sensitive, must be lowercase
+[ stepper_x ]        # NO - no spaces inside brackets
+[stepper_x extruder] # NO - invalid combination
+```
+
+## PARAMETER SYNTAX
+
+### Basic Parameters
+```ini
+# CORRECT: Strings
+parameter: value
+parameter: value with spaces
+parameter: ~/printer_data/config/file.cfg
+
+# CORRECT: Numbers
+parameter: 123
+parameter: 123.45
+parameter: -10.5
+parameter: 1e6
+
+# CORRECT: Booleans
+parameter: True
+parameter: False
+
+# WRONG
+parameter: "value"       # NO quotes needed
+parameter : value        # NO space before colon
+parameter :value         # NO space missing after colon
+parameter= value         # NO equals sign
+```
+
+### Pin Definitions
+```ini
+# CORRECT: Pin modifiers
+pin: PA4           # Simple pin
+pin: ^PA4          # With internal pullup
+pin: !PA4          # Inverted
+pin: ^!PA4         # Pullup + inverted
+pin: ar20          # Arduino pin naming
+pin: analog11      # Analog pin
+
+# WRONG
+pin: PA4_PULLUP    # NO - use ^ for pullup
+pin: ~PA4          # NO - use ! for inversion
+pin: PA-4          # NO - must be valid pin name
+pin: ^!^PA4        # NO - duplicate modifiers
+```
+
+### Multi-Line Values (Gcode)
+```ini
+# CORRECT: Indented continuation
+[gcode_macro PRINT_START]
+gcode:
+    G28                    # Each line indented with 4 spaces or tab
+    G1 Z15.0 F6000
+    M117 Starting print
+    {% if params.BED_TEMP %}
+        M190 S{params.BED_TEMP}
+    {% endif %}
+
+# WRONG: Not indented
+[gcode_macro PRINT_START]
+gcode:
+G28              # NO - must be indented
+G1 Z15.0 F6000
+
+# WRONG: Inconsistent indentation
+[gcode_macro PRINT_START]
+gcode:
+    G28
+  G1 Z15.0       # NO - inconsistent spaces
+        M117 Starting
+```
+
+### Comments
+```ini
+# CORRECT: Comments
+# This is a full-line comment
+parameter: value  # This is an inline comment
+
+; This is also valid (semicolon comment)
+parameter: value  ; Another inline comment
+
+# WRONG
+// Not a valid comment style
+/* Not a valid comment style */
+<!-- Not a valid comment style -->
+```
+
+## COMMON SECTIONS & PARAMETERS
+
+### Must Verify Against Docs
+**Before using any section or parameter:**
+1. Check: https://www.klipper3d.org/Config_Reference.html
+2. Find exact section name
+3. Find exact parameter names
+4. Verify parameter types (string, float, int, bool)
+
+### Frequently Used Sections
+
+**Stepper Motors:**
+```ini
+[stepper_x]
+step_pin: PE9
+dir_pin: PF1
+enable_pin: !PF2
+microsteps: 16
+rotation_distance: 40
+endstop_pin: ^PG6
+position_endstop: 0
+position_max: 220
+homing_speed: 50
+```
+
+**Extruder:**
+```ini
+[extruder]
+step_pin: PA6
+dir_pin: PA4
+enable_pin: !PA7
+microsteps: 16
+rotation_distance: 7.71
+nozzle_diameter: 0.400
+filament_diameter: 1.750
+heater_pin: PA1
+sensor_type: EPCOS 100K B57560G104F
+sensor_pin: PF3
+control: pid
+pid_Kp: 22.2
+pid_Ki: 1.08
+pid_Kd: 114
+min_temp: 0
+max_temp: 300
+max_extrude_only_distance: 600
+```
+
+**Heated Bed:**
+```ini
+[heater_bed]
+heater_pin: PA2
+sensor_type: EPCOS 100K B57560G104F
+sensor_pin: PF4
+control: pid
+pid_Kp: 54.027
+pid_Ki: 0.770
+pid_Kd: 948.182
+min_temp: 0
+max_temp: 130
+```
+
+**Filament Sensor:**
+```ini
+[filament_switch_sensor e0_sensor]
+switch_pin: ^PA4                    # Pullup enabled
+pause_on_runout: True
+runout_gcode:
+    M117 Filament runout detected
+    M600
+insert_gcode:
+    M117 Filament inserted
+event_delay: 3.0
+pause_delay: 0.5
+```
+
+**G-code Macro:**
+```ini
+[gcode_macro MACRO_NAME]
+description: What this macro does
+gcode:
+    G28
+    G1 X10 Y10 F3000
+
+# With parameters:
+[gcode_macro LOAD_FILAMENT]
+description: Load filament into extruder
+gcode:
+    {% set speed = params.SPEED|default(300)|float %}
+    {% set length = params.LENGTH|default(50)|float %}
+    G91
+    G1 E{length} F{speed}
+    G90
+```
+
+## VALIDATION CHECKLIST
+
+### Before Committing Config Changes:
+
+```bash
+# 1. Check for equals instead of colons
+grep -E '^[^#;]*= ' your_config.cfg
+# Should return nothing
+
+# 2. Check section headers are lowercase
+grep -E '^\[[^]]*[A-Z]+[^]]*\]' your_config.cfg
+# Should return nothing (or just macro names)
+```
+
+### Manual Validation Steps:
+
+- [ ] All section headers use `[section_name]` format
+- [ ] All parameters use `:` not `=`
+- [ ] Pin definitions use correct modifiers (`^`, `!`)
+- [ ] Multi-line gcode is properly indented
+- [ ] No trailing spaces on parameter values
+- [ ] All sections/parameters verified in Config_Reference
+- [ ] Comments use `#` or `;`
+- [ ] No quotes around string values (unless path with spaces)
+
+## ANTI-HALLUCINATION: VERIFY BEFORE USE
+
+### DON'T INVENT PARAMETERS
+
+```ini
+# WRONG: Invented parameters (don't exist in Klipper)
+[extruder]
+filament_type: PLA              # NO - not a real parameter
+print_quality: high             # NO - not a real parameter
+auto_retract: True              # NO - not in extruder section
+
+# CORRECT: Actual parameters
+[extruder]
+max_extrude_only_distance: 600  # YES - real parameter
+max_extrude_cross_section: 5.0  # YES - real parameter
+pressure_advance: 0.05          # YES - real parameter
+```
+
+### VERIFY SECTION NAMES
+
+```ini
+# WRONG: These sections DON'T EXIST
+[filament_sensor e0]           # NO - use filament_switch_sensor
+[temperature_fan hotend]       # NO - use different section type
+[led_strip case_light]         # NO - use neopixel or other LED type
+
+# CORRECT: Actual section names
+[filament_switch_sensor e0_sensor]     # YES
+[temperature_fan electronics_fan]      # YES
+[neopixel case_light]                  # YES
+```
+
+## INCLUDE FILES
+
+### Include Syntax
+```ini
+# CORRECT
+[include path/to/file.cfg]
+[include ../relative/path.cfg]
+[include ~/printer_data/config/file.cfg]
+
+# Multiple includes:
+[include gschpoozi/macros/print_start.cfg]
+[include gschpoozi/macros/homing.cfg]
+[include gschpoozi/macros/filament.cfg]
+
+# WRONG
+include path/to/file.cfg       # NO - must be [include ...]
+[include "path/to/file.cfg"]   # NO - no quotes
+[includes path/to/file.cfg]    # NO - includes not include
+```
+
+### Include Order Matters
+```ini
+# CORRECT: Base config first, overrides last
+[include gschpoozi/base.cfg]
+[include gschpoozi/macros/all.cfg]
+
+# Printer-specific overrides come AFTER includes
+[stepper_x]
+position_max: 235  # Overrides value from base.cfg
+
+# WRONG: Override before include (gets overwritten)
+[stepper_x]
+position_max: 235  # This will be overwritten!
+
+[include gschpoozi/base.cfg]
+```
+
+## TEMPLATE VARIABLES (Jinja2)
+
+### In Macros Only
+```ini
+[gcode_macro EXAMPLE]
+gcode:
+    # CORRECT: Jinja2 syntax in macros
+    {% set temp = params.TEMP|default(200)|float %}
+    {% if printer.toolhead.homed_axes != "xyz" %}
+        G28
+    {% endif %}
+    M104 S{temp}
+
+    # WRONG: Python syntax (this is Jinja2)
+    temp = params.get('TEMP', 200)  # NO
+    if not printer.toolhead.homed_axes == "xyz":  # NO
+        G28
+```
+
+### Available Objects
+```ini
+# Commonly used printer objects:
+printer.toolhead.position.x
+printer.toolhead.position.y
+printer.toolhead.position.z
+printer.toolhead.homed_axes
+printer.extruder.temperature
+printer.extruder.target
+printer.heater_bed.temperature
+printer.gcode_move.speed_factor
+printer["filament_switch_sensor e0_sensor"].enabled
+
+# Don't invent objects - verify in docs:
+printer.filament.loaded  # NO - doesn't exist
+printer.bed.leveled      # NO - wrong syntax
+```
+
+## TESTING CONFIGS
+
+### Safe Testing Procedure
+```bash
+# 1. Make backup
+cp printer.cfg printer.cfg.backup
+
+# 2. Edit file
+vim printer.cfg
+
+# 3. Restart Klipper
+sudo systemctl restart klipper
+
+# 4. Watch logs
+tail -f ~/printer_data/logs/klippy.log
+
+# 5. If error, rollback:
+mv printer.cfg.backup printer.cfg
+sudo systemctl restart klipper
+```
+
+### Common Errors
+
+**Error: "Option 'step_pin' is not valid in section 'stepper_x'"**
+- Fix: Check parameter name in Config_Reference
+- Likely: typo in parameter name
+
+**Error: "Unable to parse option 'microsteps' in section 'stepper_x'"**
+- Fix: Check parameter value type
+- Likely: string when number expected, or vice versa
+
+**Error: "Section 'filament_sensor' is not a valid config section"**
+- Fix: Check section name in Config_Reference
+- Likely: wrong section name (should be filament_switch_sensor)

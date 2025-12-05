@@ -1,0 +1,341 @@
+# Testing Requirements - Verify Before Deploy
+
+## TESTING PHILOSOPHY
+
+**Every change must be tested BEFORE production deployment.**
+
+Why:
+- Printers run unattended (failures can be dangerous/expensive)
+- Remote updates mean you can't physically intervene
+- One bad config can brick a printer
+- Users trust the system to work safely
+
+## TESTING PYRAMID
+
+```
+           /\
+          /  \
+         / E2E \        End-to-End (Actual prints)
+        /______\
+       /        \
+      /   Func   \      Functional (Feature testing)
+     /____________\
+    /              \
+   /    Syntax +    \   Syntax & Static Analysis
+  /   Static Check   \
+ /____________________\
+```
+
+## LEVEL 1: SYNTAX & STATIC CHECKS (Mandatory)
+
+### Always Run Before Commit
+
+```bash
+#!/bin/bash
+# scripts/pre-commit-checks.sh
+
+set -e
+
+echo "Running pre-commit checks..."
+
+# 1. Check for equals instead of colons
+echo "-> Checking parameter syntax..."
+if grep -rE '^[^#;]*= ' *.cfg 2>/dev/null; then
+    echo "ERROR: Found '=' instead of ':'"
+    exit 1
+fi
+
+# 2. Check for common section name typos
+echo "-> Checking section names..."
+if grep -qi '^\[filament_sensor' *.cfg 2>/dev/null; then
+    echo "WARNING: Found [filament_sensor] - should be [filament_switch_sensor]"
+fi
+
+# 3. Check for TODO/FIXME
+echo "-> Checking for TODO markers..."
+if grep -rn "TODO\|FIXME\|XXX" *.cfg 2>/dev/null; then
+    echo "WARNING: Found TODO/FIXME markers - review before deployment"
+fi
+
+echo "All pre-commit checks passed!"
+```
+
+### Static Analysis Checklist
+
+- [ ] Klipper syntax valid (colons not equals)
+- [ ] Temperature limits safe
+- [ ] Movement limits reasonable
+- [ ] No pin conflicts
+- [ ] All includes resolve correctly
+- [ ] No orphaned sections (missing dependencies)
+
+## LEVEL 2: FUNCTIONAL TESTING (Required for Features)
+
+### Test New Macros
+
+```gcode
+# Example: Testing LOAD_FILAMENT macro
+
+# Test 1: Default parameters
+LOAD_FILAMENT
+# Expected: Extrudes 50mm at 300mm/min
+# Verify: Filament moves, no grinding, no errors
+
+# Test 2: Custom parameters
+LOAD_FILAMENT SPEED=500 LENGTH=100
+# Expected: Extrudes 100mm at 500mm/min
+# Verify: Parameters applied correctly
+
+# Test 3: Edge cases
+LOAD_FILAMENT SPEED=1 LENGTH=1
+# Expected: Very slow extrusion
+# Verify: No stall, completes successfully
+
+# Test 4: Error handling
+LOAD_FILAMENT SPEED=abc
+# Expected: Error or fallback to default
+# Verify: Macro handles invalid input gracefully
+```
+
+### Test Configuration Changes
+
+**Changing Temperature:**
+```gcode
+# After modifying extruder max_temp to 285
+
+# Test 1: Heat to old max
+M104 S275
+# Expected: Reaches and maintains temperature
+# Verify: No thermal runaway warnings
+
+# Test 2: Heat to new max
+M104 S285
+# Expected: Reaches and maintains temperature
+# Verify: Safety still works, no overshoot
+
+# Test 3: Try to exceed new max
+M104 S290
+# Expected: Rejected with error
+# Verify: Safety limit enforced
+```
+
+**Changing Movement Limits:**
+```gcode
+# After modifying stepper_x position_max to 235
+
+# Test 1: Home X
+G28 X
+# Expected: Homes correctly
+# Verify: Endstop position matches physical position
+
+# Test 2: Move to new max
+G1 X235 F3000
+# Expected: Reaches X235 without crashing
+# Verify: Toolhead stops at correct position
+
+# Test 3: Try to exceed new max
+G1 X240 F3000
+# Expected: Rejected with "Move out of range" error
+# Verify: Software limit working
+```
+
+### Functional Test Checklist
+
+For each new feature or change:
+
+- [ ] Feature works as intended
+- [ ] Parameters validated correctly
+- [ ] Error handling works (invalid inputs gracefully handled)
+- [ ] No unintended side effects
+- [ ] Logs show expected messages
+- [ ] Can be cancelled/aborted safely
+- [ ] Recovery procedures work (if applicable)
+
+## LEVEL 3: INTEGRATION TESTING (Actual Printing)
+
+### Test Print Protocol
+
+**Small Test Print (Required for Movement Changes):**
+```
+Print: 20mm calibration cube
+Material: PLA
+Duration: ~15 minutes
+
+Checks:
+- [ ] First layer adhesion good
+- [ ] Dimensions accurate (20mm +/- 0.1mm)
+- [ ] No layer shifts
+- [ ] No artifacts or defects
+- [ ] Temperature stable throughout
+- [ ] No warnings/errors in logs
+```
+
+**Standard Test Print (Required for Major Changes):**
+```
+Print: Benchy or similar benchmark
+Material: PLA or PETG
+Duration: ~1 hour
+
+Checks:
+- [ ] All features print correctly
+- [ ] Overhangs, bridges work
+- [ ] Temperature control stable
+- [ ] Retraction working
+- [ ] No missed steps
+- [ ] Print completes successfully
+- [ ] Part quality acceptable
+```
+
+**Long Test Print (Required for Thermal/Firmware Changes):**
+```
+Print: Large model (>4 hours)
+Material: Any
+Duration: 4+ hours
+
+Checks:
+- [ ] No thermal runaway over time
+- [ ] No communication errors
+- [ ] Memory stable (no leaks)
+- [ ] Consistent print quality
+- [ ] Completes successfully
+- [ ] No degradation over time
+```
+
+### Integration Test Scenarios
+
+**Filament Runout (If Adding Sensor):**
+```
+1. Start print
+2. Remove filament mid-print
+3. Verify: Print pauses automatically
+4. Verify: Pause macro executes
+5. Insert new filament
+6. Resume print
+7. Verify: Print continues correctly
+```
+
+**Power Loss Recovery (If Enabled):**
+```
+1. Start print
+2. Simulate power loss (safely)
+3. Power on printer
+4. Verify: Recovery prompt appears
+5. Choose to resume
+6. Verify: Print continues from same position
+7. Verify: Quality matches pre-interruption
+```
+
+**Emergency Stop:**
+```
+1. Start print
+2. Send M112 (emergency stop)
+3. Verify: All heaters/motors stop immediately
+4. Verify: Printer safe state achieved
+5. Power cycle
+6. Verify: Can home and start new print
+```
+
+## REGRESSION TESTING
+
+### After ANY Change, Verify Core Functions:
+
+```gcode
+# Basic motion
+G28          # Home all axes
+G1 X100 Y100 Z50 F3000  # Move to position
+
+# Temperature control
+M104 S200    # Set extruder temp
+M140 S60     # Set bed temp
+# Wait 5 minutes
+M105         # Verify temps stable
+
+# Extrusion
+G91          # Relative mode
+G1 E10 F300  # Extrude 10mm
+G90          # Absolute mode
+
+# Standard macros
+PRINT_START BED_TEMP=60 EXTRUDER_TEMP=200
+# Verify: Homing, heating, leveling work
+PRINT_END
+# Verify: Parks, cools, disables motors
+```
+
+## TEST DOCUMENTATION
+
+### Required for Each Feature:
+
+```markdown
+## Feature: Filament Runout Detection
+
+### Test Plan
+
+**Prerequisites:**
+- Filament sensor installed
+- PAUSE macro configured
+- M600 macro for filament change
+
+**Test Cases:**
+
+1. **Normal Operation**
+   - Setup: Load filament, start print
+   - Action: None
+   - Expected: Sensor shows filament detected, print continues
+   - Result: [ ] PASS / [ ] FAIL
+
+2. **Runout Detection**
+   - Setup: Start print
+   - Action: Remove filament during print
+   - Expected: Print pauses, displays "Filament runout detected"
+   - Result: [ ] PASS / [ ] FAIL
+
+3. **Filament Reload**
+   - Setup: Trigger runout
+   - Action: Insert new filament, execute M600
+   - Expected: Filament loads, print can resume
+   - Result: [ ] PASS / [ ] FAIL
+
+**Regression Tests:**
+- Standard macros still work: [ ] PASS
+- Temperature control unaffected: [ ] PASS
+- No performance degradation: [ ] PASS
+
+**Tested By:** _______________
+**Date:** _______________
+```
+
+## WHEN TO SKIP TESTS (NEVER)
+
+**Don't skip tests because:**
+- "It's a small change" - Small changes can have big impacts
+- "I'm in a hurry" - Rushing causes problems
+- "It worked in my test" - Different environments, different results
+- "It's just comments" - Even comments can break parsing
+
+**Only exception:**
+- Documentation-only changes (README, comments in .md files)
+- Even then, verify the change doesn't break any links or formatting
+
+## MONITORING POST-DEPLOYMENT
+
+### First 24 Hours After Update
+
+```bash
+# Check Klipper logs for errors
+tail -f ~/printer_data/logs/klippy.log
+
+# Watch for common issues:
+# - Communication errors
+# - Thermal runaways
+# - Movement errors
+# - Macro failures
+```
+
+### Metrics to Track
+
+- **Print Success Rate:** Should remain high
+- **Average Print Time:** Should not increase significantly
+- **Error Count:** Should remain low
+- **Restart Count:** Should not increase
+- **User Reports:** Should remain minimal
