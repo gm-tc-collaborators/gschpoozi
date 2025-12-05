@@ -1475,29 +1475,36 @@ EOF
 
 add_moonraker_entry() {
     local moonraker_conf="${DEFAULT_CONFIG_DIR}/moonraker.conf"
-    
-    if [[ ! -f "${moonraker_conf}" ]]; then
-        echo -e "${YELLOW}moonraker.conf not found at ${moonraker_conf}${NC}"
-        echo -e "Add this to your moonraker.conf manually:"
-    else
-        echo -e "Add this to your moonraker.conf:"
-    fi
-    
-    cat << 'EOF'
-
+    local entry="
 ##### gschpoozi Configuration Update Manager ----------------
 [update_manager gschpoozi]
 type: git_repo
 primary_branch: main
 path: ~/gschpoozi
 origin: https://github.com/gueee/gschpoozi.git
-install_script: scripts/update-manager/moonraker-update.sh
 is_system_service: False
 managed_services: klipper
 info_tags:
     desc=gschpoozi Klipper Configuration Framework
-
-EOF
+"
+    
+    if [[ ! -f "${moonraker_conf}" ]]; then
+        echo -e "${YELLOW}moonraker.conf not found at ${moonraker_conf}${NC}"
+        echo -e "Add this to your moonraker.conf manually:"
+        echo "$entry"
+        return
+    fi
+    
+    # Check if entry already exists
+    if grep -q "\[update_manager gschpoozi\]" "${moonraker_conf}"; then
+        echo -e "${GREEN}Update manager entry already exists in moonraker.conf${NC}"
+        return
+    fi
+    
+    # Add entry to moonraker.conf
+    echo "$entry" >> "${moonraker_conf}"
+    echo -e "${GREEN}✓ Added update manager entry to moonraker.conf${NC}"
+    echo -e "${CYAN}Restart Moonraker to see gschpoozi in the update manager.${NC}"
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
