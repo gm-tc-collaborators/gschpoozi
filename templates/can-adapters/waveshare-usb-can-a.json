@@ -1,0 +1,24 @@
+{
+  "id": "waveshare-usb-can-a",
+  "name": "Waveshare USB-CAN-A",
+  "manufacturer": "Waveshare",
+  "type": "usb-can-adapter",
+  "description": "USB to CAN adapter based on STM32F072, supports slcan or native CAN",
+
+  "can_interface": "can0",
+  "default_bitrate": 1000000,
+  
+  "setup_instructions": [
+    "1. Flash with CAN bridge firmware (candlelight or gs_usb)",
+    "2. Connect to Pi via USB",
+    "3. Create /etc/network/interfaces.d/can0 with:",
+    "   allow-hotplug can0",
+    "   iface can0 can static",
+    "       bitrate 1000000",
+    "       up ifconfig $IFACE txqueuelen 1024",
+    "4. Reboot or run: sudo ip link set can0 up type can bitrate 1000000"
+  ],
+  
+  "find_uuid_command": "~/klippy-env/bin/python ~/klipper/scripts/canbus_query.py can0"
+}
+

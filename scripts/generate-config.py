@@ -169,9 +169,18 @@ def generate_hardware_cfg(
     # Toolboard MCU if present
     if toolboard:
         tb_name = hardware_state.get('toolboard_name', 'Toolboard')
+        tb_connection = toolboard.get('connection', 'USB').upper()
         lines.append(f"[mcu toolboard]")
-        lines.append("serial: /dev/serial/by-id/REPLACE_WITH_TOOLBOARD_ID")
-        lines.append(f"# {tb_name}")
+        
+        if tb_connection == 'CAN':
+            lines.append("canbus_uuid: REPLACE_WITH_CANBUS_UUID")
+            lines.append("# Run: ~/klippy-env/bin/python ~/klipper/scripts/canbus_query.py can0")
+            lines.append("# to find your toolboard's canbus_uuid")
+        else:
+            lines.append("serial: /dev/serial/by-id/REPLACE_WITH_TOOLBOARD_ID")
+            lines.append("# Run: ls /dev/serial/by-id/* to find your toolboard")
+        
+        lines.append(f"# {tb_name} ({tb_connection})")
         lines.append("")
     
     # Printer section

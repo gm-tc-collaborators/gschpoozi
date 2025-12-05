@@ -1,0 +1,32 @@
+{
+  "id": "btt-u2c-v2-1",
+  "name": "BTT U2C v2.1",
+  "manufacturer": "BigTreeTech",
+  "type": "usb-can-adapter",
+  "description": "USB to CAN adapter with 3 CAN outputs, supports up to 1Mbps",
+  "source": "https://github.com/bigtreetech/U2C",
+
+  "can_interface": "can0",
+  "default_bitrate": 1000000,
+  
+  "setup_instructions": [
+    "1. Flash Katapult bootloader and CAN bridge firmware to U2C",
+    "2. Connect U2C to Pi via USB",
+    "3. Create /etc/network/interfaces.d/can0 with:",
+    "   allow-hotplug can0",
+    "   iface can0 can static",
+    "       bitrate 1000000",
+    "       up ifconfig $IFACE txqueuelen 1024",
+    "4. Reboot or run: sudo ip link set can0 up type can bitrate 1000000",
+    "5. Check with: ip -s link show can0"
+  ],
+  
+  "find_uuid_command": "~/klippy-env/bin/python ~/klipper/scripts/canbus_query.py can0",
+  
+  "notes": [
+    "Ensure 120 ohm termination resistors at each end of CAN bus",
+    "Maximum recommended cable length: 40m at 1Mbps",
+    "Use twisted pair wiring for CAN_H and CAN_L"
+  ]
+}
+
