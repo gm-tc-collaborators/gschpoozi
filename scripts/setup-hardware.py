@@ -540,6 +540,91 @@ def assign_heater_ports(board: Dict):
     
     wait_for_key()
 
+def assign_endstop_ports(board: Dict):
+    """Assign endstop ports for X, Y, and optionally Z."""
+    endstop_ports = board.get('endstop_ports', board.get('gpio_ports', {}))
+    
+    if not endstop_ports:
+        print(f"{Colors.YELLOW}No endstop/GPIO ports defined for this board{Colors.NC}")
+        wait_for_key()
+        return
+    
+    clear_screen()
+    print_header("Assign Endstop Ports")
+    
+    endstop_list = list(endstop_ports.keys())
+    wizard_state = load_wizard_state()
+    kinematics = wizard_state.get('kinematics', 'corexy')
+    probe_type = wizard_state.get('probe_type', '')
+    
+    # Determine required endstops
+    required_endstops = ['endstop_x', 'endstop_y']
+    
+    # AWD may need X1 and Y1 endstops for sensorless homing
+    # (but typically CoreXY AWD uses shared endstops)
+    
+    # Z endstop only needed if NOT using a probe with virtual endstop
+    if probe_type in ('', 'none', 'endstop'):
+        required_endstops.append('endstop_z')
+    
+    for endstop_func in required_endstops:
+        clear_screen()
+        print_header(f"Select Port for: {endstop_func.replace('_', ' ').title()}")
+        
+        print_info(f"Available endstop/GPIO ports:")
+        print_info("")
+        
+        num = 1
+        for port_name in endstop_list:
+            port = endstop_ports[port_name]
+            label = port.get('label', port_name)
+            
+            # Check if already used
+            used_by = None
+            for func, assigned_port in state.port_assignments.items():
+                if assigned_port == port_name and func != endstop_func:
+                    used_by = func
+                    break
+            
+            if used_by:
+                status_text = f"{Colors.YELLOW}(used by {used_by}){Colors.NC}"
+            else:
+                status_text = ""
+            
+            current = state.port_assignments.get(endstop_func, "")
+            status = "done" if current == port_name else ""
+            print_menu_item(str(num), f"{port_name} - {label}", status_text, status)
+            num += 1
+        
+        # Option for sensorless homing (uses DIAG pin from driver)
+        print_info("")
+        print_menu_item(str(num), "Sensorless homing (DIAG pin)", "Uses TMC driver", "")
+        
+        print_separator()
+        print_action("S", "Skip this endstop")
+        print_action("B", "Back")
+        print_footer()
+        
+        choice = prompt("Select port").strip()
+        
+        if choice.lower() == 'b':
+            return
+        elif choice.lower() == 's':
+            continue
+        
+        try:
+            idx = int(choice) - 1
+            if 0 <= idx < len(endstop_list):
+                state.port_assignments[endstop_func] = endstop_list[idx]
+            elif idx == len(endstop_list):
+                # Sensorless homing
+                state.port_assignments[endstop_func] = "sensorless"
+        except ValueError:
+            pass
+    
+    print(f"\n{Colors.GREEN}Endstop assignments saved!{Colors.NC}")
+    wait_for_key()
+
 def assign_fan_ports(board: Dict):
     """Assign fan ports."""
     fan_ports = board.get('fan_ports', {})
@@ -711,15 +796,25 @@ def main_menu():
             motor_info = get_motor_port_summary()
             print_menu_item("3", "Motor Ports", motor_info, motors_status)
             
+            # Check endstop status
+            wizard_state = load_wizard_state()
+            probe_type = wizard_state.get('probe_type', '')
+            endstops_needed = ['endstop_x', 'endstop_y']
+            if probe_type in ('', 'none', 'endstop'):
+                endstops_needed.append('endstop_z')
+            endstops_status = "done" if all(e in state.port_assignments for e in endstops_needed) else ""
+            endstop_info = "X, Y" + (", Z" if 'endstop_z' in endstops_needed else " (Z via probe)")
+            print_menu_item("4", "Endstop Ports", endstop_info, endstops_status)
+            
             heater_info = "bed"
             if not has_toolboard:
                 heater_info += " + hotend"
-            print_menu_item("4", "Heater & Thermistor Ports", heater_info, heaters_status)
+            print_menu_item("5", "Heater & Thermistor Ports", heater_info, heaters_status)
             
             fan_info = "controller"
             if not has_toolboard:
                 fan_info += " + part cooling + hotend"
-            print_menu_item("5", "Fan Ports", fan_info, fans_status)
+            print_menu_item("6", "Fan Ports", fan_info, fans_status)
         else:
             print_info(f"  {Colors.YELLOW}Select a board first to configure ports{Colors.NC}")
         
@@ -743,8 +838,12 @@ def main_menu():
         elif choice == '4' and state.board_id:
             board = boards.get(state.board_id)
             if board:
-                assign_heater_ports(board)
+                assign_endstop_ports(board)
         elif choice == '5' and state.board_id:
+            board = boards.get(state.board_id)
+            if board:
+                assign_heater_ports(board)
+        elif choice == '6' and state.board_id:
             board = boards.get(state.board_id)
             if board:
                 assign_fan_ports(board)

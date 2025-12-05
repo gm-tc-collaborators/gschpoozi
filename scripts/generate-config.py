@@ -203,11 +203,14 @@ def generate_hardware_cfg(
     lines.append("rotation_distance: 40")
     
     # Endstop - check for sensorless or physical
-    x_endstop = assignments.get('endstop_x')
-    if x_endstop:
-        lines.append(f"endstop_pin: ^{get_endstop_pin(board, x_endstop)}  # {x_endstop}")
+    x_endstop = assignments.get('endstop_x', '')
+    if x_endstop == 'sensorless':
+        lines.append(f"endstop_pin: tmc2209_stepper_x:virtual_endstop  # Sensorless homing")
+    elif x_endstop:
+        endstop_pin = get_endstop_pin(board, x_endstop)
+        lines.append(f"endstop_pin: ^{endstop_pin}  # {x_endstop}")
     else:
-        lines.append(f"endstop_pin: ^{x_pins.get('diag_pin', 'REPLACE_PIN')}  # Sensorless or physical")
+        lines.append(f"endstop_pin: ^REPLACE_PIN  # Configure X endstop port")
     
     lines.append("position_min: 0")
     lines.append(f"position_max: {bed_x}")
@@ -226,11 +229,14 @@ def generate_hardware_cfg(
     lines.append("microsteps: 16")
     lines.append("rotation_distance: 40")
     
-    y_endstop = assignments.get('endstop_y')
-    if y_endstop:
-        lines.append(f"endstop_pin: ^{get_endstop_pin(board, y_endstop)}  # {y_endstop}")
+    y_endstop = assignments.get('endstop_y', '')
+    if y_endstop == 'sensorless':
+        lines.append(f"endstop_pin: tmc2209_stepper_y:virtual_endstop  # Sensorless homing")
+    elif y_endstop:
+        endstop_pin = get_endstop_pin(board, y_endstop)
+        lines.append(f"endstop_pin: ^{endstop_pin}  # {y_endstop}")
     else:
-        lines.append(f"endstop_pin: ^{y_pins.get('diag_pin', 'REPLACE_PIN')}  # Sensorless or physical")
+        lines.append(f"endstop_pin: ^REPLACE_PIN  # Configure Y endstop port")
     
     lines.append("position_min: 0")
     lines.append(f"position_max: {bed_y}")
