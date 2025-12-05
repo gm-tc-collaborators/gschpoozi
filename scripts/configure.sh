@@ -186,18 +186,21 @@ HARDWARE_STATE_FILE="${REPO_ROOT}/.hardware-state.json"
 load_hardware_state() {
     if [[ -f "${HARDWARE_STATE_FILE}" ]]; then
         # Parse JSON using Python (guaranteed to be available)
-        local board_id board_name toolboard_id toolboard_name
-        
+        # Note: Use 'or' to handle None values properly
         eval "$(python3 -c "
 import json
 try:
     with open('${HARDWARE_STATE_FILE}') as f:
         data = json.load(f)
-    print(f\"WIZARD_STATE[board]='{data.get('board_id', '')}'\")
-    print(f\"WIZARD_STATE[board_name]='{data.get('board_name', '')}'\")
-    print(f\"WIZARD_STATE[toolboard]='{data.get('toolboard_id', '')}'\")
-    print(f\"WIZARD_STATE[toolboard_name]='{data.get('toolboard_name', '')}'\")
-except:
+    board_id = data.get('board_id') or ''
+    board_name = data.get('board_name') or ''
+    toolboard_id = data.get('toolboard_id') or ''
+    toolboard_name = data.get('toolboard_name') or ''
+    print(f\"WIZARD_STATE[board]='{board_id}'\")
+    print(f\"WIZARD_STATE[board_name]='{board_name}'\")
+    print(f\"WIZARD_STATE[toolboard]='{toolboard_id}'\")
+    print(f\"WIZARD_STATE[toolboard_name]='{toolboard_name}'\")
+except Exception as e:
     pass
 " 2>/dev/null)"
     fi
@@ -1084,6 +1087,9 @@ generate_config() {
     fi
     
     echo -e "\n${CYAN}Generating configuration...${NC}"
+    
+    # Save state to disk BEFORE generating (Python scripts read from file!)
+    save_state
     
     # Create output directory
     mkdir -p "${OUTPUT_DIR}"
