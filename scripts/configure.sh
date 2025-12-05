@@ -999,9 +999,8 @@ menu_probe() {
     echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}3)${NC} [ ] Cartographer ${carto_status}"
     echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}4)${NC} [ ] BTT Eddy ${eddy_status}"
     print_menu_item "5" "" "Klicky Probe"
-    print_menu_item "6" "" "Inductive Probe"
-    print_menu_item "7" "" "Microswitch (Z endstop)"
-    print_menu_item "8" "" "None"
+    print_menu_item "6" "" "Inductive Probe (PINDA/SuperPINDA)"
+    print_menu_item "7" "" "Physical Z Endstop (no probe)"
     print_separator
     print_action_item "B" "Back to Main Menu"
     print_footer
@@ -1027,7 +1026,6 @@ menu_probe() {
         5) WIZARD_STATE[probe_type]="klicky" ;;
         6) WIZARD_STATE[probe_type]="inductive" ;;
         7) WIZARD_STATE[probe_type]="endstop" ;;
-        8) WIZARD_STATE[probe_type]="none" ;;
         [bB]) return ;;
         *) return ;;
     esac
