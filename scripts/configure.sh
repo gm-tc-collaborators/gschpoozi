@@ -206,14 +206,26 @@ install_probe_module() {
     case "$probe" in
         beacon)
             echo -e "\n${CYAN}Installing Beacon Klipper module...${NC}"
+            cd "${HOME}"
             if [[ -d "${HOME}/beacon_klipper" ]]; then
-                echo -e "${YELLOW}Beacon directory exists, updating...${NC}"
-                cd "${HOME}/beacon_klipper"
-                git fetch --all
-                git reset --hard origin/main || git reset --hard origin/master
-                git pull || true
+                # Check if it's a valid git repo
+                if [[ -d "${HOME}/beacon_klipper/.git" ]]; then
+                    echo -e "${YELLOW}Beacon directory exists, updating...${NC}"
+                    cd "${HOME}/beacon_klipper"
+                    git fetch --all
+                    git reset --hard origin/main || git reset --hard origin/master
+                    git pull || true
+                else
+                    # Directory exists but not a valid git repo - remove and re-clone
+                    echo -e "${YELLOW}Beacon directory exists but is not a valid git repo, removing...${NC}"
+                    rm -rf "${HOME}/beacon_klipper"
+                    if ! git clone https://github.com/beacon3d/beacon_klipper.git; then
+                        echo -e "${RED}Failed to clone Beacon repository${NC}"
+                        set -e
+                        return 1
+                    fi
+                fi
             else
-                cd "${HOME}"
                 if ! git clone https://github.com/beacon3d/beacon_klipper.git; then
                     echo -e "${RED}Failed to clone Beacon repository${NC}"
                     set -e
@@ -229,14 +241,24 @@ install_probe_module() {
             ;;
         cartographer)
             echo -e "\n${CYAN}Installing Cartographer Klipper module...${NC}"
+            cd "${HOME}"
             if [[ -d "${HOME}/cartographer-klipper" ]]; then
-                echo -e "${YELLOW}Cartographer directory exists, updating...${NC}"
-                cd "${HOME}/cartographer-klipper"
-                git fetch --all
-                git reset --hard origin/main || git reset --hard origin/master
-                git pull || true
+                if [[ -d "${HOME}/cartographer-klipper/.git" ]]; then
+                    echo -e "${YELLOW}Cartographer directory exists, updating...${NC}"
+                    cd "${HOME}/cartographer-klipper"
+                    git fetch --all
+                    git reset --hard origin/main || git reset --hard origin/master
+                    git pull || true
+                else
+                    echo -e "${YELLOW}Cartographer directory exists but is not a valid git repo, removing...${NC}"
+                    rm -rf "${HOME}/cartographer-klipper"
+                    if ! git clone https://github.com/Cartographer3D/cartographer-klipper.git; then
+                        echo -e "${RED}Failed to clone Cartographer repository${NC}"
+                        set -e
+                        return 1
+                    fi
+                fi
             else
-                cd "${HOME}"
                 if ! git clone https://github.com/Cartographer3D/cartographer-klipper.git; then
                     echo -e "${RED}Failed to clone Cartographer repository${NC}"
                     set -e
@@ -252,14 +274,24 @@ install_probe_module() {
             ;;
         btt-eddy)
             echo -e "\n${CYAN}Installing BTT Eddy module...${NC}"
+            cd "${HOME}"
             if [[ -d "${HOME}/Eddy" ]]; then
-                echo -e "${YELLOW}BTT Eddy directory exists, updating...${NC}"
-                cd "${HOME}/Eddy"
-                git fetch --all
-                git reset --hard origin/main || git reset --hard origin/master
-                git pull || true
+                if [[ -d "${HOME}/Eddy/.git" ]]; then
+                    echo -e "${YELLOW}BTT Eddy directory exists, updating...${NC}"
+                    cd "${HOME}/Eddy"
+                    git fetch --all
+                    git reset --hard origin/main || git reset --hard origin/master
+                    git pull || true
+                else
+                    echo -e "${YELLOW}BTT Eddy directory exists but is not a valid git repo, removing...${NC}"
+                    rm -rf "${HOME}/Eddy"
+                    if ! git clone https://github.com/bigtreetech/Eddy.git; then
+                        echo -e "${RED}Failed to clone BTT Eddy repository${NC}"
+                        set -e
+                        return 1
+                    fi
+                fi
             else
-                cd "${HOME}"
                 if ! git clone https://github.com/bigtreetech/Eddy.git; then
                     echo -e "${RED}Failed to clone BTT Eddy repository${NC}"
                     set -e
