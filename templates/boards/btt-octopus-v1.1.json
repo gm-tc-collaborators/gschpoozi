@@ -1,0 +1,338 @@
+{
+  "id": "btt-octopus-v1.1",
+  "name": "BTT Octopus v1.1",
+  "manufacturer": "BigTreeTech",
+  "mcu": "stm32f446xx",
+  "flash_command": "make flash FLASH_DEVICE=/dev/serial/by-id/usb-Klipper_stm32f446xx_*",
+  
+  "motor_ports": {
+    "MOTOR_0": {
+      "label": "Driver 0 (typically X)",
+      "step_pin": "PF13",
+      "dir_pin": "PF12",
+      "enable_pin": "PF14",
+      "uart_pin": "PC4",
+      "diag_pin": "PG6",
+      "cs_pin": "PC4",
+      "spi_bus": "spi1"
+    },
+    "MOTOR_1": {
+      "label": "Driver 1 (typically Y)",
+      "step_pin": "PG0",
+      "dir_pin": "PG1",
+      "enable_pin": "PF15",
+      "uart_pin": "PD11",
+      "diag_pin": "PG9",
+      "cs_pin": "PD11",
+      "spi_bus": "spi1"
+    },
+    "MOTOR_2_1": {
+      "label": "Driver 2.1 (typically Z)",
+      "step_pin": "PF11",
+      "dir_pin": "PG3",
+      "enable_pin": "PG5",
+      "uart_pin": "PC6",
+      "diag_pin": "PG10",
+      "cs_pin": "PC6",
+      "spi_bus": "spi1"
+    },
+    "MOTOR_2_2": {
+      "label": "Driver 2.2 (typically Z1)",
+      "step_pin": "PG4",
+      "dir_pin": "PC1",
+      "enable_pin": "PA0",
+      "uart_pin": "PC7",
+      "diag_pin": "PG11",
+      "cs_pin": "PC7",
+      "spi_bus": "spi1"
+    },
+    "MOTOR_3": {
+      "label": "Driver 3 (typically Z2)",
+      "step_pin": "PF9",
+      "dir_pin": "PF10",
+      "enable_pin": "PG2",
+      "uart_pin": "PF2",
+      "diag_pin": "PG12",
+      "cs_pin": "PF2",
+      "spi_bus": "spi1"
+    },
+    "MOTOR_4": {
+      "label": "Driver 4 (typically Z3/E0)",
+      "step_pin": "PC13",
+      "dir_pin": "PF0",
+      "enable_pin": "PF1",
+      "uart_pin": "PE4",
+      "diag_pin": "PG13",
+      "cs_pin": "PE4",
+      "spi_bus": "spi1"
+    },
+    "MOTOR_5": {
+      "label": "Driver 5 (typically E0/E1)",
+      "step_pin": "PE2",
+      "dir_pin": "PE3",
+      "enable_pin": "PD4",
+      "uart_pin": "PE1",
+      "diag_pin": "PG14",
+      "cs_pin": "PE1",
+      "spi_bus": "spi1"
+    },
+    "MOTOR_6": {
+      "label": "Driver 6 (typically E1)",
+      "step_pin": "PE6",
+      "dir_pin": "PA14",
+      "enable_pin": "PE0",
+      "uart_pin": "PD3",
+      "diag_pin": "PG15",
+      "cs_pin": "PD3",
+      "spi_bus": "spi1"
+    },
+    "MOTOR_7": {
+      "label": "Driver 7 (expansion)",
+      "step_pin": "PE6",
+      "dir_pin": "PA14",
+      "enable_pin": "PE0",
+      "uart_pin": "PD3",
+      "diag_pin": null,
+      "cs_pin": "PD3",
+      "spi_bus": "spi1",
+      "notes": "Directly under MOTOR_6, active when ACTIVE_LOW jumper set"
+    }
+  },
+
+  "heater_ports": {
+    "HB": {
+      "label": "Heated Bed",
+      "pin": "PA1",
+      "max_current_amps": 10,
+      "voltage": 24,
+      "notes": "High current output for heated bed"
+    },
+    "HE0": {
+      "label": "Heater 0 (Hotend)",
+      "pin": "PA2",
+      "max_current_amps": 5,
+      "voltage": 24
+    },
+    "HE1": {
+      "label": "Heater 1",
+      "pin": "PA3",
+      "max_current_amps": 5,
+      "voltage": 24,
+      "notes": "Can be used for chamber heater or second hotend"
+    },
+    "HE2": {
+      "label": "Heater 2",
+      "pin": "PB10",
+      "max_current_amps": 5,
+      "voltage": 24
+    },
+    "HE3": {
+      "label": "Heater 3",
+      "pin": "PB11",
+      "max_current_amps": 5,
+      "voltage": 24
+    }
+  },
+
+  "fan_ports": {
+    "FAN0": {
+      "label": "Fan 0 (Part Cooling)",
+      "pin": "PA8",
+      "pwm": true,
+      "tachometer_pin": null,
+      "voltage": "selectable",
+      "notes": "Voltage selectable via jumper (5V/12V/24V)"
+    },
+    "FAN1": {
+      "label": "Fan 1 (Hotend)",
+      "pin": "PE5",
+      "pwm": true,
+      "tachometer_pin": null,
+      "voltage": "selectable"
+    },
+    "FAN2": {
+      "label": "Fan 2",
+      "pin": "PD12",
+      "pwm": true,
+      "tachometer_pin": null,
+      "voltage": "selectable"
+    },
+    "FAN3": {
+      "label": "Fan 3",
+      "pin": "PD13",
+      "pwm": true,
+      "tachometer_pin": null,
+      "voltage": "selectable"
+    },
+    "FAN4": {
+      "label": "Fan 4",
+      "pin": "PD14",
+      "pwm": true,
+      "tachometer_pin": null,
+      "voltage": "selectable"
+    },
+    "FAN5": {
+      "label": "Fan 5",
+      "pin": "PD15",
+      "pwm": true,
+      "tachometer_pin": null,
+      "voltage": "selectable"
+    }
+  },
+
+  "thermistor_ports": {
+    "TB": {
+      "label": "Bed Thermistor",
+      "pin": "PF3",
+      "pullup": "4.7k"
+    },
+    "T0": {
+      "label": "Thermistor 0 (Hotend)",
+      "pin": "PF4",
+      "pullup": "4.7k"
+    },
+    "T1": {
+      "label": "Thermistor 1",
+      "pin": "PF5",
+      "pullup": "4.7k"
+    },
+    "T2": {
+      "label": "Thermistor 2",
+      "pin": "PF6",
+      "pullup": "4.7k"
+    },
+    "T3": {
+      "label": "Thermistor 3",
+      "pin": "PF7",
+      "pullup": "4.7k"
+    }
+  },
+
+  "endstop_ports": {
+    "STOP_0": {
+      "label": "Endstop 0 (typically X)",
+      "pin": "PG6",
+      "notes": "Active low with internal pullup"
+    },
+    "STOP_1": {
+      "label": "Endstop 1 (typically Y)",
+      "pin": "PG9",
+      "notes": "Active low with internal pullup"
+    },
+    "STOP_2": {
+      "label": "Endstop 2 (typically Z)",
+      "pin": "PG10",
+      "notes": "Active low with internal pullup"
+    },
+    "STOP_3": {
+      "label": "Endstop 3",
+      "pin": "PG11"
+    },
+    "STOP_4": {
+      "label": "Endstop 4",
+      "pin": "PG12"
+    },
+    "STOP_5": {
+      "label": "Endstop 5",
+      "pin": "PG13"
+    },
+    "STOP_6": {
+      "label": "Endstop 6",
+      "pin": "PG14"
+    },
+    "STOP_7": {
+      "label": "Endstop 7",
+      "pin": "PG15"
+    }
+  },
+
+  "probe_ports": {
+    "PROBE": {
+      "label": "Probe/BLTouch",
+      "signal_pin": "PB7",
+      "servo_pin": "PB6",
+      "notes": "Directly usable for BLTouch or inductive probe"
+    }
+  },
+
+  "misc_ports": {
+    "NEOPIXEL": {
+      "label": "NeoPixel/RGB LED",
+      "pin": "PB0",
+      "notes": "Direct connection for WS2812 LEDs"
+    },
+    "FIL_SENSOR": {
+      "label": "Filament Sensor",
+      "pin": "PG11",
+      "notes": "Directly above STOP_3 connector"
+    },
+    "POWER_DET": {
+      "label": "Power Detection",
+      "pin": "PC0",
+      "notes": "24V input detection for power loss recovery"
+    },
+    "PS_ON": {
+      "label": "Power Supply Control",
+      "pin": "PE11",
+      "notes": "Control ATX power supply"
+    },
+    "EXP1": {
+      "label": "EXP1 Header",
+      "pins": {
+        "1": "PE8",
+        "2": "PE7",
+        "3": "PE9",
+        "4": "PE10",
+        "5": "PE12",
+        "6": "PE13",
+        "7": "PE14",
+        "8": "PE15"
+      }
+    },
+    "EXP2": {
+      "label": "EXP2 Header",
+      "pins": {
+        "1": "PA6",
+        "2": "PA5",
+        "3": "PB1",
+        "4": "PA4",
+        "5": "PB2",
+        "6": "PA7",
+        "7": "PC15",
+        "8": "RST",
+        "9": "GND",
+        "10": "5V"
+      }
+    }
+  },
+
+  "spi_config": {
+    "spi1": {
+      "mosi_pin": "PA7",
+      "miso_pin": "PA6",
+      "sck_pin": "PA5"
+    }
+  },
+
+  "default_assignments": {
+    "stepper_x": "MOTOR_0",
+    "stepper_y": "MOTOR_1",
+    "stepper_z": "MOTOR_2_1",
+    "stepper_z1": "MOTOR_2_2",
+    "stepper_z2": "MOTOR_3",
+    "stepper_z3": "MOTOR_4",
+    "extruder": "MOTOR_5",
+    "extruder1": "MOTOR_6",
+    "heater_bed": "HB",
+    "heater_extruder": "HE0",
+    "thermistor_bed": "TB",
+    "thermistor_extruder": "T0",
+    "fan_part_cooling": "FAN0",
+    "fan_hotend": "FAN1",
+    "fan_controller": "FAN2",
+    "endstop_x": "STOP_0",
+    "endstop_y": "STOP_1",
+    "endstop_z": "STOP_2"
+  }
+}
+

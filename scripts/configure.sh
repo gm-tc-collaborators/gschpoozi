@@ -179,6 +179,56 @@ wait_for_key() {
 # Wizard state variables
 declare -A WIZARD_STATE
 
+# Hardware state file (from Python script)
+HARDWARE_STATE_FILE="${REPO_ROOT}/.hardware-state.json"
+
+# Load hardware state from JSON (created by setup-hardware.py)
+load_hardware_state() {
+    if [[ -f "${HARDWARE_STATE_FILE}" ]]; then
+        # Parse JSON using Python (guaranteed to be available)
+        local board_id board_name toolboard_id toolboard_name
+        
+        eval "$(python3 -c "
+import json
+try:
+    with open('${HARDWARE_STATE_FILE}') as f:
+        data = json.load(f)
+    print(f\"WIZARD_STATE[board]='{data.get('board_id', '')}'\")
+    print(f\"WIZARD_STATE[board_name]='{data.get('board_name', '')}'\")
+    print(f\"WIZARD_STATE[toolboard]='{data.get('toolboard_id', '')}'\")
+    print(f\"WIZARD_STATE[toolboard_name]='{data.get('toolboard_name', '')}'\")
+except:
+    pass
+" 2>/dev/null)"
+    fi
+}
+
+# Get port assignment status for display
+get_port_status() {
+    if [[ ! -f "${HARDWARE_STATE_FILE}" ]]; then
+        echo "not configured"
+        return
+    fi
+    
+    local count
+    count=$(python3 -c "
+import json
+try:
+    with open('${HARDWARE_STATE_FILE}') as f:
+        data = json.load(f)
+    assignments = data.get('port_assignments', {})
+    print(len(assignments))
+except:
+    print(0)
+" 2>/dev/null)
+    
+    if [[ "$count" -gt 0 ]]; then
+        echo "${count} ports assigned"
+    else
+        echo "not configured"
+    fi
+}
+
 init_state() {
     WIZARD_STATE=(
         [board]=""
@@ -239,6 +289,24 @@ get_step_status() {
         toolboard)
             [[ -n "${WIZARD_STATE[toolboard]}" ]] && echo "done" || echo ""
             ;;
+        ports)
+            # Check if hardware state file has port assignments
+            if [[ -f "${HARDWARE_STATE_FILE}" ]]; then
+                local count
+                count=$(python3 -c "
+import json
+try:
+    with open('${HARDWARE_STATE_FILE}') as f:
+        data = json.load(f)
+    print(len(data.get('port_assignments', {})))
+except:
+    print(0)
+" 2>/dev/null)
+                [[ "$count" -gt 0 ]] && echo "done" || echo ""
+            else
+                echo ""
+            fi
+            ;;
         kinematics)
             [[ -n "${WIZARD_STATE[kinematics]}" && -n "${WIZARD_STATE[z_stepper_count]}" ]] && echo "done" || echo ""
             ;;
@@ -255,9 +323,6 @@ get_step_status() {
         probe)
             [[ -n "${WIZARD_STATE[probe_type]}" ]] && echo "done" || echo ""
             ;;
-        fans)
-            echo "done"  # TODO: Implement fan config
-            ;;
         extras)
             [[ -n "${WIZARD_STATE[has_filament_sensor]}" || -n "${WIZARD_STATE[has_chamber_sensor]}" ]] && echo "done" || echo ""
             ;;
@@ -272,27 +337,52 @@ get_step_status() {
 # ═══════════════════════════════════════════════════════════════════════════════
 
 show_main_menu() {
+    # Load hardware state from Python script's output
+    load_hardware_state
+    
     clear_screen
     print_header "gschpoozi Configuration Wizard"
     
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Hardware:${NC}"
-    print_menu_item "1" "$(get_step_status board)" "Main Board" "${WIZARD_STATE[board_name]}"
-    print_menu_item "2" "$(get_step_status toolboard)" "Toolhead Board" "${WIZARD_STATE[toolboard_name]:-not set}"
-    local kin_display="${WIZARD_STATE[kinematics]}"
+    # Calculate required motor ports based on selections
+    local motor_count=2  # X, Y minimum
+    local z_count="${WIZARD_STATE[z_stepper_count]:-1}"
+    motor_count=$((motor_count + z_count))
+    
+    # Extruder on main board only if no toolboard
+    local extruder_on_mainboard="yes"
+    if [[ -n "${WIZARD_STATE[toolboard]}" && "${WIZARD_STATE[toolboard]}" != "none" ]]; then
+        extruder_on_mainboard="no"
+    else
+        motor_count=$((motor_count + 1))  # Add extruder
+    fi
+    
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Step 1: Define Your Setup${NC}"
+    print_menu_item "1" "$(get_step_status toolboard)" "Toolhead Board" "${WIZARD_STATE[toolboard_name]:-none}"
+    
+    local kin_display="${WIZARD_STATE[kinematics]:-not set}"
     if [[ -n "${WIZARD_STATE[z_stepper_count]}" ]]; then
         kin_display="${kin_display}, ${WIZARD_STATE[z_stepper_count]}x Z"
         if [[ "${WIZARD_STATE[leveling_method]}" != "none" && -n "${WIZARD_STATE[leveling_method]}" ]]; then
             kin_display="${kin_display} (${WIZARD_STATE[leveling_method]})"
         fi
     fi
-    print_menu_item "3" "$(get_step_status kinematics)" "Kinematics" "${kin_display}"
-    print_menu_item "4" "$(get_step_status steppers)" "Steppers" "${WIZARD_STATE[driver_X]:-${WIZARD_STATE[stepper_driver]}}"
-    print_menu_item "5" "$(get_step_status extruder)" "Extruder" "${WIZARD_STATE[extruder_type]}"
-    print_menu_item "6" "$(get_step_status bed)" "Heated Bed" "${WIZARD_STATE[bed_size_x]:+${WIZARD_STATE[bed_size_x]}x${WIZARD_STATE[bed_size_y]}mm}"
-    print_menu_item "7" "$(get_step_status probe)" "Probe" "${WIZARD_STATE[probe_type]}"
+    print_menu_item "2" "$(get_step_status kinematics)" "Kinematics" "${kin_display}"
+    print_menu_item "3" "$(get_step_status steppers)" "Stepper Drivers" "${WIZARD_STATE[driver_X]:-not set}"
+    
     echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Features:${NC}"
-    print_menu_item "8" "$(get_step_status fans)" "Fans" ""
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Step 2: Hardware Selection${NC}"
+    local board_info="${WIZARD_STATE[board_name]:-not selected}"
+    if [[ -n "${WIZARD_STATE[board]}" ]]; then
+        board_info="${board_info} (need ${motor_count} motors)"
+    fi
+    print_menu_item "4" "$(get_step_status board)" "Main Board" "${board_info}"
+    print_menu_item "5" "$(get_step_status ports)" "Port Assignment" "$(get_port_status)"
+    
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Step 3: Configuration${NC}"
+    print_menu_item "6" "$(get_step_status extruder)" "Extruder" "${WIZARD_STATE[extruder_type]:-not set}"
+    print_menu_item "7" "$(get_step_status bed)" "Heated Bed" "${WIZARD_STATE[bed_size_x]:+${WIZARD_STATE[bed_size_x]}x${WIZARD_STATE[bed_size_y]}mm}"
+    print_menu_item "8" "$(get_step_status probe)" "Probe" "${WIZARD_STATE[probe_type]:-not set}"
     print_menu_item "9" "$(get_step_status extras)" "Extras" ""
     print_menu_item "0" "$(get_step_status macros)" "Macros" ""
     
@@ -306,14 +396,14 @@ show_main_menu() {
     read -r choice
     
     case "$choice" in
-        1) menu_board ;;
-        2) menu_toolboard ;;
-        3) menu_kinematics ;;
-        4) menu_steppers ;;
-        5) menu_extruder ;;
-        6) menu_bed ;;
-        7) menu_probe ;;
-        8) menu_fans ;;
+        1) menu_toolboard ;;
+        2) menu_kinematics ;;
+        3) menu_steppers ;;
+        4) menu_board ;;
+        5) menu_ports ;;
+        6) menu_extruder ;;
+        7) menu_bed ;;
+        8) menu_probe ;;
         9) menu_extras ;;
         0) menu_macros ;;
         [gG]) generate_config ;;
@@ -328,39 +418,11 @@ show_main_menu() {
 # ═══════════════════════════════════════════════════════════════════════════════
 
 menu_board() {
-    clear_screen
-    print_header "Select Controller Board"
+    # Call the Python hardware setup script for board selection
+    python3 "${SCRIPT_DIR}/setup-hardware.py" --board
     
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}BTT Boards:${NC}"
-    print_menu_item "1" "" "BTT Octopus v1.1"
-    print_menu_item "2" "" "BTT Octopus Pro"
-    print_menu_item "3" "" "BTT Manta M8P v2.0"
-    print_menu_item "4" "" "BTT SKR Mini E3 v3"
-    print_menu_item "5" "" "BTT SKR 3"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Other Boards:${NC}"
-    print_menu_item "6" "" "Creality v4.2.7"
-    print_menu_item "7" "" "MKS Robin Nano v3"
-    print_menu_item "8" "" "Fysetc Spider v2.2"
-    print_separator
-    print_action_item "B" "Back to Main Menu"
-    print_footer
-    
-    echo -en "${BYELLOW}Select board${NC}: "
-    read -r choice
-    
-    case "$choice" in
-        1) WIZARD_STATE[board]="btt-octopus-v1.1"; WIZARD_STATE[board_name]="BTT Octopus v1.1" ;;
-        2) WIZARD_STATE[board]="btt-octopus-pro"; WIZARD_STATE[board_name]="BTT Octopus Pro" ;;
-        3) WIZARD_STATE[board]="btt-manta-m8p-v2"; WIZARD_STATE[board_name]="BTT Manta M8P v2.0" ;;
-        4) WIZARD_STATE[board]="btt-skr-mini-e3-v3"; WIZARD_STATE[board_name]="BTT SKR Mini E3 v3" ;;
-        5) WIZARD_STATE[board]="btt-skr-3"; WIZARD_STATE[board_name]="BTT SKR 3" ;;
-        6) WIZARD_STATE[board]="creality-v4.2.7"; WIZARD_STATE[board_name]="Creality v4.2.7" ;;
-        7) WIZARD_STATE[board]="mks-robin-nano-v3"; WIZARD_STATE[board_name]="MKS Robin Nano v3" ;;
-        8) WIZARD_STATE[board]="fysetc-spider-v2.2"; WIZARD_STATE[board_name]="Fysetc Spider v2.2" ;;
-        [bB]) return ;;
-        *) ;;
-    esac
+    # Reload hardware state
+    load_hardware_state
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -368,44 +430,35 @@ menu_board() {
 # ═══════════════════════════════════════════════════════════════════════════════
 
 menu_toolboard() {
-    clear_screen
-    print_header "Select Toolhead Board (Optional)"
+    # Call the Python hardware setup script for toolboard selection
+    python3 "${SCRIPT_DIR}/setup-hardware.py" --toolboard
     
-    echo -e "${BCYAN}${BOX_V}${NC}  ${WHITE}Toolboards handle extruder, hotend, and fans${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${WHITE}on a separate MCU mounted on the toolhead.${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}BTT Toolboards:${NC}"
-    print_menu_item "1" "" "BTT EBB36 v1.2"
-    print_menu_item "2" "" "BTT EBB42 v1.2"
-    print_menu_item "3" "" "BTT EBB36 CAN v1.1"
-    print_menu_item "4" "" "BTT EBB42 CAN v1.1"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Mellow Toolboards:${NC}"
-    print_menu_item "5" "" "Mellow SHT36 v2"
-    print_menu_item "6" "" "Mellow SHT42"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Other:${NC}"
-    print_menu_item "7" "" "Huvud v0.61"
-    print_menu_item "8" "" "No toolboard (extruder on main board)"
-    print_separator
-    print_action_item "B" "Back to Main Menu"
-    print_footer
+    # Reload hardware state
+    load_hardware_state
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PORT ASSIGNMENT (via Python script)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+menu_ports() {
+    if [[ -z "${WIZARD_STATE[board]}" ]]; then
+        clear_screen
+        print_header "Port Assignment"
+        echo -e "${BCYAN}${BOX_V}${NC}  ${RED}Please select a board first!${NC}"
+        print_footer
+        wait_for_key
+        return
+    fi
     
-    echo -en "${BYELLOW}Select toolboard${NC}: "
-    read -r choice
+    # Save wizard state before running Python script (so it can read Z count etc)
+    save_state
     
-    case "$choice" in
-        1) WIZARD_STATE[toolboard]="btt-ebb36-v1.2"; WIZARD_STATE[toolboard_name]="BTT EBB36 v1.2" ;;
-        2) WIZARD_STATE[toolboard]="btt-ebb42-v1.2"; WIZARD_STATE[toolboard_name]="BTT EBB42 v1.2" ;;
-        3) WIZARD_STATE[toolboard]="btt-ebb36-can"; WIZARD_STATE[toolboard_name]="BTT EBB36 CAN v1.1" ;;
-        4) WIZARD_STATE[toolboard]="btt-ebb42-can"; WIZARD_STATE[toolboard_name]="BTT EBB42 CAN v1.1" ;;
-        5) WIZARD_STATE[toolboard]="mellow-sht36-v2"; WIZARD_STATE[toolboard_name]="Mellow SHT36 v2" ;;
-        6) WIZARD_STATE[toolboard]="mellow-sht42"; WIZARD_STATE[toolboard_name]="Mellow SHT42" ;;
-        7) WIZARD_STATE[toolboard]="huvud-v0.61"; WIZARD_STATE[toolboard_name]="Huvud v0.61" ;;
-        8) WIZARD_STATE[toolboard]="none"; WIZARD_STATE[toolboard_name]="None" ;;
-        [bB]) return ;;
-        *) ;;
-    esac
+    # Call the Python hardware setup script for full port assignment
+    python3 "${SCRIPT_DIR}/setup-hardware.py"
+    
+    # Reload hardware state
+    load_hardware_state
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -935,13 +988,27 @@ generate_config() {
 }
 
 generate_hardware_cfg() {
+    # Use Python generator for hardware config (reads from hardware-state.json)
+    if [[ -f "${HARDWARE_STATE_FILE}" ]]; then
+        python3 "${SCRIPT_DIR}/generate-config.py" --output-dir "${OUTPUT_DIR}" --hardware-only
+        if [[ $? -eq 0 ]]; then
+            echo -e "  ${GREEN}✓${NC} hardware.cfg (from port assignments)"
+            return 0
+        fi
+    fi
+    
+    # Fallback: generate placeholder config if no hardware state
     local output="${OUTPUT_DIR}/hardware.cfg"
     
     cat > "${output}" << EOF
 # ═══════════════════════════════════════════════════════════════════════════════
 # HARDWARE CONFIGURATION
 # Generated by gschpoozi - $(date +%Y-%m-%d)
-# Board: ${WIZARD_STATE[board_name]}
+# Board: ${WIZARD_STATE[board_name]:-Not configured}
+#
+# NOTE: Pin assignments not configured!
+# Run the Hardware Setup wizard to configure port assignments:
+#   python3 ~/gschpoozi/scripts/setup-hardware.py
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -962,10 +1029,10 @@ max_z_velocity: 30
 max_z_accel: 350
 
 # ─────────────────────────────────────────────────────────────────────────────
-# STEPPERS
+# STEPPERS - CONFIGURE PORT ASSIGNMENTS FIRST!
 # ─────────────────────────────────────────────────────────────────────────────
 [stepper_x]
-step_pin: REPLACE_PIN
+step_pin: REPLACE_PIN  # Run setup-hardware.py
 dir_pin: REPLACE_PIN
 enable_pin: !REPLACE_PIN
 microsteps: 16
@@ -975,7 +1042,6 @@ position_min: 0
 position_max: ${WIZARD_STATE[bed_size_x]:-300}
 position_endstop: ${WIZARD_STATE[bed_size_x]:-300}
 homing_speed: 80
-homing_retract_dist: 5
 
 [stepper_y]
 step_pin: REPLACE_PIN
@@ -988,7 +1054,6 @@ position_min: 0
 position_max: ${WIZARD_STATE[bed_size_y]:-300}
 position_endstop: ${WIZARD_STATE[bed_size_y]:-300}
 homing_speed: 80
-homing_retract_dist: 5
 
 [stepper_z]
 step_pin: REPLACE_PIN
@@ -1001,49 +1066,24 @@ position_min: -5
 position_max: ${WIZARD_STATE[bed_size_z]:-350}
 homing_speed: 15
 
-# ─────────────────────────────────────────────────────────────────────────────
-# EXTRUDER
-# ─────────────────────────────────────────────────────────────────────────────
 [extruder]
 step_pin: REPLACE_PIN
 dir_pin: REPLACE_PIN
 enable_pin: !REPLACE_PIN
-microsteps: 16
-rotation_distance: 22.6789511  # Calibrate this!
-nozzle_diameter: 0.400
-filament_diameter: 1.750
 heater_pin: REPLACE_PIN
-sensor_type: ${WIZARD_STATE[hotend_thermistor]:-Generic 3950}
 sensor_pin: REPLACE_PIN
-min_temp: 0
-max_temp: 300
-max_extrude_only_distance: 150
-pressure_advance: 0.04
-pressure_advance_smooth_time: 0.040
 
-# ─────────────────────────────────────────────────────────────────────────────
-# HEATED BED
-# ─────────────────────────────────────────────────────────────────────────────
 [heater_bed]
 heater_pin: REPLACE_PIN
-sensor_type: ${WIZARD_STATE[bed_thermistor]:-Generic 3950}
 sensor_pin: REPLACE_PIN
-min_temp: 0
-max_temp: 120
 
-# ─────────────────────────────────────────────────────────────────────────────
-# FANS
-# ─────────────────────────────────────────────────────────────────────────────
 [fan]
-pin: REPLACE_PIN  # Part cooling fan
-
-[heater_fan hotend_fan]
 pin: REPLACE_PIN
-heater: extruder
-heater_temp: 50.0
+
+# This is a placeholder config. Run setup-hardware.py to configure ports.
 EOF
 
-    echo -e "  ${GREEN}✓${NC} hardware.cfg"
+    echo -e "  ${YELLOW}⚠${NC} hardware.cfg (placeholder - run setup-hardware.py)"
 }
 
 generate_macros_cfg() {

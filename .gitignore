@@ -1,0 +1,33 @@
+# IDE and editor
+.cursor/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Assets folder (images, screenshots, etc.)
+Assets/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+
+# State files (user-specific)
+.wizard-state
+.hardware-state.json
+
+# Generated configs (user output)
+output/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
