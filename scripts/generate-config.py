@@ -281,7 +281,11 @@ def generate_hardware_cfg(
             probe_type = wizard_state.get('probe_type', '')
             if probe_type == 'beacon':
                 lines.append("endstop_pin: beacon:z_virtual_endstop")
-            elif probe_type and probe_type not in ('none', 'endstop'):
+            elif probe_type == 'cartographer':
+                lines.append("endstop_pin: cartographer:z_virtual_endstop")
+            elif probe_type == 'btt-eddy':
+                lines.append("endstop_pin: btt_eddy:z_virtual_endstop")
+            elif probe_type in ('bltouch', 'klicky', 'inductive'):
                 lines.append("endstop_pin: probe:z_virtual_endstop")
             else:
                 lines.append("endstop_pin: REPLACE_PIN  # Physical Z endstop")
@@ -431,10 +435,34 @@ def generate_hardware_cfg(
         if probe_type == 'beacon':
             lines.append("[beacon]")
             lines.append("serial: /dev/serial/by-id/REPLACE_WITH_BEACON_ID")
+            lines.append("# Run: ls /dev/serial/by-id/*beacon* to find your device")
             lines.append("x_offset: 0")
             lines.append("y_offset: 20  # Adjust for your toolhead")
             lines.append("mesh_main_direction: x")
             lines.append("mesh_runs: 2")
+        elif probe_type == 'cartographer':
+            lines.append("[cartographer]")
+            lines.append("serial: /dev/serial/by-id/REPLACE_WITH_CARTOGRAPHER_ID")
+            lines.append("# Run: ls /dev/serial/by-id/*cartographer* to find your device")
+            lines.append("x_offset: 0")
+            lines.append("y_offset: 20  # Adjust for your toolhead")
+            lines.append("mesh_main_direction: x")
+            lines.append("mesh_runs: 2")
+        elif probe_type == 'btt-eddy':
+            lines.append("[mcu eddy]")
+            lines.append("serial: /dev/serial/by-id/REPLACE_WITH_EDDY_ID")
+            lines.append("# Run: ls /dev/serial/by-id/*Eddy* to find your device")
+            lines.append("")
+            lines.append("[temperature_sensor btt_eddy_mcu]")
+            lines.append("sensor_type: temperature_mcu")
+            lines.append("sensor_mcu: eddy")
+            lines.append("")
+            lines.append("[probe_eddy_current btt_eddy]")
+            lines.append("sensor_type: ldc1612")
+            lines.append("i2c_mcu: eddy")
+            lines.append("i2c_bus: i2c0f")
+            lines.append("x_offset: 0")
+            lines.append("y_offset: 20  # Adjust for your toolhead")
         elif probe_type == 'bltouch':
             lines.append("[bltouch]")
             lines.append("sensor_pin: ^REPLACE_PIN  # Probe signal pin")

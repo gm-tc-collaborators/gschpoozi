@@ -173,6 +173,143 @@ wait_for_key() {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# PROBE INSTALLATION FUNCTIONS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Check if a probe module is installed
+is_probe_installed() {
+    local probe="$1"
+    case "$probe" in
+        beacon)
+            [[ -d "${HOME}/beacon_klipper" ]]
+            ;;
+        cartographer)
+            [[ -d "${HOME}/cartographer-klipper" ]]
+            ;;
+        btt-eddy)
+            # BTT Eddy is built into recent Klipper, check for config support
+            [[ -f "${HOME}/klipper/klippy/extras/eddyprobe.py" ]] || [[ -d "${HOME}/Eddy" ]]
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+# Install probe module
+install_probe_module() {
+    local probe="$1"
+    
+    case "$probe" in
+        beacon)
+            echo -e "\n${CYAN}Installing Beacon Klipper module...${NC}"
+            if [[ -d "${HOME}/beacon_klipper" ]]; then
+                echo -e "${YELLOW}Beacon already installed, updating...${NC}"
+                cd "${HOME}/beacon_klipper" && git pull
+            else
+                cd "${HOME}"
+                git clone https://github.com/beacon3d/beacon_klipper.git
+            fi
+            echo -e "${CYAN}Running Beacon install script...${NC}"
+            "${HOME}/beacon_klipper/install.sh"
+            add_probe_update_manager "beacon"
+            echo -e "${GREEN}Beacon installation complete!${NC}"
+            ;;
+        cartographer)
+            echo -e "\n${CYAN}Installing Cartographer Klipper module...${NC}"
+            if [[ -d "${HOME}/cartographer-klipper" ]]; then
+                echo -e "${YELLOW}Cartographer already installed, updating...${NC}"
+                cd "${HOME}/cartographer-klipper" && git pull
+            else
+                cd "${HOME}"
+                git clone https://github.com/Cartographer3D/cartographer-klipper.git
+            fi
+            echo -e "${CYAN}Running Cartographer install script...${NC}"
+            "${HOME}/cartographer-klipper/install.sh"
+            add_probe_update_manager "cartographer"
+            echo -e "${GREEN}Cartographer installation complete!${NC}"
+            ;;
+        btt-eddy)
+            echo -e "\n${CYAN}Installing BTT Eddy module...${NC}"
+            if [[ -d "${HOME}/Eddy" ]]; then
+                echo -e "${YELLOW}BTT Eddy already installed, updating...${NC}"
+                cd "${HOME}/Eddy" && git pull
+            else
+                cd "${HOME}"
+                git clone https://github.com/bigtreetech/Eddy.git
+            fi
+            echo -e "${CYAN}Running BTT Eddy install script...${NC}"
+            "${HOME}/Eddy/install.sh"
+            add_probe_update_manager "btt-eddy"
+            echo -e "${GREEN}BTT Eddy installation complete!${NC}"
+            ;;
+        *)
+            echo -e "${YELLOW}No installation required for ${probe}${NC}"
+            ;;
+    esac
+}
+
+# Add probe update manager entry to moonraker.conf
+add_probe_update_manager() {
+    local probe="$1"
+    local moonraker_conf="${DEFAULT_CONFIG_DIR}/moonraker.conf"
+    local entry=""
+    
+    case "$probe" in
+        beacon)
+            if ! grep -q "\[update_manager beacon" "$moonraker_conf" 2>/dev/null; then
+                entry="
+[update_manager beacon]
+type: git_repo
+channel: dev
+path: ~/beacon_klipper
+origin: https://github.com/beacon3d/beacon_klipper.git
+env: ~/klippy-env/bin/python
+requirements: requirements.txt
+install_script: install.sh
+is_system_service: False
+managed_services: klipper
+info_tags:
+  desc=Beacon Surface Scanner"
+            fi
+            ;;
+        cartographer)
+            if ! grep -q "\[update_manager cartographer" "$moonraker_conf" 2>/dev/null; then
+                entry="
+[update_manager cartographer]
+type: git_repo
+path: ~/cartographer-klipper
+origin: https://github.com/Cartographer3D/cartographer-klipper.git
+install_script: install.sh
+is_system_service: False
+managed_services: klipper
+info_tags:
+  desc=Cartographer Probe"
+            fi
+            ;;
+        btt-eddy)
+            if ! grep -q "\[update_manager Eddy" "$moonraker_conf" 2>/dev/null; then
+                entry="
+[update_manager Eddy]
+type: git_repo
+path: ~/Eddy
+origin: https://github.com/bigtreetech/Eddy.git
+install_script: install.sh
+is_system_service: False
+managed_services: klipper
+info_tags:
+  desc=BTT Eddy Probe"
+            fi
+            ;;
+    esac
+    
+    if [[ -n "$entry" ]]; then
+        echo -e "${CYAN}Adding ${probe} to Moonraker update manager...${NC}"
+        echo "$entry" | sudo tee -a "$moonraker_conf" > /dev/null
+    fi
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # STATE MANAGEMENT
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -839,12 +976,32 @@ menu_probe() {
     clear_screen
     print_header "Probe Configuration"
     
+    # Show installation status for probes that need modules
+    local beacon_status="" carto_status="" eddy_status=""
+    if is_probe_installed "beacon"; then
+        beacon_status="${GREEN}[installed]${NC}"
+    else
+        beacon_status="${YELLOW}[not installed]${NC}"
+    fi
+    if is_probe_installed "cartographer"; then
+        carto_status="${GREEN}[installed]${NC}"
+    else
+        carto_status="${YELLOW}[not installed]${NC}"
+    fi
+    if is_probe_installed "btt-eddy"; then
+        eddy_status="${GREEN}[installed]${NC}"
+    else
+        eddy_status="${YELLOW}[not installed]${NC}"
+    fi
+    
     print_menu_item "1" "" "BLTouch / 3DTouch"
-    print_menu_item "2" "" "Beacon (Eddy Current)"
-    print_menu_item "3" "" "Klicky Probe"
-    print_menu_item "4" "" "Inductive Probe"
-    print_menu_item "5" "" "Microswitch (Z endstop)"
-    print_menu_item "6" "" "None"
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}2)${NC} [ ] Beacon (Eddy Current) ${beacon_status}"
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}3)${NC} [ ] Cartographer ${carto_status}"
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}4)${NC} [ ] BTT Eddy ${eddy_status}"
+    print_menu_item "5" "" "Klicky Probe"
+    print_menu_item "6" "" "Inductive Probe"
+    print_menu_item "7" "" "Microswitch (Z endstop)"
+    print_menu_item "8" "" "None"
     print_separator
     print_action_item "B" "Back to Main Menu"
     print_footer
@@ -852,16 +1009,41 @@ menu_probe() {
     echo -en "${BYELLOW}Select probe${NC}: "
     read -r choice
     
+    local selected_probe=""
     case "$choice" in
         1) WIZARD_STATE[probe_type]="bltouch" ;;
-        2) WIZARD_STATE[probe_type]="beacon" ;;
-        3) WIZARD_STATE[probe_type]="klicky" ;;
-        4) WIZARD_STATE[probe_type]="inductive" ;;
-        5) WIZARD_STATE[probe_type]="endstop" ;;
-        6) WIZARD_STATE[probe_type]="none" ;;
+        2) 
+            WIZARD_STATE[probe_type]="beacon"
+            selected_probe="beacon"
+            ;;
+        3) 
+            WIZARD_STATE[probe_type]="cartographer"
+            selected_probe="cartographer"
+            ;;
+        4) 
+            WIZARD_STATE[probe_type]="btt-eddy"
+            selected_probe="btt-eddy"
+            ;;
+        5) WIZARD_STATE[probe_type]="klicky" ;;
+        6) WIZARD_STATE[probe_type]="inductive" ;;
+        7) WIZARD_STATE[probe_type]="endstop" ;;
+        8) WIZARD_STATE[probe_type]="none" ;;
         [bB]) return ;;
-        *) ;;
+        *) return ;;
     esac
+    
+    # If selected probe needs installation, offer to install it
+    if [[ -n "$selected_probe" ]] && ! is_probe_installed "$selected_probe"; then
+        echo ""
+        echo -e "${YELLOW}The ${selected_probe} probe requires additional software.${NC}"
+        if confirm "Install ${selected_probe} module now?"; then
+            install_probe_module "$selected_probe"
+            wait_for_key
+        else
+            echo -e "${YELLOW}Note: You'll need to install ${selected_probe} manually before using it.${NC}"
+            wait_for_key
+        fi
+    fi
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
