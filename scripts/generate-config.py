@@ -414,6 +414,40 @@ def generate_hardware_cfg(
         lines.append("idle_timeout: 60")
         lines.append("")
     
+    # Probe configuration
+    probe_type = wizard_state.get('probe_type', '')
+    if probe_type and probe_type != 'none' and probe_type != 'endstop':
+        lines.append("# " + "─" * 77)
+        lines.append("# PROBE")
+        lines.append("# " + "─" * 77)
+        
+        if probe_type == 'beacon':
+            lines.append("[beacon]")
+            lines.append("serial: /dev/serial/by-id/REPLACE_WITH_BEACON_ID")
+            lines.append("x_offset: 0")
+            lines.append("y_offset: 20  # Adjust for your toolhead")
+            lines.append("mesh_main_direction: x")
+            lines.append("mesh_runs: 2")
+        elif probe_type == 'bltouch':
+            lines.append("[bltouch]")
+            lines.append("sensor_pin: ^REPLACE_PIN  # Probe signal pin")
+            lines.append("control_pin: REPLACE_PIN  # Servo control pin")
+            lines.append("x_offset: 0")
+            lines.append("y_offset: 20  # Adjust for your toolhead")
+            lines.append("z_offset: 0  # Run PROBE_CALIBRATE")
+        elif probe_type == 'klicky' or probe_type == 'inductive':
+            lines.append("[probe]")
+            lines.append("pin: ^REPLACE_PIN  # Probe signal pin")
+            lines.append("x_offset: 0")
+            lines.append("y_offset: 20  # Adjust for your toolhead")
+            lines.append("z_offset: 0  # Run PROBE_CALIBRATE")
+            lines.append("speed: 5")
+            lines.append("samples: 3")
+            lines.append("sample_retract_dist: 2")
+            lines.append("samples_result: median")
+        
+        lines.append("")
+    
     # Leveling configuration based on Z motor count
     leveling_method = wizard_state.get('leveling_method', '')
     profile_id = wizard_state.get('profile_id')
