@@ -1,0 +1,47 @@
+{
+  "id": "ldo-nitehawk-sb-v1-0",
+  "name": "LDO Nitehawk-SB v1.0",
+  "manufacturer": "LDO",
+  "source": "Extracted from Klippain (GPL-3.0)",
+  "motor_ports": {},
+  "heater_ports": {
+    "HEAT": {
+      "label": "Heater AT",
+      "pin": "gpio9"
+    },
+    "HEAT_CHAMBER": {
+      "label": "Heater AT_CHAMBER",
+      "pin": "gpio28"
+    }
+  },
+  "fan_ports": {
+    "FAN0": {
+      "label": "Fan 0",
+      "pin": "gpio5",
+      "pwm": true
+    },
+    "FAN1": {
+      "label": "Fan 1",
+      "pin": "gpio6",
+      "pwm": true
+    }
+  },
+  "thermistor_ports": {},
+  "endstop_ports": {
+    "END_X_STOP": {
+      "label": "Extruder ND_X Endstop",
+      "pin": "gpio13"
+    },
+    "END_Y_STOP": {
+      "label": "Extruder ND_Y Endstop",
+      "pin": "gpio12"
+    }
+  },
+  "mcu_name": "toolhead",
+  "misc_ports": {
+    "NEOPIXEL": {
+      "label": "NeoPixel/RGB LED",
+      "pin": "gpio7"
+    }
+  }
+}

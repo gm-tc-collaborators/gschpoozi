@@ -1,0 +1,90 @@
+{
+  "id": "mellow-fly-gemini-v3",
+  "name": "Mellow Fly Gemini v3",
+  "manufacturer": "Mellow",
+  "source": "Extracted from Klippain (GPL-3.0)",
+  "motor_ports": {
+    "MOTOR_0": {
+      "label": "Driver 0",
+      "enable_pin": "PA3",
+      "step_pin": "PC13",
+      "dir_pin": "PC1",
+      "uart_pin": "PB11",
+      "cs_pin": "PB11"
+    },
+    "MOTOR_1": {
+      "label": "Driver 1",
+      "enable_pin": "PD2",
+      "step_pin": "PC14",
+      "dir_pin": "PC4",
+      "uart_pin": "PC10",
+      "cs_pin": "PC10"
+    },
+    "MOTOR_2": {
+      "label": "Driver 2",
+      "enable_pin": "PC12",
+      "step_pin": "PC15",
+      "dir_pin": "PC5",
+      "uart_pin": "PB7",
+      "cs_pin": "PB7"
+    },
+    "MOTOR_3": {
+      "label": "Driver 3",
+      "enable_pin": "PC11",
+      "step_pin": "PC3",
+      "dir_pin": "PC8",
+      "uart_pin": "PB6",
+      "cs_pin": "PB6"
+    }
+  },
+  "heater_ports": {
+    "HEAT0": {
+      "label": "Heater AT0",
+      "pin": "PA0"
+    }
+  },
+  "fan_ports": {
+    "FAN0": {
+      "label": "Fan 0",
+      "pin": "PC6",
+      "pwm": true
+    },
+    "FAN1": {
+      "label": "Fan 1",
+      "pin": "PC7",
+      "pwm": true
+    }
+  },
+  "thermistor_ports": {
+    "TB": {
+      "label": "Bed Thermistor",
+      "pin": "PC2"
+    },
+    "TH0": {
+      "label": "Thermistor 0",
+      "pin": "PC0"
+    }
+  },
+  "endstop_ports": {
+    "DRIVE0_STOP": {
+      "label": "Drive 0 Endstop",
+      "pin": "PA4"
+    },
+    "DRIVE1_STOP": {
+      "label": "Drive 1 Endstop",
+      "pin": "PA5"
+    },
+    "DRIVE2_STOP": {
+      "label": "Drive 2 Endstop",
+      "pin": "PA6"
+    },
+    "DRIVE3_STOP": {
+      "label": "Drive 3 Endstop",
+      "pin": "PB1"
+    },
+    "PROBE": {
+      "label": "Probe Input",
+      "pin": "PA1"
+    }
+  }
+}

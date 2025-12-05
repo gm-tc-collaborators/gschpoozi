@@ -1,0 +1,153 @@
+{
+  "id": "mellow-fly-super8-v1-x",
+  "name": "Mellow Fly Super8 v1.x",
+  "manufacturer": "Mellow",
+  "source": "Extracted from Klippain (GPL-3.0)",
+  "motor_ports": {
+    "MOTOR_0": {
+      "label": "Driver 0",
+      "step_pin": "PE2",
+      "dir_pin": "PC5",
+      "enable_pin": "PF11",
+      "uart_pin": "PC4",
+      "cs_pin": "PC4"
+    },
+    "MOTOR_1": {
+      "label": "Driver 1",
+      "step_pin": "PE3",
+      "dir_pin": "PF13",
+      "enable_pin": "PF14",
+      "uart_pin": "PF12",
+      "cs_pin": "PF12"
+    },
+    "MOTOR_2": {
+      "label": "Driver 2",
+      "step_pin": "PE4",
+      "dir_pin": "PG0",
+      "enable_pin": "PG1",
+      "uart_pin": "PF15",
+      "cs_pin": "PF15"
+    },
+    "MOTOR_3": {
+      "label": "Driver 3",
+      "step_pin": "PE14",
+      "dir_pin": "PE8",
+      "enable_pin": "PE9",
+      "uart_pin": "PE7",
+      "cs_pin": "PE7"
+    },
+    "MOTOR_4": {
+      "label": "Driver 4",
+      "step_pin": "PE15",
+      "dir_pin": "PE11",
+      "enable_pin": "PF2",
+      "uart_pin": "PE10",
+      "cs_pin": "PE10"
+    },
+    "MOTOR_5": {
+      "label": "Driver 5",
+      "step_pin": "PE1",
+      "dir_pin": "PF0",
+      "enable_pin": "PC15",
+      "uart_pin": "PF1",
+      "cs_pin": "PF1"
+    },
+    "MOTOR_6": {
+      "label": "Driver 6",
+      "step_pin": "PE0",
+      "dir_pin": "PG3",
+      "enable_pin": "PG4",
+      "uart_pin": "PG2",
+      "cs_pin": "PG2"
+    },
+    "MOTOR_7": {
+      "label": "Driver 7",
+      "step_pin": "PE6",
+      "dir_pin": "PG6",
+      "enable_pin": "PG7",
+      "uart_pin": "PG5",
+      "cs_pin": "PG5"
+    }
+  },
+  "heater_ports": {
+    "HEAT0": {
+      "label": "Heater AT0",
+      "pin": "PB0"
+    },
+    "HEAT1": {
+      "label": "Heater AT1",
+      "pin": "PB1"
+    },
+    "HEAT2": {
+      "label": "Heater AT2",
+      "pin": "PC7"
+    },
+    "HEAT3": {
+      "label": "Heater AT3",
+      "pin": "PF7"
+    },
+    "HEAT4": {
+      "label": "Heater AT4",
+      "pin": "PF6"
+    }
+  },
+  "fan_ports": {
+    "FAN0": {
+      "label": "Fan 0",
+      "pin": "PA0",
+      "pwm": true
+    },
+    "FAN1": {
+      "label": "Fan 1",
+      "pin": "PA1",
+      "pwm": true
+    },
+    "FAN2": {
+      "label": "Fan 2",
+      "pin": "PA2",
+      "pwm": true
+    },
+    "FAN3": {
+      "label": "Fan 3",
+      "pin": "PA3",
+      "pwm": true
+    },
+    "FAN4": {
+      "label": "Fan 4",
+      "pin": "PA15",
+      "pwm": true
+    },
+    "FAN5": {
+      "label": "Fan 5",
+      "pin": "PB11",
+      "pwm": true
+    },
+    "FAN6": {
+      "label": "Fan 6",
+      "pin": "PB10",
+      "pwm": true
+    },
+    "FAN7": {
+      "label": "Fan 7",
+      "pin": "PD12",
+      "pwm": true
+    },
+    "FAN8": {
+      "label": "Fan 8",
+      "pin": "PD14",
+      "pwm": true
+    },
+    "FAN9": {
+      "label": "Fan 9",
+      "pin": "PD15",
+      "pwm": true
+    }
+  },
+  "thermistor_ports": {},
+  "endstop_ports": {
+    "PROBE": {
+      "label": "Probe Input",
+      "pin": "PC3"
+    }
+  }
+}

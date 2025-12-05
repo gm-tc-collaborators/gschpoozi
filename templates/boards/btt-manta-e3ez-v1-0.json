@@ -1,0 +1,129 @@
+{
+  "id": "btt-manta-e3ez-v1-0",
+  "name": "BTT Manta E3EZ v1.0",
+  "manufacturer": "BigTreeTech",
+  "source": "Extracted from Klippain (GPL-3.0)",
+  "motor_ports": {
+    "MOTOR_1": {
+      "label": "Driver 1",
+      "step_pin": "PA14",
+      "dir_pin": "PA10",
+      "enable_pin": "PA13",
+      "cs_pin": "PB8",
+      "uart_pin": "PB8"
+    },
+    "MOTOR_2": {
+      "label": "Driver 2",
+      "step_pin": "PC8",
+      "dir_pin": "PA15",
+      "enable_pin": "PC14",
+      "cs_pin": "PC9",
+      "uart_pin": "PC9"
+    },
+    "MOTOR_3": {
+      "label": "Driver 3",
+      "step_pin": "PD2",
+      "dir_pin": "PD4",
+      "enable_pin": "PD3",
+      "cs_pin": "PD0",
+      "uart_pin": "PD0"
+    },
+    "MOTOR_4": {
+      "label": "Driver 4",
+      "step_pin": "PD5",
+      "dir_pin": "PD6",
+      "enable_pin": "PB3",
+      "cs_pin": "PD1",
+      "uart_pin": "PD1"
+    },
+    "MOTOR_5": {
+      "label": "Driver 5",
+      "step_pin": "PB7",
+      "dir_pin": "PB6",
+      "enable_pin": "PB4",
+      "cs_pin": "PB5",
+      "uart_pin": "PB5"
+    }
+  },
+  "heater_ports": {
+    "HE0": {
+      "label": "Heater 0",
+      "pin": "PB11"
+    },
+    "HE1": {
+      "label": "Heater 1",
+      "pin": "PB10"
+    },
+    "HB": {
+      "label": "Heated Bed",
+      "pin": "PB2"
+    }
+  },
+  "fan_ports": {
+    "FAN0": {
+      "label": "Fan 0",
+      "pin": "PA8",
+      "pwm": true
+    },
+    "FAN1": {
+      "label": "Fan 1",
+      "pin": "PB15",
+      "pwm": true
+    },
+    "FAN2": {
+      "label": "Fan 2",
+      "pin": "PB14",
+      "pwm": true
+    }
+  },
+  "thermistor_ports": {
+    "TB": {
+      "label": "Bed Thermistor",
+      "pin": "PA3"
+    },
+    "TH0": {
+      "label": "Thermistor 0",
+      "pin": "PA4"
+    },
+    "TH1": {
+      "label": "Thermistor 1",
+      "pin": "PA5"
+    }
+  },
+  "endstop_ports": {
+    "M1_STOP": {
+      "label": "Motor 1 Endstop",
+      "pin": "PC4"
+    },
+    "M2_STOP": {
+      "label": "Motor 2 Endstop",
+      "pin": "PB0"
+    },
+    "M3_STOP": {
+      "label": "Motor 3 Endstop",
+      "pin": "PC6"
+    },
+    "M4_STOP": {
+      "label": "Motor 4 Endstop",
+      "pin": "PC5"
+    },
+    "M5_STOP": {
+      "label": "Motor 5 Endstop",
+      "pin": "PB1"
+    },
+    "PROBE_1": {
+      "label": "Probe 1",
+      "pin": "PA6"
+    },
+    "PROBE_2": {
+      "label": "Probe 2",
+      "pin": "PA7"
+    }
+  },
+  "misc_ports": {
+    "PS_ON": {
+      "label": "Power Supply Control",
+      "pin": "PA9"
+    }
+  }
+}

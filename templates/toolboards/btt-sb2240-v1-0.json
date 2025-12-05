@@ -1,0 +1,60 @@
+{
+  "id": "btt-sb2240-v1-0",
+  "name": "BTT SB2240 v1.0",
+  "manufacturer": "BigTreeTech",
+  "source": "Extracted from Klippain (GPL-3.0)",
+  "motor_ports": {},
+  "heater_ports": {
+    "HE0": {
+      "label": "Heater 0",
+      "pin": "PB13"
+    }
+  },
+  "fan_ports": {
+    "FAN1_PWM": {
+      "label": "Fan 1_PWM",
+      "pin": "PA0",
+      "pwm": true
+    },
+    "FAN2_PWM": {
+      "label": "Fan 2_PWM",
+      "pin": "PA1",
+      "pwm": true
+    }
+  },
+  "thermistor_ports": {
+    "TH0": {
+      "label": "Thermistor 0",
+      "pin": "PA3"
+    }
+  },
+  "endstop_ports": {
+    "STOP_1": {
+      "label": "Endstop 1",
+      "pin": "PB6"
+    },
+    "STOP_2": {
+      "label": "Endstop 2",
+      "pin": "PB5"
+    },
+    "STOP_3": {
+      "label": "Endstop 3",
+      "pin": "PB7"
+    },
+    "PROBE": {
+      "label": "Probe Input",
+      "pin": "PB8"
+    }
+  },
+  "mcu_name": "toolhead",
+  "misc_ports": {
+    "SERVO": {
+      "label": "Servo",
+      "pin": "PB9"
+    },
+    "NEOPIXEL": {
+      "label": "NeoPixel/RGB LED",
+      "pin": "PD3"
+    }
+  }
+}

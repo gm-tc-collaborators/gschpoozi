@@ -1,0 +1,100 @@
+{
+  "id": "btt-skr-pro-v1-2",
+  "name": "BTT SKR Pro V1.2",
+  "manufacturer": "BigTreeTech",
+  "source": "Extracted from Klippain (GPL-3.0)",
+  "motor_ports": {
+    "MOTOR_X": {
+      "label": "X Stepper",
+      "step_pin": "PE9",
+      "dir_pin": "PF1",
+      "enable_pin": "PF2"
+    },
+    "MOTOR_Y": {
+      "label": "Y Stepper",
+      "step_pin": "PE11",
+      "dir_pin": "PE8",
+      "enable_pin": "PD7"
+    },
+    "MOTOR_Z": {
+      "label": "Z Stepper",
+      "step_pin": "PE13",
+      "dir_pin": "PC2",
+      "enable_pin": "PC0"
+    },
+    "MOTOR_E0": {
+      "label": "Extruder E0",
+      "step_pin": "PE14",
+      "dir_pin": "PA0",
+      "enable_pin": "PC3"
+    }
+  },
+  "heater_ports": {
+    "HEAT0": {
+      "label": "Heater AT0",
+      "pin": "PB1"
+    },
+    "HEAT1": {
+      "label": "Heater AT1",
+      "pin": "PD14"
+    },
+    "HEAT2": {
+      "label": "Heater AT2",
+      "pin": "PB0"
+    }
+  },
+  "fan_ports": {
+    "FAN0": {
+      "label": "Fan 0",
+      "pin": "PC8",
+      "pwm": true
+    },
+    "FAN1": {
+      "label": "Fan 1",
+      "pin": "PE5",
+      "pwm": true
+    },
+    "FAN2": {
+      "label": "Fan 2",
+      "pin": "PE6",
+      "pwm": true
+    }
+  },
+  "thermistor_ports": {},
+  "endstop_ports": {
+    "X_STOP": {
+      "label": "X Endstop",
+      "pin": "PB10"
+    },
+    "Y_STOP": {
+      "label": "Y Endstop",
+      "pin": "PE12"
+    },
+    "Z_STOP": {
+      "label": "Z Endstop",
+      "pin": "PG8"
+    },
+    "E0_STOP": {
+      "label": "Extruder 0 Endstop",
+      "pin": "PE15"
+    },
+    "E1_STOP": {
+      "label": "Extruder 1 Endstop",
+      "pin": "PE10"
+    },
+    "E2_STOP": {
+      "label": "Extruder 2 Endstop",
+      "pin": "PG5"
+    },
+    "PROBE": {
+      "label": "Probe Input",
+      "pin": "PA2"
+    }
+  },
+  "misc_ports": {
+    "SERVO": {
+      "label": "Servo",
+      "pin": "PA1"
+    }
+  }
+}

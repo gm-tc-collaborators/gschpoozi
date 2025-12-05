@@ -1,0 +1,96 @@
+{
+  "id": "btt-skr-mini-e3-v2",
+  "name": "BTT SKR Mini E3 v2",
+  "manufacturer": "BigTreeTech",
+  "source": "Extracted from Klippain (GPL-3.0)",
+  "motor_ports": {
+    "MOTOR_X": {
+      "label": "X Stepper",
+      "step_pin": "PB13",
+      "dir_pin": "PB12",
+      "enable_pin": "PB14"
+    },
+    "MOTOR_Y": {
+      "label": "Y Stepper",
+      "step_pin": "PB10",
+      "dir_pin": "PB2",
+      "enable_pin": "PB11"
+    },
+    "MOTOR_Z": {
+      "label": "Z Stepper",
+      "step_pin": "PB0",
+      "dir_pin": "PC5",
+      "enable_pin": "PB1"
+    },
+    "MOTOR_E": {
+      "label": "Extruder E",
+      "step_pin": "PB3",
+      "dir_pin": "PB4",
+      "enable_pin": "PD2"
+    }
+  },
+  "heater_ports": {
+    "HE0": {
+      "label": "Heater 0",
+      "pin": "PC8"
+    }
+  },
+  "fan_ports": {
+    "FAN0": {
+      "label": "Fan 0",
+      "pin": "PC6",
+      "pwm": true
+    },
+    "FAN1": {
+      "label": "Fan 1",
+      "pin": "PC7",
+      "pwm": true
+    }
+  },
+  "thermistor_ports": {
+    "TH0": {
+      "label": "Thermistor 0",
+      "pin": "PA0"
+    },
+    "TB": {
+      "label": "Bed Thermistor",
+      "pin": "PC3"
+    }
+  },
+  "endstop_ports": {
+    "X_STOP": {
+      "label": "X Endstop",
+      "pin": "PC0"
+    },
+    "Y_STOP": {
+      "label": "Y Endstop",
+      "pin": "PC1"
+    },
+    "Z_STOP": {
+      "label": "Z Endstop",
+      "pin": "PC2"
+    },
+    "E0_STOP": {
+      "label": "Extruder 0 Endstop",
+      "pin": "PC15"
+    },
+    "PROBE": {
+      "label": "Probe Input",
+      "pin": "PC14"
+    }
+  },
+  "misc_ports": {
+    "PS_ON": {
+      "label": "Power Supply Control",
+      "pin": "PC13"
+    },
+    "SERVO": {
+      "label": "Servo",
+      "pin": "PA1"
+    },
+    "NEOPIXEL": {
+      "label": "NeoPixel/RGB LED",
+      "pin": "PA8"
+    }
+  }
+}

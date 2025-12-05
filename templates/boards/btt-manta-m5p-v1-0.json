@@ -1,0 +1,118 @@
+{
+  "id": "btt-manta-m5p-v1-0",
+  "name": "BTT Manta M5P v1.0",
+  "manufacturer": "BigTreeTech",
+  "source": "Extracted from Klippain (GPL-3.0)",
+  "motor_ports": {
+    "MOTOR_1": {
+      "label": "Driver 1",
+      "step_pin": "PC8",
+      "dir_pin": "PC9",
+      "enable_pin": "PA15",
+      "cs_pin": "PD9",
+      "uart_pin": "PD9"
+    },
+    "MOTOR_2": {
+      "label": "Driver 2",
+      "step_pin": "PA10",
+      "dir_pin": "PA14",
+      "enable_pin": "PA13",
+      "cs_pin": "PD8",
+      "uart_pin": "PD8"
+    },
+    "MOTOR_3": {
+      "label": "Driver 3",
+      "step_pin": "PC6",
+      "dir_pin": "PC7",
+      "enable_pin": "PA9",
+      "cs_pin": "PB10",
+      "uart_pin": "PB10"
+    },
+    "MOTOR_4": {
+      "label": "Driver 4",
+      "step_pin": "PB12",
+      "dir_pin": "PB11",
+      "enable_pin": "PA8",
+      "cs_pin": "PB2",
+      "uart_pin": "PB2"
+    },
+    "MOTOR_5": {
+      "label": "Driver 5",
+      "step_pin": "PB0",
+      "dir_pin": "PB1",
+      "enable_pin": "PC4",
+      "cs_pin": "PA6",
+      "uart_pin": "PA6"
+    }
+  },
+  "heater_ports": {
+    "HE0": {
+      "label": "Heater 0",
+      "pin": "PC5"
+    },
+    "HE1": {
+      "label": "Heater 1",
+      "pin": "PA7"
+    },
+    "HB": {
+      "label": "Heated Bed",
+      "pin": "PA5"
+    }
+  },
+  "fan_ports": {
+    "FAN0": {
+      "label": "Fan 0",
+      "pin": "PA4",
+      "pwm": true
+    },
+    "FAN1": {
+      "label": "Fan 1",
+      "pin": "PA3",
+      "pwm": true
+    }
+  },
+  "thermistor_ports": {
+    "TB": {
+      "label": "Bed Thermistor",
+      "pin": "PA0"
+    },
+    "TH0": {
+      "label": "Thermistor 0",
+      "pin": "PA1"
+    },
+    "TH1": {
+      "label": "Thermistor 1",
+      "pin": "PA2"
+    }
+  },
+  "endstop_ports": {
+    "M1_STOP": {
+      "label": "Motor 1 Endstop",
+      "pin": "PD3"
+    },
+    "M2_STOP": {
+      "label": "Motor 2 Endstop",
+      "pin": "PD2"
+    },
+    "M3_STOP": {
+      "label": "Motor 3 Endstop",
+      "pin": "PC3"
+    },
+    "M4_STOP": {
+      "label": "Motor 4 Endstop",
+      "pin": "PC2"
+    },
+    "PROBE_1": {
+      "label": "Probe 1",
+      "pin": "PC15"
+    },
+    "PROBE_2": {
+      "label": "Probe 2",
+      "pin": "PC13"
+    },
+    "IND_PROBE": {
+      "label": "Inductive Probe",
+      "pin": "PC15"
+    }
+  }
+}

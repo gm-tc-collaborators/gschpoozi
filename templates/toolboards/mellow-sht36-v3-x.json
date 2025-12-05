@@ -1,0 +1,33 @@
+{
+  "id": "mellow-sht36-v3-x",
+  "name": "Mellow SHT36 v3.x",
+  "manufacturer": "Mellow",
+  "source": "Extracted from Klippain (GPL-3.0)",
+  "motor_ports": {},
+  "heater_ports": {
+    "HE0": {
+      "label": "Heater 0",
+      "pin": "gpio23"
+    }
+  },
+  "fan_ports": {
+    "FAN0": {
+      "label": "Fan 0",
+      "pin": "gpio13",
+      "pwm": true
+    },
+    "FAN1": {
+      "label": "Fan 1",
+      "pin": "gpio21",
+      "pwm": true
+    }
+  },
+  "thermistor_ports": {
+    "TH0": {
+      "label": "Thermistor 0",
+      "pin": "gpio27"
+    }
+  },
+  "endstop_ports": {},
+  "mcu_name": "toolhead"
+}

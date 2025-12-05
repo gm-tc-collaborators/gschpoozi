@@ -1,0 +1,196 @@
+{
+  "id": "btt-kraken-v1-0",
+  "name": "BTT Kraken v1.0",
+  "manufacturer": "BigTreeTech",
+  "source": "Extracted from Klippain (GPL-3.0)",
+  "motor_ports": {
+    "MOTOR_1": {
+      "label": "Driver 1",
+      "step_pin": "PC14",
+      "dir_pin": "PC13",
+      "enable_pin": "PE6",
+      "uart_pin": "PD6",
+      "cs_pin": "PD6"
+    },
+    "MOTOR_2": {
+      "label": "Driver 2",
+      "step_pin": "PE5",
+      "dir_pin": "PE4",
+      "enable_pin": "PE3",
+      "uart_pin": "PD5",
+      "cs_pin": "PD5"
+    },
+    "MOTOR_3": {
+      "label": "Driver 3",
+      "step_pin": "PE2",
+      "dir_pin": "PE1",
+      "enable_pin": "PE0",
+      "uart_pin": "PD4",
+      "cs_pin": "PD4"
+    },
+    "MOTOR_4": {
+      "label": "Driver 4",
+      "step_pin": "PB9",
+      "dir_pin": "PB8",
+      "enable_pin": "PB7",
+      "uart_pin": "PD3",
+      "cs_pin": "PD3"
+    },
+    "MOTOR_5": {
+      "label": "Driver 5",
+      "step_pin": "PG9",
+      "dir_pin": "PG10",
+      "enable_pin": "PG13",
+      "uart_pin": "PD2",
+      "cs_pin": "PD2"
+    },
+    "MOTOR_6": {
+      "label": "Driver 6",
+      "step_pin": "PG11",
+      "dir_pin": "PD7",
+      "enable_pin": "PG12",
+      "uart_pin": "PA15",
+      "cs_pin": "PA15"
+    },
+    "MOTOR_7": {
+      "label": "Driver 7",
+      "step_pin": "PB4",
+      "dir_pin": "PB3",
+      "enable_pin": "PB5",
+      "uart_pin": "PA9",
+      "cs_pin": "PA9"
+    },
+    "MOTOR_8": {
+      "label": "Driver 8",
+      "step_pin": "PG15",
+      "dir_pin": "PB6",
+      "enable_pin": "PG14",
+      "uart_pin": "PA10",
+      "cs_pin": "PA10"
+    }
+  },
+  "heater_ports": {
+    "HE0": {
+      "label": "Heater 0",
+      "pin": "PF6"
+    },
+    "HE1": {
+      "label": "Heater 1",
+      "pin": "PF7"
+    },
+    "HE2": {
+      "label": "Heater 2",
+      "pin": "PF9"
+    },
+    "HE3": {
+      "label": "Heater 3",
+      "pin": "PF8"
+    },
+    "HB": {
+      "label": "Heated Bed",
+      "pin": "PF5"
+    }
+  },
+  "fan_ports": {
+    "FAN0": {
+      "label": "Fan 0",
+      "pin": "PA0",
+      "pwm": true
+    },
+    "FAN1": {
+      "label": "Fan 1",
+      "pin": "PA1",
+      "pwm": true
+    },
+    "FAN2": {
+      "label": "Fan 2",
+      "pin": "PA2",
+      "pwm": true
+    },
+    "FAN3": {
+      "label": "Fan 3",
+      "pin": "PA3",
+      "pwm": true
+    },
+    "FAN4": {
+      "label": "Fan 4",
+      "pin": "PA4",
+      "pwm": true
+    },
+    "FAN5": {
+      "label": "Fan 5",
+      "pin": "PA5",
+      "pwm": true
+    },
+    "FAN6": {
+      "label": "Fan 6",
+      "pin": "PA6",
+      "pwm": true
+    },
+    "FAN7": {
+      "label": "Fan 7",
+      "pin": "PE8",
+      "pwm": true
+    },
+    "FAN6_TACH": {
+      "label": "Fan 6_TACH",
+      "pin": "PC1",
+      "pwm": true
+    },
+    "FAN7_TACH": {
+      "label": "Fan 7_TACH",
+      "pin": "PG0",
+      "pwm": true
+    }
+  },
+  "thermistor_ports": {
+    "TB": {
+      "label": "Bed Thermistor",
+      "pin": "PB0"
+    }
+  },
+  "endstop_ports": {
+    "MIN_1": {
+      "label": "Endstop 1",
+      "pin": "PC15"
+    },
+    "MIN_2": {
+      "label": "Endstop 2",
+      "pin": "PF0"
+    },
+    "MIN_3": {
+      "label": "Endstop 3",
+      "pin": "PF1"
+    },
+    "MIN_4": {
+      "label": "Endstop 4",
+      "pin": "PF2"
+    },
+    "MIN_5": {
+      "label": "Endstop 5",
+      "pin": "PF3"
+    },
+    "MIN_6": {
+      "label": "Endstop 6",
+      "pin": "PF4"
+    },
+    "MIN_7": {
+      "label": "Endstop 7",
+      "pin": "PF10"
+    },
+    "MIN_8": {
+      "label": "Endstop 8",
+      "pin": "PC0"
+    },
+    "PROBE": {
+      "label": "Probe Input",
+      "pin": "PC1"
+    }
+  },
+  "misc_ports": {
+    "PS_ON": {
+      "label": "Power Supply Control",
+      "pin": "PD10"
+    }
+  }
+}

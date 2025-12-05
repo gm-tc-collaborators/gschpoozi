@@ -1,0 +1,47 @@
+{
+  "id": "fysetc-sb-can-th-v1-x",
+  "name": "Fysetc SB Can TH v1.x",
+  "manufacturer": "Fysetc",
+  "source": "Extracted from Klippain (GPL-3.0)",
+  "motor_ports": {
+    "EXTRUDER": {
+      "label": "Extruder Driver",
+      "step_pin": "PA7",
+      "dir_pin": "PA5",
+      "enable_pin": "PB4",
+      "uart_pin": "PA10"
+    }
+  },
+  "heater_ports": {
+    "HE0": {
+      "label": "Heater 0",
+      "pin": "PA8"
+    }
+  },
+  "fan_ports": {
+    "FAN0_PWM": {
+      "label": "Fan 0_PWM",
+      "pin": "PA2",
+      "pwm": true
+    },
+    "FAN1_PWM": {
+      "label": "Fan 1_PWM",
+      "pin": "PA3",
+      "pwm": true
+    }
+  },
+  "thermistor_ports": {},
+  "endstop_ports": {
+    "PROBE": {
+      "label": "Probe Input",
+      "pin": "PB6"
+    }
+  },
+  "mcu_name": "toolhead",
+  "misc_ports": {
+    "NEOPIXEL": {
+      "label": "NeoPixel/RGB LED",
+      "pin": "PB1"
+    }
+  }
+}

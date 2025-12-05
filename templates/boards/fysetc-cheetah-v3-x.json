@@ -1,0 +1,97 @@
+{
+  "id": "fysetc-cheetah-v3-x",
+  "name": "Fysetc Cheetah v3.x",
+  "manufacturer": "Fysetc",
+  "source": "Extracted from Klippain (GPL-3.0)",
+  "motor_ports": {
+    "MOTOR_X": {
+      "label": "X Stepper",
+      "step_pin": "PC0",
+      "dir_pin": "PC1",
+      "enable_pin": "PC3"
+    },
+    "MOTOR_Y": {
+      "label": "Y Stepper",
+      "step_pin": "PC14",
+      "dir_pin": "PC13",
+      "enable_pin": "PC15"
+    },
+    "MOTOR_Z": {
+      "label": "Z Stepper",
+      "step_pin": "PB4",
+      "dir_pin": "PB5",
+      "enable_pin": "PC2"
+    },
+    "MOTOR_E": {
+      "label": "Extruder E",
+      "step_pin": "PB2",
+      "dir_pin": "PA15",
+      "enable_pin": "PD2"
+    }
+  },
+  "heater_ports": {
+    "HE0": {
+      "label": "Heater 0",
+      "pin": "PC7"
+    }
+  },
+  "fan_ports": {
+    "FAN0": {
+      "label": "Fan 0",
+      "pin": "PA14",
+      "pwm": true
+    },
+    "FAN1": {
+      "label": "Fan 1",
+      "pin": "PA13",
+      "pwm": true
+    },
+    "FAN2": {
+      "label": "Fan 2",
+      "pin": "PA8",
+      "pwm": true
+    }
+  },
+  "thermistor_ports": {
+    "TH0": {
+      "label": "Thermistor 0",
+      "pin": "PC5"
+    },
+    "TB": {
+      "label": "Bed Thermistor",
+      "pin": "PB0"
+    },
+    "TH2": {
+      "label": "Thermistor 2",
+      "pin": "PB1"
+    }
+  },
+  "endstop_ports": {
+    "X_STOP": {
+      "label": "X Endstop",
+      "pin": "PA2"
+    },
+    "Y_STOP": {
+      "label": "Y Endstop",
+      "pin": "PA3"
+    },
+    "Z_STOP": {
+      "label": "Z Endstop",
+      "pin": "PC4"
+    },
+    "E0_STOP": {
+      "label": "Extruder 0 Endstop",
+      "pin": "PA1"
+    },
+    "PROBE": {
+      "label": "Probe Input",
+      "pin": "PC4"
+    }
+  },
+  "misc_ports": {
+    "SERVO": {
+      "label": "Servo",
+      "pin": "PA0"
+    }
+  }
+}

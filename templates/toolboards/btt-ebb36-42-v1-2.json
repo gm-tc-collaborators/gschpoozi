@@ -1,0 +1,68 @@
+{
+  "id": "btt-ebb36-42-v1-2",
+  "name": "BTT EBB36-42 v1.2",
+  "manufacturer": "BigTreeTech",
+  "source": "Extracted from Klippain (GPL-3.0)",
+  "motor_ports": {
+    "EXTRUDER": {
+      "label": "Extruder Driver",
+      "step_pin": "PD0",
+      "dir_pin": "PD1",
+      "enable_pin": "PD2",
+      "uart_pin": "PA15"
+    }
+  },
+  "heater_ports": {
+    "HE": {
+      "label": "Hotend Heater",
+      "pin": "PB13"
+    }
+  },
+  "fan_ports": {
+    "FAN1": {
+      "label": "Fan 1",
+      "pin": "PA0",
+      "pwm": true
+    },
+    "FAN2": {
+      "label": "Fan 2",
+      "pin": "PA1",
+      "pwm": true
+    }
+  },
+  "thermistor_ports": {
+    "TH0": {
+      "label": "Thermistor 0",
+      "pin": "PA3"
+    }
+  },
+  "endstop_ports": {
+    "END1_STOP": {
+      "label": "Extruder ND1 Endstop",
+      "pin": "PB6"
+    },
+    "END2_STOP": {
+      "label": "Extruder ND2 Endstop",
+      "pin": "PB5"
+    },
+    "END3_STOP": {
+      "label": "Extruder ND3 Endstop",
+      "pin": "PB7"
+    },
+    "PROBE": {
+      "label": "Probe Input",
+      "pin": "PB8"
+    }
+  },
+  "mcu_name": "toolhead",
+  "misc_ports": {
+    "SERVO": {
+      "label": "Servo",
+      "pin": "PB9"
+    },
+    "NEOPIXEL": {
+      "label": "NeoPixel/RGB LED",
+      "pin": "PD3"
+    }
+  }
+}

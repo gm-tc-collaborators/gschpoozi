@@ -1,0 +1,60 @@
+{
+  "id": "fysetc-catalyst-v1-x",
+  "name": "Fysetc Catalyst v1.x",
+  "manufacturer": "Fysetc",
+  "source": "Extracted from Klippain (GPL-3.0)",
+  "motor_ports": {
+    "MOTOR_Z": {
+      "label": "Z Stepper",
+      "step_pin": "PB2",
+      "dir_pin": "PC5",
+      "enable_pin": "PB10",
+      "cs_pin": "PC4",
+      "uart_pin": "PC4"
+    },
+    "MOTOR_E": {
+      "label": "Extruder E",
+      "step_pin": "PB6",
+      "dir_pin": "PB4",
+      "enable_pin": "PB7",
+      "cs_pin": "PB5",
+      "uart_pin": "PB5"
+    }
+  },
+  "heater_ports": {
+    "HEAT": {
+      "label": "Heater AT",
+      "pin": "PC7"
+    }
+  },
+  "fan_ports": {
+    "FAN0": {
+      "label": "Fan 0",
+      "pin": "PA13",
+      "pwm": true
+    },
+    "FAN1": {
+      "label": "Fan 1",
+      "pin": "PA14",
+      "pwm": true
+    },
+    "FAN2": {
+      "label": "Fan 2",
+      "pin": "PA8",
+      "pwm": true
+    }
+  },
+  "thermistor_ports": {},
+  "endstop_ports": {
+    "PROBE": {
+      "label": "Probe Input",
+      "pin": "PC3"
+    }
+  },
+  "misc_ports": {
+    "NEOPIXEL": {
+      "label": "NeoPixel/RGB LED",
+      "pin": "PC9"
+    }
+  }
+}

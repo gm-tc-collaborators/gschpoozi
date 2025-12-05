@@ -356,6 +356,11 @@ show_main_menu() {
         motor_count=$((motor_count + 1))  # Add extruder
     fi
     
+    # Quick Start option
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Quick Start:${NC}"
+    print_menu_item "P" "" "Load Printer Profile" "${WIZARD_STATE[profile_name]:-select a preset}"
+    
+    echo -e "${BCYAN}${BOX_V}${NC}"
     echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Step 1: Define Your Setup${NC}"
     print_menu_item "1" "$(get_step_status toolboard)" "Toolhead Board" "${WIZARD_STATE[toolboard_name]:-none}"
     
@@ -396,6 +401,7 @@ show_main_menu() {
     read -r choice
     
     case "$choice" in
+        [pP]) menu_profiles ;;
         1) menu_toolboard ;;
         2) menu_kinematics ;;
         3) menu_steppers ;;
@@ -459,6 +465,135 @@ menu_ports() {
     
     # Reload hardware state
     load_hardware_state
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PRINTER PROFILES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+menu_profiles() {
+    clear_screen
+    print_header "Load Printer Profile"
+    
+    echo -e "${BCYAN}${BOX_V}${NC}  ${WHITE}Select a profile to pre-fill settings:${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    
+    # List available profiles
+    local profiles_dir="${TEMPLATES_DIR}/profiles"
+    local -a profile_files=()
+    local -a profile_names=()
+    local num=1
+    
+    if [[ -d "${profiles_dir}" ]]; then
+        for profile_file in "${profiles_dir}"/*.json; do
+            [[ -f "$profile_file" ]] || continue
+            profile_files+=("$profile_file")
+            
+            # Extract profile name using Python
+            local name
+            name=$(python3 -c "import json; print(json.load(open('$profile_file'))['name'])" 2>/dev/null)
+            local desc
+            desc=$(python3 -c "import json; print(json.load(open('$profile_file')).get('description', ''))" 2>/dev/null)
+            
+            profile_names+=("$name")
+            print_menu_item "$num" "" "$name" "$desc"
+            ((num++))
+        done
+    fi
+    
+    if [[ ${#profile_files[@]} -eq 0 ]]; then
+        echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}No profiles found in ${profiles_dir}${NC}"
+    fi
+    
+    print_separator
+    print_action_item "B" "Back to Main Menu"
+    print_footer
+    
+    echo -en "${BYELLOW}Select profile${NC}: "
+    read -r choice
+    
+    case "$choice" in
+        [bB]) return ;;
+        *)
+            if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#profile_files[@]} )); then
+                local idx=$((choice - 1))
+                load_profile "${profile_files[$idx]}"
+            fi
+            ;;
+    esac
+}
+
+load_profile() {
+    local profile_file="$1"
+    
+    echo -e "\n${CYAN}Loading profile...${NC}"
+    
+    # Use Python to parse and apply profile
+    python3 << EOF
+import json
+
+with open('$profile_file') as f:
+    profile = json.load(f)
+
+printer = profile.get('printer', {})
+stepper = profile.get('stepper_config', {})
+heater = profile.get('heater_config', {})
+recommended = profile.get('recommended_hardware', {})
+
+# Build wizard state
+state_lines = []
+
+# Profile info
+state_lines.append(f"profile_id={profile['id']}")
+state_lines.append(f"profile_name={profile['name']}")
+
+# Printer settings
+if 'kinematics' in printer:
+    state_lines.append(f"kinematics={printer['kinematics']}")
+if 'bed_size_x' in printer:
+    state_lines.append(f"bed_size_x={printer['bed_size_x']}")
+if 'bed_size_y' in printer:
+    state_lines.append(f"bed_size_y={printer['bed_size_y']}")
+if 'bed_size_z' in printer:
+    state_lines.append(f"bed_size_z={printer['bed_size_z']}")
+if 'z_stepper_count' in printer:
+    state_lines.append(f"z_stepper_count={printer['z_stepper_count']}")
+if 'leveling_method' in printer:
+    state_lines.append(f"leveling_method={printer['leveling_method']}")
+
+# Heater settings
+if 'extruder' in heater:
+    if 'thermistor' in heater['extruder']:
+        state_lines.append(f"hotend_thermistor={heater['extruder']['thermistor']}")
+if 'heater_bed' in heater:
+    if 'thermistor' in heater['heater_bed']:
+        state_lines.append(f"bed_thermistor={heater['heater_bed']['thermistor']}")
+
+# Recommended hardware (just store, don't auto-apply)
+if 'main_board' in recommended:
+    state_lines.append(f"recommended_board={recommended['main_board']}")
+if 'toolboard' in recommended:
+    state_lines.append(f"recommended_toolboard={recommended['toolboard']}")
+if 'probe' in recommended:
+    state_lines.append(f"recommended_probe={recommended['probe']}")
+
+# Write to state file
+with open('${STATE_FILE}', 'w') as f:
+    f.write('\n'.join(state_lines) + '\n')
+
+print(f"Loaded: {profile['name']}")
+print(f"  Kinematics: {printer.get('kinematics', 'N/A')}")
+print(f"  Bed Size: {printer.get('bed_size_x', '?')}x{printer.get('bed_size_y', '?')}x{printer.get('bed_size_z', '?')}mm")
+print(f"  Z Motors: {printer.get('z_stepper_count', '?')} ({printer.get('leveling_method', 'N/A')})")
+if recommended:
+    print(f"  Recommended: {recommended.get('main_board', '')} + {recommended.get('toolboard', 'no toolboard')}")
+EOF
+
+    # Reload state
+    load_state
+    
+    echo -e "${GREEN}Profile loaded! Review and adjust settings as needed.${NC}"
+    wait_for_key
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════

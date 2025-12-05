@@ -1,0 +1,222 @@
+{
+  "id": "btt-manta-m8p-v1-0",
+  "name": "BTT Manta M8P v1.0",
+  "manufacturer": "BigTreeTech",
+  "source": "Extracted from Klippain (GPL-3.0)",
+  "motor_ports": {
+    "MOTOR_1": {
+      "label": "Driver 1",
+      "step_pin": "PE2",
+      "dir_pin": "PB4",
+      "enable_pin": "PC11",
+      "cs_pin": "PC10",
+      "uart_pin": "PC10"
+    },
+    "MOTOR_2": {
+      "label": "Driver 2",
+      "step_pin": "PF12",
+      "dir_pin": "PF11",
+      "enable_pin": "PB3",
+      "cs_pin": "PF13",
+      "uart_pin": "PF13"
+    },
+    "MOTOR_3": {
+      "label": "Driver 3",
+      "step_pin": "PD7",
+      "dir_pin": "PD6",
+      "enable_pin": "PF10",
+      "cs_pin": "PF9",
+      "uart_pin": "PF9"
+    },
+    "MOTOR_4": {
+      "label": "Driver 4",
+      "step_pin": "PD3",
+      "dir_pin": "PD2",
+      "enable_pin": "PD5",
+      "cs_pin": "PD4",
+      "uart_pin": "PD4"
+    },
+    "MOTOR_5": {
+      "label": "Driver 5",
+      "step_pin": "PC9",
+      "dir_pin": "PC8",
+      "enable_pin": "PD1",
+      "cs_pin": "PD0",
+      "uart_pin": "PD0"
+    },
+    "MOTOR_6": {
+      "label": "Driver 6",
+      "step_pin": "PA10",
+      "dir_pin": "PD15",
+      "enable_pin": "PA15",
+      "cs_pin": "PF8",
+      "uart_pin": "PF8"
+    },
+    "MOTOR_7": {
+      "label": "Driver 7",
+      "step_pin": "PD12",
+      "dir_pin": "PD11",
+      "enable_pin": "PD14",
+      "cs_pin": "PD13",
+      "uart_pin": "PD13"
+    },
+    "MOTOR_8": {
+      "label": "Driver 8",
+      "step_pin": "PD10",
+      "dir_pin": "PD8",
+      "enable_pin": "PD9",
+      "cs_pin": "PC7",
+      "uart_pin": "PC7"
+    }
+  },
+  "heater_ports": {
+    "HE0": {
+      "label": "Heater 0",
+      "pin": "PE3"
+    },
+    "HE1": {
+      "label": "Heater 1",
+      "pin": "PB5"
+    },
+    "HE2": {
+      "label": "Heater 2",
+      "pin": "PB6"
+    },
+    "HE3": {
+      "label": "Heater 3",
+      "pin": "PE1"
+    },
+    "HB": {
+      "label": "Heated Bed",
+      "pin": "PB7"
+    }
+  },
+  "fan_ports": {
+    "FAN0": {
+      "label": "Fan 0",
+      "pin": "PE6",
+      "pwm": true
+    },
+    "FAN1": {
+      "label": "Fan 1",
+      "pin": "PE0",
+      "pwm": true
+    },
+    "FAN2": {
+      "label": "Fan 2",
+      "pin": "PC12",
+      "pwm": true
+    },
+    "FAN3": {
+      "label": "Fan 3",
+      "pin": "PE5",
+      "pwm": true
+    },
+    "FAN4": {
+      "label": "Fan 4",
+      "pin": "PE4",
+      "pwm": true
+    },
+    "FAN4_TACH": {
+      "label": "Fan 4_TACH",
+      "pin": "PC13",
+      "pwm": true
+    },
+    "FAN5": {
+      "label": "Fan 5",
+      "pin": "PB8",
+      "pwm": true
+    },
+    "FAN5_TACH": {
+      "label": "Fan 5_TACH",
+      "pin": "PC14",
+      "pwm": true
+    },
+    "FAN6": {
+      "label": "Fan 6",
+      "pin": "PB9",
+      "pwm": true
+    },
+    "FAN6_TACH": {
+      "label": "Fan 6_TACH",
+      "pin": "PC15",
+      "pwm": true
+    }
+  },
+  "thermistor_ports": {
+    "TB": {
+      "label": "Bed Thermistor",
+      "pin": "PA0"
+    },
+    "TH0": {
+      "label": "Thermistor 0",
+      "pin": "PA1"
+    },
+    "TH1": {
+      "label": "Thermistor 1",
+      "pin": "PA2"
+    },
+    "TH2": {
+      "label": "Thermistor 2",
+      "pin": "PA3"
+    },
+    "TH3": {
+      "label": "Thermistor 3",
+      "pin": "PA4"
+    }
+  },
+  "endstop_ports": {
+    "M1_STOP": {
+      "label": "Motor 1 Endstop",
+      "pin": "PF3"
+    },
+    "M2_STOP": {
+      "label": "Motor 2 Endstop",
+      "pin": "PF4"
+    },
+    "M3_STOP": {
+      "label": "Motor 3 Endstop",
+      "pin": "PF5"
+    },
+    "M4_STOP": {
+      "label": "Motor 4 Endstop",
+      "pin": "PC0"
+    },
+    "M5_STOP": {
+      "label": "Motor 5 Endstop",
+      "pin": "PC1"
+    },
+    "M6_STOP": {
+      "label": "Motor 6 Endstop",
+      "pin": "PC2"
+    },
+    "PROBE_1": {
+      "label": "Probe 1",
+      "pin": "PB1"
+    },
+    "PROBE_2": {
+      "label": "Probe 2",
+      "pin": "PB2"
+    },
+    "IND_PROBE": {
+      "label": "Inductive Probe",
+      "pin": "PF6"
+    }
+  },
+  "filament_ports": {
+    "FIL_DET_1": {
+      "label": "Filament Detect 1",
+      "pin": "PB0"
+    },
+    "FIL_DET_2": {
+      "label": "Filament Detect 2",
+      "pin": "PC5"
+    }
+  },
+  "misc_ports": {
+    "PS_ON": {
+      "label": "Power Supply Control",
+      "pin": "PC3"
+    }
+  }
+}

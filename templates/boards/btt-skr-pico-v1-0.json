@@ -1,0 +1,81 @@
+{
+  "id": "btt-skr-pico-v1-0",
+  "name": "BTT SKR Pico v1.0",
+  "manufacturer": "BigTreeTech",
+  "source": "Extracted from Klippain (GPL-3.0)",
+  "motor_ports": {
+    "MOTOR_X": {
+      "label": "X Stepper",
+      "step_pin": "gpio11",
+      "dir_pin": "gpio10",
+      "enable_pin": "gpio12"
+    },
+    "MOTOR_Y": {
+      "label": "Y Stepper",
+      "step_pin": "gpio6",
+      "dir_pin": "gpio5",
+      "enable_pin": "gpio7"
+    },
+    "MOTOR_Z": {
+      "label": "Z Stepper",
+      "step_pin": "gpio19",
+      "dir_pin": "gpio28",
+      "enable_pin": "gpio2"
+    },
+    "MOTOR_E0": {
+      "label": "Extruder E0",
+      "step_pin": "gpio14",
+      "dir_pin": "gpio13",
+      "enable_pin": "gpio15"
+    }
+  },
+  "heater_ports": {
+    "HE": {
+      "label": "Heater ",
+      "pin": "gpio23"
+    }
+  },
+  "fan_ports": {
+    "FAN1": {
+      "label": "Fan 1",
+      "pin": "gpio17",
+      "pwm": true
+    },
+    "FAN2": {
+      "label": "Fan 2",
+      "pin": "gpio18",
+      "pwm": true
+    },
+    "FAN3": {
+      "label": "Fan 3",
+      "pin": "gpio20",
+      "pwm": true
+    }
+  },
+  "thermistor_ports": {
+    "TH0": {
+      "label": "Thermistor 0",
+      "pin": "gpio27"
+    },
+    "TB": {
+      "label": "Bed Thermistor",
+      "pin": "gpio26"
+    }
+  },
+  "endstop_ports": {
+    "PROBE": {
+      "label": "Probe Input",
+      "pin": "gpio22"
+    }
+  },
+  "misc_ports": {
+    "SERVO": {
+      "label": "Servo",
+      "pin": "gpio29"
+    },
+    "NEOPIXEL": {
+      "label": "NeoPixel/RGB LED",
+      "pin": "gpio24"
+    }
+  }
+}

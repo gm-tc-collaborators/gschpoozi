@@ -25,6 +25,7 @@ REPO_ROOT = SCRIPT_DIR.parent
 TEMPLATES_DIR = REPO_ROOT / "templates"
 BOARDS_DIR = TEMPLATES_DIR / "boards"
 TOOLBOARDS_DIR = TEMPLATES_DIR / "toolboards"
+PROFILES_DIR = TEMPLATES_DIR / "profiles"
 
 HARDWARE_STATE_FILE = REPO_ROOT / ".hardware-state.json"
 WIZARD_STATE_FILE = REPO_ROOT / ".wizard-state"
@@ -39,6 +40,16 @@ def load_hardware_state() -> Dict:
         with open(HARDWARE_STATE_FILE) as f:
             return json.load(f)
     return {}
+
+def load_profile(profile_id: str) -> Optional[Dict]:
+    """Load a printer profile by ID."""
+    if not profile_id:
+        return None
+    profile_file = PROFILES_DIR / f"{profile_id}.json"
+    if profile_file.exists():
+        with open(profile_file) as f:
+            return json.load(f)
+    return None
 
 def load_wizard_state() -> Dict:
     """Load wizard state from key=value file."""
@@ -371,6 +382,90 @@ def generate_hardware_cfg(
         lines.append(f"pin: {cf_pin}  # {cf_port}")
         lines.append("heater: heater_bed, extruder")
         lines.append("idle_timeout: 60")
+        lines.append("")
+    
+    # Leveling configuration based on Z motor count
+    leveling_method = wizard_state.get('leveling_method', '')
+    profile_id = wizard_state.get('profile_id')
+    profile = load_profile(profile_id) if profile_id else None
+    
+    if leveling_method == 'quad_gantry_level' or z_count == 4:
+        lines.append("# " + "─" * 77)
+        lines.append("# QUAD GANTRY LEVEL")
+        lines.append("# " + "─" * 77)
+        lines.append("[quad_gantry_level]")
+        
+        # Use profile values if available, otherwise use defaults based on bed size
+        if profile and 'quad_gantry_level' in profile:
+            qgl = profile['quad_gantry_level']
+            gc = qgl.get('gantry_corners', [[-60, -10], [int(bed_x)+60, int(bed_y)+70]])
+            pts = qgl.get('points', [[50, 25], [50, int(bed_y)-75], [int(bed_x)-50, int(bed_y)-75], [int(bed_x)-50, 25]])
+            lines.append(f"gantry_corners:")
+            lines.append(f"    {gc[0][0]}, {gc[0][1]}")
+            lines.append(f"    {gc[1][0]}, {gc[1][1]}")
+            lines.append(f"points:")
+            for pt in pts:
+                lines.append(f"    {pt[0]}, {pt[1]}")
+            lines.append(f"speed: {qgl.get('speed', 200)}")
+            lines.append(f"horizontal_move_z: {qgl.get('horizontal_move_z', 10)}")
+            lines.append(f"retries: {qgl.get('retries', 5)}")
+            lines.append(f"retry_tolerance: {qgl.get('retry_tolerance', 0.0075)}")
+            lines.append(f"max_adjust: {qgl.get('max_adjust', 10)}")
+        else:
+            # Default QGL config based on bed size
+            bx, by = int(bed_x), int(bed_y)
+            lines.append("gantry_corners:")
+            lines.append(f"    -60, -10")
+            lines.append(f"    {bx + 60}, {by + 70}")
+            lines.append("points:")
+            lines.append(f"    50, 25")
+            lines.append(f"    50, {by - 75}")
+            lines.append(f"    {bx - 50}, {by - 75}")
+            lines.append(f"    {bx - 50}, 25")
+            lines.append("speed: 200")
+            lines.append("horizontal_move_z: 10")
+            lines.append("retries: 5")
+            lines.append("retry_tolerance: 0.0075")
+            lines.append("max_adjust: 10")
+        lines.append("")
+    
+    elif leveling_method == 'z_tilt' or z_count == 3:
+        lines.append("# " + "─" * 77)
+        lines.append("# Z TILT ADJUST")
+        lines.append("# " + "─" * 77)
+        lines.append("[z_tilt]")
+        bx, by = int(bed_x), int(bed_y)
+        # Default 3-point Z tilt
+        lines.append("z_positions:")
+        lines.append(f"    {bx // 2}, {by + 50}   # Front center")
+        lines.append(f"    0, -50               # Back left")
+        lines.append(f"    {bx}, -50            # Back right")
+        lines.append("points:")
+        lines.append(f"    {bx // 2}, {by - 30}")
+        lines.append(f"    30, 30")
+        lines.append(f"    {bx - 30}, 30")
+        lines.append("speed: 200")
+        lines.append("horizontal_move_z: 10")
+        lines.append("retries: 5")
+        lines.append("retry_tolerance: 0.0075")
+        lines.append("")
+    
+    elif leveling_method == 'bed_tilt' or z_count == 2:
+        lines.append("# " + "─" * 77)
+        lines.append("# BED TILT (2 Z motors)")  
+        lines.append("# " + "─" * 77)
+        lines.append("[z_tilt]")
+        bx, by = int(bed_x), int(bed_y)
+        lines.append("z_positions:")
+        lines.append(f"    0, {by // 2}")
+        lines.append(f"    {bx}, {by // 2}")
+        lines.append("points:")
+        lines.append(f"    30, {by // 2}")
+        lines.append(f"    {bx - 30}, {by // 2}")
+        lines.append("speed: 200")
+        lines.append("horizontal_move_z: 10")
+        lines.append("retries: 5")
+        lines.append("retry_tolerance: 0.0075")
         lines.append("")
     
     return "\n".join(lines)

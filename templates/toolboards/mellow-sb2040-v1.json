@@ -1,0 +1,44 @@
+{
+  "id": "mellow-sb2040-v1",
+  "name": "Mellow SB2040 v1",
+  "manufacturer": "Mellow",
+  "source": "Extracted from Klippain (GPL-3.0)",
+  "motor_ports": {},
+  "heater_ports": {
+    "HEAT": {
+      "label": "Heater AT",
+      "pin": "gpio6"
+    }
+  },
+  "fan_ports": {
+    "FAN0": {
+      "label": "Fan 0",
+      "pin": "gpio13",
+      "pwm": true
+    },
+    "FAN1": {
+      "label": "Fan 1",
+      "pin": "gpio14",
+      "pwm": true
+    },
+    "FAN2": {
+      "label": "Fan 2",
+      "pin": "gpio15",
+      "pwm": true
+    }
+  },
+  "thermistor_ports": {},
+  "endstop_ports": {
+    "END_STOP": {
+      "label": "Extruder ND Endstop",
+      "pin": "gpio29"
+    }
+  },
+  "mcu_name": "toolhead",
+  "misc_ports": {
+    "NEOPIXEL": {
+      "label": "NeoPixel/RGB LED",
+      "pin": "gpio12"
+    }
+  }
+}

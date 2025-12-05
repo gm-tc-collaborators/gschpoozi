@@ -1,0 +1,117 @@
+{
+  "id": "btt-skr-v1-4",
+  "name": "BTT SKR v1.4",
+  "manufacturer": "BigTreeTech",
+  "source": "Extracted from Klippain (GPL-3.0)",
+  "motor_ports": {
+    "MOTOR_X": {
+      "label": "X Stepper",
+      "step_pin": "P2.2",
+      "dir_pin": "P2.6",
+      "enable_pin": "P2.1",
+      "uart_pin": "P1.10",
+      "cs_pin": "P1.10"
+    },
+    "MOTOR_Y": {
+      "label": "Y Stepper",
+      "step_pin": "P0.19",
+      "dir_pin": "P0.20",
+      "enable_pin": "P2.8",
+      "uart_pin": "P1.9",
+      "cs_pin": "P1.9"
+    },
+    "MOTOR_Z": {
+      "label": "Z Stepper",
+      "step_pin": "P0.22",
+      "dir_pin": "P2.11",
+      "enable_pin": "P0.21",
+      "uart_pin": "P1.8",
+      "cs_pin": "P1.8"
+    },
+    "MOTOR_E0": {
+      "label": "Extruder E0",
+      "step_pin": "P2.13",
+      "dir_pin": "P0.11",
+      "enable_pin": "P2.12",
+      "uart_pin": "P1.4",
+      "cs_pin": "P1.4"
+    },
+    "MOTOR_E1": {
+      "label": "Extruder E1",
+      "step_pin": "P1.15",
+      "dir_pin": "P1.14",
+      "enable_pin": "P1.16",
+      "uart_pin": "P1.1",
+      "cs_pin": "P1.1"
+    }
+  },
+  "heater_ports": {
+    "HE0": {
+      "label": "Heater 0",
+      "pin": "P2.7"
+    },
+    "HE1": {
+      "label": "Heater 1",
+      "pin": "P2.4"
+    }
+  },
+  "fan_ports": {
+    "FAN0": {
+      "label": "Fan 0",
+      "pin": "P2.3",
+      "pwm": true
+    }
+  },
+  "thermistor_ports": {
+    "TB": {
+      "label": "Bed Thermistor",
+      "pin": "P0.25"
+    },
+    "TH0": {
+      "label": "Thermistor 0",
+      "pin": "P0.24"
+    },
+    "TH1": {
+      "label": "Thermistor 1",
+      "pin": "P0.23"
+    }
+  },
+  "endstop_ports": {
+    "X_STOP": {
+      "label": "X Endstop",
+      "pin": "P1.29"
+    },
+    "Y_STOP": {
+      "label": "Y Endstop",
+      "pin": "P1.28"
+    },
+    "Z_STOP": {
+      "label": "Z Endstop",
+      "pin": "P1.27"
+    },
+    "PROBE": {
+      "label": "Probe Input",
+      "pin": "P0.10"
+    }
+  },
+  "filament_ports": {
+    "FIL_DET_0": {
+      "label": "Filament Detect 0",
+      "pin": "P1.26"
+    },
+    "FIL_DET_1": {
+      "label": "Filament Detect 1",
+      "pin": "P1.25"
+    }
+  },
+  "misc_ports": {
+    "SERVO": {
+      "label": "Servo",
+      "pin": "P2.0"
+    },
+    "NEOPIXEL": {
+      "label": "NeoPixel/RGB LED",
+      "pin": "P1.24"
+    }
+  }
+}

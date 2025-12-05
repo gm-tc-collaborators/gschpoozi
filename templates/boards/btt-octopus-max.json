@@ -1,0 +1,220 @@
+{
+  "id": "btt-octopus-max",
+  "name": "BTT Octopus Max",
+  "manufacturer": "BigTreeTech",
+  "source": "Extracted from Klippain (GPL-3.0)",
+  "motor_ports": {
+    "MOTOR_0": {
+      "label": "Driver 0",
+      "step_pin": "PC13",
+      "dir_pin": "PC14",
+      "enable_pin": "PE6",
+      "uart_pin": "PG14",
+      "cs_pin": "PG14"
+    },
+    "MOTOR_1": {
+      "label": "Driver 1",
+      "step_pin": "PE4",
+      "dir_pin": "PE5",
+      "enable_pin": "PE3",
+      "uart_pin": "PG13",
+      "cs_pin": "PG13"
+    },
+    "MOTOR_2_1": {
+      "label": "Driver 2_1",
+      "step_pin": "PE1",
+      "dir_pin": "PE0",
+      "enable_pin": "PE2",
+      "uart_pin": "PG12",
+      "cs_pin": "PG12"
+    },
+    "MOTOR_3": {
+      "label": "Driver 3",
+      "step_pin": "PB8",
+      "dir_pin": "PB9",
+      "enable_pin": "PB7",
+      "uart_pin": "PG11",
+      "cs_pin": "PG11"
+    },
+    "MOTOR_4": {
+      "label": "Driver 4",
+      "step_pin": "PB5",
+      "dir_pin": "PB4",
+      "enable_pin": "PB6",
+      "uart_pin": "PG10",
+      "cs_pin": "PG10"
+    },
+    "MOTOR_5": {
+      "label": "Driver 5",
+      "step_pin": "PG15",
+      "dir_pin": "PB3",
+      "enable_pin": "PD5",
+      "uart_pin": "PG9",
+      "cs_pin": "PG9"
+    },
+    "MOTOR_6": {
+      "label": "Driver 6",
+      "step_pin": "PD3",
+      "dir_pin": "PD2",
+      "enable_pin": "PD4",
+      "uart_pin": "PD7",
+      "cs_pin": "PD7"
+    },
+    "MOTOR_7": {
+      "label": "Driver 7",
+      "step_pin": "PA10",
+      "dir_pin": "PA9",
+      "enable_pin": "PA15",
+      "uart_pin": "PD6",
+      "cs_pin": "PD6"
+    },
+    "MOTOR_8": {
+      "label": "Driver 8",
+      "step_pin": "PA8",
+      "dir_pin": "PC7",
+      "enable_pin": "PC9",
+      "uart_pin": "PG8",
+      "cs_pin": "PG8"
+    },
+    "MOTOR_9": {
+      "label": "Driver 9",
+      "step_pin": "PG6",
+      "dir_pin": "PC6",
+      "enable_pin": "PC8",
+      "uart_pin": "PG7",
+      "cs_pin": "PG7"
+    }
+  },
+  "heater_ports": {
+    "HE0": {
+      "label": "Heater 0",
+      "pin": "PF6"
+    },
+    "HE1": {
+      "label": "Heater 1",
+      "pin": "PA0"
+    },
+    "HE2": {
+      "label": "Heater 2",
+      "pin": "PF9"
+    },
+    "HE3": {
+      "label": "Heater 3",
+      "pin": "PF7"
+    },
+    "HB": {
+      "label": "Heated Bed",
+      "pin": "PF5"
+    }
+  },
+  "fan_ports": {
+    "FAN0": {
+      "label": "Fan 0",
+      "pin": "PA6",
+      "pwm": true
+    },
+    "FAN1": {
+      "label": "Fan 1",
+      "pin": "PA5",
+      "pwm": true
+    },
+    "FAN2": {
+      "label": "Fan 2",
+      "pin": "PA4",
+      "pwm": true
+    },
+    "FAN3": {
+      "label": "Fan 3",
+      "pin": "PA3",
+      "pwm": true
+    },
+    "FAN4": {
+      "label": "Fan 4",
+      "pin": "PA1",
+      "pwm": true
+    },
+    "FAN5": {
+      "label": "Fan 5",
+      "pin": "PF8",
+      "pwm": true
+    },
+    "FAN6": {
+      "label": "Fan 6",
+      "pin": "PA2",
+      "pwm": true
+    },
+    "FAN4_TACH": {
+      "label": "Fan 4_TACH",
+      "pin": "PC3",
+      "pwm": true
+    },
+    "FAN5_TACH": {
+      "label": "Fan 5_TACH",
+      "pin": "PC1",
+      "pwm": true
+    },
+    "FAN6_TACH": {
+      "label": "Fan 6_TACH",
+      "pin": "PC2",
+      "pwm": true
+    }
+  },
+  "thermistor_ports": {
+    "TB": {
+      "label": "Bed Thermistor",
+      "pin": "PB1"
+    }
+  },
+  "endstop_ports": {
+    "STOP_0": {
+      "label": "Endstop 0",
+      "pin": "PF0"
+    },
+    "STOP_1": {
+      "label": "Endstop 1",
+      "pin": "PF2"
+    },
+    "STOP_2": {
+      "label": "Endstop 2",
+      "pin": "PF4"
+    },
+    "STOP_3": {
+      "label": "Endstop 3",
+      "pin": "PF3"
+    },
+    "STOP_4": {
+      "label": "Endstop 4",
+      "pin": "PF1"
+    },
+    "STOP_5": {
+      "label": "Endstop 5",
+      "pin": "PC15"
+    },
+    "STOP_6": {
+      "label": "Endstop 6",
+      "pin": "PG14"
+    },
+    "STOP_7": {
+      "label": "Endstop 7",
+      "pin": "PG15"
+    },
+    "PROBE": {
+      "label": "Probe Input",
+      "pin": "PB15"
+    }
+  },
+  "misc_ports": {
+    "SERVO": {
+      "label": "Servo",
+      "pin": "PB14"
+    },
+    "NEOPIXEL": {
+      "label": "NeoPixel/RGB LED",
+      "pin": "PE10"
+    },
+    "PS_ON": {
+      "label": "Power Supply Control",
+      "pin": "PF13"
+    }
+  }
+}

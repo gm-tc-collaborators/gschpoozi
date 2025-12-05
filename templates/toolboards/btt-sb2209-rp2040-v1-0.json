@@ -1,0 +1,61 @@
+{
+  "id": "btt-sb2209-rp2040-v1-0",
+  "name": "BTT SB2209 RP2040 v1.0",
+  "manufacturer": "BigTreeTech",
+  "source": "Extracted from Klippain (GPL-3.0)",
+  "motor_ports": {
+    "MOTOR_E0": {
+      "label": "Extruder E0",
+      "step_pin": "gpio18",
+      "dir_pin": "gpio19",
+      "enable_pin": "gpio17",
+      "uart_pin": "gpio20",
+      "cs_pin": "gpio20"
+    }
+  },
+  "heater_ports": {
+    "HE0": {
+      "label": "Heater 0",
+      "pin": "gpio7"
+    }
+  },
+  "fan_ports": {
+    "FAN1_PWM": {
+      "label": "Fan 1_PWM",
+      "pin": "gpio14",
+      "pwm": true
+    },
+    "FAN2_PWM": {
+      "label": "Fan 2_PWM",
+      "pin": "gpio13",
+      "pwm": true
+    }
+  },
+  "thermistor_ports": {
+    "TH0": {
+      "label": "Thermistor 0",
+      "pin": "gpio27"
+    }
+  },
+  "endstop_ports": {
+    "END_STOP": {
+      "label": "Extruder ND Endstop",
+      "pin": "gpio24"
+    },
+    "PROBE_1": {
+      "label": "Probe 1",
+      "pin": "gpio21"
+    },
+    "PROBE_2": {
+      "label": "Probe 2",
+      "pin": "gpio22"
+    }
+  },
+  "mcu_name": "toolhead",
+  "misc_ports": {
+    "NEOPIXEL": {
+      "label": "NeoPixel/RGB LED",
+      "pin": "gpio16"
+    }
+  }
+}
