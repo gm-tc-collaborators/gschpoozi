@@ -25,6 +25,17 @@
 - [x] Extruder conditional on toolboard (smart port calculation)
 - [x] State persistence between sessions
 - [x] Extras menu (filament sensor, chamber sensor, KlipperScreen, LCD, LEDs, caselight)
+- [x] MCU serial ID auto-detection (USB and CAN)
+- [x] CAN bus setup wizard with interface configuration
+
+### CAN Bus Support
+- [x] CAN interface setup (`/etc/network/interfaces.d/can0`)
+- [x] CAN requirements checker
+- [x] CAN adapter selection (U2C, UTOC, Waveshare, USB-CAN Bridge)
+- [x] Bitrate configuration (500K, 1M)
+- [x] CAN diagnostics and troubleshooting
+- [x] Katapult (CanBoot) installation and update manager
+- [x] CAN UUID detection via `canbus_query.py`
 
 ### Leveling Methods (Auto-configured)
 - [x] 1 Z motor: No leveling
@@ -106,6 +117,14 @@
 | BMG | 50:17 | 22.6789511 |
 | WW-BMG | 50:17 | 22.6789511 |
 
+### CAN Adapters (4 total)
+| Adapter | Manufacturer | Connection |
+|---------|--------------|------------|
+| BTT U2C v2.1 | BigTreeTech | USB |
+| Mellow Fly UTOC-1 | Mellow | USB |
+| Mellow Fly UTOC-3 | Mellow | USB |
+| Waveshare USB-CAN-A | Waveshare | USB |
+
 ### Hardware Components (5 templates)
 | Template | Contents | Approach |
 |----------|----------|----------|
@@ -162,6 +181,7 @@
 
 ### Medium Priority
 - [x] More probe templates (Klicky, TAP, BLTouch) - Done!
+- [x] CAN bus setup automation - Done!
 - [ ] Input shaper configuration
 - [ ] Bed mesh configuration
 
@@ -186,6 +206,7 @@ gschpoozi/
 │   ├── toolboards/            # 17 toolhead boards
 │   ├── probes/                # Probe templates (9)
 │   ├── extruders/             # Extruder profiles (9)
+│   ├── can-adapters/          # CAN adapters (4)
 │   └── hardware/              # Generic hardware (fans, lights, sensors)
 ├── README.md
 ├── PROGRESS.md                # This file
@@ -202,4 +223,4 @@ gschpoozi/
 - Beacon probe from [beacon3d.com](https://beacon3d.com/)
 - Cartographer 3D from [docs.cartographer3d.com](https://docs.cartographer3d.com/)
 - BTT Eddy from [bigtreetech/Eddy](https://github.com/bigtreetech/Eddy)
-
+- CAN Bus Guide from [canbus.esoterical.online](https://canbus.esoterical.online/)

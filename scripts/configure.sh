@@ -523,6 +523,616 @@ detect_can_mcus() {
     fi
 }
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# CAN BUS SETUP FUNCTIONS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Check if CAN interface exists and is UP
+# Returns: 0 if working, 1 if not
+check_can_interface() {
+    local interface="${1:-can0}"
+    
+    # Check if interface exists
+    if ! ip link show "$interface" &>/dev/null; then
+        return 1
+    fi
+    
+    # Check if interface is UP
+    if ! ip link show "$interface" 2>/dev/null | grep -q "state UP"; then
+        return 2
+    fi
+    
+    return 0
+}
+
+# Get current CAN interface bitrate
+get_can_bitrate() {
+    local interface="${1:-can0}"
+    ip -details link show "$interface" 2>/dev/null | grep -oP 'bitrate \K[0-9]+' || echo "0"
+}
+
+# Check all CAN requirements
+# Returns: 0 if all good, non-zero otherwise
+check_can_requirements() {
+    local interface="${1:-can0}"
+    local -a issues=()
+    
+    # Check 1: Does interface exist?
+    if ! ip link show "$interface" &>/dev/null; then
+        issues+=("CAN interface '$interface' does not exist")
+    else
+        # Check 2: Is interface UP?
+        if ! ip link show "$interface" 2>/dev/null | grep -q "state UP"; then
+            issues+=("CAN interface '$interface' exists but is DOWN")
+        fi
+        
+        # Check 3: Get bitrate
+        local bitrate
+        bitrate=$(get_can_bitrate "$interface")
+        if [[ "$bitrate" == "0" ]]; then
+            issues+=("Could not determine bitrate for '$interface'")
+        fi
+    fi
+    
+    # Check 4: Does canbus_query.py exist?
+    if [[ ! -f "${HOME}/klipper/scripts/canbus_query.py" ]]; then
+        issues+=("Klipper CAN query script not found")
+    fi
+    
+    # Return issues
+    if [[ ${#issues[@]} -gt 0 ]]; then
+        printf '%s\n' "${issues[@]}"
+        return 1
+    fi
+    
+    return 0
+}
+
+# Setup CAN interface file
+# Creates /etc/network/interfaces.d/can0
+setup_can_interface() {
+    local interface="${1:-can0}"
+    local bitrate="${2:-1000000}"
+    local interfaces_file="/etc/network/interfaces.d/${interface}"
+    
+    # Check if file already exists
+    if [[ -f "$interfaces_file" ]]; then
+        echo -e "${YELLOW}CAN interface file already exists at ${interfaces_file}${NC}"
+        if confirm "Do you want to overwrite it?"; then
+            :
+        else
+            return 0
+        fi
+    fi
+    
+    echo -e "${CYAN}Creating CAN interface configuration...${NC}"
+    
+    # Create interface file content
+    local config_content="# CAN interface for Klipper
+# Created by gschpoozi
+allow-hotplug ${interface}
+iface ${interface} can static
+    bitrate ${bitrate}
+    up ifconfig \$IFACE txqueuelen 1024
+"
+    
+    # Write the file (requires sudo)
+    echo "$config_content" | sudo tee "$interfaces_file" > /dev/null
+    
+    if [[ $? -eq 0 ]]; then
+        echo -e "${GREEN}Created ${interfaces_file}${NC}"
+        return 0
+    else
+        echo -e "${RED}Failed to create ${interfaces_file}${NC}"
+        return 1
+    fi
+}
+
+# Bring up CAN interface
+bring_up_can_interface() {
+    local interface="${1:-can0}"
+    local bitrate="${2:-1000000}"
+    
+    echo -e "${CYAN}Bringing up CAN interface ${interface}...${NC}"
+    
+    # First try to bring it down if it exists
+    sudo ip link set "$interface" down 2>/dev/null || true
+    
+    # Set up and bring up
+    if sudo ip link set "$interface" up type can bitrate "$bitrate"; then
+        echo -e "${GREEN}CAN interface ${interface} is UP at ${bitrate} bps${NC}"
+        return 0
+    else
+        echo -e "${RED}Failed to bring up ${interface}${NC}"
+        return 1
+    fi
+}
+
+# Interactive CAN setup menu
+menu_can_setup() {
+    while true; do
+        clear_screen
+        print_header "CAN Bus Setup"
+        
+        local can_status
+        local bitrate="N/A"
+        
+        if check_can_interface "can0"; then
+            can_status="${GREEN}UP${NC}"
+            bitrate=$(get_can_bitrate "can0")
+        elif ip link show can0 &>/dev/null; then
+            can_status="${YELLOW}DOWN${NC}"
+        else
+            can_status="${RED}Not configured${NC}"
+        fi
+        
+        echo -e "${BCYAN}${BOX_V}${NC}  CAN Interface Status: ${can_status}"
+        if [[ "$bitrate" != "N/A" && "$bitrate" != "0" ]]; then
+            echo -e "${BCYAN}${BOX_V}${NC}  Bitrate: ${BWHITE}${bitrate} bps${NC}"
+        fi
+        
+        # Show selected CAN adapter
+        local can_adapter="${WIZARD_STATE[can_adapter]:-not selected}"
+        echo -e "${BCYAN}${BOX_V}${NC}  CAN Adapter: ${BWHITE}${can_adapter}${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_separator
+        
+        print_menu_item "1" "" "Select CAN adapter"
+        print_menu_item "2" "" "Setup CAN interface (create config file)"
+        print_menu_item "3" "" "Bring up CAN interface manually"
+        print_menu_item "4" "" "Check CAN requirements"
+        print_menu_item "5" "" "Diagnose CAN issues"
+        print_menu_item "6" "" "Install Katapult (optional bootloader)"
+        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_action_item "B" "Back to main menu"
+        
+        print_footer
+        
+        read -r -p "Select option: " choice
+        
+        case "$choice" in
+            1)
+                menu_select_can_adapter
+                ;;
+            2)
+                menu_can_interface_setup
+                ;;
+            3)
+                menu_can_bring_up
+                ;;
+            4)
+                menu_can_check
+                ;;
+            5)
+                diagnose_can_issues
+                wait_for_key
+                ;;
+            6)
+                menu_katapult_install
+                ;;
+            [Bb])
+                return
+                ;;
+        esac
+    done
+}
+
+# CAN adapter selection menu
+menu_select_can_adapter() {
+    clear_screen
+    print_header "Select CAN Adapter"
+    
+    echo -e "${BCYAN}${BOX_V}${NC}  How is your CAN bus connected to the Pi?"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_separator
+    
+    # List available CAN adapters from templates
+    local -a adapters=()
+    local -a adapter_names=()
+    local num=1
+    
+    # Add USB-CAN Bridge mode option first
+    adapters+=("usb-can-bridge")
+    adapter_names+=("Mainboard USB-CAN Bridge Mode")
+    print_menu_item "$num" "" "Mainboard USB-CAN Bridge Mode"
+    ((num++))
+    
+    # Load CAN adapter templates
+    if [[ -d "${TEMPLATES_DIR}/can-adapters" ]]; then
+        for adapter_file in "${TEMPLATES_DIR}/can-adapters"/*.json; do
+            if [[ -f "$adapter_file" ]]; then
+                local adapter_id adapter_name
+                adapter_id=$(basename "$adapter_file" .json)
+                adapter_name=$(python3 -c "import json; print(json.load(open('$adapter_file'))['name'])" 2>/dev/null)
+                
+                if [[ -n "$adapter_name" ]]; then
+                    adapters+=("$adapter_id")
+                    adapter_names+=("$adapter_name")
+                    print_menu_item "$num" "" "$adapter_name"
+                    ((num++))
+                fi
+            fi
+        done
+    fi
+    
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_action_item "C" "Cancel"
+    
+    print_footer
+    
+    read -r -p "Select adapter: " choice
+    
+    if [[ "$choice" =~ ^[0-9]+$ ]] && [[ "$choice" -ge 1 ]] && [[ "$choice" -lt "$num" ]]; then
+        local idx=$((choice - 1))
+        WIZARD_STATE[can_adapter]="${adapter_names[$idx]}"
+        WIZARD_STATE[can_adapter_id]="${adapters[$idx]}"
+        save_state
+        
+        echo -e "${GREEN}Selected: ${adapter_names[$idx]}${NC}"
+        
+        # Show adapter-specific instructions
+        if [[ "${adapters[$idx]}" != "usb-can-bridge" ]]; then
+            local adapter_file="${TEMPLATES_DIR}/can-adapters/${adapters[$idx]}.json"
+            if [[ -f "$adapter_file" ]]; then
+                echo ""
+                echo -e "${BWHITE}Setup instructions:${NC}"
+                python3 -c "
+import json
+data = json.load(open('$adapter_file'))
+if 'setup_instructions' in data:
+    for i, step in enumerate(data['setup_instructions'], 1):
+        print(f'  {step}')
+" 2>/dev/null
+            fi
+        else
+            echo ""
+            echo -e "${BWHITE}USB-CAN Bridge Mode:${NC}"
+            echo -e "  Your mainboard acts as the CAN adapter."
+            echo -e "  Flash Klipper with USB-CAN Bridge mode enabled."
+            echo -e "  See: https://canbus.esoterical.online/"
+        fi
+        
+        wait_for_key
+    fi
+}
+
+# CAN interface setup submenu
+menu_can_interface_setup() {
+    clear_screen
+    print_header "Setup CAN Interface"
+    
+    echo -e "${BCYAN}${BOX_V}${NC}  This will create /etc/network/interfaces.d/can0"
+    echo -e "${BCYAN}${BOX_V}${NC}  to automatically bring up the CAN interface on boot."
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_separator
+    
+    echo -e "${BCYAN}${BOX_V}${NC}  Select CAN bitrate:"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_menu_item "1" "" "1000000 bps (1 Mbit - recommended)"
+    print_menu_item "2" "" "500000 bps (500 Kbit)"
+    print_menu_item "3" "" "250000 bps (250 Kbit)"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_action_item "C" "Cancel"
+    
+    print_footer
+    
+    read -r -p "Select bitrate: " choice
+    
+    local bitrate
+    case "$choice" in
+        1) bitrate=1000000 ;;
+        2) bitrate=500000 ;;
+        3) bitrate=250000 ;;
+        [Cc]) return ;;
+        *) bitrate=1000000 ;;
+    esac
+    
+    if setup_can_interface "can0" "$bitrate"; then
+        echo ""
+        echo -e "${GREEN}CAN interface configuration created.${NC}"
+        echo -e "${YELLOW}You may need to reboot or run 'sudo ifup can0' to activate.${NC}"
+    fi
+    
+    wait_for_key
+}
+
+# Bring up CAN interface manually
+menu_can_bring_up() {
+    clear_screen
+    print_header "Bring Up CAN Interface"
+    
+    echo -e "${BCYAN}${BOX_V}${NC}  Select CAN bitrate:"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_menu_item "1" "" "1000000 bps (1 Mbit)"
+    print_menu_item "2" "" "500000 bps (500 Kbit)"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_action_item "C" "Cancel"
+    
+    print_footer
+    
+    read -r -p "Select bitrate: " choice
+    
+    local bitrate
+    case "$choice" in
+        1) bitrate=1000000 ;;
+        2) bitrate=500000 ;;
+        [Cc]) return ;;
+        *) bitrate=1000000 ;;
+    esac
+    
+    bring_up_can_interface "can0" "$bitrate"
+    
+    wait_for_key
+}
+
+# Check CAN requirements
+menu_can_check() {
+    clear_screen
+    print_header "CAN Requirements Check"
+    
+    echo -e "${BCYAN}${BOX_V}${NC}  Checking CAN bus requirements..."
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    
+    local issues
+    issues=$(check_can_requirements "can0")
+    
+    if [[ -z "$issues" ]]; then
+        echo -e "${BCYAN}${BOX_V}${NC}  ${GREEN}✓ All CAN requirements met!${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}  Interface: can0"
+        echo -e "${BCYAN}${BOX_V}${NC}  Bitrate: $(get_can_bitrate can0) bps"
+        echo -e "${BCYAN}${BOX_V}${NC}  Status: UP"
+    else
+        echo -e "${BCYAN}${BOX_V}${NC}  ${RED}Issues found:${NC}"
+        while IFS= read -r issue; do
+            echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}• ${issue}${NC}"
+        done <<< "$issues"
+    fi
+    
+    print_footer
+    wait_for_key
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# KATAPULT (CanBoot) FUNCTIONS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Check if Katapult is installed
+is_katapult_installed() {
+    [[ -d "${HOME}/katapult" ]] || [[ -d "${HOME}/CanBoot" ]]
+}
+
+# Install Katapult bootloader tools
+install_katapult() {
+    echo -e "${CYAN}Installing Katapult...${NC}"
+    
+    if is_katapult_installed; then
+        echo -e "${YELLOW}Katapult is already installed.${NC}"
+        return 0
+    fi
+    
+    # Temporarily disable errexit for clone
+    set +e
+    
+    if git clone https://github.com/Arksine/katapult.git "${HOME}/katapult" 2>&1; then
+        echo -e "${GREEN}Katapult installed successfully!${NC}"
+        set -e
+        return 0
+    else
+        echo -e "${RED}Failed to clone Katapult repository.${NC}"
+        set -e
+        return 1
+    fi
+}
+
+# Add Katapult to Moonraker update manager
+add_katapult_update_manager() {
+    local moonraker_conf="${HOME}/printer_data/config/moonraker.conf"
+    
+    if [[ ! -f "$moonraker_conf" ]]; then
+        echo -e "${YELLOW}moonraker.conf not found at ${moonraker_conf}${NC}"
+        return 1
+    fi
+    
+    # Check if entry already exists
+    if grep -q "\[update_manager katapult\]" "$moonraker_conf" 2>/dev/null; then
+        echo -e "${YELLOW}Katapult update manager entry already exists.${NC}"
+        return 0
+    fi
+    
+    local katapult_entry="
+[update_manager katapult]
+type: git_repo
+path: ~/katapult
+origin: https://github.com/Arksine/katapult.git
+is_system_service: False
+"
+    
+    echo "$katapult_entry" | sudo tee -a "$moonraker_conf" > /dev/null
+    echo -e "${GREEN}Added Katapult to Moonraker update manager.${NC}"
+}
+
+# Katapult installation menu
+menu_katapult_install() {
+    clear_screen
+    print_header "Katapult Installation"
+    
+    echo -e "${BCYAN}${BOX_V}${NC}  Katapult (formerly CanBoot) is a bootloader that allows"
+    echo -e "${BCYAN}${BOX_V}${NC}  updating Klipper firmware over the CAN bus without"
+    echo -e "${BCYAN}${BOX_V}${NC}  physically connecting USB cables."
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}Note: Katapult is optional but highly recommended${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}for CAN-based toolhead boards.${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    
+    if is_katapult_installed; then
+        echo -e "${BCYAN}${BOX_V}${NC}  Status: ${GREEN}Installed${NC}"
+    else
+        echo -e "${BCYAN}${BOX_V}${NC}  Status: ${RED}Not installed${NC}"
+    fi
+    
+    print_separator
+    
+    if is_katapult_installed; then
+        print_menu_item "1" "" "Update Katapult (git pull)"
+        print_menu_item "2" "" "Add to Moonraker update manager"
+    else
+        print_menu_item "1" "" "Install Katapult"
+    fi
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_action_item "B" "Back"
+    
+    print_footer
+    
+    read -r -p "Select option: " choice
+    
+    if is_katapult_installed; then
+        case "$choice" in
+            1)
+                echo -e "${CYAN}Updating Katapult...${NC}"
+                cd "${HOME}/katapult" 2>/dev/null || cd "${HOME}/CanBoot"
+                git pull
+                echo -e "${GREEN}Katapult updated!${NC}"
+                wait_for_key
+                ;;
+            2)
+                add_katapult_update_manager
+                wait_for_key
+                ;;
+        esac
+    else
+        case "$choice" in
+            1)
+                if install_katapult; then
+                    echo ""
+                    if confirm "Add Katapult to Moonraker update manager?"; then
+                        add_katapult_update_manager
+                    fi
+                fi
+                wait_for_key
+                ;;
+        esac
+    fi
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CAN DIAGNOSTICS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Comprehensive CAN bus diagnostics
+diagnose_can_issues() {
+    clear_screen
+    print_header "CAN Bus Diagnostics"
+    
+    echo -e "${BCYAN}${BOX_V}${NC}  Running diagnostics..."
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    
+    local has_issues=0
+    
+    # Check 1: CAN interface exists
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}1. CAN Interface (can0):${NC}"
+    if ip link show can0 &>/dev/null; then
+        echo -e "${BCYAN}${BOX_V}${NC}     ${GREEN}✓ Interface exists${NC}"
+        
+        # Check if UP
+        if ip link show can0 2>/dev/null | grep -q "state UP"; then
+            echo -e "${BCYAN}${BOX_V}${NC}     ${GREEN}✓ Interface is UP${NC}"
+            local bitrate
+            bitrate=$(get_can_bitrate can0)
+            echo -e "${BCYAN}${BOX_V}${NC}     ${GREEN}✓ Bitrate: ${bitrate} bps${NC}"
+        else
+            echo -e "${BCYAN}${BOX_V}${NC}     ${RED}✗ Interface is DOWN${NC}"
+            echo -e "${BCYAN}${BOX_V}${NC}     ${YELLOW}  Fix: sudo ip link set can0 up type can bitrate 1000000${NC}"
+            has_issues=1
+        fi
+    else
+        echo -e "${BCYAN}${BOX_V}${NC}     ${RED}✗ Interface does not exist${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}     ${YELLOW}  Check: Is your CAN adapter connected?${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}     ${YELLOW}  Fix: Create /etc/network/interfaces.d/can0${NC}"
+        has_issues=1
+    fi
+    
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    
+    # Check 2: CAN adapter
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}2. CAN Adapter Detection:${NC}"
+    local usb_can_devices
+    usb_can_devices=$(lsusb 2>/dev/null | grep -iE "can|1d50:606f|gs_usb" || true)
+    if [[ -n "$usb_can_devices" ]]; then
+        echo -e "${BCYAN}${BOX_V}${NC}     ${GREEN}✓ USB CAN device found:${NC}"
+        while IFS= read -r device; do
+            echo -e "${BCYAN}${BOX_V}${NC}       $device"
+        done <<< "$usb_can_devices"
+    else
+        echo -e "${BCYAN}${BOX_V}${NC}     ${YELLOW}? No obvious USB CAN adapter detected${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}     ${YELLOW}  (May be using USB-CAN bridge mode on mainboard)${NC}"
+    fi
+    
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    
+    # Check 3: Klipper query script
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}3. Klipper CAN Query Script:${NC}"
+    if [[ -f "${HOME}/klipper/scripts/canbus_query.py" ]]; then
+        echo -e "${BCYAN}${BOX_V}${NC}     ${GREEN}✓ canbus_query.py found${NC}"
+    else
+        echo -e "${BCYAN}${BOX_V}${NC}     ${RED}✗ canbus_query.py not found${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}     ${YELLOW}  Check: Is Klipper installed?${NC}"
+        has_issues=1
+    fi
+    
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    
+    # Check 4: Try to find CAN devices
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}4. CAN Device Discovery:${NC}"
+    if check_can_interface can0; then
+        local uuids
+        uuids=$(detect_can_mcus)
+        if [[ -n "$uuids" ]]; then
+            echo -e "${BCYAN}${BOX_V}${NC}     ${GREEN}✓ CAN devices found:${NC}"
+            while IFS= read -r uuid; do
+                echo -e "${BCYAN}${BOX_V}${NC}       ${BWHITE}${uuid}${NC}"
+            done <<< "$uuids"
+        else
+            echo -e "${BCYAN}${BOX_V}${NC}     ${YELLOW}? No CAN devices responding${NC}"
+            echo -e "${BCYAN}${BOX_V}${NC}     ${YELLOW}  Check:${NC}"
+            echo -e "${BCYAN}${BOX_V}${NC}     ${YELLOW}  - Is the toolboard powered?${NC}"
+            echo -e "${BCYAN}${BOX_V}${NC}     ${YELLOW}  - Is Klipper/Katapult flashed on it?${NC}"
+            echo -e "${BCYAN}${BOX_V}${NC}     ${YELLOW}  - Are CAN H/L wires connected correctly?${NC}"
+            echo -e "${BCYAN}${BOX_V}${NC}     ${YELLOW}  - Is there a 120Ω termination resistor?${NC}"
+            has_issues=1
+        fi
+    else
+        echo -e "${BCYAN}${BOX_V}${NC}     ${YELLOW}? Cannot query - can0 not ready${NC}"
+        has_issues=1
+    fi
+    
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    
+    # Check 5: Klipper service
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}5. Klipper Service:${NC}"
+    if systemctl is-active --quiet klipper 2>/dev/null; then
+        echo -e "${BCYAN}${BOX_V}${NC}     ${GREEN}✓ Klipper service is running${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}     ${YELLOW}  Note: Stop Klipper to flash firmware over CAN${NC}"
+    else
+        echo -e "${BCYAN}${BOX_V}${NC}     ${YELLOW}? Klipper service is not running${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}     ${YELLOW}  (OK for flashing, needed for operation)${NC}"
+    fi
+    
+    print_separator
+    
+    if [[ $has_issues -eq 0 ]]; then
+        echo -e "${BCYAN}${BOX_V}${NC}  ${GREEN}All checks passed!${NC}"
+    else
+        echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}Some issues found. See suggestions above.${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Helpful resources:${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}  • https://canbus.esoterical.online/"
+        echo -e "${BCYAN}${BOX_V}${NC}  • Voron Discord #can-and-usb_toolhead_boards"
+    fi
+    
+    print_footer
+}
+
 # Interactive menu to select MCU serial
 select_mcu_serial() {
     local role="$1"  # "main" or "toolboard"
@@ -852,6 +1462,17 @@ show_main_menu() {
     print_menu_item "4" "$(get_step_status board)" "Main Board" "${board_info}"
     print_menu_item "5" "$(get_step_status ports)" "Port Assignment" "$(get_port_status)"
     
+    # Show CAN status if toolboard uses CAN
+    local can_status=""
+    if [[ "${WIZARD_STATE[toolboard_connection]}" == "can" ]]; then
+        if check_can_interface can0 2>/dev/null; then
+            can_status="${GREEN}UP${NC}"
+        else
+            can_status="${RED}Not configured${NC}"
+        fi
+        print_menu_item "C" "" "CAN Bus Setup" "${can_status}"
+    fi
+    
     echo -e "${BCYAN}${BOX_V}${NC}"
     echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Step 3: Configuration${NC}"
     print_menu_item "6" "$(get_step_status extruder)" "Extruder" "${WIZARD_STATE[extruder_type]:-not set}"
@@ -880,6 +1501,7 @@ show_main_menu() {
         8) menu_probe ;;
         9) menu_extras ;;
         0) menu_macros ;;
+        [cC]) menu_can_setup ;;
         [gG]) generate_config ;;
         [sS]) save_state; echo -e "${GREEN}Progress saved!${NC}"; wait_for_key ;;
         [qQ]) exit_wizard ;;
