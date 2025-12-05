@@ -374,6 +374,59 @@ info_tags:
     fi
 }
 
+# Check if Crowsnest is installed
+is_crowsnest_installed() {
+    [[ -d "${HOME}/crowsnest" ]] && [[ -f "${HOME}/crowsnest/crowsnest" ]]
+}
+
+# Install Crowsnest
+install_crowsnest() {
+    echo -e "\n${CYAN}Installing Crowsnest webcam streamer...${NC}"
+    
+    # Disable exit-on-error for installation
+    set +e
+    
+    cd "${HOME}"
+    
+    if [[ -d "${HOME}/crowsnest" ]]; then
+        if [[ -d "${HOME}/crowsnest/.git" ]]; then
+            echo -e "${YELLOW}Crowsnest directory exists, updating...${NC}"
+            cd "${HOME}/crowsnest"
+            git fetch --all
+            git reset --hard origin/master || git reset --hard origin/main
+            git pull || true
+        else
+            echo -e "${YELLOW}Crowsnest directory exists but is not a valid git repo, removing...${NC}"
+            rm -rf "${HOME}/crowsnest"
+            if ! git clone https://github.com/mainsail-crew/crowsnest.git; then
+                echo -e "${RED}Failed to clone Crowsnest repository${NC}"
+                set -e
+                return 1
+            fi
+        fi
+    else
+        if ! git clone https://github.com/mainsail-crew/crowsnest.git; then
+            echo -e "${RED}Failed to clone Crowsnest repository${NC}"
+            set -e
+            return 1
+        fi
+    fi
+    
+    echo -e "${CYAN}Running Crowsnest install script...${NC}"
+    cd "${HOME}/crowsnest"
+    if [[ -x "tools/install.sh" ]]; then
+        sudo tools/install.sh || echo -e "${YELLOW}Install script returned non-zero (may be OK)${NC}"
+    elif [[ -f "tools/install.sh" ]]; then
+        sudo bash tools/install.sh || echo -e "${YELLOW}Install script returned non-zero (may be OK)${NC}"
+    fi
+    
+    add_crowsnest_update_manager
+    echo -e "${GREEN}Crowsnest installation complete!${NC}"
+    
+    # Re-enable exit-on-error
+    set -e
+}
+
 # Add Crowsnest update manager entry to moonraker.conf
 add_crowsnest_update_manager() {
     local moonraker_conf="${DEFAULT_CONFIG_DIR}/moonraker.conf"
@@ -385,7 +438,7 @@ type: git_repo
 path: ~/crowsnest
 origin: https://github.com/mainsail-crew/crowsnest.git
 managed_services: crowsnest
-install_script: tools/pkglist.sh"
+install_script: tools/install.sh"
         
         echo -e "${CYAN}Adding Crowsnest to Moonraker update manager...${NC}"
         echo "$entry" | sudo tee -a "$moonraker_conf" > /dev/null
@@ -1319,6 +1372,16 @@ select_camera_type() {
     clear_screen
     print_header "Camera Type"
     
+    # Show Crowsnest installation status
+    local crowsnest_status=""
+    if is_crowsnest_installed; then
+        crowsnest_status="${GREEN}[installed]${NC}"
+    else
+        crowsnest_status="${YELLOW}[not installed]${NC}"
+    fi
+    
+    echo -e "${BCYAN}${BOX_V}${NC}  Crowsnest status: ${crowsnest_status}"
+    echo -e "${BCYAN}${BOX_V}${NC}"
     echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}What type of camera?${NC}"
     echo -e "${BCYAN}${BOX_V}${NC}"
     echo -e "${BCYAN}${BOX_V}${NC}  1) USB Webcam (Logitech, generic)"
@@ -1336,12 +1399,26 @@ select_camera_type() {
         *) return ;;
     esac
     
-    # Add Crowsnest to update manager
-    add_crowsnest_update_manager
-    
-    echo -e "\n${CYAN}Crowsnest will be configured for webcam streaming.${NC}"
-    echo -e "${CYAN}You may need to adjust ~/printer_data/config/crowsnest.conf${NC}"
-    sleep 2
+    # Check if Crowsnest needs to be installed
+    if ! is_crowsnest_installed; then
+        echo ""
+        echo -e "${YELLOW}Crowsnest is not installed.${NC}"
+        if confirm "Install Crowsnest now?"; then
+            install_crowsnest
+            wait_for_key
+        else
+            echo -e "${YELLOW}Note: You'll need to install Crowsnest manually for webcam streaming.${NC}"
+            echo -e "${CYAN}git clone https://github.com/mainsail-crew/crowsnest.git${NC}"
+            echo -e "${CYAN}cd crowsnest && sudo tools/install.sh${NC}"
+            wait_for_key
+        fi
+    else
+        # Just add to update manager if not already there
+        add_crowsnest_update_manager
+        echo -e "\n${GREEN}Crowsnest is ready!${NC}"
+        echo -e "${CYAN}Configure your camera in ~/printer_data/config/crowsnest.conf${NC}"
+        sleep 2
+    fi
 }
 
 select_klipperscreen_type() {
