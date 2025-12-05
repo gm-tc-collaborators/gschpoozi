@@ -1,6 +1,6 @@
 # gschpoozi Development Progress
 
-> Last updated: 2024-12-05
+> Last updated: 2025-12-05
 
 ## Project Status: Alpha (In Development)
 
@@ -139,6 +139,17 @@
 | Sherpa Mini | `extruders.json` | ✅ |
 | CoreXY AWD kinematics | `corexy-awd` | ✅ |
 
+### VzBot 330 AWD (CoreXY AWD, 330x316 bed, 1x Z)
+| Component | Template | Status |
+|-----------|----------|--------|
+| Mellow Fly Super8 Pro | `mellow-fly-super8-v1-x.json` | ✅ |
+| Orbitool SO3 | `orbitool-so3.json` | ✅ |
+| Beacon Rev H (Contact) | `beacon.json` | ✅ |
+| VZ Hextrudort | extruders (pending) | 🔄 |
+| CoreXY AWD kinematics | `corexy-awd` | ✅ |
+| TMC5160 (X/X1/Y/Y1) | SPI drivers | ✅ |
+| TMC2209 (Z) | UART driver | ✅ |
+
 ---
 
 ## 📝 TODO / Roadmap
@@ -150,7 +161,7 @@
 - [ ] Macro templates (PRINT_START, PRINT_END, etc.)
 
 ### Medium Priority
-- [ ] More probe templates (Klicky, TAP, BLTouch)
+- [x] More probe templates (Klicky, TAP, BLTouch) - Done!
 - [ ] Input shaper configuration
 - [ ] Bed mesh configuration
 

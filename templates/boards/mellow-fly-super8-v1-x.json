@@ -2,10 +2,12 @@
   "id": "mellow-fly-super8-v1-x",
   "name": "Mellow Fly Super8 v1.x",
   "manufacturer": "Mellow",
-  "source": "Extracted from Klippain (GPL-3.0)",
+  "mcu": "stm32h723xx",
+  "source": "Extracted from Klippain (GPL-3.0) + VzBot 330 AWD reference",
+
   "motor_ports": {
     "MOTOR_0": {
-      "label": "Driver 0",
+      "label": "Driver 0 (DRIVE0)",
       "step_pin": "PE2",
       "dir_pin": "PC5",
       "enable_pin": "PF11",
@@ -13,7 +15,7 @@
       "cs_pin": "PC4"
     },
     "MOTOR_1": {
-      "label": "Driver 1",
+      "label": "Driver 1 (DRIVE1)",
       "step_pin": "PE3",
       "dir_pin": "PF13",
       "enable_pin": "PF14",
@@ -21,7 +23,7 @@
       "cs_pin": "PF12"
     },
     "MOTOR_2": {
-      "label": "Driver 2",
+      "label": "Driver 2 (DRIVE2)",
       "step_pin": "PE4",
       "dir_pin": "PG0",
       "enable_pin": "PG1",
@@ -29,7 +31,7 @@
       "cs_pin": "PF15"
     },
     "MOTOR_3": {
-      "label": "Driver 3",
+      "label": "Driver 3 (DRIVE3)",
       "step_pin": "PE14",
       "dir_pin": "PE8",
       "enable_pin": "PE9",
@@ -37,7 +39,7 @@
       "cs_pin": "PE7"
     },
     "MOTOR_4": {
-      "label": "Driver 4",
+      "label": "Driver 4 (DRIVE4)",
       "step_pin": "PE15",
       "dir_pin": "PE11",
       "enable_pin": "PF2",
@@ -45,7 +47,7 @@
       "cs_pin": "PE10"
     },
     "MOTOR_5": {
-      "label": "Driver 5",
+      "label": "Driver 5 (DRIVE5)",
       "step_pin": "PE1",
       "dir_pin": "PF0",
       "enable_pin": "PC15",
@@ -53,7 +55,7 @@
       "cs_pin": "PF1"
     },
     "MOTOR_6": {
-      "label": "Driver 6",
+      "label": "Driver 6 (DRIVE6)",
       "step_pin": "PE0",
       "dir_pin": "PG3",
       "enable_pin": "PG4",
@@ -61,7 +63,7 @@
       "cs_pin": "PG2"
     },
     "MOTOR_7": {
-      "label": "Driver 7",
+      "label": "Driver 7 (DRIVE7)",
       "step_pin": "PE6",
       "dir_pin": "PG6",
       "enable_pin": "PG7",
@@ -69,28 +71,67 @@
       "cs_pin": "PG5"
     }
   },
+
   "heater_ports": {
     "HEAT0": {
-      "label": "Heater AT0",
-      "pin": "PB0"
+      "label": "Heater 0 (Hotend)",
+      "pin": "PB0",
+      "max_current_amps": 3
     },
     "HEAT1": {
-      "label": "Heater AT1",
-      "pin": "PB1"
+      "label": "Heater 1",
+      "pin": "PB1",
+      "max_current_amps": 3
     },
     "HEAT2": {
-      "label": "Heater AT2",
-      "pin": "PC7"
+      "label": "Heater 2",
+      "pin": "PC7",
+      "max_current_amps": 3
     },
     "HEAT3": {
-      "label": "Heater AT3",
-      "pin": "PF7"
+      "label": "Heater 3",
+      "pin": "PF7",
+      "max_current_amps": 3
     },
     "HEAT4": {
-      "label": "Heater AT4",
-      "pin": "PF6"
+      "label": "Heater 4",
+      "pin": "PF6",
+      "max_current_amps": 3
+    },
+    "BED": {
+      "label": "Heated Bed",
+      "pin": "PE5",
+      "max_current_amps": 15
     }
   },
+
+  "thermistor_ports": {
+    "ADC_0": {
+      "label": "Thermistor 0 (T0/Hotend)",
+      "pin": "PF4"
+    },
+    "ADC_1": {
+      "label": "Thermistor 1 (T1/Chamber)",
+      "pin": "PF5"
+    },
+    "ADC_2": {
+      "label": "Thermistor 2 (T2)",
+      "pin": "PF9"
+    },
+    "ADC_3": {
+      "label": "Thermistor 3 (T3)",
+      "pin": "PF10"
+    },
+    "ADC_4": {
+      "label": "Thermistor 4 (T4)",
+      "pin": "PC0"
+    },
+    "ADC_5": {
+      "label": "Thermistor 5 (TB/Bed)",
+      "pin": "PC1"
+    }
+  },
+
   "fan_ports": {
     "FAN0": {
       "label": "Fan 0",
@@ -141,13 +182,83 @@
       "label": "Fan 9",
       "pin": "PD15",
       "pwm": true
+    },
+    "IN7": {
+      "label": "IN7 (5V tolerant input, PWM capable)",
+      "pin": "PF8",
+      "pwm": true
     }
   },
-  "thermistor_ports": {},
+
   "endstop_ports": {
+    "IO0": {
+      "label": "IO0 (Endstop)",
+      "pin": "PG12"
+    },
+    "IO1": {
+      "label": "IO1 (Endstop/Runout)",
+      "pin": "PG11"
+    },
+    "IO2": {
+      "label": "IO2 (Endstop)",
+      "pin": "PG10"
+    },
+    "IO3": {
+      "label": "IO3 (Endstop)",
+      "pin": "PG9"
+    },
+    "IO4": {
+      "label": "IO4 (Endstop)",
+      "pin": "PD7"
+    },
+    "IO5": {
+      "label": "IO5 (Endstop)",
+      "pin": "PD6"
+    },
+    "IO6": {
+      "label": "IO6 (Endstop)",
+      "pin": "PA8"
+    },
     "PROBE": {
-      "label": "Probe Input",
+      "label": "Probe Input (BLTouch)",
       "pin": "PC3"
+    },
+    "HV_IN": {
+      "label": "High Voltage Input (Inductive Probe)",
+      "pin": "PF3"
     }
+  },
+
+  "misc_ports": {
+    "SERVO": {
+      "label": "Servo (BLTouch control)",
+      "pin": "PC6"
+    },
+    "NEOPIXEL": {
+      "label": "NeoPixel (directly from MCU)",
+      "pin": "PD3"
+    }
+  },
+
+  "spi_config": {
+    "tmc_spi_bus": "spi3",
+    "tmc_mosi": "PB5",
+    "tmc_miso": "PB4",
+    "tmc_sck": "PB3"
+  },
+
+  "default_assignments": {
+    "stepper_x": "MOTOR_6",
+    "stepper_y": "MOTOR_5",
+    "stepper_z": "MOTOR_0",
+    "extruder": "MOTOR_2",
+    "heater_bed": "BED",
+    "thermistor_bed": "ADC_5",
+    "heater_extruder": "HEAT0",
+    "thermistor_extruder": "ADC_0",
+    "fan_part_cooling": "FAN0",
+    "fan_hotend": "FAN1",
+    "fan_controller": "FAN2",
+    "endstop_y": "IO0"
   }
 }
