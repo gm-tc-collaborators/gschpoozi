@@ -325,20 +325,19 @@ def generate_hardware_cfg(
             # Use correct virtual endstop based on probe type
             probe_type = wizard_state.get('probe_type', '')
             if probe_type == 'beacon':
-                lines.append("endstop_pin: beacon:z_virtual_endstop")
+                # Beacon registers as 'probe' chip, not 'beacon'
+                lines.append("endstop_pin: probe:z_virtual_endstop")
                 lines.append("homing_retract_dist: 0  # Beacon requires this")
-                lines.append("position_endstop: 0")
             elif probe_type == 'cartographer':
+                # Cartographer registers as 'cartographer' chip
                 lines.append("endstop_pin: cartographer:z_virtual_endstop")
                 lines.append("homing_retract_dist: 0  # Cartographer requires this")
-                lines.append("position_endstop: 0")
             elif probe_type == 'btt-eddy':
+                # BTT Eddy registers as 'btt_eddy' chip
                 lines.append("endstop_pin: btt_eddy:z_virtual_endstop")
                 lines.append("homing_retract_dist: 0  # Eddy probe requires this")
-                lines.append("position_endstop: 0")
             elif probe_type in ('bltouch', 'klicky', 'inductive'):
                 lines.append("endstop_pin: probe:z_virtual_endstop")
-                lines.append("position_endstop: 0")
                 lines.append("homing_retract_dist: 5")
             else:
                 lines.append("endstop_pin: REPLACE_PIN  # Physical Z endstop")

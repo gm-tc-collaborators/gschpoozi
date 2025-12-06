@@ -1,8 +1,21 @@
 # gschpoozi Development Progress
 
-> Last updated: 2025-12-05
+> Last updated: 2025-12-06
 
 ## Project Status: Alpha (In Development)
+
+---
+
+## 🐛 Recent Bug Fixes
+
+### 2025-12-06: Beacon Virtual Endstop Fix
+- **Issue**: `stepper_z` was missing `homing_retract_dist: 0` in configure.sh template
+- **Root Cause**: Beacon requires `homing_retract_dist: 0` for proper virtual endstop operation
+- **Fix**: Added `homing_retract_dist: 0  # Required for probe-based Z homing` to stepper_z template
+- **Note**: The correct syntax is `probe:z_virtual_endstop` (NOT `beacon:z_virtual_endstop`)
+  - Beacon module registers as `probe` chip, not `beacon`
+  - Using `beacon:` causes "Unknown command: endstop_home" error
+- **Files**: `scripts/configure.sh`, verified `scripts/generate-config.py` already correct
 
 ---
 

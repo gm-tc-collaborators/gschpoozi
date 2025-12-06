@@ -2923,6 +2923,7 @@ enable_pin: !REPLACE_PIN
 microsteps: 16
 rotation_distance: 8
 endstop_pin: probe:z_virtual_endstop
+homing_retract_dist: 0  # Required for probe-based Z homing
 position_min: -5
 position_max: ${WIZARD_STATE[bed_size_z]:-350}
 homing_speed: 15
