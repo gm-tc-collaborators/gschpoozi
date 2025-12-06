@@ -32,6 +32,7 @@ TOOLBOARDS_DIR = TEMPLATES_DIR / "toolboards"
 
 # State file location
 STATE_FILE = REPO_ROOT / ".hardware-state.json"
+WIZARD_STATE_FILE = REPO_ROOT / ".wizard-state"
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # COLORS (ANSI escape codes)
@@ -245,6 +246,131 @@ def detect_can_mcus(interface: str = "can0") -> List[str]:
     
     return uuids
 
+def load_wizard_state() -> Dict[str, str]:
+    """Load wizard state from key=value file."""
+    state = {}
+    if WIZARD_STATE_FILE.exists():
+        with open(WIZARD_STATE_FILE) as f:
+            for line in f:
+                line = line.strip()
+                if '=' in line and not line.startswith('#'):
+                    key, value = line.split('=', 1)
+                    state[key] = value
+    return state
+
+def detect_probe_serial() -> List[Tuple[str, str]]:
+    """
+    Detect USB-connected probes (Beacon, Cartographer, BTT Eddy).
+    Returns list of (device_path, description) tuples.
+    """
+    devices = []
+    serial_dir = Path("/dev/serial/by-id")
+    
+    if not serial_dir.exists():
+        return devices
+    
+    # Pattern matching for known probe devices
+    probe_patterns = {
+        'beacon': ['beacon', 'Beacon'],
+        'cartographer': ['cartographer', 'Cartographer'],
+        'eddy': ['Eddy', 'eddy', 'btt_eddy'],
+    }
+    
+    for device in serial_dir.iterdir():
+        if device.is_symlink():
+            name = device.name
+            for probe_type, patterns in probe_patterns.items():
+                for pattern in patterns:
+                    if pattern in name:
+                        desc = f"{probe_type.title()} Probe"
+                        devices.append((str(device), desc))
+                        break
+    
+    return devices
+
+def select_probe_serial(probe_type: str) -> Optional[str]:
+    """
+    Interactive menu to select probe serial ID.
+    probe_type: "beacon", "cartographer", "btt-eddy"
+    Returns selected serial path or None if cancelled.
+    """
+    clear_screen()
+    
+    # Map probe types to display names
+    probe_names = {
+        'beacon': 'Beacon',
+        'cartographer': 'Cartographer',
+        'btt-eddy': 'BTT Eddy',
+    }
+    probe_name = probe_names.get(probe_type, probe_type.title())
+    
+    print_header(f"Select {probe_name} Serial")
+    print_info(f"Scanning for {probe_name} devices...")
+    print_info("")
+    
+    # Detect probe devices
+    devices = detect_probe_serial()
+    
+    # Filter for specific probe type
+    type_patterns = {
+        'beacon': ['beacon', 'Beacon'],
+        'cartographer': ['cartographer', 'Cartographer'],
+        'btt-eddy': ['eddy', 'Eddy'],
+    }
+    patterns = type_patterns.get(probe_type, [probe_type])
+    filtered_devices = [
+        d for d in devices 
+        if any(p in d[0] for p in patterns)
+    ]
+    
+    if not filtered_devices:
+        print_info(f"{Colors.YELLOW}No {probe_name} devices found.{Colors.NC}")
+        print_info("")
+        print_info("Make sure:")
+        print_info(f"  - {probe_name} is connected via USB")
+        print_info("  - Device is powered on")
+        print_info("  - Device has proper firmware")
+        print_info("")
+        print_info(f"Run: ls /dev/serial/by-id/*{probe_type}* to check manually")
+        print_separator()
+        print_action("M", "Enter serial path manually")
+        print_action("B", "Back")
+        print_footer()
+        
+        choice = prompt("Select option").strip().lower()
+        if choice == 'm':
+            return prompt(f"Enter {probe_name} serial path").strip()
+        return None
+    
+    # Display found devices
+    for i, (path, desc) in enumerate(filtered_devices, 1):
+        # Truncate long paths for display
+        display_path = path
+        if len(path) > 55:
+            display_path = "..." + path[-52:]
+        print_menu_item(str(i), desc, display_path, "")
+    
+    print_separator()
+    print_action("M", "Enter serial path manually")
+    print_action("B", "Back")
+    print_footer()
+    
+    choice = prompt("Select device").strip()
+    
+    if choice.lower() == 'b':
+        return None
+    if choice.lower() == 'm':
+        return prompt(f"Enter {probe_name} serial path").strip()
+    
+    try:
+        idx = int(choice) - 1
+        if 0 <= idx < len(filtered_devices):
+            return filtered_devices[idx][0]
+    except ValueError:
+        pass
+    
+    return None
+
 def select_mcu_serial(role: str = "main", connection: str = "usb") -> Optional[str]:
     """
     Interactive menu to select MCU serial ID.
@@ -356,6 +482,19 @@ def assign_mcu_serials():
     has_toolboard = state.toolboard_id and state.toolboard_id != "none"
     toolboard = toolboards.get(state.toolboard_id) if has_toolboard else None
     
+    # Check if probe requires serial (beacon, cartographer, btt-eddy)
+    wizard_state = load_wizard_state()
+    probe_type = wizard_state.get('probe_type', '')
+    usb_probes = {'beacon', 'cartographer', 'btt-eddy'}
+    has_usb_probe = probe_type in usb_probes
+    
+    # Probe display names
+    probe_names = {
+        'beacon': 'Beacon',
+        'cartographer': 'Cartographer',
+        'btt-eddy': 'BTT Eddy',
+    }
+    
     while True:
         clear_screen()
         print_header("MCU Serial Configuration")
@@ -381,6 +520,15 @@ def assign_mcu_serials():
                     tb_display = "..." + state.toolboard_serial[-47:]
                 print_menu_item("2", f"Toolboard ({tb_connection})", tb_display, tb_status)
         
+        # Show probe serial option if USB-connected probe selected
+        if has_usb_probe:
+            probe_name = probe_names.get(probe_type, probe_type.title())
+            probe_status = "done" if state.probe_serial else ""
+            probe_display = state.probe_serial or "not configured"
+            if state.probe_serial and len(state.probe_serial) > 50:
+                probe_display = "..." + state.probe_serial[-47:]
+            print_menu_item("3", f"{probe_name} Probe (USB)", probe_display, probe_status)
+        
         print_separator()
         print_action("D", "Done")
         print_action("B", "Back")
@@ -402,6 +550,10 @@ def assign_mcu_serials():
                 result = select_mcu_serial("toolboard", "usb")
                 if result:
                     state.toolboard_serial = result
+        elif choice == '3' and has_usb_probe:
+            result = select_probe_serial(probe_type)
+            if result:
+                state.probe_serial = result
         elif choice in ('d', 'b'):
             return
 
@@ -423,6 +575,8 @@ class HardwareState:
         self.mcu_serial: Optional[str] = None
         self.toolboard_serial: Optional[str] = None
         self.toolboard_canbus_uuid: Optional[str] = None
+        # Probe serial (for Beacon, Cartographer, BTT Eddy, etc.)
+        self.probe_serial: Optional[str] = None
         
     def save(self, filepath: Path = STATE_FILE):
         """Save state to JSON file."""
@@ -436,6 +590,7 @@ class HardwareState:
             'mcu_serial': self.mcu_serial,
             'toolboard_serial': self.toolboard_serial,
             'toolboard_canbus_uuid': self.toolboard_canbus_uuid,
+            'probe_serial': self.probe_serial,
         }
         with open(filepath, 'w') as f:
             json.dump(data, f, indent=2)
@@ -458,6 +613,7 @@ class HardwareState:
             self.mcu_serial = data.get('mcu_serial')
             self.toolboard_serial = data.get('toolboard_serial')
             self.toolboard_canbus_uuid = data.get('toolboard_canbus_uuid')
+            self.probe_serial = data.get('probe_serial')
             return True
         except (json.JSONDecodeError, KeyError):
             return False

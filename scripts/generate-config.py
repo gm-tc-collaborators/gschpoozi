@@ -482,6 +482,9 @@ def generate_hardware_cfg(
     
     # Probe configuration
     probe_type = wizard_state.get('probe_type', '')
+    # Get probe serial from hardware state
+    probe_serial = hardware_state.get('probe_serial')
+    
     if probe_type and probe_type != 'none' and probe_type != 'endstop':
         lines.append("# " + "─" * 77)
         lines.append("# PROBE")
@@ -489,24 +492,33 @@ def generate_hardware_cfg(
         
         if probe_type == 'beacon':
             lines.append("[beacon]")
-            lines.append("serial: /dev/serial/by-id/REPLACE_WITH_BEACON_ID")
-            lines.append("# Run: ls /dev/serial/by-id/*beacon* to find your device")
+            if probe_serial:
+                lines.append(f"serial: {probe_serial}")
+            else:
+                lines.append("serial: /dev/serial/by-id/REPLACE_WITH_BEACON_ID")
+                lines.append("# Run: ls /dev/serial/by-id/*beacon* to find your device")
             lines.append("x_offset: 0")
             lines.append("y_offset: 20  # Adjust for your toolhead")
             lines.append("mesh_main_direction: x")
             lines.append("mesh_runs: 2")
         elif probe_type == 'cartographer':
             lines.append("[cartographer]")
-            lines.append("serial: /dev/serial/by-id/REPLACE_WITH_CARTOGRAPHER_ID")
-            lines.append("# Run: ls /dev/serial/by-id/*cartographer* to find your device")
+            if probe_serial:
+                lines.append(f"serial: {probe_serial}")
+            else:
+                lines.append("serial: /dev/serial/by-id/REPLACE_WITH_CARTOGRAPHER_ID")
+                lines.append("# Run: ls /dev/serial/by-id/*cartographer* to find your device")
             lines.append("x_offset: 0")
             lines.append("y_offset: 20  # Adjust for your toolhead")
             lines.append("mesh_main_direction: x")
             lines.append("mesh_runs: 2")
         elif probe_type == 'btt-eddy':
             lines.append("[mcu eddy]")
-            lines.append("serial: /dev/serial/by-id/REPLACE_WITH_EDDY_ID")
-            lines.append("# Run: ls /dev/serial/by-id/*Eddy* to find your device")
+            if probe_serial:
+                lines.append(f"serial: {probe_serial}")
+            else:
+                lines.append("serial: /dev/serial/by-id/REPLACE_WITH_EDDY_ID")
+                lines.append("# Run: ls /dev/serial/by-id/*Eddy* to find your device")
             lines.append("")
             lines.append("[temperature_sensor btt_eddy_mcu]")
             lines.append("sensor_type: temperature_mcu")
