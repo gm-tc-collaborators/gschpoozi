@@ -398,19 +398,42 @@ def generate_hardware_cfg(
         he_pin = get_heater_pin(board, he_port)
         lines.append(f"heater_pin: {he_pin}  # {he_port}")
     
-    lines.append(f"sensor_type: {hotend_therm}")
-    
-    if therm_on_toolboard:
-        th_port = tb_assignments.get('thermistor_extruder', 'TH0')
-        th_pin = get_thermistor_pin(toolboard, th_port)
-        lines.append(f"sensor_pin: toolboard:{th_pin}  # {th_port}")
+    # Handle special sensor types (MAX31865 for PT100/PT1000)
+    if hotend_therm == 'PT1000_MAX31865':
+        lines.append("sensor_type: MAX31865")
+        lines.append("sensor_pin: REPLACE_SPI_CS_PIN  # MAX31865 chip select")
+        lines.append("spi_bus: spi1  # Adjust for your board")
+        lines.append("rtd_nominal_r: 1000")
+        lines.append("rtd_reference_r: 4300")
+        lines.append("rtd_num_of_wires: 2")
+    elif hotend_therm == 'PT100_MAX31865':
+        lines.append("sensor_type: MAX31865")
+        lines.append("sensor_pin: REPLACE_SPI_CS_PIN  # MAX31865 chip select")
+        lines.append("spi_bus: spi1  # Adjust for your board")
+        lines.append("rtd_nominal_r: 100")
+        lines.append("rtd_reference_r: 430")
+        lines.append("rtd_num_of_wires: 2")
     else:
-        th_port = assignments.get('thermistor_extruder', 'T0')
-        th_pin = get_thermistor_pin(board, th_port)
-        lines.append(f"sensor_pin: {th_pin}  # {th_port}")
+        lines.append(f"sensor_type: {hotend_therm}")
+        
+        if therm_on_toolboard:
+            th_port = tb_assignments.get('thermistor_extruder', 'TH0')
+            th_pin = get_thermistor_pin(toolboard, th_port)
+            lines.append(f"sensor_pin: toolboard:{th_pin}  # {th_port}")
+        else:
+            th_port = assignments.get('thermistor_extruder', 'T0')
+            th_pin = get_thermistor_pin(board, th_port)
+            lines.append(f"sensor_pin: {th_pin}  # {th_port}")
     
     lines.append("min_temp: 0")
-    lines.append("max_temp: 300")
+    
+    # Set max_temp based on sensor type
+    if hotend_therm == 'SliceEngineering450':
+        lines.append("max_temp: 450  # High-temp thermistor")
+    elif 'PT1000' in hotend_therm or 'PT100' in hotend_therm:
+        lines.append("max_temp: 350  # RTD sensor")
+    else:
+        lines.append("max_temp: 300")
     lines.append("max_extrude_only_distance: 150")
     lines.append("control: pid")
     lines.append("pid_kp: 26.213  # Run PID_CALIBRATE HEATER=extruder TARGET=200")

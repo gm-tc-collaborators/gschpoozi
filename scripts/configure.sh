@@ -2461,13 +2461,27 @@ menu_extruder() {
     esac
     
     # Thermistor selection
+    menu_hotend_thermistor
+}
+
+menu_hotend_thermistor() {
     clear_screen
     print_header "Hotend Thermistor"
     
-    print_menu_item "1" "" "Generic 3950 (NTC 100K)"
-    print_menu_item "2" "" "ATC Semitec 104NT-4-R025H42G"
-    print_menu_item "3" "" "Slice Engineering 450C"
-    print_menu_item "4" "" "PT1000"
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Common NTC Thermistors:${NC}"
+    print_menu_item "1" "" "Generic 3950 (NTC 100K) - Most common"
+    print_menu_item "2" "" "ATC Semitec 104GT-2 (E3D/Slice hotends)"
+    print_menu_item "3" "" "ATC Semitec 104NT-4-R025H42G"
+    print_menu_item "4" "" "Honeywell 100K 135-104LAG-J01"
+    print_menu_item "5" "" "NTC 100K MGB18-104F39050L32"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}High-Temp / RTD:${NC}"
+    print_menu_item "6" "" "Slice Engineering 450C (high temp)"
+    print_menu_item "7" "" "PT1000 (direct, no amplifier)"
+    print_menu_item "8" "" "PT1000 with MAX31865 amplifier"
+    print_menu_item "9" "" "PT100 with MAX31865 amplifier"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_menu_item "M" "" "Manual entry (custom sensor_type)"
     print_separator
     print_action_item "B" "Back"
     print_footer
@@ -2477,9 +2491,24 @@ menu_extruder() {
     
     case "$choice" in
         1) WIZARD_STATE[hotend_thermistor]="Generic 3950" ;;
-        2) WIZARD_STATE[hotend_thermistor]="ATC Semitec 104NT-4-R025H42G" ;;
-        3) WIZARD_STATE[hotend_thermistor]="SliceEngineering450" ;;
-        4) WIZARD_STATE[hotend_thermistor]="PT1000" ;;
+        2) WIZARD_STATE[hotend_thermistor]="ATC Semitec 104GT-2" ;;
+        3) WIZARD_STATE[hotend_thermistor]="ATC Semitec 104NT-4-R025H42G" ;;
+        4) WIZARD_STATE[hotend_thermistor]="Honeywell 100K 135-104LAG-J01" ;;
+        5) WIZARD_STATE[hotend_thermistor]="NTC 100K MGB18-104F39050L32" ;;
+        6) WIZARD_STATE[hotend_thermistor]="SliceEngineering450" ;;
+        7) WIZARD_STATE[hotend_thermistor]="PT1000" ;;
+        8) WIZARD_STATE[hotend_thermistor]="PT1000_MAX31865" ;;
+        9) WIZARD_STATE[hotend_thermistor]="PT100_MAX31865" ;;
+        [mM])
+            echo -e "${BCYAN}${BOX_V}${NC}"
+            echo -e "${BCYAN}${BOX_V}${NC}  Enter exact Klipper sensor_type value:"
+            echo -e "${BCYAN}${BOX_V}${NC}  (See: https://www.klipper3d.org/Config_Reference.html#thermistor)"
+            echo -en "  "
+            read -r custom_type
+            if [[ -n "$custom_type" ]]; then
+                WIZARD_STATE[hotend_thermistor]="$custom_type"
+            fi
+            ;;
         [bB]) return ;;
         *) ;;
     esac
