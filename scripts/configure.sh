@@ -1820,17 +1820,17 @@ init_state() {
         [bed_size_x]=""
         [bed_size_y]=""
         [bed_size_z]=""
-        [position_endstop_x]=""
-        [position_endstop_y]=""
-        [position_endstop_z]=""
-        [position_min_x]=""
-        [position_min_y]=""
         [extruder_type]=""
         [hotend_thermistor]=""
         [bed_thermistor]=""
         [probe_type]=""
         [has_filament_sensor]=""
         [has_chamber_sensor]=""
+        [position_endstop_x]=""
+        [position_endstop_y]=""
+        [position_endstop_z]=""
+        [position_min_x]=""
+        [position_min_y]=""
     )
 }
 
@@ -2169,7 +2169,7 @@ menu_homing() {
         *) return ;;
     esac
     
-    # Now prompt for position_endstop coordinates
+    # Now prompt for endstop position coordinates
     menu_endstop_positions
 }
 
@@ -2177,46 +2177,63 @@ menu_endstop_positions() {
     clear_screen
     print_header "Endstop Position Coordinates"
     
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Enter the physical position where each endstop triggers.${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  These are the coordinates where the nozzle sits when homed."
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Enter the physical endstop trigger positions:${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  (Where the nozzle is when each endstop triggers)"
     echo -e "${BCYAN}${BOX_V}${NC}"
     
-    # Calculate smart defaults based on homing direction and bed size
-    local default_endstop_x default_endstop_y
-    local default_min_x="0" default_min_y="0"
-    
+    # Calculate defaults based on homing direction
+    local default_x default_y default_min_x default_min_y
     if [[ "${WIZARD_STATE[home_x]}" == "max" ]]; then
-        default_endstop_x="${WIZARD_STATE[bed_size_x]:-300}"
+        default_x="${WIZARD_STATE[bed_size_x]:-300}"
+        default_min_x="0"
     else
-        default_endstop_x="0"
+        default_x="0"
+        default_min_x="0"
     fi
     
     if [[ "${WIZARD_STATE[home_y]}" == "max" ]]; then
-        default_endstop_y="${WIZARD_STATE[bed_size_y]:-300}"
+        default_y="${WIZARD_STATE[bed_size_y]:-300}"
+        default_min_y="0"
     else
-        default_endstop_y="0"
+        default_y="0"
+        default_min_y="0"
     fi
     
-    echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}X axis:${NC} Endstop at ${WIZARD_STATE[home_x]:-max}"
+    echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}X axis (homing to ${WIZARD_STATE[home_x]:-max}):${NC}"
     echo -en "  " >&2
-    WIZARD_STATE[position_endstop_x]=$(prompt_input "X position_endstop (mm)" "${WIZARD_STATE[position_endstop_x]:-$default_endstop_x}")
-    
-    echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}Y axis:${NC} Endstop at ${WIZARD_STATE[home_y]:-max}"
+    WIZARD_STATE[position_endstop_x]=$(prompt_input "X position_endstop (mm)" "${WIZARD_STATE[position_endstop_x]:-$default_x}")
     echo -en "  " >&2
-    WIZARD_STATE[position_endstop_y]=$(prompt_input "Y position_endstop (mm)" "${WIZARD_STATE[position_endstop_y]:-$default_endstop_y}")
+    WIZARD_STATE[position_min_x]=$(prompt_input "X position_min (mm, can be negative)" "${WIZARD_STATE[position_min_x]:-$default_min_x}")
     
     echo ""
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Position limits (for nozzle travel beyond bed):${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  Use negative values if nozzle can move past 0."
+    echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}Y axis (homing to ${WIZARD_STATE[home_y]:-max}):${NC}"
+    echo -en "  " >&2
+    WIZARD_STATE[position_endstop_y]=$(prompt_input "Y position_endstop (mm)" "${WIZARD_STATE[position_endstop_y]:-$default_y}")
+    echo -en "  " >&2
+    WIZARD_STATE[position_min_y]=$(prompt_input "Y position_min (mm, can be negative)" "${WIZARD_STATE[position_min_y]:-$default_min_y}")
+    
+    echo ""
+    echo -e "${GREEN}✓${NC} Endstop positions configured"
+    sleep 1
+}
+
+menu_z_endstop_position() {
+    clear_screen
+    print_header "Z Endstop Position"
+    
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Enter the Z endstop trigger position:${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  (Where the nozzle is when the Z endstop triggers)"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}Typical values:${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  • 0 for bed-mounted endstop at bed level"
+    echo -e "${BCYAN}${BOX_V}${NC}  • Positive value if endstop triggers above bed"
     echo -e "${BCYAN}${BOX_V}${NC}"
     
     echo -en "  " >&2
-    WIZARD_STATE[position_min_x]=$(prompt_input "X position_min (mm)" "${WIZARD_STATE[position_min_x]:-$default_min_x}")
-    echo -en "  " >&2
-    WIZARD_STATE[position_min_y]=$(prompt_input "Y position_min (mm)" "${WIZARD_STATE[position_min_y]:-$default_min_y}")
+    WIZARD_STATE[position_endstop_z]=$(prompt_input "Z position_endstop (mm)" "${WIZARD_STATE[position_endstop_z]:-0}")
     
     echo ""
-    echo -e "${GREEN}✓${NC} Endstop positions configured!"
+    echo -e "${GREEN}✓${NC} Z endstop position configured"
     sleep 1
 }
 
@@ -2569,7 +2586,7 @@ menu_probe() {
         6) WIZARD_STATE[probe_type]="inductive" ;;
         7) 
             WIZARD_STATE[probe_type]="endstop"
-            # Physical Z endstop requires position_endstop_z
+            # Prompt for Z endstop position since using physical endstop
             menu_z_endstop_position
             ;;
         [bB]) return ;;
@@ -2588,25 +2605,6 @@ menu_probe() {
             wait_for_key
         fi
     fi
-}
-
-menu_z_endstop_position() {
-    clear_screen
-    print_header "Z Endstop Position"
-    
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Physical Z Endstop Configuration${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  Enter the Z coordinate where your endstop triggers."
-    echo -e "${BCYAN}${BOX_V}${NC}  This is typically 0 for bed-level endstops, or a small"
-    echo -e "${BCYAN}${BOX_V}${NC}  positive value if the switch triggers above the bed."
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    
-    echo -en "  " >&2
-    WIZARD_STATE[position_endstop_z]=$(prompt_input "Z position_endstop (mm)" "${WIZARD_STATE[position_endstop_z]:-0}")
-    
-    echo ""
-    echo -e "${GREEN}✓${NC} Z endstop position configured!"
-    sleep 1
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -2939,20 +2937,6 @@ generate_hardware_cfg() {
     # Fallback: generate placeholder config if no hardware state
     local output="${OUTPUT_DIR}/hardware.cfg"
     
-    # Pre-compute Z stepper config based on probe type
-    local z_endstop_pin z_endstop_position z_homing_retract
-    if [[ "${WIZARD_STATE[probe_type]}" == "endstop" ]]; then
-        # Physical Z endstop
-        z_endstop_pin="REPLACE_PIN  # Physical Z endstop"
-        z_endstop_position="position_endstop: ${WIZARD_STATE[position_endstop_z]:-0}"
-        z_homing_retract="homing_retract_dist: 5"
-    else
-        # Probe-based Z homing (default)
-        z_endstop_pin="probe:z_virtual_endstop"
-        z_endstop_position="# position_endstop not needed - using probe"
-        z_homing_retract="homing_retract_dist: 0  # Required for probe-based Z homing"
-    fi
-    
     cat > "${output}" << EOF
 # ═══════════════════════════════════════════════════════════════════════════════
 # HARDWARE CONFIGURATION
@@ -3014,12 +2998,28 @@ dir_pin: REPLACE_PIN
 enable_pin: !REPLACE_PIN
 microsteps: 16
 rotation_distance: 8
-endstop_pin: ${z_endstop_pin}
-${z_homing_retract}
+EOF
+
+    # Add Z endstop configuration based on probe type
+    if [[ "${WIZARD_STATE[probe_type]}" == "endstop" ]]; then
+        cat >> "${output}" << EOF
+endstop_pin: REPLACE_PIN  # Physical Z endstop
+position_endstop: ${WIZARD_STATE[position_endstop_z]:-0}
 position_min: -5
 position_max: ${WIZARD_STATE[bed_size_z]:-350}
-${z_endstop_position}
 homing_speed: 15
+EOF
+    else
+        cat >> "${output}" << EOF
+endstop_pin: probe:z_virtual_endstop
+homing_retract_dist: 0  # Required for probe-based Z homing
+position_min: -5
+position_max: ${WIZARD_STATE[bed_size_z]:-350}
+homing_speed: 15
+EOF
+    fi
+
+    cat >> "${output}" << EOF
 
 [extruder]
 step_pin: REPLACE_PIN
@@ -3125,9 +3125,6 @@ gcode:
 # ─────────────────────────────────────────────────────────────────────────────
 # PAUSE / RESUME / CANCEL
 # ─────────────────────────────────────────────────────────────────────────────
-[pause_resume]
-# Enables PAUSE, RESUME, and CANCEL_PRINT commands
-
 [gcode_macro PAUSE]
 description: Pause the print
 rename_existing: BASE_PAUSE
