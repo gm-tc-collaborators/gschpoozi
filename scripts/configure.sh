@@ -497,6 +497,347 @@ install_script: tools/install.sh"
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# MCU FIRMWARE UPDATE FUNCTIONS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Get Klipper host version
+get_klipper_host_version() {
+    if [[ -d "${HOME}/klipper" ]]; then
+        cd "${HOME}/klipper"
+        git describe --tags --always --dirty 2>/dev/null || echo "unknown"
+    else
+        echo "not installed"
+    fi
+}
+
+# Check if linux MCU service is installed
+is_linux_mcu_installed() {
+    systemctl list-unit-files 2>/dev/null | grep -q "klipper_mcu\|klipper-mcu"
+}
+
+# Update the linux process MCU (runs on Pi, no hardware access needed)
+update_linux_mcu() {
+    echo -e "${CYAN}Updating Linux Process MCU...${NC}"
+    
+    local klipper_dir="${HOME}/klipper"
+    
+    if [[ ! -d "$klipper_dir" ]]; then
+        echo -e "${RED}Klipper directory not found at ${klipper_dir}${NC}"
+        return 1
+    fi
+    
+    cd "$klipper_dir"
+    
+    # Stop Klipper
+    echo -e "${CYAN}Stopping Klipper service...${NC}"
+    sudo systemctl stop klipper 2>/dev/null || true
+    
+    # Clean previous builds
+    echo -e "${CYAN}Cleaning previous build...${NC}"
+    make clean 2>/dev/null || true
+    
+    # Create config for linux process
+    echo -e "${CYAN}Configuring for Linux process...${NC}"
+    cat > .config << 'EOF'
+CONFIG_LOW_LEVEL_OPTIONS=y
+CONFIG_MACH_LINUX=y
+CONFIG_BOARD_DIRECTORY="linux"
+CONFIG_CLOCK_FREQ=50000000
+CONFIG_LINUX_SELECT=y
+CONFIG_USB_VENDOR_ID=0x1d50
+CONFIG_USB_DEVICE_ID=0x614e
+CONFIG_USB_SERIAL_NUMBER="12345"
+CONFIG_WANT_GPIO_BITBANGING=y
+CONFIG_WANT_DISPLAYS=y
+CONFIG_WANT_SENSORS=y
+CONFIG_WANT_SOFTWARE_I2C=y
+CONFIG_WANT_SOFTWARE_SPI=y
+CONFIG_CANBUS_FREQUENCY=1000000
+EOF
+    
+    # Build
+    echo -e "${CYAN}Building firmware...${NC}"
+    if ! make -j$(nproc) 2>&1; then
+        echo -e "${RED}Build failed${NC}"
+        sudo systemctl start klipper 2>/dev/null || true
+        return 1
+    fi
+    
+    # Flash (for linux process, this installs the klipper_mcu service)
+    echo -e "${CYAN}Installing Linux MCU service...${NC}"
+    sudo make flash 2>&1 || true
+    
+    # Start the linux MCU service
+    if systemctl list-unit-files | grep -q "klipper_mcu\|klipper-mcu"; then
+        echo -e "${CYAN}Starting Linux MCU service...${NC}"
+        sudo systemctl start klipper_mcu 2>/dev/null || sudo systemctl start klipper-mcu 2>/dev/null || true
+    fi
+    
+    # Restart Klipper
+    echo -e "${CYAN}Starting Klipper service...${NC}"
+    sudo systemctl start klipper
+    
+    echo -e "${GREEN}Linux MCU update complete!${NC}"
+    return 0
+}
+
+# Update USB-connected MCU
+update_usb_mcu() {
+    local serial_path="$1"
+    local mcu_type="${2:-stm32}"
+    
+    echo -e "${CYAN}Updating MCU at ${serial_path}...${NC}"
+    
+    local klipper_dir="${HOME}/klipper"
+    
+    if [[ ! -d "$klipper_dir" ]]; then
+        echo -e "${RED}Klipper directory not found${NC}"
+        return 1
+    fi
+    
+    if [[ ! -e "$serial_path" ]]; then
+        echo -e "${RED}Serial device not found: ${serial_path}${NC}"
+        return 1
+    fi
+    
+    cd "$klipper_dir"
+    
+    # Stop Klipper
+    echo -e "${CYAN}Stopping Klipper...${NC}"
+    sudo systemctl stop klipper 2>/dev/null || true
+    sleep 2
+    
+    # Flash using make flash (works for most USB devices in application mode)
+    echo -e "${CYAN}Flashing firmware...${NC}"
+    if make flash FLASH_DEVICE="$serial_path" 2>&1; then
+        echo -e "${GREEN}Flash successful!${NC}"
+    else
+        echo -e "${YELLOW}Direct flash failed, MCU may need bootloader mode${NC}"
+        echo -e "${YELLOW}Try: Double-press reset button to enter bootloader${NC}"
+    fi
+    
+    # Restart Klipper
+    echo -e "${CYAN}Starting Klipper...${NC}"
+    sudo systemctl start klipper
+    
+    return 0
+}
+
+# Update CAN-connected MCU via Katapult
+update_can_mcu() {
+    local uuid="$1"
+    local interface="${2:-can0}"
+    
+    echo -e "${CYAN}Updating CAN MCU ${uuid}...${NC}"
+    
+    local klipper_dir="${HOME}/klipper"
+    local katapult_dir="${HOME}/katapult"
+    
+    if [[ ! -d "$katapult_dir" ]]; then
+        echo -e "${RED}Katapult not installed. Install it first for CAN flashing.${NC}"
+        return 1
+    fi
+    
+    # Check if flashtool exists
+    local flash_tool="${katapult_dir}/scripts/flash_can.py"
+    if [[ ! -f "$flash_tool" ]]; then
+        flash_tool="${katapult_dir}/scripts/flashtool.py"
+    fi
+    
+    if [[ ! -f "$flash_tool" ]]; then
+        echo -e "${RED}Katapult flash tool not found${NC}"
+        return 1
+    fi
+    
+    cd "$klipper_dir"
+    
+    # Stop Klipper
+    echo -e "${CYAN}Stopping Klipper...${NC}"
+    sudo systemctl stop klipper 2>/dev/null || true
+    sleep 2
+    
+    # Flash via CAN
+    local python_env="${HOME}/klippy-env/bin/python"
+    echo -e "${CYAN}Flashing via CAN bus...${NC}"
+    if "$python_env" "$flash_tool" -i "$interface" -u "$uuid" -f out/klipper.bin 2>&1; then
+        echo -e "${GREEN}CAN flash successful!${NC}"
+    else
+        echo -e "${RED}CAN flash failed${NC}"
+    fi
+    
+    # Restart Klipper
+    echo -e "${CYAN}Starting Klipper...${NC}"
+    sudo systemctl start klipper
+    
+    return 0
+}
+
+# Interactive MCU firmware update menu
+menu_mcu_firmware_update() {
+    while true; do
+        clear_screen
+        print_header "MCU Firmware Update"
+        
+        local host_version=$(get_klipper_host_version)
+        echo -e "${BCYAN}${BOX_V}${NC}  Klipper Host Version: ${BWHITE}${host_version}${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}Note: MCU firmware must match host version${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}for Klipper to communicate properly.${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}"
+        
+        print_separator
+        
+        # Linux MCU option
+        local linux_status=""
+        if is_linux_mcu_installed; then
+            linux_status="${GREEN}[installed]${NC}"
+        fi
+        print_menu_item "1" "" "Update Linux Process MCU (Pi GPIO)" "${linux_status}"
+        
+        # USB MCU option
+        print_menu_item "2" "" "Update USB MCU (mainboard/toolboard)" ""
+        
+        # CAN MCU option (requires Katapult)
+        local katapult_status=""
+        if is_katapult_installed; then
+            katapult_status="${GREEN}[Katapult ready]${NC}"
+        else
+            katapult_status="${YELLOW}[needs Katapult]${NC}"
+        fi
+        print_menu_item "3" "" "Update CAN MCU via Katapult" "${katapult_status}"
+        
+        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_action_item "B" "Back"
+        
+        print_footer
+        
+        read -r -p "Select option: " choice
+        
+        case "$choice" in
+            1)
+                if confirm "Update Linux Process MCU firmware?"; then
+                    update_linux_mcu
+                    wait_for_key
+                fi
+                ;;
+            2)
+                menu_update_usb_mcu
+                ;;
+            3)
+                if ! is_katapult_installed; then
+                    echo -e "${YELLOW}Katapult must be installed for CAN flashing.${NC}"
+                    if confirm "Install Katapult now?"; then
+                        install_katapult
+                    fi
+                else
+                    menu_update_can_mcu
+                fi
+                wait_for_key
+                ;;
+            [Bb])
+                return
+                ;;
+        esac
+    done
+}
+
+# USB MCU update submenu
+menu_update_usb_mcu() {
+    clear_screen
+    print_header "Update USB MCU"
+    
+    echo -e "${BCYAN}${BOX_V}${NC}  Scanning for USB MCUs..."
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    
+    local -a devices
+    mapfile -t devices < <(detect_usb_mcus)
+    
+    if [[ ${#devices[@]} -eq 0 ]]; then
+        echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}No USB MCUs found.${NC}"
+        print_footer
+        wait_for_key
+        return
+    fi
+    
+    local num=1
+    for device in "${devices[@]}"; do
+        local desc=$(get_mcu_description "$device")
+        local display_path="$device"
+        if [[ ${#device} -gt 45 ]]; then
+            display_path="...${device: -42}"
+        fi
+        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}${num})${NC} ${desc}: ${display_path}"
+        ((num++))
+    done
+    
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_action_item "B" "Back"
+    print_footer
+    
+    read -r -p "Select MCU to update: " choice
+    
+    if [[ "$choice" =~ ^[0-9]+$ ]] && [[ "$choice" -ge 1 ]] && [[ "$choice" -lt "$num" ]]; then
+        local idx=$((choice - 1))
+        local selected_device="${devices[$idx]}"
+        
+        echo -e "${YELLOW}WARNING: Ensure you have the correct firmware config for this MCU.${NC}"
+        echo -e "${YELLOW}The last 'make menuconfig' settings will be used.${NC}"
+        
+        if confirm "Flash firmware to ${selected_device}?"; then
+            update_usb_mcu "$selected_device"
+        fi
+    fi
+    
+    wait_for_key
+}
+
+# CAN MCU update submenu
+menu_update_can_mcu() {
+    clear_screen
+    print_header "Update CAN MCU"
+    
+    echo -e "${BCYAN}${BOX_V}${NC}  Scanning CAN bus for devices..."
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    
+    local -a uuids
+    mapfile -t uuids < <(detect_can_mcus)
+    
+    if [[ ${#uuids[@]} -eq 0 ]]; then
+        echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}No CAN devices found.${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}Make sure can0 is up and devices are powered.${NC}"
+        print_footer
+        wait_for_key
+        return
+    fi
+    
+    local num=1
+    for uuid in "${uuids[@]}"; do
+        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}${num})${NC} UUID: ${uuid}"
+        ((num++))
+    done
+    
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_action_item "B" "Back"
+    print_footer
+    
+    read -r -p "Select CAN device to update: " choice
+    
+    if [[ "$choice" =~ ^[0-9]+$ ]] && [[ "$choice" -ge 1 ]] && [[ "$choice" -lt "$num" ]]; then
+        local idx=$((choice - 1))
+        local selected_uuid="${uuids[$idx]}"
+        
+        echo -e "${YELLOW}WARNING: Ensure you have the correct firmware config for this MCU.${NC}"
+        echo -e "${YELLOW}The last 'make menuconfig' settings will be used.${NC}"
+        
+        if confirm "Flash firmware to CAN device ${selected_uuid}?"; then
+            update_can_mcu "$selected_uuid"
+        fi
+    fi
+    
+    wait_for_key
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # MCU SERIAL DETECTION
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1533,6 +1874,7 @@ show_main_menu() {
     print_menu_item "0" "$(get_step_status macros)" "Macros" ""
     
     print_separator
+    print_action_item "F" "MCU Firmware Update"
     print_action_item "G" "Generate Configuration"
     print_action_item "S" "Save Progress"
     print_action_item "Q" "Quit"
@@ -1553,6 +1895,7 @@ show_main_menu() {
         9) menu_extras ;;
         0) menu_macros ;;
         [cC]) menu_can_setup ;;
+        [fF]) menu_mcu_firmware_update ;;
         [gG]) generate_config ;;
         [sS]) save_state; echo -e "${GREEN}Progress saved!${NC}"; wait_for_key ;;
         [qQ]) exit_wizard ;;
