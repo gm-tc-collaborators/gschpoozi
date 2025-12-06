@@ -1832,6 +1832,24 @@ init_state() {
         [position_endstop_z]=""
         [position_min_x]=""
         [position_min_y]=""
+        # Fan configuration
+        [fan_part_cooling]=""
+        [fan_part_cooling_pin2]=""
+        [fan_hotend]=""
+        [fan_controller]=""
+        [fan_exhaust]=""
+        [fan_chamber]=""
+        [fan_chamber_type]=""
+        [fan_chamber_sensor_type]=""
+        [fan_chamber_sensor_pin]=""
+        [fan_chamber_target_temp]=""
+        [fan_rscs]=""
+        # Fan advanced options
+        [fan_pc_max_power]=""
+        [fan_pc_cycle_time]=""
+        [fan_pc_hardware_pwm]=""
+        [fan_pc_shutdown_speed]=""
+        [fan_pc_kick_start]=""
     )
 }
 
@@ -2677,16 +2695,404 @@ menu_probe() {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# PLACEHOLDER MENUS (TODO)
+# FAN CONFIGURATION
 # ═══════════════════════════════════════════════════════════════════════════════
 
 menu_fans() {
+    while true; do
+        clear_screen
+        print_header "Fan Configuration"
+        
+        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Configure your printer's fans:${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}  (Port assignment is done in Hardware Setup)"
+        echo -e "${BCYAN}${BOX_V}${NC}"
+        
+        # Show current fan configurations
+        local pc_status=$([[ -n "${WIZARD_STATE[fan_part_cooling]}" ]] && echo "[✓]" || echo "[ ]")
+        local he_status=$([[ -n "${WIZARD_STATE[fan_hotend]}" ]] && echo "[✓]" || echo "[ ]")
+        local cf_status=$([[ -n "${WIZARD_STATE[fan_controller]}" ]] && echo "[✓]" || echo "[ ]")
+        local ex_status=$([[ -n "${WIZARD_STATE[fan_exhaust]}" ]] && echo "[✓]" || echo "[ ]")
+        local ch_status=$([[ -n "${WIZARD_STATE[fan_chamber]}" ]] && echo "[✓]" || echo "[ ]")
+        local rs_status=$([[ -n "${WIZARD_STATE[fan_rscs]}" ]] && echo "[✓]" || echo "[ ]")
+        
+        # Display fan type descriptions
+        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Essential Fans:${NC}"
+        local pc_info="${WIZARD_STATE[fan_part_cooling]:-not configured}"
+        [[ "${WIZARD_STATE[fan_part_cooling]}" == "none" ]] && pc_info="none (remote blower)"
+        [[ -n "${WIZARD_STATE[fan_part_cooling_pin2]}" ]] && pc_info="${pc_info} + ${WIZARD_STATE[fan_part_cooling_pin2]} (multi-pin)"
+        echo -e "${BCYAN}${BOX_V}${NC}  ${GREEN}1)${NC} ${pc_status} Part Cooling Fan [fan] - ${CYAN}${pc_info}${NC}"
+        
+        local he_info="${WIZARD_STATE[fan_hotend]:-not configured}"
+        [[ "${WIZARD_STATE[fan_hotend]}" == "none" ]] && he_info="none (water cooled)"
+        echo -e "${BCYAN}${BOX_V}${NC}  ${GREEN}2)${NC} ${he_status} Hotend Fan [heater_fan] - ${CYAN}${he_info}${NC}"
+        
+        local cf_info="${WIZARD_STATE[fan_controller]:-not configured}"
+        [[ "${WIZARD_STATE[fan_controller]}" == "none" ]] && cf_info="none (passive cooling)"
+        echo -e "${BCYAN}${BOX_V}${NC}  ${GREEN}3)${NC} ${cf_status} Controller Fan [controller_fan] - ${CYAN}${cf_info}${NC}"
+        
+        echo -e "${BCYAN}${BOX_V}${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Optional Fans:${NC}"
+        
+        local ex_info="${WIZARD_STATE[fan_exhaust]:-not configured}"
+        [[ "${WIZARD_STATE[fan_exhaust]}" == "none" ]] && ex_info="disabled"
+        echo -e "${BCYAN}${BOX_V}${NC}  ${GREEN}4)${NC} ${ex_status} Exhaust Fan [fan_generic] - ${CYAN}${ex_info}${NC}"
+        
+        local ch_info="${WIZARD_STATE[fan_chamber]:-not configured}"
+        if [[ "${WIZARD_STATE[fan_chamber_type]}" == "temperature" ]]; then
+            ch_info="${ch_info} (temp controlled @ ${WIZARD_STATE[fan_chamber_target_temp]:-45}°C)"
+        fi
+        [[ "${WIZARD_STATE[fan_chamber]}" == "none" ]] && ch_info="disabled"
+        echo -e "${BCYAN}${BOX_V}${NC}  ${GREEN}5)${NC} ${ch_status} Chamber Fan [fan_generic/temperature_fan] - ${CYAN}${ch_info}${NC}"
+        
+        local rs_info="${WIZARD_STATE[fan_rscs]:-not configured}"
+        [[ "${WIZARD_STATE[fan_rscs]}" == "none" ]] && rs_info="disabled"
+        echo -e "${BCYAN}${BOX_V}${NC}  ${GREEN}6)${NC} ${rs_status} RSCS/Filter Fan [fan_generic] - ${CYAN}${rs_info}${NC}"
+        
+        print_separator
+        print_action_item "A" "Advanced Fan Settings (PWM, max_power, etc.)"
+        print_action_item "B" "Back to Main Menu"
+        print_footer
+        
+        echo -en "${BYELLOW}Select fan to configure${NC}: "
+        read -r choice
+        
+        case "$choice" in
+            1) menu_fan_part_cooling ;;
+            2) menu_fan_hotend ;;
+            3) menu_fan_controller ;;
+            4) menu_fan_exhaust ;;
+            5) menu_fan_chamber ;;
+            6) menu_fan_rscs ;;
+            [aA]) menu_fan_advanced ;;
+            [bB]) return ;;
+            *) ;;
+        esac
+    done
+}
+
+menu_fan_part_cooling() {
     clear_screen
-    print_header "Fan Configuration"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}Fan configuration coming soon...${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  Default fans will be configured based on board selection."
+    print_header "Part Cooling Fan [fan]"
+    
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Part cooling fan controlled by M106/M107${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  This is the main print cooling fan."
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    
+    print_menu_item "1" "" "Enable - will configure in Hardware Setup"
+    print_menu_item "2" "" "None - using remote blower on mainboard"
+    print_menu_item "3" "" "Multi-pin - two fans on same control"
+    print_separator
+    print_action_item "B" "Back"
     print_footer
-    wait_for_key
+    
+    echo -en "${BYELLOW}Select option${NC}: "
+    read -r choice
+    
+    case "$choice" in
+        1) 
+            WIZARD_STATE[fan_part_cooling]="enabled"
+            WIZARD_STATE[fan_part_cooling_pin2]=""
+            echo -e "${GREEN}✓${NC} Part cooling fan enabled"
+            sleep 1
+            ;;
+        2) 
+            WIZARD_STATE[fan_part_cooling]="none"
+            WIZARD_STATE[fan_part_cooling_pin2]=""
+            echo -e "${GREEN}✓${NC} Part cooling set to none (remote blower)"
+            sleep 1
+            ;;
+        3)
+            WIZARD_STATE[fan_part_cooling]="multi-pin"
+            echo -e "${BCYAN}${BOX_V}${NC}  Multi-pin mode: Two fan ports will be controlled together"
+            echo -e "${BCYAN}${BOX_V}${NC}  Configure both pins in Hardware Setup"
+            WIZARD_STATE[fan_part_cooling_pin2]="enabled"
+            echo -e "${GREEN}✓${NC} Multi-pin part cooling enabled"
+            sleep 1
+            ;;
+        [bB]) return ;;
+    esac
+}
+
+menu_fan_hotend() {
+    clear_screen
+    print_header "Hotend Fan [heater_fan]"
+    
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Hotend cooling fan that runs when extruder is hot${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  Automatically turns on above heater_temp threshold."
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    
+    print_menu_item "1" "" "Enable - standard hotend fan"
+    print_menu_item "2" "" "None - water cooled hotend"
+    print_separator
+    print_action_item "B" "Back"
+    print_footer
+    
+    echo -en "${BYELLOW}Select option${NC}: "
+    read -r choice
+    
+    case "$choice" in
+        1) 
+            WIZARD_STATE[fan_hotend]="enabled"
+            echo -e "${GREEN}✓${NC} Hotend fan enabled"
+            sleep 1
+            ;;
+        2) 
+            WIZARD_STATE[fan_hotend]="none"
+            echo -e "${GREEN}✓${NC} Hotend fan disabled (water cooled)"
+            sleep 1
+            ;;
+        [bB]) return ;;
+    esac
+}
+
+menu_fan_controller() {
+    clear_screen
+    print_header "Controller Fan [controller_fan]"
+    
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Electronics cooling fan${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  Runs when steppers or heaters are active."
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    
+    print_menu_item "1" "" "Enable - electronics fan"
+    print_menu_item "2" "" "None - passive cooling or always-on fan"
+    print_separator
+    print_action_item "B" "Back"
+    print_footer
+    
+    echo -en "${BYELLOW}Select option${NC}: "
+    read -r choice
+    
+    case "$choice" in
+        1) 
+            WIZARD_STATE[fan_controller]="enabled"
+            echo -e "${GREEN}✓${NC} Controller fan enabled"
+            sleep 1
+            ;;
+        2) 
+            WIZARD_STATE[fan_controller]="none"
+            echo -e "${GREEN}✓${NC} Controller fan disabled"
+            sleep 1
+            ;;
+        [bB]) return ;;
+    esac
+}
+
+menu_fan_exhaust() {
+    clear_screen
+    print_header "Exhaust Fan [fan_generic]"
+    
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Enclosure exhaust fan${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  Manually controlled via SET_FAN_SPEED FAN=exhaust_fan SPEED=x"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    
+    print_menu_item "1" "" "Enable - exhaust fan"
+    print_menu_item "2" "" "None - no exhaust fan"
+    print_separator
+    print_action_item "B" "Back"
+    print_footer
+    
+    echo -en "${BYELLOW}Select option${NC}: "
+    read -r choice
+    
+    case "$choice" in
+        1) 
+            WIZARD_STATE[fan_exhaust]="enabled"
+            echo -e "${GREEN}✓${NC} Exhaust fan enabled"
+            sleep 1
+            ;;
+        2) 
+            WIZARD_STATE[fan_exhaust]="none"
+            echo -e "${GREEN}✓${NC} Exhaust fan disabled"
+            sleep 1
+            ;;
+        [bB]) return ;;
+    esac
+}
+
+menu_fan_chamber() {
+    clear_screen
+    print_header "Chamber Fan"
+    
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Chamber circulation/heating fan${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  Can be manual or temperature-controlled."
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    
+    print_menu_item "1" "" "Manual [fan_generic] - control via SET_FAN_SPEED"
+    print_menu_item "2" "" "Temperature controlled [temperature_fan] - auto regulates"
+    print_menu_item "3" "" "None - no chamber fan"
+    print_separator
+    print_action_item "B" "Back"
+    print_footer
+    
+    echo -en "${BYELLOW}Select option${NC}: "
+    read -r choice
+    
+    case "$choice" in
+        1) 
+            WIZARD_STATE[fan_chamber]="enabled"
+            WIZARD_STATE[fan_chamber_type]="manual"
+            echo -e "${GREEN}✓${NC} Chamber fan enabled (manual control)"
+            sleep 1
+            ;;
+        2) 
+            WIZARD_STATE[fan_chamber]="enabled"
+            WIZARD_STATE[fan_chamber_type]="temperature"
+            # Prompt for temperature settings
+            menu_fan_chamber_temp_settings
+            ;;
+        3) 
+            WIZARD_STATE[fan_chamber]="none"
+            WIZARD_STATE[fan_chamber_type]=""
+            echo -e "${GREEN}✓${NC} Chamber fan disabled"
+            sleep 1
+            ;;
+        [bB]) return ;;
+    esac
+}
+
+menu_fan_chamber_temp_settings() {
+    clear_screen
+    print_header "Chamber Temperature Fan Settings"
+    
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Configure temperature-controlled chamber fan${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    
+    # Sensor type
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Chamber Temperature Sensor:${NC}"
+    print_menu_item "1" "" "Generic 3950 (NTC 100K)"
+    print_menu_item "2" "" "NTC 100K MGB18-104F39050L32"
+    print_menu_item "3" "" "ATC Semitec 104GT-2"
+    print_footer
+    
+    echo -en "${BYELLOW}Select sensor type${NC}: "
+    read -r choice
+    
+    case "$choice" in
+        1) WIZARD_STATE[fan_chamber_sensor_type]="Generic 3950" ;;
+        2) WIZARD_STATE[fan_chamber_sensor_type]="NTC 100K MGB18-104F39050L32" ;;
+        3) WIZARD_STATE[fan_chamber_sensor_type]="ATC Semitec 104GT-2" ;;
+        *) WIZARD_STATE[fan_chamber_sensor_type]="Generic 3950" ;;
+    esac
+    
+    # Target temperature
+    echo ""
+    echo -en "  Enter target chamber temperature (°C) [45]: "
+    read -r target_temp
+    WIZARD_STATE[fan_chamber_target_temp]="${target_temp:-45}"
+    
+    echo -e "${GREEN}✓${NC} Temperature fan configured: ${WIZARD_STATE[fan_chamber_sensor_type]} @ ${WIZARD_STATE[fan_chamber_target_temp]}°C"
+    sleep 1
+}
+
+menu_fan_rscs() {
+    clear_screen
+    print_header "RSCS/Filter Fan [fan_generic]"
+    
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Recirculating active carbon/HEPA filter fan${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  Controlled via SET_FAN_SPEED FAN=rscs_fan SPEED=x"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    
+    print_menu_item "1" "" "Enable - RSCS/Filter fan"
+    print_menu_item "2" "" "None - no filter fan"
+    print_separator
+    print_action_item "B" "Back"
+    print_footer
+    
+    echo -en "${BYELLOW}Select option${NC}: "
+    read -r choice
+    
+    case "$choice" in
+        1) 
+            WIZARD_STATE[fan_rscs]="enabled"
+            echo -e "${GREEN}✓${NC} RSCS/Filter fan enabled"
+            sleep 1
+            ;;
+        2) 
+            WIZARD_STATE[fan_rscs]="none"
+            echo -e "${GREEN}✓${NC} RSCS/Filter fan disabled"
+            sleep 1
+            ;;
+        [bB]) return ;;
+    esac
+}
+
+menu_fan_advanced() {
+    clear_screen
+    print_header "Advanced Fan Settings"
+    
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Part Cooling Fan Advanced Options:${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    
+    # Current values or defaults
+    local max_power="${WIZARD_STATE[fan_pc_max_power]:-1.0}"
+    local cycle_time="${WIZARD_STATE[fan_pc_cycle_time]:-0.010}"
+    local hw_pwm="${WIZARD_STATE[fan_pc_hardware_pwm]:-false}"
+    local shutdown="${WIZARD_STATE[fan_pc_shutdown_speed]:-0}"
+    local kick="${WIZARD_STATE[fan_pc_kick_start]:-0.5}"
+    
+    echo -e "${BCYAN}${BOX_V}${NC}  Current settings:"
+    echo -e "${BCYAN}${BOX_V}${NC}  • max_power: ${CYAN}${max_power}${NC} (0.0-1.0)"
+    echo -e "${BCYAN}${BOX_V}${NC}  • cycle_time: ${CYAN}${cycle_time}${NC} (0.010 default, 0.002 for high-speed)"
+    echo -e "${BCYAN}${BOX_V}${NC}  • hardware_pwm: ${CYAN}${hw_pwm}${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  • shutdown_speed: ${CYAN}${shutdown}${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  • kick_start_time: ${CYAN}${kick}${NC} seconds"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    
+    print_menu_item "1" "" "Set max_power"
+    print_menu_item "2" "" "Set cycle_time (PWM frequency)"
+    print_menu_item "3" "" "Toggle hardware_pwm"
+    print_menu_item "4" "" "Set shutdown_speed"
+    print_menu_item "5" "" "Set kick_start_time"
+    print_menu_item "D" "" "Reset to defaults"
+    print_separator
+    print_action_item "B" "Back"
+    print_footer
+    
+    echo -en "${BYELLOW}Select option${NC}: "
+    read -r choice
+    
+    case "$choice" in
+        1)
+            echo -en "  Enter max_power (0.0-1.0) [${max_power}]: "
+            read -r value
+            [[ -n "$value" ]] && WIZARD_STATE[fan_pc_max_power]="$value"
+            ;;
+        2)
+            echo -en "  Enter cycle_time (0.010 default, 0.002 for high-speed) [${cycle_time}]: "
+            read -r value
+            [[ -n "$value" ]] && WIZARD_STATE[fan_pc_cycle_time]="$value"
+            ;;
+        3)
+            if [[ "$hw_pwm" == "false" ]]; then
+                WIZARD_STATE[fan_pc_hardware_pwm]="true"
+                echo -e "${GREEN}✓${NC} hardware_pwm enabled"
+            else
+                WIZARD_STATE[fan_pc_hardware_pwm]="false"
+                echo -e "${GREEN}✓${NC} hardware_pwm disabled"
+            fi
+            sleep 1
+            ;;
+        4)
+            echo -en "  Enter shutdown_speed (0.0-1.0) [${shutdown}]: "
+            read -r value
+            [[ -n "$value" ]] && WIZARD_STATE[fan_pc_shutdown_speed]="$value"
+            ;;
+        5)
+            echo -en "  Enter kick_start_time (seconds) [${kick}]: "
+            read -r value
+            [[ -n "$value" ]] && WIZARD_STATE[fan_pc_kick_start]="$value"
+            ;;
+        [dD])
+            WIZARD_STATE[fan_pc_max_power]=""
+            WIZARD_STATE[fan_pc_cycle_time]=""
+            WIZARD_STATE[fan_pc_hardware_pwm]=""
+            WIZARD_STATE[fan_pc_shutdown_speed]=""
+            WIZARD_STATE[fan_pc_kick_start]=""
+            echo -e "${GREEN}✓${NC} Reset to defaults"
+            sleep 1
+            ;;
+        [bB]) return ;;
+    esac
 }
 
 menu_extras() {

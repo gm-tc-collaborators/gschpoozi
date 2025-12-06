@@ -475,50 +475,167 @@ def generate_hardware_cfg(
     lines.append("# FANS")
     lines.append("# " + "─" * 77)
     
+    # Get fan settings from wizard state
+    fan_pc = wizard_state.get('fan_part_cooling', '')
+    fan_pc_pin2 = wizard_state.get('fan_part_cooling_pin2', '')
+    fan_hotend = wizard_state.get('fan_hotend', '')
+    fan_controller = wizard_state.get('fan_controller', '')
+    fan_exhaust = wizard_state.get('fan_exhaust', '')
+    fan_chamber = wizard_state.get('fan_chamber', '')
+    fan_chamber_type = wizard_state.get('fan_chamber_type', '')
+    fan_rscs = wizard_state.get('fan_rscs', '')
+    
+    # Advanced settings
+    pc_max_power = wizard_state.get('fan_pc_max_power', '')
+    pc_cycle_time = wizard_state.get('fan_pc_cycle_time', '')
+    pc_hardware_pwm = wizard_state.get('fan_pc_hardware_pwm', '')
+    pc_shutdown_speed = wizard_state.get('fan_pc_shutdown_speed', '')
+    pc_kick_start = wizard_state.get('fan_pc_kick_start', '')
+    
     # Check if fans are on toolboard (not 'none')
     pc_on_toolboard = toolboard and tb_assignments.get('fan_part_cooling', '') not in ('', 'none')
     hf_on_toolboard = toolboard and tb_assignments.get('fan_hotend', '') not in ('', 'none')
     
-    # Part cooling fan
-    if pc_on_toolboard:
-        pc_port = tb_assignments.get('fan_part_cooling', 'FAN0')
-        pc_pin = get_fan_pin(toolboard, pc_port)
+    # Multi-pin part cooling support
+    pc2_port = assignments.get('fan_part_cooling_pin2', '')
+    if pc2_port and fan_pc_pin2:
+        pc2_pin = get_fan_pin(board, pc2_port)
+        lines.append("[multi_pin part_cooling_pins]")
+        
+        if pc_on_toolboard:
+            pc_port = tb_assignments.get('fan_part_cooling', 'FAN0')
+            pc_pin = get_fan_pin(toolboard, pc_port)
+            lines.append(f"pins: toolboard:{pc_pin}, {pc2_pin}  # {pc_port} + {pc2_port}")
+        else:
+            pc_port = assignments.get('fan_part_cooling', 'FAN0')
+            pc_pin = get_fan_pin(board, pc_port)
+            lines.append(f"pins: {pc_pin}, {pc2_pin}  # {pc_port} + {pc2_port}")
+        lines.append("")
+        
+        # Part cooling fan using multi_pin
         lines.append("[fan]")
-        lines.append(f"pin: toolboard:{pc_pin}  # {pc_port} - Part cooling")
+        lines.append("pin: multi_pin:part_cooling_pins")
     else:
-        pc_port = assignments.get('fan_part_cooling', 'FAN0')
-        pc_pin = get_fan_pin(board, pc_port)
-        lines.append("[fan]")
-        lines.append(f"pin: {pc_pin}  # {pc_port} - Part cooling")
+        # Part cooling fan - single pin
+        if pc_on_toolboard:
+            pc_port = tb_assignments.get('fan_part_cooling', 'FAN0')
+            pc_pin = get_fan_pin(toolboard, pc_port)
+            lines.append("[fan]")
+            lines.append(f"pin: toolboard:{pc_pin}  # {pc_port} - Part cooling")
+        else:
+            pc_port = assignments.get('fan_part_cooling', 'FAN0')
+            pc_pin = get_fan_pin(board, pc_port)
+            lines.append("[fan]")
+            lines.append(f"pin: {pc_pin}  # {pc_port} - Part cooling")
+    
+    # Add advanced settings if specified
+    if pc_max_power:
+        lines.append(f"max_power: {pc_max_power}")
+    if pc_cycle_time:
+        lines.append(f"cycle_time: {pc_cycle_time}")
+    if pc_hardware_pwm:
+        lines.append(f"hardware_pwm: {pc_hardware_pwm}")
+    if pc_shutdown_speed:
+        lines.append(f"shutdown_speed: {pc_shutdown_speed}")
+    if pc_kick_start:
+        lines.append(f"kick_start_time: {pc_kick_start}")
     lines.append("")
     
     # Hotend fan (only if not water cooled / actually used)
-    if hf_on_toolboard:
-        hf_port = tb_assignments.get('fan_hotend', 'FAN1')
-        hf_pin = get_fan_pin(toolboard, hf_port)
-        lines.append("[heater_fan hotend_fan]")
-        lines.append(f"pin: toolboard:{hf_pin}  # {hf_port}")
-        lines.append("heater: extruder")
-        lines.append("heater_temp: 50.0")
-    elif assignments.get('fan_hotend'):
-        hf_port = assignments.get('fan_hotend', 'FAN1')
-        hf_pin = get_fan_pin(board, hf_port)
-        lines.append("[heater_fan hotend_fan]")
-        lines.append(f"pin: {hf_pin}  # {hf_port}")
-        lines.append("heater: extruder")
-        lines.append("heater_temp: 50.0")
-    # If hotend fan is 'none' on both, skip it (water cooled)
-    
-    lines.append("")
+    if fan_hotend != 'none':
+        if hf_on_toolboard:
+            hf_port = tb_assignments.get('fan_hotend', 'FAN1')
+            hf_pin = get_fan_pin(toolboard, hf_port)
+            lines.append("[heater_fan hotend_fan]")
+            lines.append(f"pin: toolboard:{hf_pin}  # {hf_port}")
+            lines.append("max_power: 1.0")
+            lines.append("kick_start_time: 0.5")
+            lines.append("heater: extruder")
+            lines.append("heater_temp: 50.0")
+            lines.append("")
+        elif assignments.get('fan_hotend'):
+            hf_port = assignments.get('fan_hotend', 'FAN1')
+            hf_pin = get_fan_pin(board, hf_port)
+            lines.append("[heater_fan hotend_fan]")
+            lines.append(f"pin: {hf_pin}  # {hf_port}")
+            lines.append("max_power: 1.0")
+            lines.append("kick_start_time: 0.5")
+            lines.append("heater: extruder")
+            lines.append("heater_temp: 50.0")
+            lines.append("")
     
     # Controller fan on main board
     cf_port = assignments.get('fan_controller')
-    if cf_port:
+    if cf_port and fan_controller != 'none':
         cf_pin = get_fan_pin(board, cf_port)
         lines.append("[controller_fan electronics_fan]")
         lines.append(f"pin: {cf_pin}  # {cf_port}")
+        lines.append("max_power: 1.0")
+        lines.append("kick_start_time: 0.5")
         lines.append("heater: heater_bed, extruder")
         lines.append("idle_timeout: 60")
+        lines.append("idle_speed: 0.5")
+        lines.append("")
+    
+    # Exhaust fan (fan_generic)
+    ex_port = assignments.get('fan_exhaust')
+    if ex_port and fan_exhaust not in ('', 'none'):
+        ex_pin = get_fan_pin(board, ex_port)
+        lines.append("[fan_generic exhaust_fan]")
+        lines.append(f"pin: {ex_pin}  # {ex_port}")
+        lines.append("max_power: 1.0")
+        lines.append("shutdown_speed: 0")
+        lines.append("kick_start_time: 0.5")
+        lines.append("off_below: 0.10")
+        lines.append("# Control with: SET_FAN_SPEED FAN=exhaust_fan SPEED=0.5")
+        lines.append("")
+    
+    # Chamber fan (fan_generic or temperature_fan)
+    ch_port = assignments.get('fan_chamber')
+    if ch_port and fan_chamber not in ('', 'none'):
+        ch_pin = get_fan_pin(board, ch_port)
+        
+        if fan_chamber_type == 'temperature':
+            # Temperature-controlled chamber fan
+            ch_sensor_type = wizard_state.get('fan_chamber_sensor_type', 'Generic 3950')
+            ch_sensor_pin = wizard_state.get('fan_chamber_sensor_pin', 'REPLACE_PIN')
+            ch_target_temp = wizard_state.get('fan_chamber_target_temp', '45')
+            
+            lines.append("[temperature_fan chamber]")
+            lines.append(f"pin: {ch_pin}  # {ch_port}")
+            lines.append("max_power: 1.0")
+            lines.append("shutdown_speed: 0")
+            lines.append("kick_start_time: 0.5")
+            lines.append(f"sensor_type: {ch_sensor_type}")
+            lines.append(f"sensor_pin: {ch_sensor_pin}  # Configure chamber thermistor pin")
+            lines.append("min_temp: 0")
+            lines.append("max_temp: 80")
+            lines.append(f"target_temp: {ch_target_temp}")
+            lines.append("control: watermark")
+            lines.append("gcode_id: C")
+        else:
+            # Manual chamber fan
+            lines.append("[fan_generic chamber_fan]")
+            lines.append(f"pin: {ch_pin}  # {ch_port}")
+            lines.append("max_power: 1.0")
+            lines.append("shutdown_speed: 0")
+            lines.append("kick_start_time: 0.5")
+            lines.append("off_below: 0.10")
+            lines.append("# Control with: SET_FAN_SPEED FAN=chamber_fan SPEED=0.5")
+        lines.append("")
+    
+    # RSCS/Filter fan (fan_generic)
+    rs_port = assignments.get('fan_rscs')
+    if rs_port and fan_rscs not in ('', 'none'):
+        rs_pin = get_fan_pin(board, rs_port)
+        lines.append("[fan_generic rscs_fan]")
+        lines.append(f"pin: {rs_pin}  # {rs_port}")
+        lines.append("max_power: 1.0")
+        lines.append("shutdown_speed: 0")
+        lines.append("kick_start_time: 0.5")
+        lines.append("off_below: 0.10")
+        lines.append("# Recirculating active carbon/HEPA filter")
+        lines.append("# Control with: SET_FAN_SPEED FAN=rscs_fan SPEED=0.5")
         lines.append("")
     
     # Probe configuration

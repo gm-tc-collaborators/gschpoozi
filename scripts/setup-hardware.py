@@ -1083,70 +1083,172 @@ def select_endstop_port(endstop_func: str, endstop_ports: Dict, endstop_list: Li
         pass
 
 def assign_fan_ports(board: Dict):
-    """Assign fan ports."""
+    """Assign fan ports with clear menu for all fan types."""
     fan_ports = board.get('fan_ports', {})
+    wizard_state = load_wizard_state()
     
-    clear_screen()
-    print_header("Assign Fan Ports")
-    
-    fan_list = list(fan_ports.keys())
-    
-    # Part cooling fan (only if no toolboard)
-    if state.toolboard_id in (None, "none", ""):
-        print_info(f"{Colors.BWHITE}Part Cooling Fan:{Colors.NC}")
-        num = 1
-        for port_name in fan_list:
-            port = fan_ports[port_name]
-            current = "done" if state.port_assignments.get('fan_part_cooling') == port_name else ""
-            print_menu_item(str(num), f"{port_name} - {port['label']}", "", current)
-            num += 1
+    while True:
+        clear_screen()
+        print_header("Assign Fan Ports")
         
-        choice = prompt("Select fan port for part cooling").strip()
-        try:
-            idx = int(choice) - 1
-            if 0 <= idx < len(fan_list):
-                state.port_assignments['fan_part_cooling'] = fan_list[idx]
-        except ValueError:
-            pass
+        fan_list = list(fan_ports.keys())
+        has_toolboard = state.toolboard_id and state.toolboard_id != "none"
         
-        # Hotend fan
+        print_info(f"Board: {Colors.CYAN}{board.get('name', 'Unknown')}{Colors.NC}")
+        print_info(f"Available fan ports: {Colors.CYAN}{', '.join(fan_list)}{Colors.NC}")
         print_info("")
-        print_info(f"{Colors.BWHITE}Hotend Fan:{Colors.NC}")
-        num = 1
-        for port_name in fan_list:
-            port = fan_ports[port_name]
-            current = "done" if state.port_assignments.get('fan_hotend') == port_name else ""
-            print_menu_item(str(num), f"{port_name} - {port['label']}", "", current)
-            num += 1
         
-        choice = prompt("Select fan port for hotend fan").strip()
-        try:
-            idx = int(choice) - 1
-            if 0 <= idx < len(fan_list):
-                state.port_assignments['fan_hotend'] = fan_list[idx]
-        except ValueError:
-            pass
+        # Show current assignments
+        print_info(f"{Colors.BWHITE}Current Fan Port Assignments:{Colors.NC}")
+        print_info("")
+        
+        # Part cooling - only on mainboard if no toolboard
+        if not has_toolboard:
+            pc_port = state.port_assignments.get('fan_part_cooling', '')
+            pc_pin = fan_ports.get(pc_port, {}).get('pin', '') if pc_port else ''
+            pc_status = "done" if pc_port else ""
+            pc_display = f"{pc_port} (pin: {pc_pin})" if pc_port else "not assigned"
+            print_menu_item("1", "Part Cooling [fan]", pc_display, pc_status)
+            
+            hf_port = state.port_assignments.get('fan_hotend', '')
+            hf_pin = fan_ports.get(hf_port, {}).get('pin', '') if hf_port else ''
+            hf_status = "done" if hf_port else ""
+            hf_display = f"{hf_port} (pin: {hf_pin})" if hf_port else "not assigned"
+            print_menu_item("2", "Hotend Fan [heater_fan]", hf_display, hf_status)
+        else:
+            print_info(f"  1) Part Cooling - {Colors.YELLOW}configured on toolboard{Colors.NC}")
+            print_info(f"  2) Hotend Fan - {Colors.YELLOW}configured on toolboard{Colors.NC}")
+        
+        cf_port = state.port_assignments.get('fan_controller', '')
+        cf_pin = fan_ports.get(cf_port, {}).get('pin', '') if cf_port else ''
+        cf_status = "done" if cf_port else ""
+        cf_display = f"{cf_port} (pin: {cf_pin})" if cf_port else "not assigned"
+        print_menu_item("3", "Controller Fan [controller_fan]", cf_display, cf_status)
+        
+        # Optional fans
+        print_info("")
+        print_info(f"{Colors.BWHITE}Optional Fans:{Colors.NC}")
+        
+        ex_port = state.port_assignments.get('fan_exhaust', '')
+        ex_pin = fan_ports.get(ex_port, {}).get('pin', '') if ex_port else ''
+        ex_status = "done" if ex_port else ""
+        ex_display = f"{ex_port} (pin: {ex_pin})" if ex_port else "not assigned"
+        print_menu_item("4", "Exhaust Fan [fan_generic]", ex_display, ex_status)
+        
+        ch_port = state.port_assignments.get('fan_chamber', '')
+        ch_pin = fan_ports.get(ch_port, {}).get('pin', '') if ch_port else ''
+        ch_status = "done" if ch_port else ""
+        ch_display = f"{ch_port} (pin: {ch_pin})" if ch_port else "not assigned"
+        print_menu_item("5", "Chamber Fan [fan_generic/temperature_fan]", ch_display, ch_status)
+        
+        rs_port = state.port_assignments.get('fan_rscs', '')
+        rs_pin = fan_ports.get(rs_port, {}).get('pin', '') if rs_port else ''
+        rs_status = "done" if rs_port else ""
+        rs_display = f"{rs_port} (pin: {rs_pin})" if rs_port else "not assigned"
+        print_menu_item("6", "RSCS/Filter Fan [fan_generic]", rs_display, rs_status)
+        
+        # Multi-pin part cooling
+        pc2_port = state.port_assignments.get('fan_part_cooling_pin2', '')
+        if pc2_port:
+            pc2_pin = fan_ports.get(pc2_port, {}).get('pin', '') if pc2_port else ''
+            print_info(f"  7) Part Cooling Pin 2 (multi-pin): {Colors.CYAN}{pc2_port} (pin: {pc2_pin}){Colors.NC}")
+        else:
+            print_menu_item("7", "Part Cooling Pin 2 (multi-pin)", "not assigned", "")
+        
+        print_separator()
+        print_action("C", "Clear all fan assignments")
+        print_action("D", "Done")
+        print_action("B", "Back")
+        print_footer()
+        
+        choice = prompt("Select fan to configure (1-7), or action").strip().lower()
+        
+        if choice == 'd' or choice == 'b':
+            return
+        elif choice == 'c':
+            # Clear all fan assignments
+            for key in ['fan_part_cooling', 'fan_hotend', 'fan_controller', 
+                       'fan_exhaust', 'fan_chamber', 'fan_rscs', 'fan_part_cooling_pin2']:
+                if key in state.port_assignments:
+                    del state.port_assignments[key]
+            print(f"\n{Colors.GREEN}All fan assignments cleared{Colors.NC}")
+            wait_for_key()
+        elif choice == '1' and not has_toolboard:
+            select_fan_port('fan_part_cooling', 'Part Cooling Fan', fan_ports, fan_list)
+        elif choice == '2' and not has_toolboard:
+            select_fan_port('fan_hotend', 'Hotend Fan', fan_ports, fan_list)
+        elif choice == '3':
+            select_fan_port('fan_controller', 'Controller Fan', fan_ports, fan_list)
+        elif choice == '4':
+            select_fan_port('fan_exhaust', 'Exhaust Fan', fan_ports, fan_list)
+        elif choice == '5':
+            select_fan_port('fan_chamber', 'Chamber Fan', fan_ports, fan_list)
+        elif choice == '6':
+            select_fan_port('fan_rscs', 'RSCS/Filter Fan', fan_ports, fan_list)
+        elif choice == '7':
+            select_fan_port('fan_part_cooling_pin2', 'Part Cooling Pin 2 (Multi-pin)', fan_ports, fan_list)
+
+def select_fan_port(fan_key: str, fan_name: str, fan_ports: Dict, fan_list: List):
+    """Select a specific port for a fan function."""
+    clear_screen()
+    print_header(f"Select Port for {fan_name}")
     
-    # Controller fan (always on main board)
+    print_info(f"Available fan ports:")
     print_info("")
-    print_info(f"{Colors.BWHITE}Controller/Electronics Fan:{Colors.NC}")
+    
     num = 1
+    
+    # "None/Skip" option first
+    current = state.port_assignments.get(fan_key, '')
+    none_status = "done" if current == '' else ""
+    print_menu_item(str(num), "None/Skip", "Do not configure this fan", none_status)
+    num += 1
+    
+    # Show which ports are already used
     for port_name in fan_list:
         port = fan_ports[port_name]
-        current = "done" if state.port_assignments.get('fan_controller') == port_name else ""
-        print_menu_item(str(num), f"{port_name} - {port['label']}", "", current)
+        label = port.get('label', port_name)
+        pin = port.get('pin', '?')
+        
+        # Check if port is already used by another function
+        used_by = None
+        for func, assigned_port in state.port_assignments.items():
+            if assigned_port == port_name and func != fan_key:
+                used_by = func.replace('fan_', '').replace('_', ' ')
+                break
+        
+        if used_by:
+            status_text = f"{Colors.YELLOW}(used by {used_by}){Colors.NC}"
+        else:
+            status_text = ""
+        
+        status = "done" if current == port_name else ""
+        print_menu_item(str(num), f"{port_name}", f"{label} - pin: {pin} {status_text}", status)
         num += 1
-    print_menu_item(str(num), "Skip (no controller fan)", "", "")
     
-    choice = prompt("Select fan port for controller fan").strip()
+    print_separator()
+    print_action("B", "Back")
+    print_footer()
+    
+    choice = prompt("Select port").strip()
+    
+    if choice.lower() == 'b':
+        return
+    
     try:
         idx = int(choice) - 1
-        if 0 <= idx < len(fan_list):
-            state.port_assignments['fan_controller'] = fan_list[idx]
+        if idx == 0:
+            # None/Skip - remove assignment
+            if fan_key in state.port_assignments:
+                del state.port_assignments[fan_key]
+            print(f"\n{Colors.GREEN}{fan_name} cleared{Colors.NC}")
+        elif 1 <= idx < len(fan_list) + 1:
+            state.port_assignments[fan_key] = fan_list[idx - 1]
+            pin = fan_ports[fan_list[idx - 1]].get('pin', '?')
+            print(f"\n{Colors.GREEN}{fan_name} assigned to {fan_list[idx - 1]} (pin: {pin}){Colors.NC}")
+        wait_for_key()
     except ValueError:
         pass
-    
-    wait_for_key()
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # TOOLBOARD PORT ASSIGNMENT
