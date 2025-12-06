@@ -1102,22 +1102,31 @@ def assign_fan_ports(board: Dict):
         print_info(f"{Colors.BWHITE}Current Fan Port Assignments:{Colors.NC}")
         print_info("")
         
-        # Part cooling - only on mainboard if no toolboard
-        if not has_toolboard:
+        # Check if fans are actually assigned to toolboard (not 'none' or empty)
+        tb_pc = state.toolboard_assignments.get('fan_part_cooling', '')
+        tb_hf = state.toolboard_assignments.get('fan_hotend', '')
+        pc_on_toolboard = has_toolboard and tb_pc not in ('', 'none')
+        hf_on_toolboard = has_toolboard and tb_hf not in ('', 'none')
+        
+        # Part cooling - show mainboard option if not on toolboard
+        if not pc_on_toolboard:
             pc_port = state.port_assignments.get('fan_part_cooling', '')
             pc_pin = fan_ports.get(pc_port, {}).get('pin', '') if pc_port else ''
             pc_status = "done" if pc_port else ""
             pc_display = f"{pc_port} (pin: {pc_pin})" if pc_port else "not assigned"
             print_menu_item("1", "Part Cooling [fan]", pc_display, pc_status)
-            
+        else:
+            print_info(f"  1) Part Cooling - {Colors.YELLOW}on toolboard ({tb_pc}){Colors.NC}")
+        
+        # Hotend fan - show mainboard option if not on toolboard
+        if not hf_on_toolboard:
             hf_port = state.port_assignments.get('fan_hotend', '')
             hf_pin = fan_ports.get(hf_port, {}).get('pin', '') if hf_port else ''
             hf_status = "done" if hf_port else ""
             hf_display = f"{hf_port} (pin: {hf_pin})" if hf_port else "not assigned"
             print_menu_item("2", "Hotend Fan [heater_fan]", hf_display, hf_status)
         else:
-            print_info(f"  1) Part Cooling - {Colors.YELLOW}configured on toolboard{Colors.NC}")
-            print_info(f"  2) Hotend Fan - {Colors.YELLOW}configured on toolboard{Colors.NC}")
+            print_info(f"  2) Hotend Fan - {Colors.YELLOW}on toolboard ({tb_hf}){Colors.NC}")
         
         cf_port = state.port_assignments.get('fan_controller', '')
         cf_pin = fan_ports.get(cf_port, {}).get('pin', '') if cf_port else ''
@@ -1173,9 +1182,9 @@ def assign_fan_ports(board: Dict):
                     del state.port_assignments[key]
             print(f"\n{Colors.GREEN}All fan assignments cleared{Colors.NC}")
             wait_for_key()
-        elif choice == '1' and not has_toolboard:
+        elif choice == '1' and not pc_on_toolboard:
             select_fan_port('fan_part_cooling', 'Part Cooling Fan', fan_ports, fan_list)
-        elif choice == '2' and not has_toolboard:
+        elif choice == '2' and not hf_on_toolboard:
             select_fan_port('fan_hotend', 'Hotend Fan', fan_ports, fan_list)
         elif choice == '3':
             select_fan_port('fan_controller', 'Controller Fan', fan_ports, fan_list)
