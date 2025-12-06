@@ -1822,6 +1822,7 @@ init_state() {
         [bed_size_z]=""
         [extruder_type]=""
         [hotend_thermistor]=""
+        [hotend_pullup_resistor]=""
         [bed_thermistor]=""
         [probe_type]=""
         [has_filament_sensor]=""
@@ -2496,7 +2497,11 @@ menu_hotend_thermistor() {
         4) WIZARD_STATE[hotend_thermistor]="Honeywell 100K 135-104LAG-J01" ;;
         5) WIZARD_STATE[hotend_thermistor]="NTC 100K MGB18-104F39050L32" ;;
         6) WIZARD_STATE[hotend_thermistor]="SliceEngineering450" ;;
-        7) WIZARD_STATE[hotend_thermistor]="PT1000" ;;
+        7) 
+            WIZARD_STATE[hotend_thermistor]="PT1000"
+            # PT1000 direct needs pullup resistor value
+            menu_pullup_resistor
+            ;;
         8) WIZARD_STATE[hotend_thermistor]="PT1000_MAX31865" ;;
         9) WIZARD_STATE[hotend_thermistor]="PT100_MAX31865" ;;
         [mM])
@@ -2510,6 +2515,41 @@ menu_hotend_thermistor() {
             fi
             ;;
         [bB]) return ;;
+        *) ;;
+    esac
+}
+
+menu_pullup_resistor() {
+    clear_screen
+    print_header "Pullup Resistor Value"
+    
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Select the pullup resistor value for your board:${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  (Check your board documentation if unsure)"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    
+    print_menu_item "1" "" "4700 ohms (4.7K) - Most common default"
+    print_menu_item "2" "" "2200 ohms (2.2K) - Some BTT boards"
+    print_menu_item "3" "" "1000 ohms (1K) - Rare"
+    print_menu_item "4" "" "Custom value"
+    print_separator
+    print_action_item "S" "Skip (use Klipper default)"
+    print_footer
+    
+    echo -en "${BYELLOW}Select pullup resistor${NC}: "
+    read -r choice
+    
+    case "$choice" in
+        1) WIZARD_STATE[hotend_pullup_resistor]="4700" ;;
+        2) WIZARD_STATE[hotend_pullup_resistor]="2200" ;;
+        3) WIZARD_STATE[hotend_pullup_resistor]="1000" ;;
+        4)
+            echo -en "  Enter pullup resistor value (ohms): "
+            read -r custom_value
+            if [[ -n "$custom_value" ]]; then
+                WIZARD_STATE[hotend_pullup_resistor]="$custom_value"
+            fi
+            ;;
+        [sS]) WIZARD_STATE[hotend_pullup_resistor]="" ;;
         *) ;;
     esac
 }

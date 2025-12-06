@@ -144,6 +144,7 @@ def generate_hardware_cfg(
     bed_z = wizard_state.get('bed_size_z', '350')
     z_count = int(wizard_state.get('z_stepper_count', '1'))
     hotend_therm = wizard_state.get('hotend_thermistor', 'Generic 3950')
+    hotend_pullup = wizard_state.get('hotend_pullup_resistor', '')
     bed_therm = wizard_state.get('bed_thermistor', 'Generic 3950')
     
     # Get driver type
@@ -424,6 +425,10 @@ def generate_hardware_cfg(
             th_port = assignments.get('thermistor_extruder', 'T0')
             th_pin = get_thermistor_pin(board, th_port)
             lines.append(f"sensor_pin: {th_pin}  # {th_port}")
+        
+        # Add pullup_resistor if specified (important for PT1000 direct)
+        if hotend_pullup:
+            lines.append(f"pullup_resistor: {hotend_pullup}  # Board-specific pullup value")
     
     lines.append("min_temp: 0")
     
