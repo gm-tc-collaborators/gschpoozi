@@ -3273,6 +3273,7 @@ menu_hotend_thermistor() {
     echo -en "${BYELLOW}Select thermistor${NC}: "
     read -r choice
     
+    local needs_pullup=true
     case "$choice" in
         1) WIZARD_STATE[hotend_thermistor]="Generic 3950" ;;
         2) WIZARD_STATE[hotend_thermistor]="ATC Semitec 104GT-2" ;;
@@ -3280,13 +3281,15 @@ menu_hotend_thermistor() {
         4) WIZARD_STATE[hotend_thermistor]="Honeywell 100K 135-104LAG-J01" ;;
         5) WIZARD_STATE[hotend_thermistor]="NTC 100K MGB18-104F39050L32" ;;
         6) WIZARD_STATE[hotend_thermistor]="SliceEngineering450" ;;
-        7) 
-            WIZARD_STATE[hotend_thermistor]="PT1000"
-            # PT1000 direct needs pullup resistor value
-            menu_pullup_resistor
+        7) WIZARD_STATE[hotend_thermistor]="PT1000" ;;
+        8)
+            WIZARD_STATE[hotend_thermistor]="PT1000_MAX31865"
+            needs_pullup=false  # MAX31865 has its own amplifier
             ;;
-        8) WIZARD_STATE[hotend_thermistor]="PT1000_MAX31865" ;;
-        9) WIZARD_STATE[hotend_thermistor]="PT100_MAX31865" ;;
+        9)
+            WIZARD_STATE[hotend_thermistor]="PT100_MAX31865"
+            needs_pullup=false  # MAX31865 has its own amplifier
+            ;;
         [mM])
             echo -e "${BCYAN}${BOX_V}${NC}"
             echo -e "${BCYAN}${BOX_V}${NC}  Enter exact Klipper sensor_type value:"
@@ -3295,11 +3298,20 @@ menu_hotend_thermistor() {
             read -r custom_type
             if [[ -n "$custom_type" ]]; then
                 WIZARD_STATE[hotend_thermistor]="$custom_type"
+                # Check if MAX31865 type (no pullup needed)
+                if [[ "$custom_type" == *MAX31865* ]]; then
+                    needs_pullup=false
+                fi
             fi
             ;;
         [bB]) return ;;
-        *) ;;
+        *) needs_pullup=false ;;
     esac
+
+    # Ask for pullup resistor for all analog thermistors (not MAX31865)
+    if [[ "$needs_pullup" == "true" && -n "${WIZARD_STATE[hotend_thermistor]}" ]]; then
+        menu_pullup_resistor
+    fi
 }
 
 menu_pullup_resistor() {
@@ -3562,18 +3574,21 @@ menu_bed_thermistor() {
     echo -en "${BYELLOW}Select thermistor${NC}: "
     read -r choice
 
+    local needs_pullup=true
     case "$choice" in
         1) WIZARD_STATE[bed_thermistor]="Generic 3950" ;;
         2) WIZARD_STATE[bed_thermistor]="Keenovo" ;;
-        3)
-            WIZARD_STATE[bed_thermistor]="PT1000"
-            menu_bed_pullup_resistor
-            ;;
+        3) WIZARD_STATE[bed_thermistor]="PT1000" ;;
         4) WIZARD_STATE[bed_thermistor]="NTC 100K beta 3950" ;;
         5) WIZARD_STATE[bed_thermistor]="EPCOS 100K B57560G104F" ;;
         [bB]) return ;;
-        *) ;;
+        *) needs_pullup=false ;;
     esac
+
+    # Ask for pullup resistor for all analog thermistors
+    if [[ "$needs_pullup" == "true" && -n "${WIZARD_STATE[bed_thermistor]}" ]]; then
+        menu_bed_pullup_resistor
+    fi
 }
 
 menu_bed_pullup_resistor() {

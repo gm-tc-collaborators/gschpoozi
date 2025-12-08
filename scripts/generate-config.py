@@ -146,6 +146,7 @@ def generate_hardware_cfg(
     hotend_therm = wizard_state.get('hotend_thermistor', 'Generic 3950')
     hotend_pullup = wizard_state.get('hotend_pullup_resistor', '')
     bed_therm = wizard_state.get('bed_thermistor', 'Generic 3950')
+    bed_pullup = wizard_state.get('bed_pullup_resistor', '')
     
     # Get driver type
     driver_x = wizard_state.get('driver_X', wizard_state.get('stepper_driver', 'TMC2209'))
@@ -462,6 +463,9 @@ def generate_hardware_cfg(
     lines.append(f"heater_pin: {hb_pin}  # {hb_port}")
     lines.append(f"sensor_type: {bed_therm}")
     lines.append(f"sensor_pin: {tb_pin}  # {tb_port}")
+    # Add pullup_resistor if specified
+    if bed_pullup:
+        lines.append(f"pullup_resistor: {bed_pullup}  # Board-specific pullup value")
     lines.append("control: pid")
     lines.append("pid_kp: 54.027  # Run PID_CALIBRATE HEATER=heater_bed TARGET=60")
     lines.append("pid_ki: 0.770")
