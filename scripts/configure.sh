@@ -70,6 +70,11 @@ BOX_RT="╣"
 # Box width constant - used by all print functions
 BOX_WIDTH=70
 
+# Strip ANSI escape codes to get visible length
+strip_ansi() {
+    echo -e "$1" | sed 's/\x1b\[[0-9;]*m//g'
+}
+
 # Truncate string to max length, adding "..." if truncated
 truncate_string() {
     local str="$1"
@@ -79,6 +84,35 @@ truncate_string() {
     else
         echo "$str"
     fi
+}
+
+# Print a line with left and right borders, properly padded
+# Usage: print_box_line "content" [indent]
+print_box_line() {
+    local content="$1"
+    local indent="${2:-2}"  # Default 2 space indent
+
+    # Get visible length (without ANSI codes)
+    local visible_content=$(strip_ansi "$content")
+    local visible_len=${#visible_content}
+
+    # Calculate padding needed (box width - indent - content - 1 for right margin)
+    local padding=$((BOX_WIDTH - indent - visible_len - 1))
+    if [[ $padding -lt 0 ]]; then padding=0; fi
+
+    # Print: left border + indent + content + padding + right border
+    printf "${BCYAN}${BOX_V}${NC}"
+    printf "%${indent}s" ""
+    printf "%s" "$content"
+    printf "%${padding}s" ""
+    printf "${BCYAN}${BOX_V}${NC}\n"
+}
+
+# Print empty line with borders
+print_empty_line() {
+    printf "${BCYAN}${BOX_V}${NC}"
+    printf "%${BOX_WIDTH}s" ""
+    printf "${BCYAN}${BOX_V}${NC}\n"
 }
 
 print_header() {
@@ -129,12 +163,14 @@ print_menu_item() {
     local prefix_len=12  # "║  X) [✓] "
     local max_value_len=$((BOX_WIDTH - prefix_len - ${#label} - 2 - 4))
 
+    local line_content
     if [[ -n "$value" ]]; then
         local truncated_value=$(truncate_string "$value" $max_value_len)
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}${num})${NC} ${status_icon} ${label}: ${CYAN}${truncated_value}${NC}"
+        line_content="${BWHITE}${num})${NC} ${status_icon} ${label}: ${CYAN}${truncated_value}${NC}"
     else
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}${num})${NC} ${status_icon} ${label}"
+        line_content="${BWHITE}${num})${NC} ${status_icon} ${label}"
     fi
+    print_box_line "$line_content"
 }
 
 print_separator() {
@@ -144,7 +180,7 @@ print_separator() {
 print_action_item() {
     local key="$1"
     local label="$2"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BGREEN}${key})${NC} ${label}"
+    print_box_line "${BGREEN}${key})${NC} ${label}"
 }
 
 prompt_input() {
@@ -556,20 +592,20 @@ check_mcu_versions() {
         clear_screen
         print_header "MCU Version Check"
         
-        echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}Potential MCU issues detected!${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  Host Version: ${BWHITE}${host_version}${NC}"
+        print_box_line "${YELLOW}Potential MCU issues detected!${NC}"
+        print_empty_line
+        print_box_line "Host Version: ${BWHITE}${host_version}${NC}"
         
         if $is_dirty; then
-            echo -e "${BCYAN}${BOX_V}${NC}"
-            echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}⚠ Klipper marked as 'dirty'${NC}"
-            echo -e "${BCYAN}${BOX_V}${NC}  ${WHITE}This usually means the Linux MCU needs updating.${NC}"
-            echo -e "${BCYAN}${BOX_V}${NC}  ${WHITE}The Linux MCU runs on the Pi for GPIO/sensors.${NC}"
+            print_empty_line
+            print_box_line "${YELLOW}⚠ Klipper marked as 'dirty'${NC}"
+            print_box_line "${WHITE}This usually means the Linux MCU needs updating.${NC}"
+            print_box_line "${WHITE}The Linux MCU runs on the Pi for GPIO/sensors.${NC}"
         fi
         
         print_separator
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Recommended: Update Linux Process MCU${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  This will rebuild and reinstall the host MCU service."
+        print_box_line "${BWHITE}Recommended: Update Linux Process MCU${NC}"
+        print_box_line "This will rebuild and reinstall the host MCU service."
         print_footer
         
         if confirm "Update Linux MCU now to fix version mismatch?"; then
@@ -799,49 +835,49 @@ menu_stepper_calibration() {
         clear_screen
         print_header "Stepper Calibration"
 
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Stepper Identification & Direction Calibration${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  This generates macros to help you:"
-        echo -e "${BCYAN}${BOX_V}${NC}  - Identify which physical motor is on which driver"
-        echo -e "${BCYAN}${BOX_V}${NC}  - Verify motor directions are correct"
+        print_box_line "${BWHITE}Stepper Identification & Direction Calibration${NC}"
+        print_empty_line
+        print_box_line "This generates macros to help you:"
+        print_box_line "- Identify which physical motor is on which driver"
+        print_box_line "- Verify motor directions are correct"
         if [[ "$is_awd" == "yes" ]]; then
-            echo -e "${BCYAN}${BOX_V}${NC}  - ${GREEN}Test AWD motor pairs safely (one pair at a time)${NC}"
+            print_box_line "- ${GREEN}Test AWD motor pairs safely (one pair at a time)${NC}"
         fi
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_empty_line
 
         print_separator
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Your Configuration:${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  Kinematics: ${CYAN}${kinematics}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  Z Motors: ${CYAN}${z_count}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  Driver: ${CYAN}${driver}${NC}"
+        print_box_line "${BWHITE}Your Configuration:${NC}"
+        print_box_line "Kinematics: ${CYAN}${kinematics}${NC}"
+        print_box_line "Z Motors: ${CYAN}${z_count}${NC}"
+        print_box_line "Driver: ${CYAN}${driver}${NC}"
         if [[ "$is_tmc" == "yes" ]]; then
-            echo -e "${BCYAN}${BOX_V}${NC}  TMC Status: ${GREEN}TMC query macros will be included${NC}"
+            print_box_line "TMC Status: ${GREEN}TMC query macros will be included${NC}"
         fi
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_empty_line
 
         print_separator
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Available Macros (after generation):${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  ${CYAN}STEPPER_CALIBRATION_WIZARD${NC} - Display calibration instructions"
-        echo -e "${BCYAN}${BOX_V}${NC}  ${CYAN}IDENTIFY_ALL_STEPPERS${NC} - Buzz each motor for identification"
-        echo -e "${BCYAN}${BOX_V}${NC}  ${CYAN}IDENTIFY_STEPPER STEPPER=name${NC} - Buzz a single motor"
+        print_box_line "${BWHITE}Available Macros (after generation):${NC}"
+        print_empty_line
+        print_box_line "${CYAN}STEPPER_CALIBRATION_WIZARD${NC} - Display calibration instructions"
+        print_box_line "${CYAN}IDENTIFY_ALL_STEPPERS${NC} - Buzz each motor for identification"
+        print_box_line "${CYAN}IDENTIFY_STEPPER STEPPER=name${NC} - Buzz a single motor"
         if [[ "$is_tmc" == "yes" ]]; then
-            echo -e "${BCYAN}${BOX_V}${NC}  ${CYAN}QUERY_TMC_STATUS${NC} - Query all TMC driver registers"
+            print_box_line "${CYAN}QUERY_TMC_STATUS${NC} - Query all TMC driver registers"
         fi
         if [[ "$is_awd" == "yes" ]]; then
-            echo -e "${BCYAN}${BOX_V}${NC}"
-            echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}AWD-Specific (safe pair testing):${NC}"
-            echo -e "${BCYAN}${BOX_V}${NC}  ${CYAN}AWD_FULL_TEST${NC} - Complete pair-by-pair calibration"
-            echo -e "${BCYAN}${BOX_V}${NC}  ${CYAN}AWD_TEST_PAIR_A${NC} - Test X+Y only (X1+Y1 disabled)"
-            echo -e "${BCYAN}${BOX_V}${NC}  ${CYAN}AWD_TEST_PAIR_B${NC} - Test X1+Y1 only (X+Y disabled)"
-            echo -e "${BCYAN}${BOX_V}${NC}  ${CYAN}AWD_ENABLE_ALL${NC} - Re-enable all motors"
+            print_empty_line
+            print_box_line "${BWHITE}AWD-Specific (safe pair testing):${NC}"
+            print_box_line "${CYAN}AWD_FULL_TEST${NC} - Complete pair-by-pair calibration"
+            print_box_line "${CYAN}AWD_TEST_PAIR_A${NC} - Test X+Y only (X1+Y1 disabled)"
+            print_box_line "${CYAN}AWD_TEST_PAIR_B${NC} - Test X1+Y1 only (X+Y disabled)"
+            print_box_line "${CYAN}AWD_ENABLE_ALL${NC} - Re-enable all motors"
         else
-            echo -e "${BCYAN}${BOX_V}${NC}  ${CYAN}COREXY_DIRECTION_CHECK${NC} - Test CoreXY directions"
+            print_box_line "${CYAN}COREXY_DIRECTION_CHECK${NC} - Test CoreXY directions"
         fi
         if [[ "$z_count" -gt 1 ]]; then
-            echo -e "${BCYAN}${BOX_V}${NC}  ${CYAN}Z_DIRECTION_CHECK${NC} - Verify all Z motors match"
+            print_box_line "${CYAN}Z_DIRECTION_CHECK${NC} - Verify all Z motors match"
         fi
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_empty_line
 
         print_separator
         print_action_item "D" "Interactive Discovery (live motor testing)"
@@ -883,8 +919,8 @@ run_motor_discovery() {
     
     # Check if board is selected
     if [[ -z "${WIZARD_STATE[mainboard]}" ]]; then
-        echo -e "${BCYAN}${BOX_V}${NC}  ${RED}Error: No main board selected!${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  Please select a board first in the wizard."
+        print_box_line "${RED}Error: No main board selected!${NC}"
+        print_box_line "Please select a board first in the wizard."
         print_footer
         wait_for_key
         return 1
@@ -893,10 +929,10 @@ run_motor_discovery() {
     # Check if MCU serial is available
     local mcu_serial="${HARDWARE_STATE[mcu_serial]:-}"
     if [[ -z "$mcu_serial" ]]; then
-        echo -e "${BCYAN}${BOX_V}${NC}  ${RED}Error: MCU serial not detected!${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  Please ensure:"
-        echo -e "${BCYAN}${BOX_V}${NC}  - MCU is connected via USB/serial"
-        echo -e "${BCYAN}${BOX_V}${NC}  - Klipper firmware is flashed on the board"
+        print_box_line "${RED}Error: MCU serial not detected!${NC}"
+        print_box_line "Please ensure:"
+        print_box_line "- MCU is connected via USB/serial"
+        print_box_line "- Klipper firmware is flashed on the board"
         print_footer
         wait_for_key
         return 1
@@ -904,31 +940,31 @@ run_motor_discovery() {
     
     # Check if Klipper/Moonraker are running
     if ! systemctl is-active --quiet klipper 2>/dev/null; then
-        echo -e "${BCYAN}${BOX_V}${NC}  ${RED}Error: Klipper service is not running!${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  Start Klipper first: ${CYAN}sudo systemctl start klipper${NC}"
+        print_box_line "${RED}Error: Klipper service is not running!${NC}"
+        print_box_line "Start Klipper first: ${CYAN}sudo systemctl start klipper${NC}"
         print_footer
         wait_for_key
         return 1
     fi
     
     if ! systemctl is-active --quiet moonraker 2>/dev/null; then
-        echo -e "${BCYAN}${BOX_V}${NC}  ${RED}Error: Moonraker service is not running!${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  Start Moonraker first: ${CYAN}sudo systemctl start moonraker${NC}"
+        print_box_line "${RED}Error: Moonraker service is not running!${NC}"
+        print_box_line "Start Moonraker first: ${CYAN}sudo systemctl start moonraker${NC}"
         print_footer
         wait_for_key
         return 1
     fi
     
-    echo -e "${BCYAN}${BOX_V}${NC}  ${GREEN}✓${NC} Board selected: ${CYAN}${WIZARD_STATE[board_name]}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${GREEN}✓${NC} MCU serial: ${CYAN}${mcu_serial}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${GREEN}✓${NC} Klipper running"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${GREEN}✓${NC} Moonraker running"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "${GREEN}✓${NC} Board selected: ${CYAN}${WIZARD_STATE[board_name]}${NC}"
+    print_box_line "${GREEN}✓${NC} MCU serial: ${CYAN}${mcu_serial}${NC}"
+    print_box_line "${GREEN}✓${NC} Klipper running"
+    print_box_line "${GREEN}✓${NC} Moonraker running"
+    print_empty_line
     print_separator
     
-    echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}WARNING: This will temporarily replace your printer.cfg${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}with a discovery config. It will be restored after.${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "${YELLOW}WARNING: This will temporarily replace your printer.cfg${NC}"
+    print_box_line "${YELLOW}with a discovery config. It will be restored after.${NC}"
+    print_empty_line
     print_footer
     
     if ! confirm "Proceed with motor discovery?"; then
@@ -991,56 +1027,56 @@ show_calibration_instructions() {
     clear_screen
     print_header "Stepper Calibration Instructions"
 
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}STEP 1: Generate Configuration${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  Generate calibration.cfg and add to printer.cfg:"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${CYAN}[include gschpoozi/calibration.cfg]${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  Then restart Klipper."
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_empty_line
+    print_box_line "${BWHITE}STEP 1: Generate Configuration${NC}"
+    print_box_line "Generate calibration.cfg and add to printer.cfg:"
+    print_box_line "${CYAN}[include gschpoozi/calibration.cfg]${NC}"
+    print_box_line "Then restart Klipper."
+    print_empty_line
 
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}STEP 2: Identify Motors${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  Run from console: ${CYAN}IDENTIFY_ALL_STEPPERS${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  Watch each motor and note which one moves."
-    echo -e "${BCYAN}${BOX_V}${NC}  This helps verify your wiring is correct."
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "${BWHITE}STEP 2: Identify Motors${NC}"
+    print_box_line "Run from console: ${CYAN}IDENTIFY_ALL_STEPPERS${NC}"
+    print_box_line "Watch each motor and note which one moves."
+    print_box_line "This helps verify your wiring is correct."
+    print_empty_line
 
     if [[ "$is_tmc" == "yes" ]]; then
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}STEP 3: Check TMC Communication${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  Run: ${CYAN}QUERY_TMC_STATUS${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  Verify no 00000000 or ffffffff errors."
-        echo -e "${BCYAN}${BOX_V}${NC}  Look for 'ola'/'olb' flags = motor disconnected."
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_box_line "${BWHITE}STEP 3: Check TMC Communication${NC}"
+        print_box_line "Run: ${CYAN}QUERY_TMC_STATUS${NC}"
+        print_box_line "Verify no 00000000 or ffffffff errors."
+        print_box_line "Look for 'ola'/'olb' flags = motor disconnected."
+        print_empty_line
     fi
 
     if [[ "$is_awd" == "yes" ]]; then
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}STEP 4: AWD Safe Pair Testing${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  Run: ${CYAN}AWD_FULL_TEST${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  This tests motors in pairs to prevent fighting:"
-        echo -e "${BCYAN}${BOX_V}${NC}  - First test: Only X+Y move (X1+Y1 disabled)"
-        echo -e "${BCYAN}${BOX_V}${NC}  - Second test: Only X1+Y1 move (X+Y disabled)"
-        echo -e "${BCYAN}${BOX_V}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  Both pairs should move the toolhead identically."
-        echo -e "${BCYAN}${BOX_V}${NC}  If they don't match, adjust dir_pins."
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_box_line "${BWHITE}STEP 4: AWD Safe Pair Testing${NC}"
+        print_box_line "Run: ${CYAN}AWD_FULL_TEST${NC}"
+        print_empty_line
+        print_box_line "This tests motors in pairs to prevent fighting:"
+        print_box_line "- First test: Only X+Y move (X1+Y1 disabled)"
+        print_box_line "- Second test: Only X1+Y1 move (X+Y disabled)"
+        print_empty_line
+        print_box_line "Both pairs should move the toolhead identically."
+        print_box_line "If they don't match, adjust dir_pins."
+        print_empty_line
     else
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}STEP 4: Direction Check${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  Run: ${CYAN}COREXY_DIRECTION_CHECK${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  Verify +X goes right, +Y goes back."
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_box_line "${BWHITE}STEP 4: Direction Check${NC}"
+        print_box_line "Run: ${CYAN}COREXY_DIRECTION_CHECK${NC}"
+        print_box_line "Verify +X goes right, +Y goes back."
+        print_empty_line
     fi
 
     if [[ "$z_count" -gt 1 ]]; then
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}STEP 5: Z Axis Verification${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  Run: ${CYAN}Z_DIRECTION_CHECK${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  All ${z_count} Z motors should move the same direction."
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_box_line "${BWHITE}STEP 5: Z Axis Verification${NC}"
+        print_box_line "Run: ${CYAN}Z_DIRECTION_CHECK${NC}"
+        print_box_line "All ${z_count} Z motors should move the same direction."
+        print_empty_line
     fi
 
     print_separator
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Resources:${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${CYAN}https://www.klipper3d.org/Config_checks.html${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${CYAN}https://mpx.wiki/Troubleshooting/corexy-direction${NC}"
+    print_box_line "${BWHITE}Resources:${NC}"
+    print_box_line "${CYAN}https://www.klipper3d.org/Config_checks.html${NC}"
+    print_box_line "${CYAN}https://mpx.wiki/Troubleshooting/corexy-direction${NC}"
     print_footer
 }
 
@@ -1051,11 +1087,11 @@ menu_mcu_firmware_update() {
         print_header "MCU Firmware Update"
         
         local host_version=$(get_klipper_host_version)
-        echo -e "${BCYAN}${BOX_V}${NC}  Klipper Host Version: ${BWHITE}${host_version}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}Note: MCU firmware must match host version${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}for Klipper to communicate properly.${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_box_line "Klipper Host Version: ${BWHITE}${host_version}${NC}"
+        print_empty_line
+        print_box_line "${YELLOW}Note: MCU firmware must match host version${NC}"
+        print_box_line "${YELLOW}for Klipper to communicate properly.${NC}"
+        print_empty_line
         
         print_separator
         
@@ -1078,7 +1114,7 @@ menu_mcu_firmware_update() {
         fi
         print_menu_item "3" "" "Update CAN MCU via Katapult" "${katapult_status}"
         
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_empty_line
         print_action_item "B" "Back"
         
         print_footer
@@ -1118,14 +1154,14 @@ menu_update_usb_mcu() {
     clear_screen
     print_header "Update USB MCU"
     
-    echo -e "${BCYAN}${BOX_V}${NC}  Scanning for USB MCUs..."
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "Scanning for USB MCUs..."
+    print_empty_line
     
     local -a devices
     mapfile -t devices < <(detect_usb_mcus)
     
     if [[ ${#devices[@]} -eq 0 ]]; then
-        echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}No USB MCUs found.${NC}"
+        print_box_line "${YELLOW}No USB MCUs found.${NC}"
         print_footer
         wait_for_key
         return
@@ -1138,11 +1174,11 @@ menu_update_usb_mcu() {
         if [[ ${#device} -gt 45 ]]; then
             display_path="...${device: -42}"
         fi
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}${num})${NC} ${desc}: ${display_path}"
+        print_box_line "${BWHITE}${num})${NC} ${desc}: ${display_path}"
         ((num++))
     done
     
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_empty_line
     print_action_item "B" "Back"
     print_footer
     
@@ -1168,15 +1204,15 @@ menu_update_can_mcu() {
     clear_screen
     print_header "Update CAN MCU"
     
-    echo -e "${BCYAN}${BOX_V}${NC}  Scanning CAN bus for devices..."
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "Scanning CAN bus for devices..."
+    print_empty_line
     
     local -a uuids
     mapfile -t uuids < <(detect_can_mcus)
     
     if [[ ${#uuids[@]} -eq 0 ]]; then
-        echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}No CAN devices found.${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}Make sure can0 is up and devices are powered.${NC}"
+        print_box_line "${YELLOW}No CAN devices found.${NC}"
+        print_box_line "${YELLOW}Make sure can0 is up and devices are powered.${NC}"
         print_footer
         wait_for_key
         return
@@ -1184,11 +1220,11 @@ menu_update_can_mcu() {
     
     local num=1
     for uuid in "${uuids[@]}"; do
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}${num})${NC} UUID: ${uuid}"
+        print_box_line "${BWHITE}${num})${NC} UUID: ${uuid}"
         ((num++))
     done
     
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_empty_line
     print_action_item "B" "Back"
     print_footer
     
@@ -1434,15 +1470,15 @@ menu_can_setup() {
             can_status="${RED}Not configured${NC}"
         fi
         
-        echo -e "${BCYAN}${BOX_V}${NC}  CAN Interface Status: ${can_status}"
+        print_box_line "CAN Interface Status: ${can_status}"
         if [[ "$bitrate" != "N/A" && "$bitrate" != "0" ]]; then
-            echo -e "${BCYAN}${BOX_V}${NC}  Bitrate: ${BWHITE}${bitrate} bps${NC}"
+            print_box_line "Bitrate: ${BWHITE}${bitrate} bps${NC}"
         fi
         
         # Show selected CAN adapter
         local can_adapter="${WIZARD_STATE[can_adapter]:-not selected}"
-        echo -e "${BCYAN}${BOX_V}${NC}  CAN Adapter: ${BWHITE}${can_adapter}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_box_line "CAN Adapter: ${BWHITE}${can_adapter}${NC}"
+        print_empty_line
         print_separator
         
         print_menu_item "1" "" "Select CAN adapter"
@@ -1451,7 +1487,7 @@ menu_can_setup() {
         print_menu_item "4" "" "Check CAN requirements"
         print_menu_item "5" "" "Diagnose CAN issues"
         print_menu_item "6" "" "Install Katapult (optional bootloader)"
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_empty_line
         print_action_item "B" "Back"
         
         print_footer
@@ -1490,8 +1526,8 @@ menu_select_can_adapter() {
     clear_screen
     print_header "Select CAN Adapter"
     
-    echo -e "${BCYAN}${BOX_V}${NC}  How is your CAN bus connected to the Pi?"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "How is your CAN bus connected to the Pi?"
+    print_empty_line
     print_separator
     
     # List available CAN adapters from templates
@@ -1572,13 +1608,13 @@ menu_can_interface_setup() {
     clear_screen
     print_header "Setup CAN Interface"
     
-    echo -e "${BCYAN}${BOX_V}${NC}  This will create /etc/network/interfaces.d/can0"
-    echo -e "${BCYAN}${BOX_V}${NC}  to automatically bring up the CAN interface on boot."
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "This will create /etc/network/interfaces.d/can0"
+    print_box_line "to automatically bring up the CAN interface on boot."
+    print_empty_line
     print_separator
     
-    echo -e "${BCYAN}${BOX_V}${NC}  Select CAN bitrate:"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "Select CAN bitrate:"
+    print_empty_line
     print_menu_item "1" "" "1000000 bps (1 Mbit - recommended)"
     print_menu_item "2" "" "500000 bps (500 Kbit)"
     print_menu_item "3" "" "250000 bps (250 Kbit)"
@@ -1611,8 +1647,8 @@ menu_can_bring_up() {
     clear_screen
     print_header "Bring Up CAN Interface"
     
-    echo -e "${BCYAN}${BOX_V}${NC}  Select CAN bitrate:"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "Select CAN bitrate:"
+    print_empty_line
     print_menu_item "1" "" "1000000 bps (1 Mbit)"
     print_menu_item "2" "" "500000 bps (500 Kbit)"
     print_separator
@@ -1639,22 +1675,22 @@ menu_can_check() {
     clear_screen
     print_header "CAN Requirements Check"
     
-    echo -e "${BCYAN}${BOX_V}${NC}  Checking CAN bus requirements..."
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "Checking CAN bus requirements..."
+    print_empty_line
     
     local issues
     issues=$(check_can_requirements "can0")
     
     if [[ -z "$issues" ]]; then
-        echo -e "${BCYAN}${BOX_V}${NC}  ${GREEN}✓ All CAN requirements met!${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  Interface: can0"
-        echo -e "${BCYAN}${BOX_V}${NC}  Bitrate: $(get_can_bitrate can0) bps"
-        echo -e "${BCYAN}${BOX_V}${NC}  Status: UP"
+        print_box_line "${GREEN}✓ All CAN requirements met!${NC}"
+        print_empty_line
+        print_box_line "Interface: can0"
+        print_box_line "Bitrate: $(get_can_bitrate can0) bps"
+        print_box_line "Status: UP"
     else
-        echo -e "${BCYAN}${BOX_V}${NC}  ${RED}Issues found:${NC}"
+        print_box_line "${RED}Issues found:${NC}"
         while IFS= read -r issue; do
-            echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}• ${issue}${NC}"
+            print_box_line "${YELLOW}• ${issue}${NC}"
         done <<< "$issues"
     fi
     
@@ -1726,18 +1762,18 @@ menu_katapult_install() {
     clear_screen
     print_header "Katapult Installation"
     
-    echo -e "${BCYAN}${BOX_V}${NC}  Katapult (formerly CanBoot) is a bootloader that allows"
-    echo -e "${BCYAN}${BOX_V}${NC}  updating Klipper firmware over the CAN bus without"
-    echo -e "${BCYAN}${BOX_V}${NC}  physically connecting USB cables."
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}Note: Katapult is optional but highly recommended${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}for CAN-based toolhead boards.${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "Katapult (formerly CanBoot) is a bootloader that allows"
+    print_box_line "updating Klipper firmware over the CAN bus without"
+    print_box_line "physically connecting USB cables."
+    print_empty_line
+    print_box_line "${YELLOW}Note: Katapult is optional but highly recommended${NC}"
+    print_box_line "${YELLOW}for CAN-based toolhead boards.${NC}"
+    print_empty_line
     
     if is_katapult_installed; then
-        echo -e "${BCYAN}${BOX_V}${NC}  Status: ${GREEN}Installed${NC}"
+        print_box_line "Status: ${GREEN}Installed${NC}"
     else
-        echo -e "${BCYAN}${BOX_V}${NC}  Status: ${RED}Not installed${NC}"
+        print_box_line "Status: ${RED}Not installed${NC}"
     fi
     
     print_separator
@@ -1748,7 +1784,7 @@ menu_katapult_install() {
     else
         print_menu_item "1" "" "Install Katapult"
     fi
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_empty_line
     print_action_item "B" "Back"
     
     print_footer
@@ -1793,110 +1829,110 @@ diagnose_can_issues() {
     clear_screen
     print_header "CAN Bus Diagnostics"
     
-    echo -e "${BCYAN}${BOX_V}${NC}  Running diagnostics..."
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "Running diagnostics..."
+    print_empty_line
     
     local has_issues=0
     
     # Check 1: CAN interface exists
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}1. CAN Interface (can0):${NC}"
+    print_box_line "${BWHITE}1. CAN Interface (can0):${NC}"
     if ip link show can0 &>/dev/null; then
-        echo -e "${BCYAN}${BOX_V}${NC}     ${GREEN}✓ Interface exists${NC}"
+        print_box_line "   ${GREEN}✓ Interface exists${NC}"
         
         # Check if UP
         if ip link show can0 2>/dev/null | grep -q "state UP"; then
-            echo -e "${BCYAN}${BOX_V}${NC}     ${GREEN}✓ Interface is UP${NC}"
+            print_box_line "   ${GREEN}✓ Interface is UP${NC}"
             local bitrate
             bitrate=$(get_can_bitrate can0)
-            echo -e "${BCYAN}${BOX_V}${NC}     ${GREEN}✓ Bitrate: ${bitrate} bps${NC}"
+            print_box_line "   ${GREEN}✓ Bitrate: ${bitrate} bps${NC}"
         else
-            echo -e "${BCYAN}${BOX_V}${NC}     ${RED}✗ Interface is DOWN${NC}"
-            echo -e "${BCYAN}${BOX_V}${NC}     ${YELLOW}  Fix: sudo ip link set can0 up type can bitrate 1000000${NC}"
+            print_box_line "   ${RED}✗ Interface is DOWN${NC}"
+            print_box_line "   ${YELLOW}  Fix: sudo ip link set can0 up type can bitrate 1000000${NC}"
             has_issues=1
         fi
     else
-        echo -e "${BCYAN}${BOX_V}${NC}     ${RED}✗ Interface does not exist${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}     ${YELLOW}  Check: Is your CAN adapter connected?${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}     ${YELLOW}  Fix: Create /etc/network/interfaces.d/can0${NC}"
+        print_box_line "   ${RED}✗ Interface does not exist${NC}"
+        print_box_line "   ${YELLOW}  Check: Is your CAN adapter connected?${NC}"
+        print_box_line "   ${YELLOW}  Fix: Create /etc/network/interfaces.d/can0${NC}"
         has_issues=1
     fi
     
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_empty_line
     
     # Check 2: CAN adapter
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}2. CAN Adapter Detection:${NC}"
+    print_box_line "${BWHITE}2. CAN Adapter Detection:${NC}"
     local usb_can_devices
     usb_can_devices=$(lsusb 2>/dev/null | grep -iE "can|1d50:606f|gs_usb" || true)
     if [[ -n "$usb_can_devices" ]]; then
-        echo -e "${BCYAN}${BOX_V}${NC}     ${GREEN}✓ USB CAN device found:${NC}"
+        print_box_line "   ${GREEN}✓ USB CAN device found:${NC}"
         while IFS= read -r device; do
-            echo -e "${BCYAN}${BOX_V}${NC}       $device"
+            print_box_line "     $device"
         done <<< "$usb_can_devices"
     else
-        echo -e "${BCYAN}${BOX_V}${NC}     ${YELLOW}? No obvious USB CAN adapter detected${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}     ${YELLOW}  (May be using USB-CAN bridge mode on mainboard)${NC}"
+        print_box_line "   ${YELLOW}? No obvious USB CAN adapter detected${NC}"
+        print_box_line "   ${YELLOW}  (May be using USB-CAN bridge mode on mainboard)${NC}"
     fi
     
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_empty_line
     
     # Check 3: Klipper query script
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}3. Klipper CAN Query Script:${NC}"
+    print_box_line "${BWHITE}3. Klipper CAN Query Script:${NC}"
     if [[ -f "${HOME}/klipper/scripts/canbus_query.py" ]]; then
-        echo -e "${BCYAN}${BOX_V}${NC}     ${GREEN}✓ canbus_query.py found${NC}"
+        print_box_line "   ${GREEN}✓ canbus_query.py found${NC}"
     else
-        echo -e "${BCYAN}${BOX_V}${NC}     ${RED}✗ canbus_query.py not found${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}     ${YELLOW}  Check: Is Klipper installed?${NC}"
+        print_box_line "   ${RED}✗ canbus_query.py not found${NC}"
+        print_box_line "   ${YELLOW}  Check: Is Klipper installed?${NC}"
         has_issues=1
     fi
     
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_empty_line
     
     # Check 4: Try to find CAN devices
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}4. CAN Device Discovery:${NC}"
+    print_box_line "${BWHITE}4. CAN Device Discovery:${NC}"
     if check_can_interface can0; then
         local uuids
         uuids=$(detect_can_mcus)
         if [[ -n "$uuids" ]]; then
-            echo -e "${BCYAN}${BOX_V}${NC}     ${GREEN}✓ CAN devices found:${NC}"
+            print_box_line "   ${GREEN}✓ CAN devices found:${NC}"
             while IFS= read -r uuid; do
-                echo -e "${BCYAN}${BOX_V}${NC}       ${BWHITE}${uuid}${NC}"
+                print_box_line "     ${BWHITE}${uuid}${NC}"
             done <<< "$uuids"
         else
-            echo -e "${BCYAN}${BOX_V}${NC}     ${YELLOW}? No CAN devices responding${NC}"
-            echo -e "${BCYAN}${BOX_V}${NC}     ${YELLOW}  Check:${NC}"
-            echo -e "${BCYAN}${BOX_V}${NC}     ${YELLOW}  - Is the toolboard powered?${NC}"
-            echo -e "${BCYAN}${BOX_V}${NC}     ${YELLOW}  - Is Klipper/Katapult flashed on it?${NC}"
-            echo -e "${BCYAN}${BOX_V}${NC}     ${YELLOW}  - Are CAN H/L wires connected correctly?${NC}"
-            echo -e "${BCYAN}${BOX_V}${NC}     ${YELLOW}  - Is there a 120Ω termination resistor?${NC}"
+            print_box_line "   ${YELLOW}? No CAN devices responding${NC}"
+            print_box_line "   ${YELLOW}  Check:${NC}"
+            print_box_line "   ${YELLOW}  - Is the toolboard powered?${NC}"
+            print_box_line "   ${YELLOW}  - Is Klipper/Katapult flashed on it?${NC}"
+            print_box_line "   ${YELLOW}  - Are CAN H/L wires connected correctly?${NC}"
+            print_box_line "   ${YELLOW}  - Is there a 120Ω termination resistor?${NC}"
             has_issues=1
         fi
     else
-        echo -e "${BCYAN}${BOX_V}${NC}     ${YELLOW}? Cannot query - can0 not ready${NC}"
+        print_box_line "   ${YELLOW}? Cannot query - can0 not ready${NC}"
         has_issues=1
     fi
     
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_empty_line
     
     # Check 5: Klipper service
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}5. Klipper Service:${NC}"
+    print_box_line "${BWHITE}5. Klipper Service:${NC}"
     if systemctl is-active --quiet klipper 2>/dev/null; then
-        echo -e "${BCYAN}${BOX_V}${NC}     ${GREEN}✓ Klipper service is running${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}     ${YELLOW}  Note: Stop Klipper to flash firmware over CAN${NC}"
+        print_box_line "   ${GREEN}✓ Klipper service is running${NC}"
+        print_box_line "   ${YELLOW}  Note: Stop Klipper to flash firmware over CAN${NC}"
     else
-        echo -e "${BCYAN}${BOX_V}${NC}     ${YELLOW}? Klipper service is not running${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}     ${YELLOW}  (OK for flashing, needed for operation)${NC}"
+        print_box_line "   ${YELLOW}? Klipper service is not running${NC}"
+        print_box_line "   ${YELLOW}  (OK for flashing, needed for operation)${NC}"
     fi
     
     print_separator
     
     if [[ $has_issues -eq 0 ]]; then
-        echo -e "${BCYAN}${BOX_V}${NC}  ${GREEN}All checks passed!${NC}"
+        print_box_line "${GREEN}All checks passed!${NC}"
     else
-        echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}Some issues found. See suggestions above.${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Helpful resources:${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  • https://canbus.esoterical.online/"
-        echo -e "${BCYAN}${BOX_V}${NC}  • Voron Discord #can-and-usb_toolhead_boards"
+        print_box_line "${YELLOW}Some issues found. See suggestions above.${NC}"
+        print_empty_line
+        print_box_line "${BWHITE}Helpful resources:${NC}"
+        print_box_line "• https://canbus.esoterical.online/"
+        print_box_line "• Voron Discord #can-and-usb_toolhead_boards"
     fi
     
     print_footer
@@ -1911,18 +1947,18 @@ select_mcu_serial() {
     print_header "Select ${role^} MCU"
     
     if [[ "$connection_type" == "can" ]]; then
-        echo -e "${BCYAN}${BOX_V}${NC}  Scanning CAN bus for devices..."
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_box_line "Scanning CAN bus for devices..."
+        print_empty_line
         
         local -a uuids
         mapfile -t uuids < <(detect_can_mcus)
         
         if [[ ${#uuids[@]} -eq 0 ]]; then
-            echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}No CAN devices found.${NC}"
-            echo -e "${BCYAN}${BOX_V}${NC}  Make sure:"
-            echo -e "${BCYAN}${BOX_V}${NC}  - CAN interface is up (can0)"
-            echo -e "${BCYAN}${BOX_V}${NC}  - Device is powered and connected"
-            echo -e "${BCYAN}${BOX_V}${NC}  - Device has Klipper/Katapult firmware"
+            print_box_line "${YELLOW}No CAN devices found.${NC}"
+            print_box_line "Make sure:"
+            print_box_line "- CAN interface is up (can0)"
+            print_box_line "- Device is powered and connected"
+            print_box_line "- Device has Klipper/Katapult firmware"
             print_footer
             wait_for_key
             return 1
@@ -1930,7 +1966,7 @@ select_mcu_serial() {
         
         local num=1
         for uuid in "${uuids[@]}"; do
-            echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}${num})${NC} ${uuid}"
+            print_box_line "${BWHITE}${num})${NC} ${uuid}"
             ((num++))
         done
         
@@ -1964,17 +2000,17 @@ select_mcu_serial() {
         fi
     else
         # USB device selection
-        echo -e "${BCYAN}${BOX_V}${NC}  Scanning USB for Klipper MCUs..."
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_box_line "Scanning USB for Klipper MCUs..."
+        print_empty_line
         
         local -a devices
         mapfile -t devices < <(detect_usb_mcus)
         
         if [[ ${#devices[@]} -eq 0 ]]; then
-            echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}No Klipper USB devices found.${NC}"
-            echo -e "${BCYAN}${BOX_V}${NC}  Make sure:"
-            echo -e "${BCYAN}${BOX_V}${NC}  - MCU is connected via USB"
-            echo -e "${BCYAN}${BOX_V}${NC}  - MCU has Klipper firmware flashed"
+            print_box_line "${YELLOW}No Klipper USB devices found.${NC}"
+            print_box_line "Make sure:"
+            print_box_line "- MCU is connected via USB"
+            print_box_line "- MCU has Klipper firmware flashed"
             print_footer
             wait_for_key
             return 1
@@ -1984,8 +2020,8 @@ select_mcu_serial() {
         for device in "${devices[@]}"; do
             local desc=$(get_mcu_description "$device")
             local basename=$(basename "$device")
-            echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}${num})${NC} ${CYAN}${desc}${NC}"
-            echo -e "${BCYAN}${BOX_V}${NC}      ${WHITE}${basename}${NC}"
+            print_box_line "${BWHITE}${num})${NC} ${CYAN}${desc}${NC}"
+            print_box_line "    ${WHITE}${basename}${NC}"
             ((num++))
         done
         
@@ -2384,10 +2420,10 @@ install_klipper() {
     else
         clear_screen
         print_header "Install Klipper"
-        echo -e "${BCYAN}${BOX_V}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  ${RED}Installation library not found!${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  Please ensure scripts/lib/klipper-install.sh exists."
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_empty_line
+        print_box_line "${RED}Installation library not found!${NC}"
+        print_box_line "Please ensure scripts/lib/klipper-install.sh exists."
+        print_empty_line
         print_footer
         wait_for_key
     fi
@@ -2399,10 +2435,10 @@ install_moonraker() {
     else
         clear_screen
         print_header "Install Moonraker"
-        echo -e "${BCYAN}${BOX_V}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  ${RED}Installation library not found!${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  Please ensure scripts/lib/klipper-install.sh exists."
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_empty_line
+        print_box_line "${RED}Installation library not found!${NC}"
+        print_box_line "Please ensure scripts/lib/klipper-install.sh exists."
+        print_empty_line
         print_footer
         wait_for_key
     fi
@@ -2414,10 +2450,10 @@ install_mainsail() {
     else
         clear_screen
         print_header "Install Mainsail"
-        echo -e "${BCYAN}${BOX_V}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  ${RED}Installation library not found!${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  Please ensure scripts/lib/klipper-install.sh exists."
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_empty_line
+        print_box_line "${RED}Installation library not found!${NC}"
+        print_box_line "Please ensure scripts/lib/klipper-install.sh exists."
+        print_empty_line
         print_footer
         wait_for_key
     fi
@@ -2429,10 +2465,10 @@ install_fluidd() {
     else
         clear_screen
         print_header "Install Fluidd"
-        echo -e "${BCYAN}${BOX_V}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  ${RED}Installation library not found!${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  Please ensure scripts/lib/klipper-install.sh exists."
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_empty_line
+        print_box_line "${RED}Installation library not found!${NC}"
+        print_box_line "Please ensure scripts/lib/klipper-install.sh exists."
+        print_empty_line
         print_footer
         wait_for_key
     fi
@@ -2444,10 +2480,10 @@ install_crowsnest() {
     else
         clear_screen
         print_header "Install Crowsnest"
-        echo -e "${BCYAN}${BOX_V}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  ${RED}Installation library not found!${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  Please ensure scripts/lib/klipper-install.sh exists."
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_empty_line
+        print_box_line "${RED}Installation library not found!${NC}"
+        print_box_line "Please ensure scripts/lib/klipper-install.sh exists."
+        print_empty_line
         print_footer
         wait_for_key
     fi
@@ -2459,10 +2495,10 @@ install_sonar() {
     else
         clear_screen
         print_header "Install Sonar"
-        echo -e "${BCYAN}${BOX_V}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  ${RED}Installation library not found!${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  Please ensure scripts/lib/klipper-install.sh exists."
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_empty_line
+        print_box_line "${RED}Installation library not found!${NC}"
+        print_box_line "Please ensure scripts/lib/klipper-install.sh exists."
+        print_empty_line
         print_footer
         wait_for_key
     fi
@@ -2474,10 +2510,10 @@ install_timelapse() {
     else
         clear_screen
         print_header "Install Timelapse"
-        echo -e "${BCYAN}${BOX_V}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  ${RED}Installation library not found!${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  Please ensure scripts/lib/klipper-install.sh exists."
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_empty_line
+        print_box_line "${RED}Installation library not found!${NC}"
+        print_box_line "Please ensure scripts/lib/klipper-install.sh exists."
+        print_empty_line
         print_footer
         wait_for_key
     fi
@@ -2490,10 +2526,10 @@ install_timelapse() {
 show_top_menu() {
     clear_screen
     print_header "gschpoozi"
-    
-    echo -e "${BCYAN}${BOX_V}${NC}  ${WHITE}Klipper Configuration Generator${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    
+
+    print_box_line "${WHITE}Klipper Configuration Generator${NC}"
+    print_empty_line
+
     # Klipper Setup status
     local klipper_status=""
     local klipper_info=""
@@ -2547,7 +2583,7 @@ show_klipper_setup_menu() {
         clear_screen
         print_header "Klipper Setup"
         
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}CORE COMPONENTS${NC}"
+        print_box_line "${BWHITE}CORE COMPONENTS${NC}"
         
         # Klipper
         local klipper_status=""
@@ -2571,8 +2607,8 @@ show_klipper_setup_menu() {
         fi
         print_menu_item "2" "$moonraker_status" "Moonraker" "${moonraker_info}"
         
-        echo -e "${BCYAN}${BOX_V}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}WEB INTERFACE${NC} ${WHITE}(choose one)${NC}"
+        print_empty_line
+        print_box_line "${BWHITE}WEB INTERFACE${NC} ${WHITE}(choose one)${NC}"
         
         # Mainsail
         local mainsail_status=""
@@ -2598,8 +2634,8 @@ show_klipper_setup_menu() {
         fi
         print_menu_item "4" "$fluidd_status" "Fluidd" "${fluidd_info}"
         
-        echo -e "${BCYAN}${BOX_V}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}OPTIONAL${NC}"
+        print_empty_line
+        print_box_line "${BWHITE}OPTIONAL${NC}"
         
         # Crowsnest
         local crowsnest_status=""
@@ -2700,7 +2736,7 @@ show_machine_setup_menu() {
     # ─────────────────────────────────────────────────────────────────────────
     # BOARDS
     # ─────────────────────────────────────────────────────────────────────────
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}BOARDS${NC}"
+    print_box_line "${BWHITE}BOARDS${NC}"
 
     local board_info="${WIZARD_STATE[board_name]:-not selected}"
     print_menu_item "1" "$(get_step_status board)" "Main Board" "${board_info}"
@@ -2733,14 +2769,14 @@ show_machine_setup_menu() {
         else
             can_status="${RED}Not configured${NC}"
         fi
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}C)${NC} [ ] CAN Bus Setup: ${CYAN}${can_status}${NC}"
+        print_box_line "${BWHITE}C)${NC} [ ] CAN Bus Setup: ${CYAN}${can_status}${NC}"
     fi
 
     # ─────────────────────────────────────────────────────────────────────────
     # MOTION
     # ─────────────────────────────────────────────────────────────────────────
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}MOTION${NC}"
+    print_empty_line
+    print_box_line "${BWHITE}MOTION${NC}"
 
     local kin_display="${WIZARD_STATE[kinematics]:-not set}"
     if [[ -n "${WIZARD_STATE[z_stepper_count]}" ]]; then
@@ -2757,8 +2793,8 @@ show_machine_setup_menu() {
     # ─────────────────────────────────────────────────────────────────────────
     # COMPONENTS
     # ─────────────────────────────────────────────────────────────────────────
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}COMPONENTS${NC}"
+    print_empty_line
+    print_box_line "${BWHITE}COMPONENTS${NC}"
 
     # Hotend
     local hotend_info=""
@@ -2813,8 +2849,8 @@ show_machine_setup_menu() {
     # ─────────────────────────────────────────────────────────────────────────
     # EXTRAS
     # ─────────────────────────────────────────────────────────────────────────
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}EXTRAS${NC}"
+    print_empty_line
+    print_box_line "${BWHITE}EXTRAS${NC}"
     print_menu_item "E" "$(get_step_status extras)" "Extras" ""
     print_menu_item "M" "$(get_step_status macros)" "Macros" ""
 
@@ -2883,7 +2919,7 @@ menu_ports() {
     if [[ -z "${WIZARD_STATE[board]}" ]]; then
         clear_screen
         print_header "Port Assignment"
-        echo -e "${BCYAN}${BOX_V}${NC}  ${RED}Please select a board first!${NC}"
+        print_box_line "${RED}Please select a board first!${NC}"
         print_footer
         wait_for_key
         return
@@ -2909,7 +2945,7 @@ menu_kinematics() {
         print_header "Motion Configuration"
 
         # Current configuration summary
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Current Configuration:${NC}"
+        print_box_line "${BWHITE}Current Configuration:${NC}"
         local kin_status=$([[ -n "${WIZARD_STATE[kinematics]}" ]] && echo "done" || echo "")
         print_menu_item "1" "$kin_status" "Kinematics Type" "${WIZARD_STATE[kinematics]:-not set}"
 
@@ -2943,7 +2979,7 @@ except:
             fi
             print_menu_item "4" "$motor_status" "Motor Port Assignment" "${motor_info}"
         else
-            echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}4)${NC} ${YELLOW}[ ]${NC} Motor Port Assignment: ${YELLOW}select board first${NC}"
+            print_box_line "${BWHITE}4)${NC} ${YELLOW}[ ]${NC} Motor Port Assignment: ${YELLOW}select board first${NC}"
         fi
 
         # Rotation distance configuration - show per-axis status
@@ -3016,8 +3052,8 @@ menu_z_config() {
     clear_screen
     print_header "Z Axis Configuration"
     
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}How many Z stepper motors?${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "${BWHITE}How many Z stepper motors?${NC}"
+    print_empty_line
     print_menu_item "1" "" "1 Z motor (single leadscrew)"
     print_menu_item "2" "" "2 Z motors (dual Z, uses Bed Tilt)"
     print_menu_item "3" "" "3 Z motors (triple Z, uses Z Tilt)"
@@ -3064,9 +3100,9 @@ menu_homing() {
     clear_screen
     print_header "Homing Direction"
     
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Where are your X/Y endstops located?${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  (This determines homing direction)"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "${BWHITE}Where are your X/Y endstops located?${NC}"
+    print_box_line "(This determines homing direction)"
+    print_empty_line
     
     print_menu_item "1" "" "X=MAX, Y=MAX (back-right corner) - Voron style"
     print_menu_item "2" "" "X=MIN, Y=MIN (front-left corner) - Prusa/Ender style"
@@ -3108,9 +3144,9 @@ menu_endstop_positions() {
     clear_screen
     print_header "Endstop Position Coordinates"
     
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Enter the physical endstop trigger positions:${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  (Where the nozzle is when each endstop triggers)"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "${BWHITE}Enter the physical endstop trigger positions:${NC}"
+    print_box_line "(Where the nozzle is when each endstop triggers)"
+    print_empty_line
     
     # Calculate defaults based on homing direction
     local default_x default_y default_min_x default_min_y
@@ -3130,14 +3166,14 @@ menu_endstop_positions() {
         default_min_y="0"
     fi
     
-    echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}X axis (homing to ${WIZARD_STATE[home_x]:-max}):${NC}"
+    print_box_line "${YELLOW}X axis (homing to ${WIZARD_STATE[home_x]:-max}):${NC}"
     echo -en "  " >&2
     WIZARD_STATE[position_endstop_x]=$(prompt_input "X position_endstop (mm)" "${WIZARD_STATE[position_endstop_x]:-$default_x}")
     echo -en "  " >&2
     WIZARD_STATE[position_min_x]=$(prompt_input "X position_min (mm, can be negative)" "${WIZARD_STATE[position_min_x]:-$default_min_x}")
     
     echo ""
-    echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}Y axis (homing to ${WIZARD_STATE[home_y]:-max}):${NC}"
+    print_box_line "${YELLOW}Y axis (homing to ${WIZARD_STATE[home_y]:-max}):${NC}"
     echo -en "  " >&2
     WIZARD_STATE[position_endstop_y]=$(prompt_input "Y position_endstop (mm)" "${WIZARD_STATE[position_endstop_y]:-$default_y}")
     echo -en "  " >&2
@@ -3152,13 +3188,13 @@ menu_z_endstop_position() {
     clear_screen
     print_header "Z Endstop Position"
     
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Enter the Z endstop trigger position:${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  (Where the nozzle is when the Z endstop triggers)"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}Typical values:${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  • 0 for bed-mounted endstop at bed level"
-    echo -e "${BCYAN}${BOX_V}${NC}  • Positive value if endstop triggers above bed"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "${BWHITE}Enter the Z endstop trigger position:${NC}"
+    print_box_line "(Where the nozzle is when the Z endstop triggers)"
+    print_empty_line
+    print_box_line "${YELLOW}Typical values:${NC}"
+    print_box_line "• 0 for bed-mounted endstop at bed level"
+    print_box_line "• Positive value if endstop triggers above bed"
+    print_empty_line
     
     echo -en "  " >&2
     WIZARD_STATE[position_endstop_z]=$(prompt_input "Z position_endstop (mm)" "${WIZARD_STATE[position_endstop_z]:-0}")
@@ -3286,7 +3322,7 @@ menu_steppers() {
         print_header "Stepper Configuration"
         
         if [[ -z "${WIZARD_STATE[board]}" ]]; then
-            echo -e "${BCYAN}${BOX_V}${NC}  ${RED}Please select a board first!${NC}"
+            print_box_line "${RED}Please select a board first!${NC}"
             print_footer
             wait_for_key
             return
@@ -3295,9 +3331,9 @@ menu_steppers() {
         local axes
         axes=$(get_required_axes)
         
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Configure driver for each axis:${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  ${WHITE}(Based on: ${WIZARD_STATE[kinematics]:-not set})${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_box_line "${BWHITE}Configure driver for each axis:${NC}"
+        print_box_line "${WHITE}(Based on: ${WIZARD_STATE[kinematics]:-not set})${NC}"
+        print_empty_line
         
         local num=1
         for axis in $axes; do
@@ -3375,11 +3411,11 @@ menu_rotation_distance() {
         clear_screen
         print_header "Rotation Distance Configuration"
 
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Configure each axis individually:${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  Each axis can have different step angle, microsteps,"
-        echo -e "${BCYAN}${BOX_V}${NC}  and rotation_distance settings."
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_box_line "${BWHITE}Configure each axis individually:${NC}"
+        print_empty_line
+        print_box_line "Each axis can have different step angle, microsteps,"
+        print_box_line "and rotation_distance settings."
+        print_empty_line
 
         # X Axis status
         local x_status=$([[ -n "${WIZARD_STATE[stepper_x_rotation_distance]}" ]] && echo "done" || echo "")
@@ -3414,7 +3450,7 @@ menu_rotation_distance() {
         print_menu_item "4" "$e_status" "Extruder" "$e_info"
 
         print_separator
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Quick Setup:${NC}"
+        print_box_line "${BWHITE}Quick Setup:${NC}"
         print_menu_item "A" "" "Copy X to Y" "Apply X settings to Y axis"
         print_menu_item "S" "" "Same for X/Y/Z" "Apply same step angle & microsteps to all"
 
@@ -3464,11 +3500,11 @@ menu_axis_config() {
         local micro="${WIZARD_STATE[stepper_${axis}_microsteps]:-16}"
         local rot="${WIZARD_STATE[stepper_${axis}_rotation_distance]:-}"
 
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Current settings:${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  Step angle: ${CYAN}${step}°${NC} ($([ "$step" == "1.8" ] && echo "200" || echo "400") steps/rev)"
-        echo -e "${BCYAN}${BOX_V}${NC}  Microsteps: ${CYAN}${micro}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  Rotation distance: ${CYAN}${rot:-not set}${NC}${rot:+mm}"
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_box_line "${BWHITE}Current settings:${NC}"
+        print_box_line "Step angle: ${CYAN}${step}°${NC} ($([ "$step" == "1.8" ] && echo "200" || echo "400") steps/rev)"
+        print_box_line "Microsteps: ${CYAN}${micro}${NC}"
+        print_box_line "Rotation distance: ${CYAN}${rot:-not set}${NC}${rot:+mm}"
+        print_empty_line
 
         local s1=$([[ -n "${WIZARD_STATE[stepper_${axis}_step_angle]}" ]] && echo "done" || echo "")
         local s2=$([[ -n "${WIZARD_STATE[stepper_${axis}_microsteps]}" ]] && echo "done" || echo "")
@@ -3507,8 +3543,8 @@ menu_axis_step_angle() {
     clear_screen
     print_header "$name - Step Angle"
 
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Select stepper motor step angle:${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "${BWHITE}Select stepper motor step angle:${NC}"
+    print_empty_line
 
     local cur="${WIZARD_STATE[stepper_${axis}_step_angle]}"
     local s1=$([[ "$cur" == "1.8" ]] && echo "done" || echo "")
@@ -3539,8 +3575,8 @@ menu_axis_microsteps() {
     clear_screen
     print_header "$name - Microsteps"
 
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Select microstep resolution:${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "${BWHITE}Select microstep resolution:${NC}"
+    print_empty_line
 
     local cur="${WIZARD_STATE[stepper_${axis}_microsteps]}"
     local m1=$([[ "$cur" == "16" ]] && echo "done" || echo "")
@@ -3580,10 +3616,10 @@ menu_axis_belt_rotation() {
     clear_screen
     print_header "$name - Rotation Distance"
 
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Configure belt drive rotation distance:${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  rotation_distance = pulley_teeth × belt_pitch"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "${BWHITE}Configure belt drive rotation distance:${NC}"
+    print_empty_line
+    print_box_line "rotation_distance = pulley_teeth × belt_pitch"
+    print_empty_line
 
     print_menu_item "1" "" "GT2 (2mm) + 20T pulley" "40mm (most common)"
     print_menu_item "2" "" "GT2 (2mm) + 16T pulley" "32mm"
@@ -3636,18 +3672,18 @@ menu_axis_leadscrew_rotation() {
     clear_screen
     print_header "$name - Rotation Distance"
 
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Configure lead screw rotation distance:${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  rotation_distance = lead (pitch × starts)"
-    echo -e "${BCYAN}${BOX_V}${NC}  Example: 2mm pitch × 4 starts = 8mm lead"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "${BWHITE}Configure lead screw rotation distance:${NC}"
+    print_empty_line
+    print_box_line "rotation_distance = lead (pitch × starts)"
+    print_box_line "Example: 2mm pitch × 4 starts = 8mm lead"
+    print_empty_line
 
     print_menu_item "1" "" "8mm lead" "T8×8 4-start (most common, fast)"
     print_menu_item "2" "" "4mm lead" "T8×4 2-start"
     print_menu_item "3" "" "2mm lead" "T8×2 single-start (slow, precise)"
     print_menu_item "4" "" "1mm lead" "Fine pitch"
     print_separator
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Or belt-driven Z:${NC}"
+    print_box_line "${BWHITE}Or belt-driven Z:${NC}"
     print_menu_item "5" "" "Belt-driven" "Calculate from belt/pulley"
     print_menu_item "D" "" "Direct entry" "Enter rotation_distance directly"
     print_separator
@@ -3695,10 +3731,10 @@ menu_axis_extruder_rotation() {
     clear_screen
     print_header "$name - Rotation Distance"
 
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Configure extruder rotation distance:${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}This is a starting value - calibrate after setup!${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "${BWHITE}Configure extruder rotation distance:${NC}"
+    print_empty_line
+    print_box_line "${YELLOW}This is a starting value - calibrate after setup!${NC}"
+    print_empty_line
 
     local cur="${WIZARD_STATE[stepper_e_rotation_distance]}"
     local e1=$([[ "$cur" == "22.6789511" ]] && echo "done" || echo "")
@@ -3748,8 +3784,8 @@ menu_shared_stepper_settings() {
     clear_screen
     print_header "Shared Stepper Settings"
 
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Apply same step angle to X, Y, Z:${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "${BWHITE}Apply same step angle to X, Y, Z:${NC}"
+    print_empty_line
 
     print_menu_item "1" "" "1.8° (200 steps/rev)" "Most common"
     print_menu_item "2" "" "0.9° (400 steps/rev)" "High resolution"
@@ -3771,8 +3807,8 @@ menu_shared_stepper_settings() {
     clear_screen
     print_header "Shared Microsteps"
 
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Apply same microsteps to X, Y, Z:${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "${BWHITE}Apply same microsteps to X, Y, Z:${NC}"
+    print_empty_line
 
     print_menu_item "1" "" "16 microsteps" "Recommended"
     print_menu_item "2" "" "32 microsteps" ""
@@ -3836,7 +3872,7 @@ menu_extruder() {
     clear_screen
     print_header "Extruder Configuration"
     
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Select Extruder Type:${NC}"
+    print_box_line "${BWHITE}Select Extruder Type:${NC}"
     print_menu_item "1" "" "Direct Drive"
     print_menu_item "2" "" "Bowden"
     print_separator
@@ -3861,19 +3897,19 @@ menu_hotend_thermistor() {
     clear_screen
     print_header "Hotend Thermistor"
     
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Common NTC Thermistors:${NC}"
+    print_box_line "${BWHITE}Common NTC Thermistors:${NC}"
     print_menu_item "1" "" "Generic 3950 (NTC 100K) - Most common"
     print_menu_item "2" "" "ATC Semitec 104GT-2 (E3D/Slice hotends)"
     print_menu_item "3" "" "ATC Semitec 104NT-4-R025H42G"
     print_menu_item "4" "" "Honeywell 100K 135-104LAG-J01"
     print_menu_item "5" "" "NTC 100K MGB18-104F39050L32"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}High-Temp / RTD:${NC}"
+    print_empty_line
+    print_box_line "${BWHITE}High-Temp / RTD:${NC}"
     print_menu_item "6" "" "Slice Engineering 450C (high temp)"
     print_menu_item "7" "" "PT1000 (direct, no amplifier)"
     print_menu_item "8" "" "PT1000 with MAX31865 amplifier"
     print_menu_item "9" "" "PT100 with MAX31865 amplifier"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_empty_line
     print_menu_item "M" "" "Manual entry (custom sensor_type)"
     print_separator
     print_action_item "B" "Back"
@@ -3900,9 +3936,9 @@ menu_hotend_thermistor() {
             needs_pullup=false  # MAX31865 has its own amplifier
             ;;
         [mM])
-            echo -e "${BCYAN}${BOX_V}${NC}"
-            echo -e "${BCYAN}${BOX_V}${NC}  Enter exact Klipper sensor_type value:"
-            echo -e "${BCYAN}${BOX_V}${NC}  (See: https://www.klipper3d.org/Config_Reference.html#thermistor)"
+            print_empty_line
+            print_box_line "Enter exact Klipper sensor_type value:"
+            print_box_line "(See: https://www.klipper3d.org/Config_Reference.html#thermistor)"
             echo -en "  "
             read -r custom_type
             if [[ -n "$custom_type" ]]; then
@@ -3927,9 +3963,9 @@ menu_pullup_resistor() {
     clear_screen
     print_header "Pullup Resistor Value"
     
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Select the pullup resistor value for your board:${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  (Check your board documentation if unsure)"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "${BWHITE}Select the pullup resistor value for your board:${NC}"
+    print_box_line "(Check your board documentation if unsure)"
+    print_empty_line
     
     print_menu_item "1" "" "4700 ohms (4.7K) - Most common default"
     print_menu_item "2" "" "2200 ohms (2.2K) - Some BTT boards"
@@ -3969,8 +4005,8 @@ menu_hotend() {
         clear_screen
         print_header "Hotend Configuration"
 
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Hotend Settings:${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_box_line "${BWHITE}Hotend Settings:${NC}"
+        print_empty_line
 
         # 1. Extruder type (direct drive / bowden)
         local ext_status=$([[ -n "${WIZARD_STATE[extruder_type]}" ]] && echo "done" || echo "")
@@ -3985,8 +4021,8 @@ menu_hotend() {
         print_menu_item "2" "$therm_status" "Thermistor Type" "${therm_info}"
 
         # 3. Port assignment (heater + thermistor)
-        echo -e "${BCYAN}${BOX_V}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Port Assignment:${NC}"
+        print_empty_line
+        print_box_line "${BWHITE}Port Assignment:${NC}"
 
         if [[ -n "${WIZARD_STATE[board]}" ]]; then
             # Show heater port - check both mainboard and toolboard assignments
@@ -4013,7 +4049,7 @@ menu_hotend() {
             fi
             print_menu_item "4" "$therm_status" "Thermistor Port" "$therm_info"
         else
-            echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}Select a main board first to assign ports${NC}"
+            print_box_line "${YELLOW}Select a main board first to assign ports${NC}"
         fi
 
         print_separator
@@ -4046,7 +4082,7 @@ menu_extruder_type() {
     clear_screen
     print_header "Extruder Type"
 
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Select Extruder Type:${NC}"
+    print_box_line "${BWHITE}Select Extruder Type:${NC}"
     print_menu_item "1" "" "Direct Drive"
     print_menu_item "2" "" "Bowden"
     print_separator
@@ -4087,8 +4123,8 @@ menu_bed() {
         clear_screen
         print_header "Heated Bed Configuration"
 
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Bed Settings:${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_box_line "${BWHITE}Bed Settings:${NC}"
+        print_empty_line
 
         # 1. Bed dimensions
         local dim_info=""
@@ -4109,8 +4145,8 @@ menu_bed() {
         print_menu_item "2" "$therm_status" "Thermistor Type" "${therm_info}"
 
         # 3. Port assignment
-        echo -e "${BCYAN}${BOX_V}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Port Assignment:${NC}"
+        print_empty_line
+        print_box_line "${BWHITE}Port Assignment:${NC}"
 
         if [[ -n "${WIZARD_STATE[board]}" ]]; then
             local heater_status=$([[ -n "${HARDWARE_STATE[heater_bed]}" ]] && echo "done" || echo "")
@@ -4119,7 +4155,7 @@ menu_bed() {
             local therm_port_status=$([[ -n "${HARDWARE_STATE[thermistor_bed]}" ]] && echo "done" || echo "")
             print_menu_item "4" "$therm_port_status" "Thermistor Port" "${HARDWARE_STATE[thermistor_bed]:-not assigned}"
         else
-            echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}Select a main board first to assign ports${NC}"
+            print_box_line "${YELLOW}Select a main board first to assign ports${NC}"
         fi
 
         print_separator
@@ -4152,8 +4188,8 @@ menu_bed_dimensions() {
     clear_screen
     print_header "Bed Dimensions"
 
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Enter bed dimensions:${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "${BWHITE}Enter bed dimensions:${NC}"
+    print_empty_line
 
     echo -en "  " >&2
     WIZARD_STATE[bed_size_x]=$(prompt_input "Bed size X (mm)" "${WIZARD_STATE[bed_size_x]:-300}")
@@ -4170,7 +4206,7 @@ menu_bed_thermistor() {
     clear_screen
     print_header "Bed Thermistor"
 
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Select Bed Thermistor:${NC}"
+    print_box_line "${BWHITE}Select Bed Thermistor:${NC}"
     print_menu_item "1" "" "Generic 3950 (NTC 100K - Keenovo, most common)"
     print_menu_item "2" "" "EPCOS 100K B57560G104F"
     print_menu_item "3" "" "PT1000 (direct)"
@@ -4204,9 +4240,9 @@ menu_bed_pullup_resistor() {
     clear_screen
     print_header "Bed Thermistor Pullup Resistor"
 
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Select the pullup resistor value for bed thermistor:${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  (Check your board documentation if unsure)"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "${BWHITE}Select the pullup resistor value for bed thermistor:${NC}"
+    print_box_line "(Check your board documentation if unsure)"
+    print_empty_line
 
     print_menu_item "1" "" "4700 ohms (4.7K) - Most common default"
     print_menu_item "2" "" "2200 ohms (2.2K) - Some BTT boards"
@@ -4256,7 +4292,7 @@ menu_endstops() {
         clear_screen
         print_header "Endstops Configuration"
 
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}X/Y Endstops:${NC}"
+        print_box_line "${BWHITE}X/Y Endstops:${NC}"
 
         # X endstop
         local x_info=""
@@ -4288,8 +4324,8 @@ menu_endstops() {
         local y_status=$([[ -n "${WIZARD_STATE[home_y]}" ]] && echo "done" || echo "")
         print_menu_item "2" "$y_status" "Y Endstop" "${y_info}"
 
-        echo -e "${BCYAN}${BOX_V}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Z Endstop / Probe:${NC}"
+        print_empty_line
+        print_box_line "${BWHITE}Z Endstop / Probe:${NC}"
 
         # Z endstop / probe
         local z_info=""
@@ -4347,8 +4383,8 @@ menu_endstop_x() {
         clear_screen
         print_header "X Endstop Configuration"
 
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}X Axis Endstop:${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_box_line "${BWHITE}X Axis Endstop:${NC}"
+        print_empty_line
 
         local pos_status=$([[ -n "${WIZARD_STATE[home_x]}" ]] && echo "done" || echo "")
         print_menu_item "1" "$pos_status" "Endstop Position" "${WIZARD_STATE[home_x]:-not set}"
@@ -4362,7 +4398,7 @@ menu_endstop_x() {
                 local port_status=$([[ -n "${HARDWARE_STATE[endstop_x]}" ]] && echo "done" || echo "")
                 print_menu_item "3" "$port_status" "Port Assignment" "${HARDWARE_STATE[endstop_x]:-not assigned}"
             else
-                echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}3) Port Assignment: select board first${NC}"
+                print_box_line "${YELLOW}3) Port Assignment: select board first${NC}"
             fi
         fi
 
@@ -4391,8 +4427,8 @@ menu_endstop_x_position() {
     clear_screen
     print_header "X Endstop Position"
 
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Where is the X endstop located?${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "${BWHITE}Where is the X endstop located?${NC}"
+    print_empty_line
 
     print_menu_item "1" "" "X MAX (right side) - Voron style"
     print_menu_item "2" "" "X MIN (left side) - Prusa/Ender style"
@@ -4415,8 +4451,8 @@ menu_endstop_x_type() {
     clear_screen
     print_header "X Endstop Type"
 
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Select X endstop type:${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "${BWHITE}Select X endstop type:${NC}"
+    print_empty_line
 
     print_menu_item "1" "" "Physical switch (microswitch)"
     print_menu_item "2" "" "Sensorless homing (TMC StallGuard)"
@@ -4446,8 +4482,8 @@ menu_endstop_y() {
         clear_screen
         print_header "Y Endstop Configuration"
 
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Y Axis Endstop:${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_box_line "${BWHITE}Y Axis Endstop:${NC}"
+        print_empty_line
 
         local pos_status=$([[ -n "${WIZARD_STATE[home_y]}" ]] && echo "done" || echo "")
         print_menu_item "1" "$pos_status" "Endstop Position" "${WIZARD_STATE[home_y]:-not set}"
@@ -4461,7 +4497,7 @@ menu_endstop_y() {
                 local port_status=$([[ -n "${HARDWARE_STATE[endstop_y]}" ]] && echo "done" || echo "")
                 print_menu_item "3" "$port_status" "Port Assignment" "${HARDWARE_STATE[endstop_y]:-not assigned}"
             else
-                echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}3) Port Assignment: select board first${NC}"
+                print_box_line "${YELLOW}3) Port Assignment: select board first${NC}"
             fi
         fi
 
@@ -4490,8 +4526,8 @@ menu_endstop_y_position() {
     clear_screen
     print_header "Y Endstop Position"
 
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Where is the Y endstop located?${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "${BWHITE}Where is the Y endstop located?${NC}"
+    print_empty_line
 
     print_menu_item "1" "" "Y MAX (back) - Voron style"
     print_menu_item "2" "" "Y MIN (front) - Prusa/Ender style"
@@ -4514,8 +4550,8 @@ menu_endstop_y_type() {
     clear_screen
     print_header "Y Endstop Type"
 
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Select Y endstop type:${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "${BWHITE}Select Y endstop type:${NC}"
+    print_empty_line
 
     print_menu_item "1" "" "Physical switch (microswitch)"
     print_menu_item "2" "" "Sensorless homing (TMC StallGuard)"
@@ -4573,9 +4609,9 @@ menu_endstop_z() {
             current_display="${current_probe} (${current_mode} mode)"
         fi
 
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Current: ${current_display}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Pin-based Probes:${NC}"
+        print_box_line "${BWHITE}Current: ${current_display}${NC}"
+        print_empty_line
+        print_box_line "${BWHITE}Pin-based Probes:${NC}"
         local bltouch_sel=$([[ "$current_probe" == "bltouch" ]] && echo "done" || echo "")
         local klicky_sel=$([[ "$current_probe" == "klicky" ]] && echo "done" || echo "")
         local inductive_sel=$([[ "$current_probe" == "inductive" ]] && echo "done" || echo "")
@@ -4583,8 +4619,8 @@ menu_endstop_z() {
         print_menu_item "2" "$klicky_sel" "Klicky Probe"
         print_menu_item "3" "$inductive_sel" "Inductive Probe (PINDA/SuperPINDA)"
 
-        echo -e "${BCYAN}${BOX_V}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}MCU-based Probes (USB/CAN):${NC}"
+        print_empty_line
+        print_box_line "${BWHITE}MCU-based Probes (USB/CAN):${NC}"
         local beacon_sel=$([[ "$current_probe" == "beacon" ]] && echo "done" || echo "")
         local carto_sel=$([[ "$current_probe" == "cartographer" ]] && echo "done" || echo "")
         local eddy_sel=$([[ "$current_probe" == "btt-eddy" ]] && echo "done" || echo "")
@@ -4592,14 +4628,14 @@ menu_endstop_z() {
         print_menu_item "5" "$carto_sel" "Cartographer" "${carto_status}"
         print_menu_item "6" "$eddy_sel" "BTT Eddy" "${eddy_status}"
 
-        echo -e "${BCYAN}${BOX_V}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Physical Endstop:${NC}"
+        print_empty_line
+        print_box_line "${BWHITE}Physical Endstop:${NC}"
         local endstop_sel=$([[ "$current_probe" == "endstop" ]] && echo "done" || echo "")
         print_menu_item "7" "$endstop_sel" "Physical Z Endstop (no probe)"
 
         # Show port/MCU assignment option if probe is selected
         if [[ -n "${WIZARD_STATE[probe_type]}" && "${WIZARD_STATE[probe_type]}" != "endstop" ]]; then
-            echo -e "${BCYAN}${BOX_V}${NC}"
+            print_empty_line
             if [[ "${WIZARD_STATE[probe_type]}" =~ ^(beacon|cartographer|btt-eddy)$ ]]; then
                 local mcu_info=""
                 if [[ -n "${WIZARD_STATE[probe_serial]}" ]]; then
@@ -4620,7 +4656,7 @@ menu_endstop_z() {
                 print_menu_item "P" "" "Configure Probe Pin" "${pin_info}"
             fi
         elif [[ "${WIZARD_STATE[probe_type]}" == "endstop" ]]; then
-            echo -e "${BCYAN}${BOX_V}${NC}"
+            print_empty_line
             local z_port="${HARDWARE_STATE[endstop_z]:-not assigned}"
             print_menu_item "P" "" "Configure Z Endstop Port" "${z_port}"
         fi
@@ -4692,8 +4728,8 @@ menu_endstop_z_position() {
     clear_screen
     print_header "Z Endstop Position"
 
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Where is the Z endstop located?${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "${BWHITE}Where is the Z endstop located?${NC}"
+    print_empty_line
 
     print_menu_item "1" "" "Z MIN (bed level) - most common"
     print_menu_item "2" "" "Z MAX (top of travel)"
@@ -4746,8 +4782,8 @@ menu_probe_mcu() {
     print_header "Probe MCU Configuration"
 
     local probe_type="${WIZARD_STATE[probe_type]}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Configure ${probe_type} connection:${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "${BWHITE}Configure ${probe_type} connection:${NC}"
+    print_empty_line
 
     print_menu_item "1" "" "USB connection (serial by-id)"
     print_menu_item "2" "" "CAN bus (UUID)"
@@ -4770,8 +4806,8 @@ menu_probe_usb() {
     clear_screen
     print_header "Probe USB Serial"
 
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Scanning for USB devices...${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "${BWHITE}Scanning for USB devices...${NC}"
+    print_empty_line
 
     # Scan for USB devices
     local devices=()
@@ -4780,14 +4816,14 @@ menu_probe_usb() {
         if [[ -n "$device" ]]; then
             devices+=("$device")
             local short_name=$(basename "$device")
-            echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}${i})${NC} ${short_name}"
+            print_box_line "${BWHITE}${i})${NC} ${short_name}"
             i=$((i + 1))
         fi
     done < <(ls /dev/serial/by-id/ 2>/dev/null | grep -iE "beacon|cartographer|eddy|probe" || true)
 
     if [[ ${#devices[@]} -eq 0 ]]; then
-        echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}No probe USB devices found.${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  ${WHITE}Make sure your probe is connected via USB.${NC}"
+        print_box_line "${YELLOW}No probe USB devices found.${NC}"
+        print_box_line "${WHITE}Make sure your probe is connected via USB.${NC}"
     fi
 
     print_separator
@@ -4828,13 +4864,13 @@ menu_probe_can() {
     clear_screen
     print_header "Probe CAN UUID"
 
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Scanning CAN bus for devices...${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "${BWHITE}Scanning CAN bus for devices...${NC}"
+    print_empty_line
 
     # Check if CAN interface is up
     if ! check_can_interface can0 2>/dev/null; then
-        echo -e "${BCYAN}${BOX_V}${NC}  ${RED}CAN interface not available.${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  ${WHITE}Please configure CAN bus first.${NC}"
+        print_box_line "${RED}CAN interface not available.${NC}"
+        print_box_line "${WHITE}Please configure CAN bus first.${NC}"
         print_footer
         wait_for_key
         return
@@ -4847,13 +4883,13 @@ menu_probe_can() {
         if [[ "$line" =~ canbus_uuid=([a-f0-9]+) ]]; then
             local uuid="${BASH_REMATCH[1]}"
             uuids+=("$uuid")
-            echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}${i})${NC} ${uuid}"
+            print_box_line "${BWHITE}${i})${NC} ${uuid}"
             i=$((i + 1))
         fi
     done < <(python3 ~/klipper/scripts/canbus_query.py can0 2>/dev/null || true)
 
     if [[ ${#uuids[@]} -eq 0 ]]; then
-        echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}No CAN devices found.${NC}"
+        print_box_line "${YELLOW}No CAN devices found.${NC}"
     fi
 
     print_separator
@@ -4905,43 +4941,43 @@ menu_probe_operation_mode() {
     clear_screen
     print_header "Probe Operation Mode"
     
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Select operation mode for ${probe_type}:${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "${BWHITE}Select operation mode for ${probe_type}:${NC}"
+    print_empty_line
     
     # Show current mode
     local current_mode="${WIZARD_STATE[probe_mode]:-not set}"
-    echo -e "${BCYAN}${BOX_V}${NC}  Current: ${BWHITE}${current_mode}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "Current: ${BWHITE}${current_mode}${NC}"
+    print_empty_line
     
     local prox_sel=$([[ "$current_mode" == "proximity" ]] && echo "done" || echo "")
     local touch_sel=$([[ "$current_mode" == "touch" ]] && echo "done" || echo "")
     
     # Proximity/Scan mode
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Contactless Modes:${NC}"
+    print_box_line "${BWHITE}Contactless Modes:${NC}"
     print_menu_item "1" "$prox_sel" "Proximity/Scan Mode" "Contactless sensing (standard)"
-    echo -e "${BCYAN}${BOX_V}${NC}      ${DIM}Uses eddy current induction to detect bed distance${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}      ${DIM}Good for rapid bed mesh scanning${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "    ${DIM}Uses eddy current induction to detect bed distance${NC}"
+    print_box_line "    ${DIM}Good for rapid bed mesh scanning${NC}"
+    print_empty_line
     
     # Touch/Tap mode
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Contact Modes:${NC}"
+    print_box_line "${BWHITE}Contact Modes:${NC}"
     
     # Show different descriptions based on probe type
     case "$probe_type" in
         beacon)
             print_menu_item "2" "$touch_sel" "Contact Mode" "Physical contact homing (Rev H+ only)"
-            echo -e "${BCYAN}${BOX_V}${NC}      ${DIM}Probe physically touches bed for Z reference${NC}"
-            echo -e "${BCYAN}${BOX_V}${NC}      ${DIM}Higher precision, requires Beacon Rev H or later${NC}"
+            print_box_line "    ${DIM}Probe physically touches bed for Z reference${NC}"
+            print_box_line "    ${DIM}Higher precision, requires Beacon Rev H or later${NC}"
             ;;
         cartographer)
             print_menu_item "2" "$touch_sel" "Touch Mode" "Physical contact homing"
-            echo -e "${BCYAN}${BOX_V}${NC}      ${DIM}Uses touch sensing for Z reference${NC}"
-            echo -e "${BCYAN}${BOX_V}${NC}      ${DIM}Scan for mesh, touch for homing${NC}"
+            print_box_line "    ${DIM}Uses touch sensing for Z reference${NC}"
+            print_box_line "    ${DIM}Scan for mesh, touch for homing${NC}"
             ;;
         btt-eddy)
             print_menu_item "2" "$touch_sel" "Touch Mode" "Physical contact homing"
-            echo -e "${BCYAN}${BOX_V}${NC}      ${DIM}Uses tap detection for Z reference${NC}"
-            echo -e "${BCYAN}${BOX_V}${NC}      ${DIM}More precise than proximity for homing${NC}"
+            print_box_line "    ${DIM}Uses tap detection for Z reference${NC}"
+            print_box_line "    ${DIM}More precise than proximity for homing${NC}"
             ;;
     esac
     
@@ -4979,15 +5015,15 @@ menu_beacon_revision() {
     clear_screen
     print_header "Beacon Hardware Revision"
     
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Select your Beacon hardware revision:${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}Note: Contact mode requires Rev H or later hardware.${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}Check your Beacon - revision is printed on the PCB.${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "${BWHITE}Select your Beacon hardware revision:${NC}"
+    print_empty_line
+    print_box_line "${YELLOW}Note: Contact mode requires Rev H or later hardware.${NC}"
+    print_box_line "${YELLOW}Check your Beacon - revision is printed on the PCB.${NC}"
+    print_empty_line
     
     local current_rev="${WIZARD_STATE[beacon_revision]:-not set}"
-    echo -e "${BCYAN}${BOX_V}${NC}  Current: ${BWHITE}${current_rev}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "Current: ${BWHITE}${current_rev}${NC}"
+    print_empty_line
     
     local revd_sel=$([[ "$current_rev" == "revd" ]] && echo "done" || echo "")
     local revh_sel=$([[ "$current_rev" == "revh" ]] && echo "done" || echo "")
@@ -5028,8 +5064,8 @@ menu_probe() {
         clear_screen
         print_header "Probe Configuration"
 
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Configure your Z probe:${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_box_line "${BWHITE}Configure your Z probe:${NC}"
+        print_empty_line
 
         # Current probe type
         local probe_type="${WIZARD_STATE[probe_type]:-not selected}"
@@ -5039,7 +5075,7 @@ menu_probe() {
         # Show module installation status for probes that need it
         local current_probe="${WIZARD_STATE[probe_type]}"
         if [[ "$current_probe" =~ ^(beacon|cartographer|btt-eddy)$ ]]; then
-            echo -e "${BCYAN}${BOX_V}${NC}"
+            print_empty_line
             local install_status=""
             local install_info=""
             if is_probe_installed "$current_probe"; then
@@ -5053,7 +5089,7 @@ menu_probe() {
 
         # Port/MCU assignment (for probes that need it)
         if [[ -n "$current_probe" && "$current_probe" != "endstop" ]]; then
-            echo -e "${BCYAN}${BOX_V}${NC}"
+            print_empty_line
             local port_info=""
             if [[ -n "${WIZARD_STATE[probe_serial]}" ]]; then
                 port_info="USB: ${WIZARD_STATE[probe_serial]}"
@@ -5070,7 +5106,7 @@ menu_probe() {
 
         # Z endstop position (only for physical endstop)
         if [[ "$current_probe" == "endstop" ]]; then
-            echo -e "${BCYAN}${BOX_V}${NC}"
+            print_empty_line
             local endstop_pos="${WIZARD_STATE[z_endstop_position]:-not set}"
             local endstop_status=$([[ -n "${WIZARD_STATE[z_endstop_position]}" ]] && echo "done" || echo "")
             print_menu_item "3" "$endstop_status" "Z Endstop Position" "$endstop_pos"
@@ -5144,13 +5180,13 @@ menu_probe_type_select() {
     local carto_sel=$([[ "$current_probe" == "cartographer" ]] && echo "done" || echo "")
     local eddy_sel=$([[ "$current_probe" == "btt-eddy" ]] && echo "done" || echo "")
 
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Standard Probes:${NC}"
+    print_box_line "${BWHITE}Standard Probes:${NC}"
     print_menu_item "1" "$bltouch_sel" "BLTouch / 3DTouch"
     print_menu_item "2" "$klicky_sel" "Klicky Probe"
     print_menu_item "3" "$inductive_sel" "Inductive Probe (PINDA/SuperPINDA)"
     print_menu_item "4" "$endstop_sel" "Physical Z Endstop (no probe)"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Eddy Current Probes (require module):${NC}"
+    print_empty_line
+    print_box_line "${BWHITE}Eddy Current Probes (require module):${NC}"
     print_menu_item "5" "$beacon_sel" "Beacon" "${beacon_status}"
     print_menu_item "6" "$carto_sel" "Cartographer" "${carto_status}"
     print_menu_item "7" "$eddy_sel" "BTT Eddy" "${eddy_status}"
@@ -5222,8 +5258,8 @@ menu_fans() {
         clear_screen
         print_header "Fan Configuration"
         
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Configure your printer's fans:${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_box_line "${BWHITE}Configure your printer's fans:${NC}"
+        print_empty_line
         
         # Helper function to get fan port info
         get_fan_port_info() {
@@ -5252,40 +5288,40 @@ menu_fans() {
         }
 
         # Display fan type descriptions
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Essential Fans:${NC}"
+        print_box_line "${BWHITE}Essential Fans:${NC}"
         local pc_status=$(get_fan_status "fan_part_cooling")
         local pc_info=$(get_fan_port_info "fan_part_cooling")
-        echo -e "${BCYAN}${BOX_V}${NC}  ${GREEN}1)${NC} ${pc_status} Part Cooling Fan [fan] - ${CYAN}${pc_info}${NC}"
+        print_box_line "${GREEN}1)${NC} ${pc_status} Part Cooling Fan [fan] - ${CYAN}${pc_info}${NC}"
 
         local he_status=$(get_fan_status "fan_hotend")
         local he_info=$(get_fan_port_info "fan_hotend")
-        echo -e "${BCYAN}${BOX_V}${NC}  ${GREEN}2)${NC} ${he_status} Hotend Fan [heater_fan] - ${CYAN}${he_info}${NC}"
+        print_box_line "${GREEN}2)${NC} ${he_status} Hotend Fan [heater_fan] - ${CYAN}${he_info}${NC}"
 
         local cf_status=$(get_fan_status "fan_controller")
         local cf_info=$(get_fan_port_info "fan_controller")
-        echo -e "${BCYAN}${BOX_V}${NC}  ${GREEN}3)${NC} ${cf_status} Controller Fan [controller_fan] - ${CYAN}${cf_info}${NC}"
+        print_box_line "${GREEN}3)${NC} ${cf_status} Controller Fan [controller_fan] - ${CYAN}${cf_info}${NC}"
 
-        echo -e "${BCYAN}${BOX_V}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Optional Fans:${NC}"
+        print_empty_line
+        print_box_line "${BWHITE}Optional Fans:${NC}"
 
         local ex_status=$(get_fan_status "fan_exhaust")
         local ex_info=$(get_fan_port_info "fan_exhaust")
-        echo -e "${BCYAN}${BOX_V}${NC}  ${GREEN}4)${NC} ${ex_status} Exhaust Fan [fan_generic] - ${CYAN}${ex_info}${NC}"
+        print_box_line "${GREEN}4)${NC} ${ex_status} Exhaust Fan [fan_generic] - ${CYAN}${ex_info}${NC}"
 
         local ch_status=$(get_fan_status "fan_chamber")
         local ch_info=$(get_fan_port_info "fan_chamber")
         if [[ "${WIZARD_STATE[fan_chamber_type]}" == "temperature" ]]; then
             ch_info="${ch_info} (temp-controlled)"
         fi
-        echo -e "${BCYAN}${BOX_V}${NC}  ${GREEN}5)${NC} ${ch_status} Chamber Fan [fan_generic/temperature_fan] - ${CYAN}${ch_info}${NC}"
+        print_box_line "${GREEN}5)${NC} ${ch_status} Chamber Fan [fan_generic/temperature_fan] - ${CYAN}${ch_info}${NC}"
 
         local rs_status=$(get_fan_status "fan_rscs")
         local rs_info=$(get_fan_port_info "fan_rscs")
-        echo -e "${BCYAN}${BOX_V}${NC}  ${GREEN}6)${NC} ${rs_status} RSCS/Filter Fan [fan_generic] - ${CYAN}${rs_info}${NC}"
+        print_box_line "${GREEN}6)${NC} ${rs_status} RSCS/Filter Fan [fan_generic] - ${CYAN}${rs_info}${NC}"
 
         local rd_status=$(get_fan_status "fan_radiator")
         local rd_info=$(get_fan_port_info "fan_radiator")
-        echo -e "${BCYAN}${BOX_V}${NC}  ${GREEN}7)${NC} ${rd_status} Radiator Fan [heater_fan] - ${CYAN}${rd_info}${NC}"
+        print_box_line "${GREEN}7)${NC} ${rd_status} Radiator Fan [heater_fan] - ${CYAN}${rd_info}${NC}"
         
         print_separator
         print_action_item "A" "Advanced Fan Settings (PWM, max_power, etc.)"
@@ -5315,9 +5351,9 @@ menu_fan_part_cooling() {
         clear_screen
         print_header "Part Cooling Fan [fan]"
 
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Part cooling fan controlled by M106/M107${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  This is the main print cooling fan."
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_box_line "${BWHITE}Part cooling fan controlled by M106/M107${NC}"
+        print_box_line "This is the main print cooling fan."
+        print_empty_line
 
         # Determine current port assignment (toolboard or mainboard)
         local primary_port=""
@@ -5406,9 +5442,9 @@ menu_fan_hotend() {
         clear_screen
         print_header "Hotend Fan [heater_fan]"
 
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Hotend cooling fan that runs when extruder is hot${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  Automatically turns on above heater_temp threshold."
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_box_line "${BWHITE}Hotend cooling fan that runs when extruder is hot${NC}"
+        print_box_line "Automatically turns on above heater_temp threshold."
+        print_empty_line
 
         # Determine current port assignment (toolboard or mainboard)
         local primary_port=""
@@ -5476,9 +5512,9 @@ menu_fan_controller() {
         clear_screen
         print_header "Controller Fan [controller_fan]"
 
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Electronics cooling fan${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  Runs when steppers or heaters are active."
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_box_line "${BWHITE}Electronics cooling fan${NC}"
+        print_box_line "Runs when steppers or heaters are active."
+        print_empty_line
 
         # Determine current port assignment
         local primary_port="${HARDWARE_STATE[fan_controller]}"
@@ -5540,9 +5576,9 @@ menu_fan_exhaust() {
         clear_screen
         print_header "Exhaust Fan [fan_generic]"
 
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Enclosure exhaust fan${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  Manually controlled via SET_FAN_SPEED FAN=exhaust_fan SPEED=x"
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_box_line "${BWHITE}Enclosure exhaust fan${NC}"
+        print_box_line "Manually controlled via SET_FAN_SPEED FAN=exhaust_fan SPEED=x"
+        print_empty_line
 
         # Determine current port assignment
         local primary_port="${HARDWARE_STATE[fan_exhaust]}"
@@ -5604,9 +5640,9 @@ menu_fan_chamber() {
         clear_screen
         print_header "Chamber Fan"
 
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Chamber circulation/heating fan${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  Can be manual or temperature-controlled."
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_box_line "${BWHITE}Chamber circulation/heating fan${NC}"
+        print_box_line "Can be manual or temperature-controlled."
+        print_empty_line
 
         # Determine current port assignment
         local primary_port="${HARDWARE_STATE[fan_chamber]}"
@@ -5621,7 +5657,7 @@ menu_fan_chamber() {
         local secondary_info="${secondary_port:-not set}"
         print_menu_item "2" "$secondary_status" "Multi-pin (2nd fan)" "$secondary_info"
 
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_empty_line
 
         # Fan type/mode selection (only relevant if port is assigned)
         local type_status=$([[ -n "${WIZARD_STATE[fan_chamber_type]}" ]] && echo "done" || echo "")
@@ -5681,8 +5717,8 @@ menu_fan_chamber_mode() {
     clear_screen
     print_header "Chamber Fan Control Mode"
 
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Select control mode:${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "${BWHITE}Select control mode:${NC}"
+    print_empty_line
     print_menu_item "1" "" "Manual [fan_generic]" "SET_FAN_SPEED control"
     print_menu_item "2" "" "Temperature [temperature_fan]" "Auto control to target temp"
     print_separator
@@ -5712,11 +5748,11 @@ menu_fan_chamber_temp_settings() {
     clear_screen
     print_header "Chamber Temperature Fan Settings"
     
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Configure temperature-controlled chamber fan${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "${BWHITE}Configure temperature-controlled chamber fan${NC}"
+    print_empty_line
     
     # Sensor type
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Chamber Temperature Sensor:${NC}"
+    print_box_line "${BWHITE}Chamber Temperature Sensor:${NC}"
     print_menu_item "1" "" "Generic 3950 (NTC 100K)"
     print_menu_item "2" "" "NTC 100K MGB18-104F39050L32"
     print_menu_item "3" "" "ATC Semitec 104GT-2"
@@ -5747,9 +5783,9 @@ menu_fan_rscs() {
         clear_screen
         print_header "RSCS/Filter Fan [fan_generic]"
 
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Recirculating active carbon/HEPA filter fan${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  Controlled via SET_FAN_SPEED FAN=rscs_fan SPEED=x"
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_box_line "${BWHITE}Recirculating active carbon/HEPA filter fan${NC}"
+        print_box_line "Controlled via SET_FAN_SPEED FAN=rscs_fan SPEED=x"
+        print_empty_line
 
         # Determine current port assignment
         local primary_port="${HARDWARE_STATE[fan_rscs]}"
@@ -5811,10 +5847,10 @@ menu_fan_radiator() {
         clear_screen
         print_header "Radiator Fan [heater_fan]"
 
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Water cooling radiator fan(s)${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  Runs when extruder is hot (like hotend fan)."
-        echo -e "${BCYAN}${BOX_V}${NC}  Common for water-cooled hotends with external radiator."
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_box_line "${BWHITE}Water cooling radiator fan(s)${NC}"
+        print_box_line "Runs when extruder is hot (like hotend fan)."
+        print_box_line "Common for water-cooled hotends with external radiator."
+        print_empty_line
 
         # Determine current port assignment
         local primary_port="${HARDWARE_STATE[fan_radiator]}"
@@ -5876,8 +5912,8 @@ menu_fan_advanced_select() {
         clear_screen
         print_header "Advanced Fan Settings"
 
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Select fan to configure advanced settings:${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_box_line "${BWHITE}Select fan to configure advanced settings:${NC}"
+        print_empty_line
 
         print_menu_item "1" "" "Part Cooling Fan"
         print_menu_item "2" "" "Hotend Fan"
@@ -5916,8 +5952,8 @@ menu_fan_advanced() {
     clear_screen
     print_header "Advanced Fan Settings"
 
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}${fan_name} Advanced Options:${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "${BWHITE}${fan_name} Advanced Options:${NC}"
+    print_empty_line
 
     # Current values or defaults (using dynamic keys)
     local max_power="${WIZARD_STATE[fan_${fan_prefix}_max_power]:-1.0}"
@@ -5926,13 +5962,13 @@ menu_fan_advanced() {
     local shutdown="${WIZARD_STATE[fan_${fan_prefix}_shutdown_speed]:-0}"
     local kick="${WIZARD_STATE[fan_${fan_prefix}_kick_start]:-0.5}"
 
-    echo -e "${BCYAN}${BOX_V}${NC}  Current settings:"
-    echo -e "${BCYAN}${BOX_V}${NC}  • max_power: ${CYAN}${max_power}${NC} (0.0-1.0)"
-    echo -e "${BCYAN}${BOX_V}${NC}  • cycle_time: ${CYAN}${cycle_time}${NC} (0.010 default, 0.002 for high-speed)"
-    echo -e "${BCYAN}${BOX_V}${NC}  • hardware_pwm: ${CYAN}${hw_pwm}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  • shutdown_speed: ${CYAN}${shutdown}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  • kick_start_time: ${CYAN}${kick}${NC} seconds"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "Current settings:"
+    print_box_line "• max_power: ${CYAN}${max_power}${NC} (0.0-1.0)"
+    print_box_line "• cycle_time: ${CYAN}${cycle_time}${NC} (0.010 default, 0.002 for high-speed)"
+    print_box_line "• hardware_pwm: ${CYAN}${hw_pwm}${NC}"
+    print_box_line "• shutdown_speed: ${CYAN}${shutdown}${NC}"
+    print_box_line "• kick_start_time: ${CYAN}${kick}${NC} seconds"
+    print_empty_line
 
     print_menu_item "1" "" "Set max_power"
     print_menu_item "2" "" "Set cycle_time (PWM frequency)"
@@ -6002,13 +6038,13 @@ menu_lighting() {
         clear_screen
         print_header "Lighting Configuration"
 
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Configure printer lighting:${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_box_line "${BWHITE}Configure printer lighting:${NC}"
+        print_empty_line
 
         # Current status
         local light_type="${WIZARD_STATE[lighting_type]:-not configured}"
-        echo -e "${BCYAN}${BOX_V}${NC}  Current: ${CYAN}${light_type}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_box_line "Current: ${CYAN}${light_type}${NC}"
+        print_empty_line
 
         # Show checkmark for currently selected type
         local neo_status=$([[ "$light_type" == "neopixel" ]] && echo "done" || echo "")
@@ -6025,7 +6061,7 @@ menu_lighting() {
 
         # Port/pin assignment option if type is selected
         if [[ -n "${WIZARD_STATE[lighting_type]}" && "${WIZARD_STATE[lighting_type]}" != "none" ]]; then
-            echo -e "${BCYAN}${BOX_V}${NC}"
+            print_empty_line
             # Check both mainboard and toolboard for lighting pin
             local pin_info=""
             if [[ -n "${HARDWARE_STATE[toolboard_lighting_pin]}" ]]; then
@@ -6094,8 +6130,8 @@ menu_lighting_settings() {
     print_header "Lighting Settings"
 
     local light_type="${WIZARD_STATE[lighting_type]}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Configure ${light_type} settings:${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "${BWHITE}Configure ${light_type} settings:${NC}"
+    print_empty_line
 
     # LED count for addressable LEDs
     if [[ "$light_type" =~ ^(neopixel|dotstar)$ ]]; then
@@ -6107,7 +6143,7 @@ menu_lighting_settings() {
     # Color order for Neopixels
     if [[ "$light_type" == "neopixel" ]]; then
         echo ""
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Color order:${NC}"
+        print_box_line "${BWHITE}Color order:${NC}"
         print_menu_item "1" "" "GRB (most common)"
         print_menu_item "2" "" "RGB"
         print_menu_item "3" "" "GRBW (RGBW strips)"
@@ -6148,8 +6184,8 @@ menu_misc_mcus() {
         clear_screen
         print_header "Misc MCUs Configuration"
 
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Additional MCUs and expansion boards:${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_box_line "${BWHITE}Additional MCUs and expansion boards:${NC}"
+        print_empty_line
 
         # MMU
         local mmu_info="${WIZARD_STATE[mmu_type]:-not configured}"
@@ -6169,8 +6205,8 @@ menu_misc_mcus() {
         # CAN probes (Beacon, Cartographer, Eddy) - shown if selected in endstops
         local probe_type="${WIZARD_STATE[probe_type]}"
         if [[ "$probe_type" =~ ^(beacon|cartographer|btt-eddy)$ ]]; then
-            echo -e "${BCYAN}${BOX_V}${NC}"
-            echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Probe MCU (from Endstops):${NC}"
+            print_empty_line
+            print_box_line "${BWHITE}Probe MCU (from Endstops):${NC}"
             local probe_mcu_info="${probe_type}"
             if [[ -n "${WIZARD_STATE[probe_serial]}" ]]; then
                 probe_mcu_info="${probe_mcu_info} (USB: configured)"
@@ -6209,13 +6245,13 @@ menu_mmu() {
         clear_screen
         print_header "MMU Configuration"
 
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Multi-Material Unit:${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_box_line "${BWHITE}Multi-Material Unit:${NC}"
+        print_empty_line
 
         # Current status
         local mmu_info="${WIZARD_STATE[mmu_type]:-not configured}"
-        echo -e "${BCYAN}${BOX_V}${NC}  Current: ${CYAN}${mmu_info}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_box_line "Current: ${CYAN}${mmu_info}${NC}"
+        print_empty_line
 
         print_menu_item "1" "" "ERCF (Enraged Rabbit Carrot Feeder)"
         print_menu_item "2" "" "Tradrack"
@@ -6225,7 +6261,7 @@ menu_mmu() {
 
         # Connection config if MMU selected
         if [[ -n "${WIZARD_STATE[mmu_type]}" && "${WIZARD_STATE[mmu_type]}" != "none" ]]; then
-            echo -e "${BCYAN}${BOX_V}${NC}"
+            print_empty_line
             local conn_info=""
             if [[ -n "${WIZARD_STATE[mmu_serial]}" ]]; then
                 conn_info="USB: ${WIZARD_STATE[mmu_serial]}"
@@ -6268,8 +6304,8 @@ menu_mmu_connection() {
     clear_screen
     print_header "MMU Connection"
 
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Configure ${WIZARD_STATE[mmu_type]} connection:${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "${BWHITE}Configure ${WIZARD_STATE[mmu_type]} connection:${NC}"
+    print_empty_line
 
     print_menu_item "1" "" "USB connection (serial by-id)"
     print_menu_item "2" "" "CAN bus (UUID)"
@@ -6286,21 +6322,21 @@ menu_mmu_connection() {
             clear_screen
             print_header "MMU USB Serial"
 
-            echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Scanning for USB devices...${NC}"
-            echo -e "${BCYAN}${BOX_V}${NC}"
+            print_box_line "${BWHITE}Scanning for USB devices...${NC}"
+            print_empty_line
 
             local devices=()
             local i=1
             while IFS= read -r device; do
                 if [[ -n "$device" ]]; then
                     devices+=("$device")
-                    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}${i})${NC} ${device}"
+                    print_box_line "${BWHITE}${i})${NC} ${device}"
                     i=$((i + 1))
                 fi
             done < <(ls /dev/serial/by-id/ 2>/dev/null || true)
 
             if [[ ${#devices[@]} -eq 0 ]]; then
-                echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}No USB devices found.${NC}"
+                print_box_line "${YELLOW}No USB devices found.${NC}"
             fi
 
             print_separator
@@ -6354,12 +6390,12 @@ menu_expansion_board() {
         clear_screen
         print_header "Expansion Board"
 
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Additional MCU expansion boards:${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_box_line "${BWHITE}Additional MCU expansion boards:${NC}"
+        print_empty_line
 
         # Current status
-        echo -e "${BCYAN}${BOX_V}${NC}  Current: ${CYAN}${WIZARD_STATE[expansion_board]:-not configured}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_box_line "Current: ${CYAN}${WIZARD_STATE[expansion_board]:-not configured}${NC}"
+        print_empty_line
 
         print_menu_item "1" "" "BTT EXP-MOT (motor expander)"
         print_menu_item "2" "" "Fly-SHT36/42 (as expansion, not toolhead)"
@@ -6368,7 +6404,7 @@ menu_expansion_board() {
 
         # Connection config if board selected
         if [[ -n "${WIZARD_STATE[expansion_board]}" && "${WIZARD_STATE[expansion_board]}" != "none" ]]; then
-            echo -e "${BCYAN}${BOX_V}${NC}"
+            print_empty_line
             local conn_info=""
             if [[ -n "${WIZARD_STATE[expansion_serial]}" ]]; then
                 conn_info="USB: configured"
@@ -6410,8 +6446,8 @@ menu_expansion_connection() {
     clear_screen
     print_header "Expansion Board Connection"
 
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Configure expansion board connection:${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_box_line "${BWHITE}Configure expansion board connection:${NC}"
+    print_empty_line
 
     print_menu_item "1" "" "USB connection (serial by-id)"
     print_menu_item "2" "" "CAN bus (UUID)"
@@ -6451,48 +6487,48 @@ menu_extras() {
     clear_screen
     print_header "Extra Features"
     
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Sensors:${NC}"
+    print_box_line "${BWHITE}Sensors:${NC}"
 
     local fs_status=$([[ "${WIZARD_STATE[has_filament_sensor]}" == "yes" ]] && echo "[x]" || echo "[ ]")
     local cs_status=$([[ "${WIZARD_STATE[has_chamber_sensor]}" == "yes" ]] && echo "[x]" || echo "[ ]")
 
-    echo -e "${BCYAN}${BOX_V}${NC}  1) ${fs_status} Filament Sensor"
+    print_box_line "1) ${fs_status} Filament Sensor"
     # Show chamber sensor with type info and port assignment
     if [[ "${WIZARD_STATE[has_chamber_sensor]}" == "yes" ]]; then
         local cs_type="${WIZARD_STATE[chamber_sensor_type]:-Generic 3950}"
         local cs_port="${HARDWARE_STATE[thermistor_chamber]:-not assigned}"
-        echo -e "${BCYAN}${BOX_V}${NC}  2) ${cs_status} Chamber Temperature Sensor ${WHITE}(${cs_type})${NC}"
+        print_box_line "2) ${cs_status} Chamber Temperature Sensor ${WHITE}(${cs_type})${NC}"
         if [[ "$cs_port" == "not assigned" ]]; then
-            echo -e "${BCYAN}${BOX_V}${NC}     ${YELLOW}Port: not assigned - press P to assign${NC}"
+            print_box_line "   ${YELLOW}Port: not assigned - press P to assign${NC}"
         else
-            echo -e "${BCYAN}${BOX_V}${NC}     ${GREEN}Port: ${cs_port}${NC}"
+            print_box_line "   ${GREEN}Port: ${cs_port}${NC}"
         fi
     else
-        echo -e "${BCYAN}${BOX_V}${NC}  2) ${cs_status} Chamber Temperature Sensor"
+        print_box_line "2) ${cs_status} Chamber Temperature Sensor"
     fi
     
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Displays:${NC}"
+    print_empty_line
+    print_box_line "${BWHITE}Displays:${NC}"
     
     local ks_status=$([[ "${WIZARD_STATE[has_klipperscreen]}" == "yes" ]] && echo "[x]" || echo "[ ]")
     local lcd_status=$([[ "${WIZARD_STATE[has_lcd_display]}" == "yes" ]] && echo "[x]" || echo "[ ]")
     
-    echo -e "${BCYAN}${BOX_V}${NC}  3) ${ks_status} KlipperScreen (HDMI/DSI touchscreen)"
-    echo -e "${BCYAN}${BOX_V}${NC}  4) ${lcd_status} LCD Display (Mini12864/ST7920)"
+    print_box_line "3) ${ks_status} KlipperScreen (HDMI/DSI touchscreen)"
+    print_box_line "4) ${lcd_status} LCD Display (Mini12864/ST7920)"
     
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Lighting:${NC}"
+    print_empty_line
+    print_box_line "${BWHITE}Lighting:${NC}"
     
     local led_status=$([[ "${WIZARD_STATE[has_leds]}" == "yes" ]] && echo "[x]" || echo "[ ]")
     local cl_status=$([[ "${WIZARD_STATE[has_caselight]}" == "yes" ]] && echo "[x]" || echo "[ ]")
     
-    echo -e "${BCYAN}${BOX_V}${NC}  5) ${led_status} Status LEDs (NeoPixel on toolhead)"
-    echo -e "${BCYAN}${BOX_V}${NC}  6) ${cl_status} Case Lighting"
+    print_box_line "5) ${led_status} Status LEDs (NeoPixel on toolhead)"
+    print_box_line "6) ${cl_status} Case Lighting"
 
     # Show port assignment option if chamber sensor is enabled
     if [[ "${WIZARD_STATE[has_chamber_sensor]}" == "yes" ]]; then
-        echo -e "${BCYAN}${BOX_V}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Port Assignment:${NC}"
+        print_empty_line
+        print_box_line "${BWHITE}Port Assignment:${NC}"
         print_menu_item "P" "" "Assign Chamber Thermistor Port"
     fi
 
@@ -6597,8 +6633,8 @@ select_filament_sensor_type() {
     clear_screen
     print_header "Filament Sensor Type"
 
-    echo -e "${BCYAN}${BOX_V}${NC}  1) Simple Switch (runout only)"
-    echo -e "${BCYAN}${BOX_V}${NC}  2) Motion Sensor (runout + jam detection)"
+    print_box_line "1) Simple Switch (runout only)"
+    print_box_line "2) Motion Sensor (runout + jam detection)"
     print_footer
 
     echo -en "${BYELLOW}Select type${NC}: "
@@ -6614,12 +6650,12 @@ select_chamber_sensor_type() {
     clear_screen
     print_header "Chamber Thermistor Type"
 
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Select your chamber thermistor type:${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  1) Generic 3950 (most common)"
-    echo -e "${BCYAN}${BOX_V}${NC}  2) NTC 100K MGB18-104F39050L32"
-    echo -e "${BCYAN}${BOX_V}${NC}  3) ATC Semitec 104GT-2"
-    echo -e "${BCYAN}${BOX_V}${NC}  4) PT1000"
+    print_box_line "${BWHITE}Select your chamber thermistor type:${NC}"
+    print_empty_line
+    print_box_line "1) Generic 3950 (most common)"
+    print_box_line "2) NTC 100K MGB18-104F39050L32"
+    print_box_line "3) ATC Semitec 104GT-2"
+    print_box_line "4) PT1000"
     print_footer
 
     echo -en "${BYELLOW}Select type${NC}: "
@@ -6646,13 +6682,13 @@ select_camera_type() {
         crowsnest_status="${YELLOW}[not installed]${NC}"
     fi
     
-    echo -e "${BCYAN}${BOX_V}${NC}  Crowsnest status: ${crowsnest_status}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}What type of camera?${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  1) USB Webcam (Logitech, generic)"
-    echo -e "${BCYAN}${BOX_V}${NC}  2) Raspberry Pi Camera (CSI)"
-    echo -e "${BCYAN}${BOX_V}${NC}  3) IP Camera (RTSP stream)"
+    print_box_line "Crowsnest status: ${crowsnest_status}"
+    print_empty_line
+    print_box_line "${BWHITE}What type of camera?${NC}"
+    print_empty_line
+    print_box_line "1) USB Webcam (Logitech, generic)"
+    print_box_line "2) Raspberry Pi Camera (CSI)"
+    print_box_line "3) IP Camera (RTSP stream)"
     print_footer
     
     echo -en "${BYELLOW}Select camera type${NC}: "
@@ -6691,11 +6727,11 @@ select_klipperscreen_type() {
     clear_screen
     print_header "KlipperScreen Display Type"
     
-    echo -e "${BCYAN}${BOX_V}${NC}  ${WHITE}Select your touchscreen connection:${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  1) HDMI Touchscreen (BTT HDMI5/7, Waveshare, etc.)"
-    echo -e "${BCYAN}${BOX_V}${NC}  2) DSI Display (Raspberry Pi official display)"
-    echo -e "${BCYAN}${BOX_V}${NC}  3) SPI TFT (small 3.5\" displays)"
+    print_box_line "${WHITE}Select your touchscreen connection:${NC}"
+    print_empty_line
+    print_box_line "1) HDMI Touchscreen (BTT HDMI5/7, Waveshare, etc.)"
+    print_box_line "2) DSI Display (Raspberry Pi official display)"
+    print_box_line "3) SPI TFT (small 3.5\" displays)"
     print_footer
     
     echo -en "${BYELLOW}Select type${NC}: "
@@ -6712,12 +6748,12 @@ select_lcd_display_type() {
     clear_screen
     print_header "LCD Display Type"
     
-    echo -e "${BCYAN}${BOX_V}${NC}  ${WHITE}Select your display type:${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  1) Mini 12864 (BTT/FYSETC Mini12864 - Voron style)"
-    echo -e "${BCYAN}${BOX_V}${NC}  2) Full Graphic 12864 (RepRap ST7920)"
-    echo -e "${BCYAN}${BOX_V}${NC}  3) BTT TFT35/TFT50 (12864 emulation mode)"
-    echo -e "${BCYAN}${BOX_V}${NC}  4) OLED 128x64 (SSD1306/SH1106)"
+    print_box_line "${WHITE}Select your display type:${NC}"
+    print_empty_line
+    print_box_line "1) Mini 12864 (BTT/FYSETC Mini12864 - Voron style)"
+    print_box_line "2) Full Graphic 12864 (RepRap ST7920)"
+    print_box_line "3) BTT TFT35/TFT50 (12864 emulation mode)"
+    print_box_line "4) OLED 128x64 (SSD1306/SH1106)"
     print_footer
     
     echo -en "${BYELLOW}Select type${NC}: "
@@ -6734,14 +6770,14 @@ select_lcd_display_type() {
 menu_macros() {
     clear_screen
     print_header "Macro Configuration"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${GREEN}Default macros will be included:${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  • PRINT_START / PRINT_END"
-    echo -e "${BCYAN}${BOX_V}${NC}  • Homing routines"
-    echo -e "${BCYAN}${BOX_V}${NC}  • Filament load/unload"
-    echo -e "${BCYAN}${BOX_V}${NC}  • Pause/Resume/Cancel"
-    echo -e "${BCYAN}${BOX_V}${NC}  • Bed mesh helpers"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}Custom macro selection coming soon...${NC}"
+    print_box_line "${GREEN}Default macros will be included:${NC}"
+    print_box_line "• PRINT_START / PRINT_END"
+    print_box_line "• Homing routines"
+    print_box_line "• Filament load/unload"
+    print_box_line "• Pause/Resume/Cancel"
+    print_box_line "• Bed mesh helpers"
+    print_empty_line
+    print_box_line "${YELLOW}Custom macro selection coming soon...${NC}"
     print_footer
     wait_for_key
 }
@@ -6788,14 +6824,14 @@ generate_config() {
     echo -e "${BYELLOW}╚═══════════════════════════════════════════════════════════════════════════════╝${NC}"
     echo ""
     
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Configuration Summary:${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  • Board: ${WIZARD_STATE[board_name]}"
-    echo -e "${BCYAN}${BOX_V}${NC}  • Kinematics: ${WIZARD_STATE[kinematics]}"
-    echo -e "${BCYAN}${BOX_V}${NC}  • Bed: ${WIZARD_STATE[bed_size_x]}x${WIZARD_STATE[bed_size_y]}x${WIZARD_STATE[bed_size_z]}"
-    echo -e "${BCYAN}${BOX_V}${NC}  • Probe: ${WIZARD_STATE[probe_type]:-none}"
-    [[ -n "${WIZARD_STATE[probe_mode]}" ]] && echo -e "${BCYAN}${BOX_V}${NC}  • Probe Mode: ${WIZARD_STATE[probe_mode]}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  Output directory: ${OUTPUT_DIR}"
+    print_box_line "${BWHITE}Configuration Summary:${NC}"
+    print_box_line "• Board: ${WIZARD_STATE[board_name]}"
+    print_box_line "• Kinematics: ${WIZARD_STATE[kinematics]}"
+    print_box_line "• Bed: ${WIZARD_STATE[bed_size_x]}x${WIZARD_STATE[bed_size_y]}x${WIZARD_STATE[bed_size_z]}"
+    print_box_line "• Probe: ${WIZARD_STATE[probe_type]:-none}"
+    [[ -n "${WIZARD_STATE[probe_mode]}" ]] && print_box_line "• Probe Mode: ${WIZARD_STATE[probe_mode]}"
+    print_empty_line
+    print_box_line "Output directory: ${OUTPUT_DIR}"
     print_footer
     
     echo -e "${BYELLOW}I understand the risks and have read the safety warnings.${NC}"
