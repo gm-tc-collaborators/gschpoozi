@@ -1145,6 +1145,7 @@ def generate_hardware_cfg(
     lighting_count = wizard_state.get('lighting_count') or '1'
     lighting_color_order = wizard_state.get('lighting_color_order') or 'GRB'
     has_leds = wizard_state.get('has_leds', '')
+    has_caselight = wizard_state.get('has_caselight', '')
 
     # Check for toolboard RGB LEDs
     toolboard_rgb = None
@@ -1153,36 +1154,68 @@ def generate_hardware_cfg(
         if 'RGB' in misc_ports:
             toolboard_rgb = misc_ports['RGB']
 
-    if (lighting_type and lighting_type != 'none') or has_leds == 'yes':
+    # Check for mainboard RGB port
+    mainboard_rgb = None
+    if board:
+        board_misc = board.get('misc_ports', {})
+        if 'RGB' in board_misc:
+            mainboard_rgb = board_misc['RGB']
+
+    if (lighting_type and lighting_type != 'none') or has_leds == 'yes' or has_caselight == 'yes':
         lines.append("# " + "─" * 77)
         lines.append("# LIGHTING")
         lines.append("# " + "─" * 77)
 
-        # Use toolboard RGB if available and has_leds is enabled
-        if has_leds == 'yes' and toolboard_rgb:
-            tb_mcu = toolboard.get('mcu_name', 'toolhead')
-            rgb_pin = toolboard_rgb.get('pin', 'REPLACE_PIN')
-            rgb_count = toolboard_rgb.get('chain_count', 3)
-            rgb_order = toolboard_rgb.get('color_order', 'GRB')
-            lines.append("[neopixel status_led]")
-            lines.append(f"pin: {tb_mcu}:{rgb_pin}")
-            lines.append(f"chain_count: {rgb_count}")
-            lines.append(f"color_order: {rgb_order}")
-            lines.append("initial_RED: 0.2")
-            lines.append("initial_GREEN: 0.2")
-            lines.append("initial_BLUE: 0.2")
-        elif lighting_type == 'neopixel':
-            lines.append("[neopixel status_led]")
-            if lighting_pin:
+        # Status LEDs (toolhead neopixels)
+        if has_leds == 'yes' or lighting_type == 'neopixel':
+            # Use toolboard RGB if available
+            if toolboard_rgb:
+                tb_mcu = toolboard.get('mcu_name', 'toolhead')
+                rgb_pin = toolboard_rgb.get('pin', 'REPLACE_PIN')
+                rgb_count = toolboard_rgb.get('chain_count', 3)
+                rgb_order = toolboard_rgb.get('color_order', 'GRB')
+                lines.append("[neopixel status_led]")
+                lines.append(f"pin: {tb_mcu}:{rgb_pin}")
+                lines.append(f"chain_count: {rgb_count}")
+                lines.append(f"color_order: {rgb_order}")
+            elif lighting_pin:
+                lines.append("[neopixel status_led]")
                 lines.append(f"pin: {lighting_pin}")
+                lines.append(f"chain_count: {lighting_count}")
+                lines.append(f"color_order: {lighting_color_order}")
             else:
+                lines.append("[neopixel status_led]")
                 lines.append("pin: REPLACE_PIN  # NeoPixel data pin")
-            lines.append(f"chain_count: {lighting_count}")
-            lines.append(f"color_order: {lighting_color_order}")
+                lines.append(f"chain_count: {lighting_count}")
+                lines.append(f"color_order: {lighting_color_order}")
             lines.append("initial_RED: 0.2")
             lines.append("initial_GREEN: 0.2")
             lines.append("initial_BLUE: 0.2")
-        elif lighting_type == 'dotstar':
+            lines.append("")
+
+        # Case lighting (mainboard RGB or simple LED)
+        if has_caselight == 'yes':
+            if mainboard_rgb:
+                rgb_pin = mainboard_rgb.get('pin', 'REPLACE_PIN')
+                rgb_count = mainboard_rgb.get('chain_count', 10)
+                rgb_order = mainboard_rgb.get('color_order', 'GRB')
+                lines.append("[neopixel caselight]")
+                lines.append(f"pin: {rgb_pin}")
+                lines.append(f"chain_count: {rgb_count}  # Adjust for your LED strip")
+                lines.append(f"color_order: {rgb_order}")
+                lines.append("initial_RED: 1.0")
+                lines.append("initial_GREEN: 1.0")
+                lines.append("initial_BLUE: 1.0")
+            else:
+                lines.append("[output_pin caselight]")
+                lines.append("pin: REPLACE_PIN  # Case light pin")
+                lines.append("pwm: True")
+                lines.append("value: 0.5")
+                lines.append("cycle_time: 0.01")
+            lines.append("")
+
+        # Dotstar (SPI LEDs)
+        if lighting_type == 'dotstar':
             lines.append("[dotstar status_led]")
             lines.append("data_pin: REPLACE_DATA_PIN")
             lines.append("clock_pin: REPLACE_CLOCK_PIN")
@@ -1190,16 +1223,7 @@ def generate_hardware_cfg(
             lines.append("initial_RED: 0.2")
             lines.append("initial_GREEN: 0.2")
             lines.append("initial_BLUE: 0.2")
-        elif lighting_type == 'simple_led':
-            lines.append("[output_pin caselight]")
-            if lighting_pin:
-                lines.append(f"pin: {lighting_pin}")
-            else:
-                lines.append("pin: REPLACE_PIN")
-            lines.append("pwm: True")
-            lines.append("value: 0.5")
-            lines.append("cycle_time: 0.01")
-        lines.append("")
+            lines.append("")
 
     # Filament sensor configuration
     has_filament_sensor = wizard_state.get('has_filament_sensor', '')
