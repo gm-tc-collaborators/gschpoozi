@@ -67,33 +67,45 @@ BOX_RT="╣"
 # HELPER FUNCTIONS
 # ═══════════════════════════════════════════════════════════════════════════════
 
+# Box width constant - used by all print functions
+BOX_WIDTH=70
+
+# Truncate string to max length, adding "..." if truncated
+truncate_string() {
+    local str="$1"
+    local max_len="$2"
+    if [[ ${#str} -gt $max_len ]]; then
+        echo "${str:0:$((max_len-3))}..."
+    else
+        echo "$str"
+    fi
+}
+
 print_header() {
-    local width=60
     local title="$1"
-    local padding=$(( (width - ${#title} - 2) / 2 ))
-    
+    local padding=$(( (BOX_WIDTH - ${#title} - 2) / 2 ))
+
     echo -e "${BCYAN}"
     echo -n "${BOX_TL}"
-    printf "${BOX_H}%.0s" $(seq 1 $width)
+    printf "${BOX_H}%.0s" $(seq 1 $BOX_WIDTH)
     echo "${BOX_TR}"
-    
+
     echo -n "${BOX_V}"
     printf " %.0s" $(seq 1 $padding)
     echo -n " ${title} "
-    printf " %.0s" $(seq 1 $((width - padding - ${#title} - 2)))
+    printf " %.0s" $(seq 1 $((BOX_WIDTH - padding - ${#title} - 2)))
     echo "${BOX_V}"
-    
+
     echo -n "${BOX_LT}"
-    printf "${BOX_H}%.0s" $(seq 1 $width)
+    printf "${BOX_H}%.0s" $(seq 1 $BOX_WIDTH)
     echo "${BOX_RT}"
     echo -e "${NC}"
 }
 
 print_footer() {
-    local width=60
     echo -e "${BCYAN}"
     echo -n "${BOX_BL}"
-    printf "${BOX_H}%.0s" $(seq 1 $width)
+    printf "${BOX_H}%.0s" $(seq 1 $BOX_WIDTH)
     echo "${BOX_BR}"
     echo -e "${NC}"
 }
@@ -103,7 +115,7 @@ print_menu_item() {
     local status="$2"
     local label="$3"
     local value="$4"
-    
+
     local status_icon
     if [[ "$status" == "done" ]]; then
         status_icon="${GREEN}[✓]${NC}"
@@ -112,17 +124,21 @@ print_menu_item() {
     else
         status_icon="${WHITE}[ ]${NC}"
     fi
-    
+
+    # Calculate max value length (box width - prefix - label - ": " - margins)
+    local prefix_len=12  # "║  X) [✓] "
+    local max_value_len=$((BOX_WIDTH - prefix_len - ${#label} - 2 - 4))
+
     if [[ -n "$value" ]]; then
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}${num})${NC} ${status_icon} ${label}: ${CYAN}${value}${NC}"
+        local truncated_value=$(truncate_string "$value" $max_value_len)
+        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}${num})${NC} ${status_icon} ${label}: ${CYAN}${truncated_value}${NC}"
     else
         echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}${num})${NC} ${status_icon} ${label}"
     fi
 }
 
 print_separator() {
-    local width=60
-    echo -e "${BCYAN}${BOX_LT}$(printf "${BOX_H}%.0s" $(seq 1 $width))${BOX_RT}${NC}"
+    echo -e "${BCYAN}${BOX_LT}$(printf "${BOX_H}%.0s" $(seq 1 $BOX_WIDTH))${BOX_RT}${NC}"
 }
 
 print_action_item() {
