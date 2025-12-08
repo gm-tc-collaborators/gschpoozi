@@ -100,7 +100,28 @@
       "pwm": true
     }
   },
-  "thermistor_ports": {},
+  "thermistor_ports": {
+    "TB": {
+      "label": "Bed Thermistor",
+      "pin": "PF3"
+    },
+    "TH0": {
+      "label": "Thermistor 0 (Hotend)",
+      "pin": "PA7"
+    },
+    "TH1": {
+      "label": "Thermistor 1",
+      "pin": "PF4"
+    },
+    "TH2": {
+      "label": "Thermistor 2",
+      "pin": "PF5"
+    },
+    "TH3": {
+      "label": "Thermistor 3",
+      "pin": "PF6"
+    }
+  },
   "endstop_ports": {
     "X_STOP": {
       "label": "X Endstop",

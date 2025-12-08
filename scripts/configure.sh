@@ -6483,6 +6483,83 @@ menu_expansion_connection() {
     esac
 }
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# LED TYPE SELECTION
+# ═══════════════════════════════════════════════════════════════════════════════
+
+select_led_type() {
+    local led_purpose="${1:-status}"  # "status" or "caselight"
+    
+    clear_screen
+    print_header "Select LED Type"
+    
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}What type of LEDs are you using for ${led_purpose}?${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    
+    print_menu_item "1" "" "NeoPixel (WS2812B)" "Addressable RGB LEDs"
+    print_menu_item "2" "" "DotStar (APA102)" "Addressable RGB with clock line"
+    print_menu_item "3" "" "Simple LED" "Single color, PWM controlled"
+    
+    print_separator
+    print_action_item "B" "Back (cancel)"
+    print_footer
+    
+    echo -en "${BYELLOW}Select LED type${NC}: "
+    read -r choice
+    
+    case "$choice" in
+        1)
+            WIZARD_STATE[lighting_type]="neopixel"
+            if [[ "$led_purpose" == "status" ]]; then
+                WIZARD_STATE[led_type]="neopixel"
+            else
+                WIZARD_STATE[caselight_type]="neopixel"
+            fi
+            echo -e "${GREEN}✓${NC} Selected: NeoPixel"
+            sleep 1
+            ;;
+        2)
+            WIZARD_STATE[lighting_type]="dotstar"
+            if [[ "$led_purpose" == "status" ]]; then
+                WIZARD_STATE[led_type]="dotstar"
+            else
+                WIZARD_STATE[caselight_type]="dotstar"
+            fi
+            echo -e "${GREEN}✓${NC} Selected: DotStar"
+            sleep 1
+            ;;
+        3)
+            WIZARD_STATE[lighting_type]="simple"
+            if [[ "$led_purpose" == "status" ]]; then
+                WIZARD_STATE[led_type]="simple"
+            else
+                WIZARD_STATE[caselight_type]="simple"
+            fi
+            echo -e "${GREEN}✓${NC} Selected: Simple LED"
+            sleep 1
+            ;;
+        [bB])
+            # Cancel - revert the has_leds/has_caselight setting
+            if [[ "$led_purpose" == "status" ]]; then
+                WIZARD_STATE[has_leds]=""
+            else
+                WIZARD_STATE[has_caselight]=""
+            fi
+            return
+            ;;
+        *)
+            # Default to neopixel
+            WIZARD_STATE[lighting_type]="neopixel"
+            if [[ "$led_purpose" == "status" ]]; then
+                WIZARD_STATE[led_type]="neopixel"
+            else
+                WIZARD_STATE[caselight_type]="neopixel"
+            fi
+            ;;
+    esac
+    save_state
+}
+
 menu_extras() {
     clear_screen
     print_header "Extra Features"
@@ -6522,14 +6599,33 @@ menu_extras() {
     local led_status=$([[ "${WIZARD_STATE[has_leds]}" == "yes" ]] && echo "[x]" || echo "[ ]")
     local cl_status=$([[ "${WIZARD_STATE[has_caselight]}" == "yes" ]] && echo "[x]" || echo "[ ]")
     
-    print_box_line "5) ${led_status} Status LEDs (NeoPixel on toolhead)"
-    print_box_line "6) ${cl_status} Case Lighting"
+    # Show LED type if set
+    local led_type_info=""
+    if [[ -n "${WIZARD_STATE[led_type]}" ]]; then
+        led_type_info=" (${WIZARD_STATE[led_type]})"
+    fi
+    local cl_type_info=""
+    if [[ -n "${WIZARD_STATE[caselight_type]}" ]]; then
+        cl_type_info=" (${WIZARD_STATE[caselight_type]})"
+    fi
+    
+    print_box_line "5) ${led_status} Status LEDs${led_type_info}"
+    if [[ "${WIZARD_STATE[has_leds]}" == "yes" && -n "${HARDWARE_STATE[lighting_pin]}" ]]; then
+        print_box_line "   ${GREEN}Pin: ${HARDWARE_STATE[lighting_pin]}${NC}"
+    fi
+    print_box_line "6) ${cl_status} Case Lighting${cl_type_info}"
+    if [[ "${WIZARD_STATE[has_caselight]}" == "yes" && -n "${HARDWARE_STATE[caselight_pin]}" ]]; then
+        print_box_line "   ${GREEN}Pin: ${HARDWARE_STATE[caselight_pin]}${NC}"
+    fi
 
-    # Show port assignment option if chamber sensor is enabled
+    # Show port assignment options
+    print_empty_line
+    print_box_line "${BWHITE}Port Assignment:${NC}"
     if [[ "${WIZARD_STATE[has_chamber_sensor]}" == "yes" ]]; then
-        print_empty_line
-        print_box_line "${BWHITE}Port Assignment:${NC}"
         print_menu_item "P" "" "Assign Chamber Thermistor Port"
+    fi
+    if [[ "${WIZARD_STATE[has_leds]}" == "yes" || "${WIZARD_STATE[has_caselight]}" == "yes" ]]; then
+        print_menu_item "L" "" "Assign Lighting Pin"
     fi
 
     print_separator
@@ -6592,16 +6688,34 @@ menu_extras() {
         5)
             if [[ "${WIZARD_STATE[has_leds]}" == "yes" ]]; then
                 WIZARD_STATE[has_leds]=""
+                WIZARD_STATE[led_type]=""
             else
                 WIZARD_STATE[has_leds]="yes"
+                # Ask for LED type
+                select_led_type "status"
+                # Assign pin if board selected
+                if [[ -n "${WIZARD_STATE[board]}" ]]; then
+                    save_state
+                    python3 "${SCRIPT_DIR}/setup-hardware.py" --lighting
+                    load_hardware_state
+                fi
             fi
             menu_extras  # Refresh
             ;;
         6)
             if [[ "${WIZARD_STATE[has_caselight]}" == "yes" ]]; then
                 WIZARD_STATE[has_caselight]=""
+                WIZARD_STATE[caselight_type]=""
             else
                 WIZARD_STATE[has_caselight]="yes"
+                # Ask for caselight type
+                select_led_type "caselight"
+                # Assign pin if board selected
+                if [[ -n "${WIZARD_STATE[board]}" ]]; then
+                    save_state
+                    python3 "${SCRIPT_DIR}/setup-hardware.py" --lighting
+                    load_hardware_state
+                fi
             fi
             menu_extras  # Refresh
             ;;
@@ -6620,6 +6734,15 @@ menu_extras() {
             if [[ "${WIZARD_STATE[has_chamber_sensor]}" == "yes" && -n "${WIZARD_STATE[board]}" ]]; then
                 save_state
                 python3 "${SCRIPT_DIR}/setup-hardware.py" --thermistor-chamber
+                load_hardware_state
+            fi
+            menu_extras  # Refresh
+            ;;
+        [lL])
+            # Assign lighting pin
+            if [[ ( "${WIZARD_STATE[has_leds]}" == "yes" || "${WIZARD_STATE[has_caselight]}" == "yes" ) && -n "${WIZARD_STATE[board]}" ]]; then
+                save_state
+                python3 "${SCRIPT_DIR}/setup-hardware.py" --lighting
                 load_hardware_state
             fi
             menu_extras  # Refresh

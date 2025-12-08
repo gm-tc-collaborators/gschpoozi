@@ -163,6 +163,18 @@
     "TB": {
       "label": "Bed Thermistor",
       "pin": "PB1"
+    },
+    "T0": {
+      "label": "Thermistor 0 (Hotend)",
+      "pin": "PB0"
+    },
+    "T1": {
+      "label": "Thermistor 1",
+      "pin": "PC5"
+    },
+    "T2": {
+      "label": "Thermistor 2",
+      "pin": "PC4"
     }
   },
   "endstop_ports": {

@@ -44,7 +44,12 @@
       "pwm": true
     }
   },
-  "thermistor_ports": {},
+  "thermistor_ports": {
+    "TH": {
+      "label": "Thermistor (Hotend)",
+      "pin": "PA0"
+    }
+  },
   "endstop_ports": {
     "PROBE": {
       "label": "Probe Input",
