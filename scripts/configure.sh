@@ -6436,12 +6436,19 @@ menu_extras() {
     print_header "Extra Features"
     
     echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Sensors:${NC}"
-    
+
     local fs_status=$([[ "${WIZARD_STATE[has_filament_sensor]}" == "yes" ]] && echo "[x]" || echo "[ ]")
     local cs_status=$([[ "${WIZARD_STATE[has_chamber_sensor]}" == "yes" ]] && echo "[x]" || echo "[ ]")
-    
+
     echo -e "${BCYAN}${BOX_V}${NC}  1) ${fs_status} Filament Sensor"
-    echo -e "${BCYAN}${BOX_V}${NC}  2) ${cs_status} Chamber Temperature Sensor"
+    # Show chamber sensor with type info and pin reminder
+    if [[ "${WIZARD_STATE[has_chamber_sensor]}" == "yes" ]]; then
+        local cs_type="${WIZARD_STATE[chamber_sensor_type]:-Generic 3950}"
+        echo -e "${BCYAN}${BOX_V}${NC}  2) ${cs_status} Chamber Temperature Sensor ${WHITE}(${cs_type})${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}     ${YELLOW}→ Assign thermistor port in Hardware Setup${NC}"
+    else
+        echo -e "${BCYAN}${BOX_V}${NC}  2) ${cs_status} Chamber Temperature Sensor"
+    fi
     
     echo -e "${BCYAN}${BOX_V}${NC}"
     echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Displays:${NC}"
@@ -6579,10 +6586,6 @@ select_chamber_sensor_type() {
         4) WIZARD_STATE[chamber_sensor_type]="PT1000" ;;
         *) WIZARD_STATE[chamber_sensor_type]="Generic 3950" ;;
     esac
-
-    echo -e "${GREEN}✓${NC} Chamber sensor type: ${WIZARD_STATE[chamber_sensor_type]}"
-    echo -e "${YELLOW}Note: Assign thermistor port in Hardware Setup${NC}"
-    sleep 1
 }
 
 select_camera_type() {
