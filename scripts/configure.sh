@@ -2065,6 +2065,15 @@ init_state() {
         [lighting_type]=""
         [lighting_count]=""
         [lighting_color_order]=""
+        # Stepper configuration
+        [stepper_step_angle]=""
+        [microsteps]=""
+        [belt_pitch]=""
+        [pulley_teeth]=""
+        [rotation_distance_xy]=""
+        [leadscrew_pitch]=""
+        [rotation_distance_z]=""
+        [rotation_distance_e]=""
     )
 }
 
@@ -2797,6 +2806,16 @@ except:
             echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}4)${NC} ${YELLOW}[ ]${NC} Motor Port Assignment: ${YELLOW}select board first${NC}"
         fi
 
+        # Rotation distance configuration
+        local rot_status=""
+        local rot_info="not configured"
+        if [[ -n "${WIZARD_STATE[rotation_distance_xy]}" ]]; then
+            rot_status="done"
+            rot_info="XY:${WIZARD_STATE[rotation_distance_xy]}mm"
+            [[ -n "${WIZARD_STATE[rotation_distance_z]}" ]] && rot_info="${rot_info}, Z:${WIZARD_STATE[rotation_distance_z]}mm"
+        fi
+        print_menu_item "5" "$rot_status" "Rotation Distance" "${rot_info}"
+
         print_separator
         print_action_item "B" "Back to Main Menu"
         print_footer
@@ -2816,6 +2835,7 @@ except:
                     sleep 1
                 fi
                 ;;
+            5) menu_rotation_distance ;;
             [bB]) return ;;
             *) ;;
         esac
@@ -3199,6 +3219,329 @@ menu_steppers() {
                 ;;
         esac
     done
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ROTATION DISTANCE CONFIGURATION
+# ═══════════════════════════════════════════════════════════════════════════════
+
+menu_rotation_distance() {
+    while true; do
+        clear_screen
+        print_header "Rotation Distance Configuration"
+
+        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Configure stepper motion parameters:${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}  rotation_distance = distance per full motor rotation"
+        echo -e "${BCYAN}${BOX_V}${NC}  For belts: pulley_teeth × belt_pitch"
+        echo -e "${BCYAN}${BOX_V}${NC}  For lead screws: screw pitch (or lead for multi-start)"
+        echo -e "${BCYAN}${BOX_V}${NC}"
+
+        # Current values
+        local step_status=$([[ -n "${WIZARD_STATE[stepper_step_angle]}" ]] && echo "done" || echo "")
+        local step_info="${WIZARD_STATE[stepper_step_angle]:-1.8}° (${WIZARD_STATE[microsteps]:-16} microsteps)"
+        print_menu_item "1" "$step_status" "Step Angle & Microsteps" "$step_info"
+
+        local xy_status=$([[ -n "${WIZARD_STATE[rotation_distance_xy]}" ]] && echo "done" || echo "")
+        local xy_info=""
+        if [[ -n "${WIZARD_STATE[rotation_distance_xy]}" ]]; then
+            xy_info="${WIZARD_STATE[rotation_distance_xy]}mm"
+            [[ -n "${WIZARD_STATE[pulley_teeth]}" ]] && xy_info="${xy_info} (${WIZARD_STATE[pulley_teeth]}T × ${WIZARD_STATE[belt_pitch]:-2}mm)"
+        else
+            xy_info="not set"
+        fi
+        print_menu_item "2" "$xy_status" "X/Y Rotation Distance" "$xy_info"
+
+        local z_status=$([[ -n "${WIZARD_STATE[rotation_distance_z]}" ]] && echo "done" || echo "")
+        local z_info=""
+        if [[ -n "${WIZARD_STATE[rotation_distance_z]}" ]]; then
+            z_info="${WIZARD_STATE[rotation_distance_z]}mm"
+            [[ -n "${WIZARD_STATE[leadscrew_pitch]}" ]] && z_info="${z_info} (${WIZARD_STATE[leadscrew_pitch]}mm lead)"
+        else
+            z_info="not set"
+        fi
+        print_menu_item "3" "$z_status" "Z Rotation Distance" "$z_info"
+
+        local e_status=$([[ -n "${WIZARD_STATE[rotation_distance_e]}" ]] && echo "done" || echo "")
+        print_menu_item "4" "$e_status" "Extruder Rotation Distance" "${WIZARD_STATE[rotation_distance_e]:-not set}${WIZARD_STATE[rotation_distance_e]:+mm}"
+
+        print_separator
+        print_action_item "B" "Back"
+        print_footer
+
+        echo -en "${BYELLOW}Select option${NC}: "
+        read -r choice
+
+        case "$choice" in
+            1) menu_step_angle ;;
+            2) menu_xy_rotation_distance ;;
+            3) menu_z_rotation_distance ;;
+            4) menu_extruder_rotation_distance ;;
+            [bB]) return ;;
+        esac
+    done
+}
+
+menu_step_angle() {
+    clear_screen
+    print_header "Stepper Step Angle"
+
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Select your stepper motor step angle:${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+
+    local cur="${WIZARD_STATE[stepper_step_angle]}"
+    local s1=$([[ "$cur" == "1.8" ]] && echo "done" || echo "")
+    local s2=$([[ "$cur" == "0.9" ]] && echo "done" || echo "")
+
+    print_menu_item "1" "$s1" "1.8° (200 steps/rev)" "Most common, NEMA17"
+    print_menu_item "2" "$s2" "0.9° (400 steps/rev)" "High resolution"
+    print_separator
+    print_action_item "B" "Back"
+    print_footer
+
+    echo -en "${BYELLOW}Select step angle${NC}: "
+    read -r choice
+
+    case "$choice" in
+        1) WIZARD_STATE[stepper_step_angle]="1.8" ;;
+        2) WIZARD_STATE[stepper_step_angle]="0.9" ;;
+        [bB]) return ;;
+    esac
+
+    # Now ask for microsteps
+    clear_screen
+    print_header "Microsteps"
+
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Select microstep resolution:${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+
+    local curm="${WIZARD_STATE[microsteps]}"
+    local m1=$([[ "$curm" == "16" ]] && echo "done" || echo "")
+    local m2=$([[ "$curm" == "32" ]] && echo "done" || echo "")
+    local m3=$([[ "$curm" == "64" ]] && echo "done" || echo "")
+    local m4=$([[ "$curm" == "128" ]] && echo "done" || echo "")
+    local m5=$([[ "$curm" == "256" ]] && echo "done" || echo "")
+
+    print_menu_item "1" "$m1" "16 microsteps" "Recommended default"
+    print_menu_item "2" "$m2" "32 microsteps" "Higher resolution"
+    print_menu_item "3" "$m3" "64 microsteps" "TMC drivers"
+    print_menu_item "4" "$m4" "128 microsteps" "TMC drivers"
+    print_menu_item "5" "$m5" "256 microsteps" "TMC drivers, max"
+    print_separator
+    print_action_item "B" "Back"
+    print_footer
+
+    echo -en "${BYELLOW}Select microsteps${NC}: "
+    read -r choice
+
+    case "$choice" in
+        1) WIZARD_STATE[microsteps]="16" ;;
+        2) WIZARD_STATE[microsteps]="32" ;;
+        3) WIZARD_STATE[microsteps]="64" ;;
+        4) WIZARD_STATE[microsteps]="128" ;;
+        5) WIZARD_STATE[microsteps]="256" ;;
+        [bB]) return ;;
+    esac
+
+    save_state
+}
+
+menu_xy_rotation_distance() {
+    clear_screen
+    print_header "X/Y Rotation Distance"
+
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Configure X/Y belt drive:${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  rotation_distance = pulley_teeth × belt_pitch"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+
+    # Belt pitch selection
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Belt Type:${NC}"
+    local curp="${WIZARD_STATE[belt_pitch]}"
+    local p1=$([[ "$curp" == "2" ]] && echo "done" || echo "")
+    local p2=$([[ "$curp" == "3" ]] && echo "done" || echo "")
+
+    print_menu_item "1" "$p1" "GT2 (2mm pitch)" "Most common"
+    print_menu_item "2" "$p2" "GT3 (3mm pitch)" "Gates GT3"
+    print_separator
+
+    echo -en "${BYELLOW}Select belt type${NC}: "
+    read -r choice
+
+    local pitch=""
+    case "$choice" in
+        1) pitch="2" ;;
+        2) pitch="3" ;;
+        *) return ;;
+    esac
+    WIZARD_STATE[belt_pitch]="$pitch"
+
+    # Pulley teeth selection
+    clear_screen
+    print_header "Pulley Tooth Count"
+
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Select pulley tooth count:${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+
+    local curt="${WIZARD_STATE[pulley_teeth]}"
+    local t1=$([[ "$curt" == "16" ]] && echo "done" || echo "")
+    local t2=$([[ "$curt" == "20" ]] && echo "done" || echo "")
+    local t3=$([[ "$curt" == "36" ]] && echo "done" || echo "")
+    local t4=$([[ "$curt" == "40" ]] && echo "done" || echo "")
+
+    print_menu_item "1" "$t1" "16 teeth" "16T × ${pitch}mm = $((16 * pitch))mm"
+    print_menu_item "2" "$t2" "20 teeth" "20T × ${pitch}mm = $((20 * pitch))mm (most common)"
+    print_menu_item "3" "$t3" "36 teeth" "36T × ${pitch}mm = $((36 * pitch))mm"
+    print_menu_item "4" "$t4" "40 teeth" "40T × ${pitch}mm = $((40 * pitch))mm"
+    print_menu_item "C" "" "Custom" "Enter custom tooth count"
+    print_separator
+    print_action_item "B" "Back"
+    print_footer
+
+    echo -en "${BYELLOW}Select tooth count${NC}: "
+    read -r choice
+
+    local teeth=""
+    case "$choice" in
+        1) teeth="16" ;;
+        2) teeth="20" ;;
+        3) teeth="36" ;;
+        4) teeth="40" ;;
+        [cC])
+            echo -en "  Enter tooth count: "
+            read -r teeth
+            ;;
+        [bB]) return ;;
+    esac
+
+    if [[ -n "$teeth" ]]; then
+        WIZARD_STATE[pulley_teeth]="$teeth"
+        local rotation_distance=$((teeth * pitch))
+        WIZARD_STATE[rotation_distance_xy]="$rotation_distance"
+        echo -e "\n${GREEN}✓${NC} X/Y rotation_distance: ${CYAN}${rotation_distance}mm${NC} (${teeth}T × ${pitch}mm)"
+        save_state
+        sleep 1
+    fi
+}
+
+menu_z_rotation_distance() {
+    clear_screen
+    print_header "Z Rotation Distance"
+
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Configure Z axis lead screw:${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  rotation_distance = lead screw pitch (or lead for multi-start)"
+    echo -e "${BCYAN}${BOX_V}${NC}  Lead = pitch × starts (e.g., 2mm pitch × 4 starts = 8mm lead)"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+
+    local curl="${WIZARD_STATE[leadscrew_pitch]}"
+    local l1=$([[ "$curl" == "2" ]] && echo "done" || echo "")
+    local l2=$([[ "$curl" == "4" ]] && echo "done" || echo "")
+    local l3=$([[ "$curl" == "8" ]] && echo "done" || echo "")
+    local l4=$([[ "$curl" == "1" ]] && echo "done" || echo "")
+
+    print_menu_item "1" "$l1" "2mm lead" "Single-start T8 (slow, precise)"
+    print_menu_item "2" "$l2" "4mm lead" "2-start T8"
+    print_menu_item "3" "$l3" "8mm lead" "4-start T8 (most common, fast)"
+    print_menu_item "4" "$l4" "1mm lead" "Fine pitch (very slow)"
+    print_menu_item "C" "" "Custom" "Enter custom lead value"
+    print_separator
+
+    # Belt-driven Z option
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Or belt-driven Z:${NC}"
+    print_menu_item "B" "" "Belt-driven Z" "Same as X/Y calculation"
+
+    print_separator
+    print_action_item "X" "Back"
+    print_footer
+
+    echo -en "${BYELLOW}Select lead screw type${NC}: "
+    read -r choice
+
+    local lead=""
+    case "$choice" in
+        1) lead="2" ;;
+        2) lead="4" ;;
+        3) lead="8" ;;
+        4) lead="1" ;;
+        [cC])
+            echo -en "  Enter lead value (mm): "
+            read -r lead
+            ;;
+        [bB])
+            # Belt driven - ask for pulley teeth
+            echo -en "  Enter pulley teeth: "
+            read -r teeth
+            echo -en "  Enter belt pitch (2 for GT2): "
+            read -r pitch
+            if [[ -n "$teeth" && -n "$pitch" ]]; then
+                lead=$((teeth * pitch))
+            fi
+            ;;
+        [xX]) return ;;
+    esac
+
+    if [[ -n "$lead" ]]; then
+        WIZARD_STATE[leadscrew_pitch]="$lead"
+        WIZARD_STATE[rotation_distance_z]="$lead"
+        echo -e "\n${GREEN}✓${NC} Z rotation_distance: ${CYAN}${lead}mm${NC}"
+        save_state
+        sleep 1
+    fi
+}
+
+menu_extruder_rotation_distance() {
+    clear_screen
+    print_header "Extruder Rotation Distance"
+
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Configure extruder rotation distance:${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  This value needs calibration! Start with a default,"
+    echo -e "${BCYAN}${BOX_V}${NC}  then calibrate using the e-steps calibration procedure."
+    echo -e "${BCYAN}${BOX_V}${NC}"
+
+    local cure="${WIZARD_STATE[rotation_distance_e]}"
+    local e1=$([[ "$cure" == "22.6789511" ]] && echo "done" || echo "")
+    local e2=$([[ "$cure" == "4.637" ]] && echo "done" || echo "")
+    local e3=$([[ "$cure" == "33.500" ]] && echo "done" || echo "")
+    local e4=$([[ "$cure" == "7.824" ]] && echo "done" || echo "")
+    local e5=$([[ "$cure" == "5.7" ]] && echo "done" || echo "")
+
+    print_menu_item "1" "$e1" "22.6789511mm" "Bondtech LGX/LGX Lite"
+    print_menu_item "2" "$e2" "4.637mm" "Bondtech BMG / Clockwork"
+    print_menu_item "3" "$e3" "33.500mm" "Sherpa Mini"
+    print_menu_item "4" "$e4" "7.824mm" "Orbiter 1.5/2.0"
+    print_menu_item "5" "$e5" "5.7mm" "E3D Titan"
+    print_menu_item "C" "" "Custom" "Enter custom value"
+    print_separator
+    print_action_item "B" "Back"
+    print_footer
+
+    echo -en "${BYELLOW}Select extruder type${NC}: "
+    read -r choice
+
+    local rot_e=""
+    case "$choice" in
+        1) rot_e="22.6789511" ;;
+        2) rot_e="4.637" ;;
+        3) rot_e="33.500" ;;
+        4) rot_e="7.824" ;;
+        5) rot_e="5.7" ;;
+        [cC])
+            echo -en "  Enter rotation_distance: "
+            read -r rot_e
+            ;;
+        [bB]) return ;;
+    esac
+
+    if [[ -n "$rot_e" ]]; then
+        WIZARD_STATE[rotation_distance_e]="$rot_e"
+        echo -e "\n${GREEN}✓${NC} Extruder rotation_distance: ${CYAN}${rot_e}mm${NC}"
+        echo -e "${YELLOW}Remember to calibrate this value!${NC}"
+        save_state
+        sleep 1
+    fi
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
