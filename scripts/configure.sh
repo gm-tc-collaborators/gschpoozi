@@ -2018,12 +2018,42 @@ init_state() {
         [fan_rscs_multipin]=""
         [fan_radiator]=""
         [fan_radiator_multipin]=""
-        # Fan advanced options
+        # Fan advanced options (per-fan: pc=part cooling, hf=hotend, cf=controller, ex=exhaust, ch=chamber, rs=rscs, rd=radiator)
         [fan_pc_max_power]=""
         [fan_pc_cycle_time]=""
         [fan_pc_hardware_pwm]=""
         [fan_pc_shutdown_speed]=""
         [fan_pc_kick_start]=""
+        [fan_hf_max_power]=""
+        [fan_hf_cycle_time]=""
+        [fan_hf_hardware_pwm]=""
+        [fan_hf_shutdown_speed]=""
+        [fan_hf_kick_start]=""
+        [fan_cf_max_power]=""
+        [fan_cf_cycle_time]=""
+        [fan_cf_hardware_pwm]=""
+        [fan_cf_shutdown_speed]=""
+        [fan_cf_kick_start]=""
+        [fan_ex_max_power]=""
+        [fan_ex_cycle_time]=""
+        [fan_ex_hardware_pwm]=""
+        [fan_ex_shutdown_speed]=""
+        [fan_ex_kick_start]=""
+        [fan_ch_max_power]=""
+        [fan_ch_cycle_time]=""
+        [fan_ch_hardware_pwm]=""
+        [fan_ch_shutdown_speed]=""
+        [fan_ch_kick_start]=""
+        [fan_rs_max_power]=""
+        [fan_rs_cycle_time]=""
+        [fan_rs_hardware_pwm]=""
+        [fan_rs_shutdown_speed]=""
+        [fan_rs_kick_start]=""
+        [fan_rd_max_power]=""
+        [fan_rd_cycle_time]=""
+        [fan_rd_hardware_pwm]=""
+        [fan_rd_shutdown_speed]=""
+        [fan_rd_kick_start]=""
     )
 }
 
@@ -2096,8 +2126,21 @@ except:
         probe)
             [[ -n "${WIZARD_STATE[probe_type]}" ]] && echo "done" || echo ""
             ;;
+        endstops)
+            # Endstops complete when X/Y homing positions AND Z probe/endstop type are set
+            local has_x="${WIZARD_STATE[home_x]}"
+            local has_y="${WIZARD_STATE[home_y]}"
+            local has_z="${WIZARD_STATE[probe_type]}"
+            [[ -n "$has_x" && -n "$has_y" && -n "$has_z" ]] && echo "done" || echo ""
+            ;;
         extras)
-            [[ -n "${WIZARD_STATE[has_filament_sensor]}" || -n "${WIZARD_STATE[has_chamber_sensor]}" ]] && echo "done" || echo ""
+            # Check all extras options
+            [[ "${WIZARD_STATE[has_filament_sensor]}" == "yes" || \
+               "${WIZARD_STATE[has_chamber_sensor]}" == "yes" || \
+               "${WIZARD_STATE[has_klipperscreen]}" == "yes" || \
+               "${WIZARD_STATE[has_lcd_display]}" == "yes" || \
+               "${WIZARD_STATE[has_leds]}" == "yes" || \
+               "${WIZARD_STATE[has_caselight]}" == "yes" ]] && echo "done" || echo ""
             ;;
         macros)
             echo "done"  # Default macros always included
@@ -2106,10 +2149,310 @@ except:
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# MENU SCREENS
+# KLIPPER COMPONENT DETECTION
 # ═══════════════════════════════════════════════════════════════════════════════
 
-show_main_menu() {
+# Check if Klipper is installed
+is_klipper_installed() {
+    [[ -d "${HOME}/klipper" ]] && [[ -d "${HOME}/klippy-env" ]]
+}
+
+# Check if Moonraker is installed
+is_moonraker_installed() {
+    [[ -d "${HOME}/moonraker" ]] && [[ -d "${HOME}/moonraker-env" ]]
+}
+
+# Check if Mainsail is installed
+is_mainsail_installed() {
+    [[ -d "${HOME}/mainsail" ]] || [[ -d "/home/${USER}/mainsail" ]]
+}
+
+# Check if Fluidd is installed
+is_fluidd_installed() {
+    [[ -d "${HOME}/fluidd" ]] || [[ -d "/home/${USER}/fluidd" ]]
+}
+
+# Check if Crowsnest is installed
+is_crowsnest_installed() {
+    [[ -d "${HOME}/crowsnest" ]]
+}
+
+# Check if Sonar is installed
+is_sonar_installed() {
+    [[ -d "${HOME}/sonar" ]]
+}
+
+# Get Klipper version if installed
+get_klipper_version() {
+    if is_klipper_installed; then
+        cd "${HOME}/klipper" 2>/dev/null && git describe --tags --always 2>/dev/null || echo "unknown"
+    else
+        echo "not installed"
+    fi
+}
+
+# Get Moonraker version if installed
+get_moonraker_version() {
+    if is_moonraker_installed; then
+        cd "${HOME}/moonraker" 2>/dev/null && git describe --tags --always 2>/dev/null || echo "unknown"
+    else
+        echo "not installed"
+    fi
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# STUB INSTALLATION FUNCTIONS (Phase 2 implementation)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+install_klipper() {
+    clear_screen
+    print_header "Install Klipper"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}Coming soon!${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  Klipper installation will be implemented in a future update."
+    echo -e "${BCYAN}${BOX_V}${NC}  For now, please use KIAUH to install Klipper:"
+    echo -e "${BCYAN}${BOX_V}${NC}  ${CYAN}https://github.com/dw-0/kiauh${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_footer
+    wait_for_key
+}
+
+install_moonraker() {
+    clear_screen
+    print_header "Install Moonraker"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}Coming soon!${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  Moonraker installation will be implemented in a future update."
+    echo -e "${BCYAN}${BOX_V}${NC}  For now, please use KIAUH to install Moonraker:"
+    echo -e "${BCYAN}${BOX_V}${NC}  ${CYAN}https://github.com/dw-0/kiauh${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_footer
+    wait_for_key
+}
+
+install_mainsail() {
+    clear_screen
+    print_header "Install Mainsail"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}Coming soon!${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  Mainsail installation will be implemented in a future update."
+    echo -e "${BCYAN}${BOX_V}${NC}  For now, please use KIAUH to install Mainsail:"
+    echo -e "${BCYAN}${BOX_V}${NC}  ${CYAN}https://github.com/dw-0/kiauh${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_footer
+    wait_for_key
+}
+
+install_fluidd() {
+    clear_screen
+    print_header "Install Fluidd"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}Coming soon!${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  Fluidd installation will be implemented in a future update."
+    echo -e "${BCYAN}${BOX_V}${NC}  For now, please use KIAUH to install Fluidd:"
+    echo -e "${BCYAN}${BOX_V}${NC}  ${CYAN}https://github.com/dw-0/kiauh${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_footer
+    wait_for_key
+}
+
+install_crowsnest() {
+    clear_screen
+    print_header "Install Crowsnest"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}Coming soon!${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  Crowsnest installation will be implemented in a future update."
+    echo -e "${BCYAN}${BOX_V}${NC}  For now, please install manually:"
+    echo -e "${BCYAN}${BOX_V}${NC}  ${CYAN}https://github.com/mainsail-crew/crowsnest${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_footer
+    wait_for_key
+}
+
+install_sonar() {
+    clear_screen
+    print_header "Install Sonar"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}Coming soon!${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  Sonar installation will be implemented in a future update."
+    echo -e "${BCYAN}${BOX_V}${NC}  For now, please install manually:"
+    echo -e "${BCYAN}${BOX_V}${NC}  ${CYAN}https://github.com/mainsail-crew/sonar${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_footer
+    wait_for_key
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TOP-LEVEL MENU
+# ═══════════════════════════════════════════════════════════════════════════════
+
+show_top_menu() {
+    clear_screen
+    print_header "gschpoozi"
+    
+    echo -e "${BCYAN}${BOX_V}${NC}  ${WHITE}Klipper Configuration Generator${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    
+    # Klipper Setup status
+    local klipper_status=""
+    local klipper_info=""
+    if is_klipper_installed && is_moonraker_installed; then
+        klipper_status="done"
+        local web_ui=""
+        is_mainsail_installed && web_ui="Mainsail"
+        is_fluidd_installed && [[ -n "$web_ui" ]] && web_ui="${web_ui}+Fluidd" || { is_fluidd_installed && web_ui="Fluidd"; }
+        [[ -z "$web_ui" ]] && web_ui="no web UI"
+        klipper_info="Klipper + Moonraker + ${web_ui}"
+    elif is_klipper_installed; then
+        klipper_status="partial"
+        klipper_info="Klipper only (Moonraker missing)"
+    else
+        klipper_info="Not installed"
+    fi
+    print_menu_item "1" "$klipper_status" "Klipper Setup" "${klipper_info}"
+    
+    # Machine Setup status
+    local machine_status=""
+    local machine_info=""
+    if [[ -n "${WIZARD_STATE[board]}" ]]; then
+        machine_status="partial"
+        machine_info="${WIZARD_STATE[board_name]:-in progress}"
+    else
+        machine_info="Configure your 3D printer"
+    fi
+    print_menu_item "2" "$machine_status" "Machine Setup" "${machine_info}"
+    
+    print_separator
+    print_action_item "Q" "Quit"
+    print_footer
+    
+    echo -en "${BYELLOW}Select option${NC}: "
+    read -r choice
+    
+    case "$choice" in
+        1) show_klipper_setup_menu ;;
+        2) show_machine_setup_menu ;;
+        [qQ]) exit_wizard ;;
+        *) ;;
+    esac
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# KLIPPER SETUP MENU
+# ═══════════════════════════════════════════════════════════════════════════════
+
+show_klipper_setup_menu() {
+    while true; do
+        clear_screen
+        print_header "Klipper Setup"
+        
+        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}CORE COMPONENTS${NC}"
+        
+        # Klipper
+        local klipper_status=""
+        local klipper_info=""
+        if is_klipper_installed; then
+            klipper_status="done"
+            klipper_info="$(get_klipper_version)"
+        else
+            klipper_info="Not installed"
+        fi
+        print_menu_item "1" "$klipper_status" "Klipper" "${klipper_info}"
+        
+        # Moonraker
+        local moonraker_status=""
+        local moonraker_info=""
+        if is_moonraker_installed; then
+            moonraker_status="done"
+            moonraker_info="$(get_moonraker_version)"
+        else
+            moonraker_info="Not installed"
+        fi
+        print_menu_item "2" "$moonraker_status" "Moonraker" "${moonraker_info}"
+        
+        echo -e "${BCYAN}${BOX_V}${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}WEB INTERFACE${NC} ${WHITE}(choose one)${NC}"
+        
+        # Mainsail
+        local mainsail_status=""
+        local mainsail_info=""
+        if is_mainsail_installed; then
+            mainsail_status="done"
+            mainsail_info="Installed"
+        else
+            mainsail_info="Not installed"
+        fi
+        print_menu_item "3" "$mainsail_status" "Mainsail" "${mainsail_info}"
+        
+        # Fluidd
+        local fluidd_status=""
+        local fluidd_info=""
+        if is_fluidd_installed; then
+            fluidd_status="done"
+            fluidd_info="Installed"
+        else
+            fluidd_info="Not installed"
+        fi
+        print_menu_item "4" "$fluidd_status" "Fluidd" "${fluidd_info}"
+        
+        echo -e "${BCYAN}${BOX_V}${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}OPTIONAL${NC}"
+        
+        # Crowsnest
+        local crowsnest_status=""
+        local crowsnest_info=""
+        if is_crowsnest_installed; then
+            crowsnest_status="done"
+            crowsnest_info="Installed"
+        else
+            crowsnest_info="Camera streaming"
+        fi
+        print_menu_item "5" "$crowsnest_status" "Crowsnest" "${crowsnest_info}"
+        
+        # Sonar
+        local sonar_status=""
+        local sonar_info=""
+        if is_sonar_installed; then
+            sonar_status="done"
+            sonar_info="Installed"
+        else
+            sonar_info="Network keepalive"
+        fi
+        print_menu_item "6" "$sonar_status" "Sonar" "${sonar_info}"
+        
+        print_separator
+        # print_action_item "R" "Remove component"
+        # print_action_item "U" "Update all"
+        print_action_item "B" "Back"
+        print_footer
+        
+        echo -en "${BYELLOW}Select option${NC}: "
+        read -r choice
+        
+        case "$choice" in
+            1) install_klipper ;;
+            2) install_moonraker ;;
+            3) install_mainsail ;;
+            4) install_fluidd ;;
+            5) install_crowsnest ;;
+            6) install_sonar ;;
+            [bB]) return ;;
+            *) ;;
+        esac
+    done
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MACHINE SETUP MENU (formerly show_main_menu)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+show_machine_setup_menu() {
     # Load hardware state from Python script's output
     load_hardware_state
 
@@ -2224,15 +2567,15 @@ show_main_menu() {
     fi
     print_menu_item "7" "$(get_step_status endstops)" "Endstops" "${endstop_info}"
 
-    # Fans
+    # Fans - check HARDWARE_STATE port assignments (mainboard or toolboard)
     local fan_count=0
-    [[ "${WIZARD_STATE[fan_part_cooling]}" == "enabled" ]] && fan_count=$((fan_count + 1))
-    [[ "${WIZARD_STATE[fan_hotend]}" == "enabled" ]] && fan_count=$((fan_count + 1))
-    [[ "${WIZARD_STATE[fan_controller]}" == "enabled" ]] && fan_count=$((fan_count + 1))
-    [[ "${WIZARD_STATE[fan_exhaust]}" == "enabled" ]] && fan_count=$((fan_count + 1))
-    [[ "${WIZARD_STATE[fan_chamber]}" == "enabled" ]] && fan_count=$((fan_count + 1))
-    [[ "${WIZARD_STATE[fan_rscs]}" == "enabled" ]] && fan_count=$((fan_count + 1))
-    [[ "${WIZARD_STATE[fan_radiator]}" == "enabled" ]] && fan_count=$((fan_count + 1))
+    [[ -n "${HARDWARE_STATE[fan_part_cooling]}" || -n "${HARDWARE_STATE[toolboard_fan_part_cooling]}" ]] && fan_count=$((fan_count + 1))
+    [[ -n "${HARDWARE_STATE[fan_hotend]}" || -n "${HARDWARE_STATE[toolboard_fan_hotend]}" ]] && fan_count=$((fan_count + 1))
+    [[ -n "${HARDWARE_STATE[fan_controller]}" ]] && fan_count=$((fan_count + 1))
+    [[ -n "${HARDWARE_STATE[fan_exhaust]}" ]] && fan_count=$((fan_count + 1))
+    [[ -n "${HARDWARE_STATE[fan_chamber]}" ]] && fan_count=$((fan_count + 1))
+    [[ -n "${HARDWARE_STATE[fan_rscs]}" ]] && fan_count=$((fan_count + 1))
+    [[ -n "${HARDWARE_STATE[fan_radiator]}" ]] && fan_count=$((fan_count + 1))
     local fan_info="${fan_count} configured"
     local fan_status=$([[ $fan_count -gt 0 ]] && echo "done" || echo "")
     print_menu_item "8" "$fan_status" "Fans" "${fan_info}"
@@ -3515,22 +3858,32 @@ menu_endstop_z() {
             eddy_status="${YELLOW}[not installed]${NC}"
         fi
 
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Current: ${WIZARD_STATE[probe_type]:-not set}${NC}"
+        # Get current probe type for checkmark display
+        local current_probe="${WIZARD_STATE[probe_type]}"
+
+        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Current: ${current_probe:-not set}${NC}"
         echo -e "${BCYAN}${BOX_V}${NC}"
         echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Pin-based Probes:${NC}"
-        print_menu_item "1" "" "BLTouch / 3DTouch"
-        print_menu_item "2" "" "Klicky Probe"
-        print_menu_item "3" "" "Inductive Probe (PINDA/SuperPINDA)"
+        local bltouch_sel=$([[ "$current_probe" == "bltouch" ]] && echo "done" || echo "")
+        local klicky_sel=$([[ "$current_probe" == "klicky" ]] && echo "done" || echo "")
+        local inductive_sel=$([[ "$current_probe" == "inductive" ]] && echo "done" || echo "")
+        print_menu_item "1" "$bltouch_sel" "BLTouch / 3DTouch"
+        print_menu_item "2" "$klicky_sel" "Klicky Probe"
+        print_menu_item "3" "$inductive_sel" "Inductive Probe (PINDA/SuperPINDA)"
 
         echo -e "${BCYAN}${BOX_V}${NC}"
         echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}MCU-based Probes (USB/CAN):${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}4)${NC} [ ] Beacon (Eddy Current) ${beacon_status}"
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}5)${NC} [ ] Cartographer ${carto_status}"
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}6)${NC} [ ] BTT Eddy ${eddy_status}"
+        local beacon_sel=$([[ "$current_probe" == "beacon" ]] && echo "done" || echo "")
+        local carto_sel=$([[ "$current_probe" == "cartographer" ]] && echo "done" || echo "")
+        local eddy_sel=$([[ "$current_probe" == "btt-eddy" ]] && echo "done" || echo "")
+        print_menu_item "4" "$beacon_sel" "Beacon (Eddy Current)" "${beacon_status}"
+        print_menu_item "5" "$carto_sel" "Cartographer" "${carto_status}"
+        print_menu_item "6" "$eddy_sel" "BTT Eddy" "${eddy_status}"
 
         echo -e "${BCYAN}${BOX_V}${NC}"
         echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Physical Endstop:${NC}"
-        print_menu_item "7" "" "Physical Z Endstop (no probe)"
+        local endstop_sel=$([[ "$current_probe" == "endstop" ]] && echo "done" || echo "")
+        print_menu_item "7" "$endstop_sel" "Physical Z Endstop (no probe)"
 
         # Show port/MCU assignment option if probe is selected
         if [[ -n "${WIZARD_STATE[probe_type]}" && "${WIZARD_STATE[probe_type]}" != "endstop" ]]; then
@@ -3895,6 +4248,9 @@ menu_probe_type_select() {
     clear_screen
     print_header "Select Probe Type"
 
+    # Get current probe type for checkmark display
+    local current_probe="${WIZARD_STATE[probe_type]}"
+
     # Show installation status for probes that need modules
     local beacon_status="" carto_status="" eddy_status=""
     if is_probe_installed "beacon"; then
@@ -3913,16 +4269,25 @@ menu_probe_type_select() {
         eddy_status="${YELLOW}[not installed]${NC}"
     fi
 
+    # Calculate selection status for each option
+    local bltouch_sel=$([[ "$current_probe" == "bltouch" ]] && echo "done" || echo "")
+    local klicky_sel=$([[ "$current_probe" == "klicky" ]] && echo "done" || echo "")
+    local inductive_sel=$([[ "$current_probe" == "inductive" ]] && echo "done" || echo "")
+    local endstop_sel=$([[ "$current_probe" == "endstop" ]] && echo "done" || echo "")
+    local beacon_sel=$([[ "$current_probe" == "beacon" ]] && echo "done" || echo "")
+    local carto_sel=$([[ "$current_probe" == "cartographer" ]] && echo "done" || echo "")
+    local eddy_sel=$([[ "$current_probe" == "btt-eddy" ]] && echo "done" || echo "")
+
     echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Standard Probes:${NC}"
-    print_menu_item "1" "" "BLTouch / 3DTouch"
-    print_menu_item "2" "" "Klicky Probe"
-    print_menu_item "3" "" "Inductive Probe (PINDA/SuperPINDA)"
-    print_menu_item "4" "" "Physical Z Endstop (no probe)"
+    print_menu_item "1" "$bltouch_sel" "BLTouch / 3DTouch"
+    print_menu_item "2" "$klicky_sel" "Klicky Probe"
+    print_menu_item "3" "$inductive_sel" "Inductive Probe (PINDA/SuperPINDA)"
+    print_menu_item "4" "$endstop_sel" "Physical Z Endstop (no probe)"
     echo -e "${BCYAN}${BOX_V}${NC}"
     echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Eddy Current Probes (require module):${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}5)${NC} [ ] Beacon ${beacon_status}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}6)${NC} [ ] Cartographer ${carto_status}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}7)${NC} [ ] BTT Eddy ${eddy_status}"
+    print_menu_item "5" "$beacon_sel" "Beacon" "${beacon_status}"
+    print_menu_item "6" "$carto_sel" "Cartographer" "${carto_status}"
+    print_menu_item "7" "$eddy_sel" "BTT Eddy" "${eddy_status}"
     print_separator
     print_action_item "B" "Back"
     print_footer
@@ -3977,6 +4342,9 @@ menu_probe_type_select() {
             ;;
         [bB]) return ;;
     esac
+
+    # Save state after probe type selection
+    save_state
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -4069,7 +4437,7 @@ menu_fans() {
             5) menu_fan_chamber ;;
             6) menu_fan_rscs ;;
             7) menu_fan_radiator ;;
-            [aA]) menu_fan_advanced ;;
+            [aA]) menu_fan_advanced_select ;;
             [bB]) return ;;
             *) ;;
         esac
@@ -4637,20 +5005,61 @@ menu_fan_radiator() {
     done
 }
 
+menu_fan_advanced_select() {
+    while true; do
+        clear_screen
+        print_header "Advanced Fan Settings"
+
+        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Select fan to configure advanced settings:${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}"
+
+        print_menu_item "1" "" "Part Cooling Fan"
+        print_menu_item "2" "" "Hotend Fan"
+        print_menu_item "3" "" "Controller Fan"
+        print_menu_item "4" "" "Exhaust Fan"
+        print_menu_item "5" "" "Chamber Fan"
+        print_menu_item "6" "" "RSCS/Filter Fan"
+        print_menu_item "7" "" "Radiator Fan"
+        print_separator
+        print_action_item "B" "Back"
+        print_footer
+
+        echo -en "${BYELLOW}Select fan${NC}: "
+        read -r choice
+
+        case "$choice" in
+            1) menu_fan_advanced "pc" "Part Cooling Fan" ;;
+            2) menu_fan_advanced "hf" "Hotend Fan" ;;
+            3) menu_fan_advanced "cf" "Controller Fan" ;;
+            4) menu_fan_advanced "ex" "Exhaust Fan" ;;
+            5) menu_fan_advanced "ch" "Chamber Fan" ;;
+            6) menu_fan_advanced "rs" "RSCS/Filter Fan" ;;
+            7) menu_fan_advanced "rd" "Radiator Fan" ;;
+            [bB]) return ;;
+        esac
+    done
+}
+
 menu_fan_advanced() {
+    # Usage: menu_fan_advanced <fan_prefix> <fan_name>
+    # fan_prefix: pc, hf, cf, ex, ch, rs, rd
+    # fan_name: display name for the fan
+    local fan_prefix="${1:-pc}"
+    local fan_name="${2:-Part Cooling Fan}"
+
     clear_screen
     print_header "Advanced Fan Settings"
-    
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Part Cooling Fan Advanced Options:${NC}"
+
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}${fan_name} Advanced Options:${NC}"
     echo -e "${BCYAN}${BOX_V}${NC}"
-    
-    # Current values or defaults
-    local max_power="${WIZARD_STATE[fan_pc_max_power]:-1.0}"
-    local cycle_time="${WIZARD_STATE[fan_pc_cycle_time]:-0.010}"
-    local hw_pwm="${WIZARD_STATE[fan_pc_hardware_pwm]:-false}"
-    local shutdown="${WIZARD_STATE[fan_pc_shutdown_speed]:-0}"
-    local kick="${WIZARD_STATE[fan_pc_kick_start]:-0.5}"
-    
+
+    # Current values or defaults (using dynamic keys)
+    local max_power="${WIZARD_STATE[fan_${fan_prefix}_max_power]:-1.0}"
+    local cycle_time="${WIZARD_STATE[fan_${fan_prefix}_cycle_time]:-0.010}"
+    local hw_pwm="${WIZARD_STATE[fan_${fan_prefix}_hardware_pwm]:-false}"
+    local shutdown="${WIZARD_STATE[fan_${fan_prefix}_shutdown_speed]:-0}"
+    local kick="${WIZARD_STATE[fan_${fan_prefix}_kick_start]:-0.5}"
+
     echo -e "${BCYAN}${BOX_V}${NC}  Current settings:"
     echo -e "${BCYAN}${BOX_V}${NC}  • max_power: ${CYAN}${max_power}${NC} (0.0-1.0)"
     echo -e "${BCYAN}${BOX_V}${NC}  • cycle_time: ${CYAN}${cycle_time}${NC} (0.010 default, 0.002 for high-speed)"
@@ -4658,7 +5067,7 @@ menu_fan_advanced() {
     echo -e "${BCYAN}${BOX_V}${NC}  • shutdown_speed: ${CYAN}${shutdown}${NC}"
     echo -e "${BCYAN}${BOX_V}${NC}  • kick_start_time: ${CYAN}${kick}${NC} seconds"
     echo -e "${BCYAN}${BOX_V}${NC}"
-    
+
     print_menu_item "1" "" "Set max_power"
     print_menu_item "2" "" "Set cycle_time (PWM frequency)"
     print_menu_item "3" "" "Toggle hardware_pwm"
@@ -4668,27 +5077,27 @@ menu_fan_advanced() {
     print_separator
     print_action_item "B" "Back"
     print_footer
-    
+
     echo -en "${BYELLOW}Select option${NC}: "
     read -r choice
-    
+
     case "$choice" in
         1)
             echo -en "  Enter max_power (0.0-1.0) [${max_power}]: "
             read -r value
-            [[ -n "$value" ]] && WIZARD_STATE[fan_pc_max_power]="$value"
+            [[ -n "$value" ]] && WIZARD_STATE[fan_${fan_prefix}_max_power]="$value"
             ;;
         2)
             echo -en "  Enter cycle_time (0.010 default, 0.002 for high-speed) [${cycle_time}]: "
             read -r value
-            [[ -n "$value" ]] && WIZARD_STATE[fan_pc_cycle_time]="$value"
+            [[ -n "$value" ]] && WIZARD_STATE[fan_${fan_prefix}_cycle_time]="$value"
             ;;
         3)
             if [[ "$hw_pwm" == "false" ]]; then
-                WIZARD_STATE[fan_pc_hardware_pwm]="true"
+                WIZARD_STATE[fan_${fan_prefix}_hardware_pwm]="true"
                 echo -e "${GREEN}✓${NC} hardware_pwm enabled"
             else
-                WIZARD_STATE[fan_pc_hardware_pwm]="false"
+                WIZARD_STATE[fan_${fan_prefix}_hardware_pwm]="false"
                 echo -e "${GREEN}✓${NC} hardware_pwm disabled"
             fi
             sleep 1
@@ -4696,24 +5105,26 @@ menu_fan_advanced() {
         4)
             echo -en "  Enter shutdown_speed (0.0-1.0) [${shutdown}]: "
             read -r value
-            [[ -n "$value" ]] && WIZARD_STATE[fan_pc_shutdown_speed]="$value"
+            [[ -n "$value" ]] && WIZARD_STATE[fan_${fan_prefix}_shutdown_speed]="$value"
             ;;
         5)
             echo -en "  Enter kick_start_time (seconds) [${kick}]: "
             read -r value
-            [[ -n "$value" ]] && WIZARD_STATE[fan_pc_kick_start]="$value"
+            [[ -n "$value" ]] && WIZARD_STATE[fan_${fan_prefix}_kick_start]="$value"
             ;;
         [dD])
-            WIZARD_STATE[fan_pc_max_power]=""
-            WIZARD_STATE[fan_pc_cycle_time]=""
-            WIZARD_STATE[fan_pc_hardware_pwm]=""
-            WIZARD_STATE[fan_pc_shutdown_speed]=""
-            WIZARD_STATE[fan_pc_kick_start]=""
+            WIZARD_STATE[fan_${fan_prefix}_max_power]=""
+            WIZARD_STATE[fan_${fan_prefix}_cycle_time]=""
+            WIZARD_STATE[fan_${fan_prefix}_hardware_pwm]=""
+            WIZARD_STATE[fan_${fan_prefix}_shutdown_speed]=""
+            WIZARD_STATE[fan_${fan_prefix}_kick_start]=""
             echo -e "${GREEN}✓${NC} Reset to defaults"
             sleep 1
             ;;
         [bB]) return ;;
     esac
+
+    save_state
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -4742,12 +5153,21 @@ menu_lighting() {
         # Port/pin assignment option if type is selected
         if [[ -n "${WIZARD_STATE[lighting_type]}" && "${WIZARD_STATE[lighting_type]}" != "none" ]]; then
             echo -e "${BCYAN}${BOX_V}${NC}"
-            local pin_info="${HARDWARE_STATE[lighting_pin]:-not assigned}"
+            # Check both mainboard and toolboard for lighting pin
+            local pin_info=""
+            if [[ -n "${HARDWARE_STATE[toolboard_lighting_pin]}" ]]; then
+                pin_info="toolboard:${HARDWARE_STATE[toolboard_lighting_pin]}"
+            elif [[ -n "${HARDWARE_STATE[lighting_pin]}" ]]; then
+                pin_info="${HARDWARE_STATE[lighting_pin]}"
+            else
+                pin_info="not assigned"
+            fi
             local led_count="${WIZARD_STATE[lighting_count]:-1}"
             if [[ "${WIZARD_STATE[lighting_type]}" =~ ^(neopixel|dotstar)$ ]]; then
                 pin_info="${pin_info}, ${led_count} LEDs"
             fi
-            print_menu_item "P" "" "Configure Pin & Settings" "${pin_info}"
+            local pin_status=$([[ -n "${HARDWARE_STATE[lighting_pin]}" || -n "${HARDWARE_STATE[toolboard_lighting_pin]}" ]] && echo "done" || echo "")
+            print_menu_item "P" "$pin_status" "Configure Pin & Settings" "${pin_info}"
         fi
 
         print_separator
@@ -5180,14 +5600,7 @@ menu_extras() {
     
     echo -e "${BCYAN}${BOX_V}${NC}  5) ${led_status} Status LEDs (NeoPixel on toolhead)"
     echo -e "${BCYAN}${BOX_V}${NC}  6) ${cl_status} Case Lighting"
-    
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Camera:${NC}"
-    
-    local cam_status=$([[ "${WIZARD_STATE[has_camera]}" == "yes" ]] && echo "[x]" || echo "[ ]")
-    
-    echo -e "${BCYAN}${BOX_V}${NC}  7) ${cam_status} Webcam (Crowsnest)"
-    
+
     print_separator
     print_action_item "B" "Back"
     print_footer
@@ -5922,7 +6335,7 @@ main() {
     
     # Main loop
     while true; do
-        show_main_menu
+        show_top_menu
     done
 }
 
