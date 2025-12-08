@@ -2111,6 +2111,8 @@ init_state() {
         [bed_thermistor]=""
         [bed_pullup_resistor]=""
         [probe_type]=""
+        [probe_mode]=""              # "proximity" or "touch" for eddy current probes
+        [beacon_revision]=""         # "revd" or "revh" for Beacon hardware version
         [has_filament_sensor]=""
         [filament_sensor_pin]=""
         [has_chamber_sensor]=""
@@ -4286,8 +4288,13 @@ menu_endstops() {
             fi
         elif [[ "$probe_type" != "not set" && -n "$probe_type" ]]; then
             z_info="${probe_type}"
-            # Show MCU info for probes with their own MCU
+            # Show mode and MCU info for eddy current probes
             if [[ "$probe_type" =~ ^(beacon|cartographer|btt-eddy)$ ]]; then
+                # Add probe mode
+                if [[ -n "${WIZARD_STATE[probe_mode]}" ]]; then
+                    z_info="${z_info} [${WIZARD_STATE[probe_mode]}]"
+                fi
+                # Add MCU info
                 if [[ -n "${WIZARD_STATE[probe_serial]}" ]]; then
                     z_info="${z_info} (serial configured)"
                 elif [[ -n "${WIZARD_STATE[probe_canbus_uuid]}" ]]; then
@@ -4542,8 +4549,15 @@ menu_endstop_z() {
 
         # Get current probe type for checkmark display
         local current_probe="${WIZARD_STATE[probe_type]}"
+        local current_mode="${WIZARD_STATE[probe_mode]}"
+        
+        # Build current status display
+        local current_display="${current_probe:-not set}"
+        if [[ "$current_probe" =~ ^(beacon|cartographer|btt-eddy)$ && -n "$current_mode" ]]; then
+            current_display="${current_probe} (${current_mode} mode)"
+        fi
 
-        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Current: ${current_probe:-not set}${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Current: ${current_display}${NC}"
         echo -e "${BCYAN}${BOX_V}${NC}"
         echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Pin-based Probes:${NC}"
         local bltouch_sel=$([[ "$current_probe" == "bltouch" ]] && echo "done" || echo "")
@@ -4580,6 +4594,11 @@ menu_endstop_z() {
                     mcu_info="not configured"
                 fi
                 print_menu_item "P" "" "Configure Probe MCU" "${mcu_info}"
+                
+                # Show operation mode option for eddy probes
+                local mode_info="${WIZARD_STATE[probe_mode]:-not set}"
+                local mode_status=$([[ -n "${WIZARD_STATE[probe_mode]}" ]] && echo "done" || echo "")
+                print_menu_item "M" "$mode_status" "Operation Mode" "${mode_info}"
             else
                 local pin_info="${HARDWARE_STATE[probe_pin]:-not assigned}"
                 print_menu_item "P" "" "Configure Probe Pin" "${pin_info}"
@@ -4623,6 +4642,12 @@ menu_endstop_z() {
                     menu_probe_port_or_mcu
                 fi
                 ;;
+            [mM])
+                # Change operation mode for eddy probes
+                if [[ "${WIZARD_STATE[probe_type]}" =~ ^(beacon|cartographer|btt-eddy)$ ]]; then
+                    menu_probe_operation_mode
+                fi
+                ;;
             [bB]) return ;;
             *) ;;
         esac
@@ -4638,6 +4663,11 @@ menu_endstop_z() {
                 echo -e "${YELLOW}Note: You'll need to install ${selected_probe} manually before using it.${NC}"
                 wait_for_key
             fi
+        fi
+        
+        # For eddy current probes, prompt for operation mode selection
+        if [[ -n "$selected_probe" ]]; then
+            menu_probe_operation_mode
         fi
     done
 }
@@ -4841,6 +4871,138 @@ menu_probe_can() {
     esac
 
     # Save state after probe CAN UUID selection
+    save_state
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PROBE OPERATION MODE SELECTION (for eddy current probes)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+menu_probe_operation_mode() {
+    local probe_type="${WIZARD_STATE[probe_type]}"
+    
+    # Only applicable for eddy current probes
+    if [[ ! "$probe_type" =~ ^(beacon|cartographer|btt-eddy)$ ]]; then
+        return
+    fi
+    
+    clear_screen
+    print_header "Probe Operation Mode"
+    
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Select operation mode for ${probe_type}:${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    
+    # Show current mode
+    local current_mode="${WIZARD_STATE[probe_mode]:-not set}"
+    echo -e "${BCYAN}${BOX_V}${NC}  Current: ${BWHITE}${current_mode}${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    
+    local prox_sel=$([[ "$current_mode" == "proximity" ]] && echo "done" || echo "")
+    local touch_sel=$([[ "$current_mode" == "touch" ]] && echo "done" || echo "")
+    
+    # Proximity/Scan mode
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Contactless Modes:${NC}"
+    print_menu_item "1" "$prox_sel" "Proximity/Scan Mode" "Contactless sensing (standard)"
+    echo -e "${BCYAN}${BOX_V}${NC}      ${DIM}Uses eddy current induction to detect bed distance${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}      ${DIM}Good for rapid bed mesh scanning${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    
+    # Touch/Tap mode
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Contact Modes:${NC}"
+    
+    # Show different descriptions based on probe type
+    case "$probe_type" in
+        beacon)
+            print_menu_item "2" "$touch_sel" "Contact Mode" "Physical contact homing (Rev H+ only)"
+            echo -e "${BCYAN}${BOX_V}${NC}      ${DIM}Probe physically touches bed for Z reference${NC}"
+            echo -e "${BCYAN}${BOX_V}${NC}      ${DIM}Higher precision, requires Beacon Rev H or later${NC}"
+            ;;
+        cartographer)
+            print_menu_item "2" "$touch_sel" "Touch Mode" "Physical contact homing"
+            echo -e "${BCYAN}${BOX_V}${NC}      ${DIM}Uses touch sensing for Z reference${NC}"
+            echo -e "${BCYAN}${BOX_V}${NC}      ${DIM}Scan for mesh, touch for homing${NC}"
+            ;;
+        btt-eddy)
+            print_menu_item "2" "$touch_sel" "Touch Mode" "Physical contact homing"
+            echo -e "${BCYAN}${BOX_V}${NC}      ${DIM}Uses tap detection for Z reference${NC}"
+            echo -e "${BCYAN}${BOX_V}${NC}      ${DIM}More precise than proximity for homing${NC}"
+            ;;
+    esac
+    
+    print_separator
+    print_action_item "B" "Back (keep current)"
+    print_footer
+    
+    echo -en "${BYELLOW}Select mode${NC}: "
+    read -r choice
+    
+    case "$choice" in
+        1)
+            WIZARD_STATE[probe_mode]="proximity"
+            echo -e "${GREEN}✓${NC} Operation mode set to: proximity"
+            sleep 1
+            ;;
+        2)
+            # For Beacon, check hardware revision
+            if [[ "$probe_type" == "beacon" ]]; then
+                menu_beacon_revision
+            else
+                WIZARD_STATE[probe_mode]="touch"
+                echo -e "${GREEN}✓${NC} Operation mode set to: touch"
+                sleep 1
+            fi
+            ;;
+        [bB]) return ;;
+        *) ;;
+    esac
+    
+    save_state
+}
+
+menu_beacon_revision() {
+    clear_screen
+    print_header "Beacon Hardware Revision"
+    
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Select your Beacon hardware revision:${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}Note: Contact mode requires Rev H or later hardware.${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}Check your Beacon - revision is printed on the PCB.${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    
+    local current_rev="${WIZARD_STATE[beacon_revision]:-not set}"
+    echo -e "${BCYAN}${BOX_V}${NC}  Current: ${BWHITE}${current_rev}${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    
+    local revd_sel=$([[ "$current_rev" == "revd" ]] && echo "done" || echo "")
+    local revh_sel=$([[ "$current_rev" == "revh" ]] && echo "done" || echo "")
+    
+    print_menu_item "1" "$revd_sel" "Rev D or earlier" "Proximity mode only"
+    print_menu_item "2" "$revh_sel" "Rev H or later" "Contact mode supported"
+    
+    print_separator
+    print_action_item "B" "Back"
+    print_footer
+    
+    echo -en "${BYELLOW}Select revision${NC}: "
+    read -r choice
+    
+    case "$choice" in
+        1)
+            WIZARD_STATE[beacon_revision]="revd"
+            WIZARD_STATE[probe_mode]="proximity"
+            echo -e "${YELLOW}Rev D selected - using proximity mode (contact not supported)${NC}"
+            sleep 2
+            ;;
+        2)
+            WIZARD_STATE[beacon_revision]="revh"
+            WIZARD_STATE[probe_mode]="touch"
+            echo -e "${GREEN}✓${NC} Rev H selected - contact mode enabled"
+            sleep 1
+            ;;
+        [bB]) return ;;
+        *) ;;
+    esac
+    
     save_state
 }
 
@@ -6320,8 +6482,10 @@ menu_extras() {
         2)
             if [[ "${WIZARD_STATE[has_chamber_sensor]}" == "yes" ]]; then
                 WIZARD_STATE[has_chamber_sensor]=""
+                WIZARD_STATE[chamber_sensor_type]=""
             else
                 WIZARD_STATE[has_chamber_sensor]="yes"
+                select_chamber_sensor_type
             fi
             menu_extras  # Refresh
             ;;
@@ -6379,18 +6543,46 @@ menu_extras() {
 select_filament_sensor_type() {
     clear_screen
     print_header "Filament Sensor Type"
-    
+
     echo -e "${BCYAN}${BOX_V}${NC}  1) Simple Switch (runout only)"
     echo -e "${BCYAN}${BOX_V}${NC}  2) Motion Sensor (runout + jam detection)"
     print_footer
-    
+
     echo -en "${BYELLOW}Select type${NC}: "
     read -r choice
-    
+
     case "$choice" in
         1) WIZARD_STATE[filament_sensor_type]="switch" ;;
         2) WIZARD_STATE[filament_sensor_type]="motion" ;;
     esac
+}
+
+select_chamber_sensor_type() {
+    clear_screen
+    print_header "Chamber Thermistor Type"
+
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Select your chamber thermistor type:${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  1) Generic 3950 (most common)"
+    echo -e "${BCYAN}${BOX_V}${NC}  2) NTC 100K MGB18-104F39050L32"
+    echo -e "${BCYAN}${BOX_V}${NC}  3) ATC Semitec 104GT-2"
+    echo -e "${BCYAN}${BOX_V}${NC}  4) PT1000"
+    print_footer
+
+    echo -en "${BYELLOW}Select type${NC}: "
+    read -r choice
+
+    case "$choice" in
+        1) WIZARD_STATE[chamber_sensor_type]="Generic 3950" ;;
+        2) WIZARD_STATE[chamber_sensor_type]="NTC 100K MGB18-104F39050L32" ;;
+        3) WIZARD_STATE[chamber_sensor_type]="ATC Semitec 104GT-2" ;;
+        4) WIZARD_STATE[chamber_sensor_type]="PT1000" ;;
+        *) WIZARD_STATE[chamber_sensor_type]="Generic 3950" ;;
+    esac
+
+    echo -e "${GREEN}✓${NC} Chamber sensor type: ${WIZARD_STATE[chamber_sensor_type]}"
+    echo -e "${YELLOW}Note: Assign thermistor port in Hardware Setup${NC}"
+    sleep 1
 }
 
 select_camera_type() {

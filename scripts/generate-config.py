@@ -877,9 +877,16 @@ def generate_hardware_cfg(
     
     # Probe configuration
     probe_type = wizard_state.get('probe_type', '')
+    probe_mode = wizard_state.get('probe_mode', 'proximity')  # Default to proximity
     # Get probe serial/CAN - check wizard state first, then hardware state as fallback
     probe_serial = wizard_state.get('probe_serial', hardware_state.get('probe_serial'))
     probe_canbus_uuid = wizard_state.get('probe_canbus_uuid', hardware_state.get('probe_canbus_uuid'))
+    
+    # Get bed dimensions for homing position calculations
+    bed_x = int(wizard_state.get('bed_size_x', '300'))
+    bed_y = int(wizard_state.get('bed_size_y', '300'))
+    home_x = bed_x // 2
+    home_y = bed_y // 2
 
     if probe_type and probe_type != 'none' and probe_type != 'endstop':
         lines.append("# " + "─" * 77)
@@ -900,6 +907,26 @@ def generate_hardware_cfg(
             lines.append("y_offset: 20  # Adjust for your toolhead")
             lines.append("mesh_main_direction: x")
             lines.append("mesh_runs: 2")
+            
+            # Contact/Touch mode configuration for Beacon
+            if probe_mode == 'touch':
+                lines.append("")
+                lines.append("# Contact mode settings (Beacon Rev H+ required)")
+                lines.append("home_method: contact  # Use contact mode for Z homing")
+                lines.append(f"home_xy_position: {home_x}, {home_y}  # Center of bed")
+                lines.append("home_z_hop: 5")
+                lines.append("home_z_hop_speed: 30")
+                lines.append("home_xy_move_speed: 300")
+                lines.append("home_autocalibrate: unhomed  # Auto-calibrate on first home")
+                lines.append("contact_max_hotend_temperature: 180  # Safety limit for contact")
+                lines.append("")
+                lines.append("# Contact mode calibration")
+                lines.append("# Run BEACON_CALIBRATE_CONTACT after setup")
+            else:
+                lines.append("")
+                lines.append("# Proximity mode (default)")
+                lines.append("# Uses eddy current sensing for Z reference")
+                
         elif probe_type == 'cartographer':
             lines.append("[cartographer]")
             if probe_serial:
@@ -912,8 +939,34 @@ def generate_hardware_cfg(
                 lines.append("# Or for CAN: canbus_uuid: YOUR_CARTOGRAPHER_UUID")
             lines.append("x_offset: 0")
             lines.append("y_offset: 20  # Adjust for your toolhead")
-            lines.append("mesh_main_direction: x")
-            lines.append("mesh_runs: 2")
+            
+            # Touch mode configuration for Cartographer
+            if probe_mode == 'touch':
+                lines.append("")
+                lines.append("# Touch mode settings")
+                lines.append("calibration_method: touch")
+                lines.append("touch_location: {}, {}  # Center of bed".format(home_x, home_y))
+                lines.append("touch_z_offset: 0.05")
+                lines.append("touch_max_temp: 150  # Max hotend temp for touch")
+                lines.append("touch_speed: 3")
+                lines.append("touch_sample_count: 3")
+                lines.append("touch_retract_dist: 2")
+                lines.append("touch_retract_speed: 10")
+                lines.append("touch_move_speed: 150")
+                lines.append("")
+                lines.append("# Mesh still uses scan mode for speed")
+                lines.append("mesh_main_direction: x")
+                lines.append("mesh_runs: 2")
+                lines.append("")
+                lines.append("# Touch mode calibration")
+                lines.append("# Run CARTOGRAPHER_TOUCH_CALIBRATE after setup")
+            else:
+                lines.append("")
+                lines.append("# Scan/Proximity mode (default)")
+                lines.append("calibration_method: scan")
+                lines.append("mesh_main_direction: x")
+                lines.append("mesh_runs: 2")
+                
         elif probe_type == 'btt-eddy':
             lines.append("[mcu eddy]")
             if probe_serial:
@@ -935,6 +988,53 @@ def generate_hardware_cfg(
             lines.append("i2c_bus: i2c0f")
             lines.append("x_offset: 0")
             lines.append("y_offset: 20  # Adjust for your toolhead")
+            
+            # Touch mode configuration for BTT Eddy
+            if probe_mode == 'touch':
+                lines.append("")
+                lines.append("# Touch/Tap mode settings")
+                lines.append("# BTT Eddy uses tap detection for Z homing")
+                lines.append("z_offset: 0.0  # Adjust after PROBE_CALIBRATE")
+                lines.append("speed: 2  # Touch speed (mm/s)")
+                lines.append("lift_speed: 5")
+                lines.append("samples: 3")
+                lines.append("sample_retract_dist: 2")
+                lines.append("samples_result: median")
+                lines.append("")
+                lines.append("[safe_z_home]")
+                lines.append(f"home_xy_position: {home_x}, {home_y}")
+                lines.append("z_hop: 10")
+                lines.append("z_hop_speed: 25")
+                lines.append("speed: 150")
+                lines.append("")
+                lines.append("# Touch mode calibration")
+                lines.append("# Run PROBE_EDDY_CURRENT_CALIBRATE CHIP=btt_eddy")
+            else:
+                lines.append("")
+                lines.append("# Proximity/Scan mode (default)")
+                lines.append("# Uses eddy current induction for contactless sensing")
+                lines.append("z_offset: 1.0  # Standard proximity offset")
+                lines.append("speed: 40")
+                lines.append("lift_speed: 5")
+                lines.append("data_rate: 500")
+                lines.append("")
+                lines.append("[temperature_probe btt_eddy]")
+                lines.append("sensor_type: Generic 3950")
+                lines.append("sensor_pin: eddy:gpio26")
+                lines.append("horizontal_move_z: 2")
+                lines.append("")
+                lines.append("# Rapid scanning bed mesh")
+                lines.append("[bed_mesh]")
+                lines.append("horizontal_move_z: 2")
+                lines.append("speed: 400")
+                lines.append("probe_count: 9, 9")
+                lines.append("algorithm: bicubic")
+                lines.append("scan_overshoot: 8")
+                lines.append("")
+                lines.append("# Calibration commands:")
+                lines.append("# PROBE_EDDY_CURRENT_CALIBRATE CHIP=btt_eddy")
+                lines.append("# TEMPERATURE_PROBE_CALIBRATE PROBE=btt_eddy TARGET=70")
+                
         elif probe_type == 'bltouch':
             lines.append("[bltouch]")
             lines.append("sensor_pin: ^REPLACE_PIN  # Probe signal pin")
@@ -1099,8 +1199,13 @@ def generate_hardware_cfg(
 
     # Chamber temperature sensor
     has_chamber_sensor = wizard_state.get('has_chamber_sensor', '')
-    chamber_sensor_type = wizard_state.get('chamber_sensor_type', 'Generic 3950')
-    chamber_sensor_pin = wizard_state.get('chamber_sensor_pin', '')
+    chamber_sensor_type = wizard_state.get('chamber_sensor_type') or 'Generic 3950'
+    # Try hardware assignments first, then wizard state
+    chamber_port = assignments.get('thermistor_chamber', '')
+    if chamber_port:
+        chamber_sensor_pin = get_thermistor_pin(board, chamber_port)
+    else:
+        chamber_sensor_pin = wizard_state.get('chamber_sensor_pin', '')
 
     if has_chamber_sensor == 'yes':
         lines.append("# " + "─" * 77)
@@ -1109,9 +1214,9 @@ def generate_hardware_cfg(
         lines.append("[temperature_sensor chamber]")
         lines.append(f"sensor_type: {chamber_sensor_type}")
         if chamber_sensor_pin:
-            lines.append(f"sensor_pin: {chamber_sensor_pin}")
+            lines.append(f"sensor_pin: {chamber_sensor_pin}  # {chamber_port or 'direct pin'}")
         else:
-            lines.append("sensor_pin: REPLACE_PIN  # Chamber thermistor pin")
+            lines.append("sensor_pin: REPLACE_PIN  # Assign thermistor port in Hardware Setup")
         lines.append("min_temp: 0")
         lines.append("max_temp: 80")
         lines.append("gcode_id: C")
