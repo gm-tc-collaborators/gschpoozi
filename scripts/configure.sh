@@ -1894,12 +1894,16 @@ select_mcu_serial() {
 
 # Wizard state variables
 declare -A WIZARD_STATE
+declare -A HARDWARE_STATE
 
 # Hardware state file (from Python script)
 HARDWARE_STATE_FILE="${REPO_ROOT}/.hardware-state.json"
 
 # Load hardware state from JSON (created by setup-hardware.py)
 load_hardware_state() {
+    # Clear existing hardware state
+    HARDWARE_STATE=()
+
     if [[ -f "${HARDWARE_STATE_FILE}" ]]; then
         # Parse JSON using Python (guaranteed to be available)
         # Note: Use 'or' to handle None values properly
@@ -1908,6 +1912,8 @@ import json
 try:
     with open('${HARDWARE_STATE_FILE}') as f:
         data = json.load(f)
+
+    # Load board/toolboard info into WIZARD_STATE
     board_id = data.get('board_id') or ''
     board_name = data.get('board_name') or ''
     toolboard_id = data.get('toolboard_id') or ''
@@ -1916,6 +1922,17 @@ try:
     print(f\"WIZARD_STATE[board_name]='{board_name}'\")
     print(f\"WIZARD_STATE[toolboard]='{toolboard_id}'\")
     print(f\"WIZARD_STATE[toolboard_name]='{toolboard_name}'\")
+
+    # Load port_assignments into HARDWARE_STATE
+    port_assignments = data.get('port_assignments', {})
+    for key, value in port_assignments.items():
+        print(f\"HARDWARE_STATE[{key}]='{value}'\")
+
+    # Load toolboard_assignments into HARDWARE_STATE with toolboard_ prefix
+    toolboard_assignments = data.get('toolboard_assignments', {})
+    for key, value in toolboard_assignments.items():
+        print(f\"HARDWARE_STATE[toolboard_{key}]='{value}'\")
+
 except Exception as e:
     pass
 " 2>/dev/null)"
@@ -2066,6 +2083,12 @@ except:
             ;;
         extruder)
             [[ -n "${WIZARD_STATE[extruder_type]}" ]] && echo "done" || echo ""
+            ;;
+        hotend)
+            # Hotend is complete if thermistor is set AND heater port is assigned (mainboard or toolboard)
+            local has_thermistor="${WIZARD_STATE[hotend_thermistor]}"
+            local has_heater="${HARDWARE_STATE[heater_extruder]}${HARDWARE_STATE[toolboard_heater_extruder]}"
+            [[ -n "$has_thermistor" && -n "$has_heater" ]] && echo "done" || echo ""
             ;;
         bed)
             [[ -n "${WIZARD_STATE[bed_size_x]}" ]] && echo "done" || echo ""
@@ -2906,17 +2929,6 @@ menu_hotend() {
         clear_screen
         print_header "Hotend Configuration"
 
-        # Check if toolboard handles hotend
-        local has_toolboard="no"
-        local hotend_on_toolboard="no"
-        if [[ -n "${WIZARD_STATE[toolboard]}" && "${WIZARD_STATE[toolboard]}" != "none" ]]; then
-            has_toolboard="yes"
-            # Check if toolboard has hotend components assigned
-            if [[ -n "${HARDWARE_STATE[toolboard_heater_extruder]}" && "${HARDWARE_STATE[toolboard_heater_extruder]}" != "none" ]]; then
-                hotend_on_toolboard="yes"
-            fi
-        fi
-
         echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Hotend Settings:${NC}"
         echo -e "${BCYAN}${BOX_V}${NC}"
 
@@ -2936,18 +2948,30 @@ menu_hotend() {
         echo -e "${BCYAN}${BOX_V}${NC}"
         echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Port Assignment:${NC}"
 
-        if [[ "$hotend_on_toolboard" == "yes" ]]; then
-            echo -e "${BCYAN}${BOX_V}${NC}  ${GREEN}Hotend heater/thermistor on toolboard${NC}"
-            local heater_port="${HARDWARE_STATE[toolboard_heater_extruder]:-not set}"
-            local therm_port="${HARDWARE_STATE[toolboard_thermistor_extruder]:-not set}"
-            echo -e "${BCYAN}${BOX_V}${NC}    Heater: ${CYAN}toolboard:${heater_port}${NC}"
-            echo -e "${BCYAN}${BOX_V}${NC}    Thermistor: ${CYAN}toolboard:${therm_port}${NC}"
-        elif [[ -n "${WIZARD_STATE[board]}" ]]; then
-            local heater_status=$([[ -n "${HARDWARE_STATE[heater_extruder]}" ]] && echo "done" || echo "")
-            print_menu_item "3" "$heater_status" "Heater Port" "${HARDWARE_STATE[heater_extruder]:-not assigned}"
+        if [[ -n "${WIZARD_STATE[board]}" ]]; then
+            # Show heater port - check both mainboard and toolboard assignments
+            local heater_status=""
+            local heater_info="not assigned"
+            if [[ -n "${HARDWARE_STATE[toolboard_heater_extruder]}" ]]; then
+                heater_status="done"
+                heater_info="toolboard:${HARDWARE_STATE[toolboard_heater_extruder]}"
+            elif [[ -n "${HARDWARE_STATE[heater_extruder]}" ]]; then
+                heater_status="done"
+                heater_info="${HARDWARE_STATE[heater_extruder]}"
+            fi
+            print_menu_item "3" "$heater_status" "Heater Port" "$heater_info"
 
-            local therm_port_status=$([[ -n "${HARDWARE_STATE[thermistor_extruder]}" ]] && echo "done" || echo "")
-            print_menu_item "4" "$therm_port_status" "Thermistor Port" "${HARDWARE_STATE[thermistor_extruder]:-not assigned}"
+            # Show thermistor port - check both mainboard and toolboard assignments
+            local therm_status=""
+            local therm_info="not assigned"
+            if [[ -n "${HARDWARE_STATE[toolboard_thermistor_extruder]}" ]]; then
+                therm_status="done"
+                therm_info="toolboard:${HARDWARE_STATE[toolboard_thermistor_extruder]}"
+            elif [[ -n "${HARDWARE_STATE[thermistor_extruder]}" ]]; then
+                therm_status="done"
+                therm_info="${HARDWARE_STATE[thermistor_extruder]}"
+            fi
+            print_menu_item "4" "$therm_status" "Thermistor Port" "$therm_info"
         else
             echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}Select a main board first to assign ports${NC}"
         fi
@@ -2963,12 +2987,12 @@ menu_hotend() {
             1) menu_extruder_type ;;
             2) menu_hotend_thermistor ;;
             3)
-                if [[ -n "${WIZARD_STATE[board]}" && "$hotend_on_toolboard" != "yes" ]]; then
+                if [[ -n "${WIZARD_STATE[board]}" ]]; then
                     menu_hotend_heater_port
                 fi
                 ;;
             4)
-                if [[ -n "${WIZARD_STATE[board]}" && "$hotend_on_toolboard" != "yes" ]]; then
+                if [[ -n "${WIZARD_STATE[board]}" ]]; then
                     menu_hotend_thermistor_port
                 fi
                 ;;
@@ -3781,9 +3805,96 @@ menu_probe_can() {
 
 # Legacy probe menu - redirects to new endstops menu
 menu_probe() {
+    while true; do
+        clear_screen
+        print_header "Probe Configuration"
+
+        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Configure your Z probe:${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}"
+
+        # Current probe type
+        local probe_type="${WIZARD_STATE[probe_type]:-not selected}"
+        local type_status=$([[ -n "${WIZARD_STATE[probe_type]}" ]] && echo "done" || echo "")
+        print_menu_item "1" "$type_status" "Probe Type" "$probe_type"
+
+        # Show module installation status for probes that need it
+        local current_probe="${WIZARD_STATE[probe_type]}"
+        if [[ "$current_probe" =~ ^(beacon|cartographer|btt-eddy)$ ]]; then
+            echo -e "${BCYAN}${BOX_V}${NC}"
+            local install_status=""
+            local install_info=""
+            if is_probe_installed "$current_probe"; then
+                install_status="done"
+                install_info="${GREEN}installed${NC}"
+            else
+                install_info="${YELLOW}not installed${NC}"
+            fi
+            print_menu_item "2" "$install_status" "Install ${current_probe} Module" "$install_info"
+        fi
+
+        # Port/MCU assignment (for probes that need it)
+        if [[ -n "$current_probe" && "$current_probe" != "endstop" ]]; then
+            echo -e "${BCYAN}${BOX_V}${NC}"
+            local port_info=""
+            if [[ -n "${WIZARD_STATE[probe_serial]}" ]]; then
+                port_info="USB: ${WIZARD_STATE[probe_serial]}"
+            elif [[ -n "${WIZARD_STATE[probe_canbus_uuid]}" ]]; then
+                port_info="CAN: ${WIZARD_STATE[probe_canbus_uuid]}"
+            elif [[ -n "${HARDWARE_STATE[probe_pin]}" ]]; then
+                port_info="Pin: ${HARDWARE_STATE[probe_pin]}"
+            else
+                port_info="not configured"
+            fi
+            local port_status=$([[ "$port_info" != "not configured" ]] && echo "done" || echo "")
+            print_menu_item "3" "$port_status" "Connection / Port" "$port_info"
+        fi
+
+        # Z endstop position (only for physical endstop)
+        if [[ "$current_probe" == "endstop" ]]; then
+            echo -e "${BCYAN}${BOX_V}${NC}"
+            local endstop_pos="${WIZARD_STATE[z_endstop_position]:-not set}"
+            local endstop_status=$([[ -n "${WIZARD_STATE[z_endstop_position]}" ]] && echo "done" || echo "")
+            print_menu_item "3" "$endstop_status" "Z Endstop Position" "$endstop_pos"
+        fi
+
+        print_separator
+        print_action_item "B" "Back"
+        print_footer
+
+        echo -en "${BYELLOW}Select option${NC}: "
+        read -r choice
+
+        case "$choice" in
+            1) menu_probe_type_select ;;
+            2)
+                if [[ "$current_probe" =~ ^(beacon|cartographer|btt-eddy)$ ]]; then
+                    if is_probe_installed "$current_probe"; then
+                        echo -e "${GREEN}${current_probe} module is already installed.${NC}"
+                        sleep 1
+                    else
+                        if confirm "Install ${current_probe} module now?"; then
+                            install_probe_module "$current_probe"
+                            wait_for_key
+                        fi
+                    fi
+                fi
+                ;;
+            3)
+                if [[ "$current_probe" == "endstop" ]]; then
+                    menu_z_endstop_position
+                elif [[ -n "$current_probe" ]]; then
+                    menu_probe_port_or_mcu
+                fi
+                ;;
+            [bB]) return ;;
+        esac
+    done
+}
+
+menu_probe_type_select() {
     clear_screen
-    print_header "Probe Configuration"
-    
+    print_header "Select Probe Type"
+
     # Show installation status for probes that need modules
     local beacon_status="" carto_status="" eddy_status=""
     if is_probe_installed "beacon"; then
@@ -3801,59 +3912,71 @@ menu_probe() {
     else
         eddy_status="${YELLOW}[not installed]${NC}"
     fi
-    
+
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Standard Probes:${NC}"
     print_menu_item "1" "" "BLTouch / 3DTouch"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}2)${NC} [ ] Beacon (Eddy Current) ${beacon_status}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}3)${NC} [ ] Cartographer ${carto_status}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}4)${NC} [ ] BTT Eddy ${eddy_status}"
-    print_menu_item "5" "" "Klicky Probe"
-    print_menu_item "6" "" "Inductive Probe (PINDA/SuperPINDA)"
-    print_menu_item "7" "" "Physical Z Endstop (no probe)"
+    print_menu_item "2" "" "Klicky Probe"
+    print_menu_item "3" "" "Inductive Probe (PINDA/SuperPINDA)"
+    print_menu_item "4" "" "Physical Z Endstop (no probe)"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Eddy Current Probes (require module):${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}5)${NC} [ ] Beacon ${beacon_status}"
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}6)${NC} [ ] Cartographer ${carto_status}"
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}7)${NC} [ ] BTT Eddy ${eddy_status}"
     print_separator
     print_action_item "B" "Back"
     print_footer
-    
+
     echo -en "${BYELLOW}Select probe${NC}: "
     read -r choice
-    
-    local selected_probe=""
+
     case "$choice" in
-        1) WIZARD_STATE[probe_type]="bltouch" ;;
-        2) 
-            WIZARD_STATE[probe_type]="beacon"
-            selected_probe="beacon"
+        1)
+            WIZARD_STATE[probe_type]="bltouch"
+            echo -e "${GREEN}✓${NC} BLTouch selected"
+            sleep 1
             ;;
-        3) 
-            WIZARD_STATE[probe_type]="cartographer"
-            selected_probe="cartographer"
+        2)
+            WIZARD_STATE[probe_type]="klicky"
+            echo -e "${GREEN}✓${NC} Klicky Probe selected"
+            sleep 1
             ;;
-        4) 
-            WIZARD_STATE[probe_type]="btt-eddy"
-            selected_probe="btt-eddy"
+        3)
+            WIZARD_STATE[probe_type]="inductive"
+            echo -e "${GREEN}✓${NC} Inductive Probe selected"
+            sleep 1
             ;;
-        5) WIZARD_STATE[probe_type]="klicky" ;;
-        6) WIZARD_STATE[probe_type]="inductive" ;;
-        7) 
+        4)
             WIZARD_STATE[probe_type]="endstop"
-            # Prompt for Z endstop position since using physical endstop
-            menu_z_endstop_position
+            echo -e "${GREEN}✓${NC} Physical Z Endstop selected"
+            sleep 1
+            ;;
+        5)
+            WIZARD_STATE[probe_type]="beacon"
+            echo -e "${GREEN}✓${NC} Beacon selected"
+            if ! is_probe_installed "beacon"; then
+                echo -e "${YELLOW}Note: Module not installed. Use option 2 to install when ready.${NC}"
+            fi
+            sleep 1
+            ;;
+        6)
+            WIZARD_STATE[probe_type]="cartographer"
+            echo -e "${GREEN}✓${NC} Cartographer selected"
+            if ! is_probe_installed "cartographer"; then
+                echo -e "${YELLOW}Note: Module not installed. Use option 2 to install when ready.${NC}"
+            fi
+            sleep 1
+            ;;
+        7)
+            WIZARD_STATE[probe_type]="btt-eddy"
+            echo -e "${GREEN}✓${NC} BTT Eddy selected"
+            if ! is_probe_installed "btt-eddy"; then
+                echo -e "${YELLOW}Note: Module not installed. Use option 2 to install when ready.${NC}"
+            fi
+            sleep 1
             ;;
         [bB]) return ;;
-        *) return ;;
     esac
-    
-    # If selected probe needs installation, offer to install it
-    if [[ -n "$selected_probe" ]] && ! is_probe_installed "$selected_probe"; then
-        echo ""
-        echo -e "${YELLOW}The ${selected_probe} probe requires additional software.${NC}"
-        if confirm "Install ${selected_probe} module now?"; then
-            install_probe_module "$selected_probe"
-            wait_for_key
-        else
-            echo -e "${YELLOW}Note: You'll need to install ${selected_probe} manually before using it.${NC}"
-            wait_for_key
-        fi
-    fi
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -3868,61 +3991,66 @@ menu_fans() {
         echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Configure your printer's fans:${NC}"
         echo -e "${BCYAN}${BOX_V}${NC}"
         
-        # Show current fan configurations
-        local pc_status=$([[ -n "${WIZARD_STATE[fan_part_cooling]}" ]] && echo "[✓]" || echo "[ ]")
-        local he_status=$([[ -n "${WIZARD_STATE[fan_hotend]}" ]] && echo "[✓]" || echo "[ ]")
-        local cf_status=$([[ -n "${WIZARD_STATE[fan_controller]}" ]] && echo "[✓]" || echo "[ ]")
-        local ex_status=$([[ -n "${WIZARD_STATE[fan_exhaust]}" ]] && echo "[✓]" || echo "[ ]")
-        local ch_status=$([[ -n "${WIZARD_STATE[fan_chamber]}" ]] && echo "[✓]" || echo "[ ]")
-        local rs_status=$([[ -n "${WIZARD_STATE[fan_rscs]}" ]] && echo "[✓]" || echo "[ ]")
-        local rd_status=$([[ -n "${WIZARD_STATE[fan_radiator]}" ]] && echo "[✓]" || echo "[ ]")
-        
-        # Helper function to show multi-pin status
-        show_multipin() {
-            [[ "${1}" == "yes" ]] && echo " ${YELLOW}(multi-pin)${NC}" || echo ""
+        # Helper function to get fan port info
+        get_fan_port_info() {
+            local fan_key="$1"
+            local port=""
+            if [[ -n "${HARDWARE_STATE[toolboard_${fan_key}]}" ]]; then
+                port="toolboard:${HARDWARE_STATE[toolboard_${fan_key}]}"
+            elif [[ -n "${HARDWARE_STATE[${fan_key}]}" ]]; then
+                port="${HARDWARE_STATE[${fan_key}]}"
+            fi
+            # Check for multi-pin
+            if [[ -n "${HARDWARE_STATE[${fan_key}_2]}" ]]; then
+                port="${port} (multi-pin)"
+            fi
+            echo "${port:-not configured}"
         }
-        
+
+        # Helper function to get fan status
+        get_fan_status() {
+            local fan_key="$1"
+            if [[ -n "${HARDWARE_STATE[toolboard_${fan_key}]}" ]] || [[ -n "${HARDWARE_STATE[${fan_key}]}" ]]; then
+                echo "[✓]"
+            else
+                echo "[ ]"
+            fi
+        }
+
         # Display fan type descriptions
         echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Essential Fans:${NC}"
-        local pc_info="${WIZARD_STATE[fan_part_cooling]:-not configured}"
-        [[ "${WIZARD_STATE[fan_part_cooling]}" == "none" ]] && pc_info="none (remote blower)"
-        [[ "${WIZARD_STATE[fan_part_cooling_multipin]}" == "yes" ]] && pc_info="${pc_info} (multi-pin)"
+        local pc_status=$(get_fan_status "fan_part_cooling")
+        local pc_info=$(get_fan_port_info "fan_part_cooling")
         echo -e "${BCYAN}${BOX_V}${NC}  ${GREEN}1)${NC} ${pc_status} Part Cooling Fan [fan] - ${CYAN}${pc_info}${NC}"
-        
-        local he_info="${WIZARD_STATE[fan_hotend]:-not configured}"
-        [[ "${WIZARD_STATE[fan_hotend]}" == "none" ]] && he_info="none (water cooled)"
-        [[ "${WIZARD_STATE[fan_hotend_multipin]}" == "yes" ]] && he_info="${he_info} (multi-pin)"
+
+        local he_status=$(get_fan_status "fan_hotend")
+        local he_info=$(get_fan_port_info "fan_hotend")
         echo -e "${BCYAN}${BOX_V}${NC}  ${GREEN}2)${NC} ${he_status} Hotend Fan [heater_fan] - ${CYAN}${he_info}${NC}"
-        
-        local cf_info="${WIZARD_STATE[fan_controller]:-not configured}"
-        [[ "${WIZARD_STATE[fan_controller]}" == "none" ]] && cf_info="none (passive cooling)"
-        [[ "${WIZARD_STATE[fan_controller_multipin]}" == "yes" ]] && cf_info="${cf_info} (multi-pin)"
+
+        local cf_status=$(get_fan_status "fan_controller")
+        local cf_info=$(get_fan_port_info "fan_controller")
         echo -e "${BCYAN}${BOX_V}${NC}  ${GREEN}3)${NC} ${cf_status} Controller Fan [controller_fan] - ${CYAN}${cf_info}${NC}"
-        
+
         echo -e "${BCYAN}${BOX_V}${NC}"
         echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Optional Fans:${NC}"
-        
-        local ex_info="${WIZARD_STATE[fan_exhaust]:-not configured}"
-        [[ "${WIZARD_STATE[fan_exhaust]}" == "none" ]] && ex_info="disabled"
-        [[ "${WIZARD_STATE[fan_exhaust_multipin]}" == "yes" ]] && ex_info="${ex_info} (multi-pin)"
+
+        local ex_status=$(get_fan_status "fan_exhaust")
+        local ex_info=$(get_fan_port_info "fan_exhaust")
         echo -e "${BCYAN}${BOX_V}${NC}  ${GREEN}4)${NC} ${ex_status} Exhaust Fan [fan_generic] - ${CYAN}${ex_info}${NC}"
-        
-        local ch_info="${WIZARD_STATE[fan_chamber]:-not configured}"
+
+        local ch_status=$(get_fan_status "fan_chamber")
+        local ch_info=$(get_fan_port_info "fan_chamber")
         if [[ "${WIZARD_STATE[fan_chamber_type]}" == "temperature" ]]; then
-            ch_info="${ch_info} (temp @ ${WIZARD_STATE[fan_chamber_target_temp]:-45}°C)"
+            ch_info="${ch_info} (temp-controlled)"
         fi
-        [[ "${WIZARD_STATE[fan_chamber]}" == "none" ]] && ch_info="disabled"
-        [[ "${WIZARD_STATE[fan_chamber_multipin]}" == "yes" ]] && ch_info="${ch_info} (multi-pin)"
         echo -e "${BCYAN}${BOX_V}${NC}  ${GREEN}5)${NC} ${ch_status} Chamber Fan [fan_generic/temperature_fan] - ${CYAN}${ch_info}${NC}"
-        
-        local rs_info="${WIZARD_STATE[fan_rscs]:-not configured}"
-        [[ "${WIZARD_STATE[fan_rscs]}" == "none" ]] && rs_info="disabled"
-        [[ "${WIZARD_STATE[fan_rscs_multipin]}" == "yes" ]] && rs_info="${rs_info} (multi-pin)"
+
+        local rs_status=$(get_fan_status "fan_rscs")
+        local rs_info=$(get_fan_port_info "fan_rscs")
         echo -e "${BCYAN}${BOX_V}${NC}  ${GREEN}6)${NC} ${rs_status} RSCS/Filter Fan [fan_generic] - ${CYAN}${rs_info}${NC}"
-        
-        local rd_info="${WIZARD_STATE[fan_radiator]:-not configured}"
-        [[ "${WIZARD_STATE[fan_radiator]}" == "none" ]] && rd_info="disabled"
-        [[ "${WIZARD_STATE[fan_radiator_multipin]}" == "yes" ]] && rd_info="${rd_info} (multi-pin)"
+
+        local rd_status=$(get_fan_status "fan_radiator")
+        local rd_info=$(get_fan_port_info "fan_radiator")
         echo -e "${BCYAN}${BOX_V}${NC}  ${GREEN}7)${NC} ${rd_status} Radiator Fan [heater_fan] - ${CYAN}${rd_info}${NC}"
         
         print_separator
@@ -3957,39 +4085,27 @@ menu_fan_part_cooling() {
         echo -e "${BCYAN}${BOX_V}${NC}  This is the main print cooling fan."
         echo -e "${BCYAN}${BOX_V}${NC}"
 
-        # Check if on toolboard
-        local has_toolboard="no"
-        local fan_on_toolboard="no"
-        if [[ -n "${WIZARD_STATE[toolboard]}" && "${WIZARD_STATE[toolboard]}" != "none" ]]; then
-            has_toolboard="yes"
-            if [[ -n "${HARDWARE_STATE[toolboard_fan_part_cooling]}" ]]; then
-                fan_on_toolboard="yes"
-            fi
+        # Determine current port assignment (toolboard or mainboard)
+        local primary_port=""
+        local secondary_port=""
+        if [[ -n "${HARDWARE_STATE[toolboard_fan_part_cooling]}" ]]; then
+            primary_port="toolboard:${HARDWARE_STATE[toolboard_fan_part_cooling]}"
+        elif [[ -n "${HARDWARE_STATE[fan_part_cooling]}" ]]; then
+            primary_port="${HARDWARE_STATE[fan_part_cooling]}"
         fi
+        [[ -n "${HARDWARE_STATE[fan_part_cooling_2]}" ]] && secondary_port="${HARDWARE_STATE[fan_part_cooling_2]}"
 
-        # Current status
-        local status_info="${WIZARD_STATE[fan_part_cooling]:-not configured}"
-        [[ "${WIZARD_STATE[fan_part_cooling_multipin]}" == "yes" ]] && status_info="${status_info} (multi-pin)"
-        echo -e "${BCYAN}${BOX_V}${NC}  Current: ${CYAN}${status_info}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        # Display current status
+        local primary_status=$([[ -n "$primary_port" ]] && echo "done" || echo "")
+        local primary_info="${primary_port:-not assigned}"
+        print_menu_item "1" "$primary_status" "Fan Port" "$primary_info"
 
-        print_menu_item "1" "" "Enable - single fan"
-        print_menu_item "2" "" "Enable - multi-pin (2+ fans on same control)"
-        print_menu_item "3" "" "None - using remote blower on mainboard"
-
-        # Port assignment option
-        if [[ "${WIZARD_STATE[fan_part_cooling]}" == "enabled" ]]; then
-            echo -e "${BCYAN}${BOX_V}${NC}"
-            if [[ "$fan_on_toolboard" == "yes" ]]; then
-                echo -e "${BCYAN}${BOX_V}${NC}  Port: ${GREEN}toolboard:${HARDWARE_STATE[toolboard_fan_part_cooling]}${NC}"
-            elif [[ -n "${WIZARD_STATE[board]}" ]]; then
-                local port_info="${HARDWARE_STATE[fan_part_cooling]:-not assigned}"
-                [[ "${WIZARD_STATE[fan_part_cooling_multipin]}" == "yes" && -n "${HARDWARE_STATE[fan_part_cooling_2]}" ]] && port_info="${port_info}, ${HARDWARE_STATE[fan_part_cooling_2]}"
-                print_menu_item "P" "" "Assign Port(s)" "${port_info}"
-            fi
-        fi
+        local secondary_status=$([[ -n "$secondary_port" ]] && echo "done" || echo "")
+        local secondary_info="${secondary_port:-not set}"
+        print_menu_item "2" "$secondary_status" "Multi-pin (2nd fan)" "$secondary_info"
 
         print_separator
+        print_action_item "C" "Clear (disable fan)"
         print_action_item "B" "Back"
         print_footer
 
@@ -3998,27 +4114,33 @@ menu_fan_part_cooling() {
 
         case "$choice" in
             1)
-                WIZARD_STATE[fan_part_cooling]="enabled"
-                WIZARD_STATE[fan_part_cooling_multipin]=""
-                echo -e "${GREEN}✓${NC} Part cooling fan enabled (single)"
-                sleep 1
+                if [[ -n "${WIZARD_STATE[board]}" ]]; then
+                    save_state
+                    python3 "${SCRIPT_DIR}/setup-hardware.py" --fan "fan_part_cooling"
+                    load_hardware_state
+                else
+                    echo -e "${YELLOW}Select a main board first${NC}"
+                    sleep 1
+                fi
                 ;;
             2)
-                WIZARD_STATE[fan_part_cooling]="enabled"
-                WIZARD_STATE[fan_part_cooling_multipin]="yes"
-                echo -e "${GREEN}✓${NC} Part cooling enabled (multi-pin)"
-                sleep 1
-                ;;
-            3)
-                WIZARD_STATE[fan_part_cooling]="none"
-                WIZARD_STATE[fan_part_cooling_multipin]=""
-                echo -e "${GREEN}✓${NC} Part cooling set to none (remote blower)"
-                sleep 1
-                ;;
-            [pP])
-                if [[ "${WIZARD_STATE[fan_part_cooling]}" == "enabled" && -n "${WIZARD_STATE[board]}" ]]; then
-                    menu_fan_port_assign "fan_part_cooling" "Part Cooling"
+                if [[ -n "${WIZARD_STATE[board]}" ]]; then
+                    save_state
+                    python3 "${SCRIPT_DIR}/setup-hardware.py" --fan-multipin "fan_part_cooling"
+                    load_hardware_state
+                else
+                    echo -e "${YELLOW}Select a main board first${NC}"
+                    sleep 1
                 fi
+                ;;
+            [cC])
+                # Clear fan assignment via Python script
+                save_state
+                python3 "${SCRIPT_DIR}/setup-hardware.py" --clear-port "fan_part_cooling"
+                python3 "${SCRIPT_DIR}/setup-hardware.py" --clear-port "fan_part_cooling_2"
+                load_hardware_state
+                echo -e "${GREEN}✓${NC} Part cooling fan cleared"
+                sleep 1
                 ;;
             [bB]) return ;;
         esac
@@ -4054,34 +4176,27 @@ menu_fan_hotend() {
         echo -e "${BCYAN}${BOX_V}${NC}  Automatically turns on above heater_temp threshold."
         echo -e "${BCYAN}${BOX_V}${NC}"
 
-        # Check if on toolboard
-        local fan_on_toolboard="no"
-        if [[ -n "${WIZARD_STATE[toolboard]}" && "${WIZARD_STATE[toolboard]}" != "none" ]]; then
-            if [[ -n "${HARDWARE_STATE[toolboard_fan_hotend]}" ]]; then
-                fan_on_toolboard="yes"
-            fi
+        # Determine current port assignment (toolboard or mainboard)
+        local primary_port=""
+        local secondary_port=""
+        if [[ -n "${HARDWARE_STATE[toolboard_fan_hotend]}" ]]; then
+            primary_port="toolboard:${HARDWARE_STATE[toolboard_fan_hotend]}"
+        elif [[ -n "${HARDWARE_STATE[fan_hotend]}" ]]; then
+            primary_port="${HARDWARE_STATE[fan_hotend]}"
         fi
+        [[ -n "${HARDWARE_STATE[fan_hotend_2]}" ]] && secondary_port="${HARDWARE_STATE[fan_hotend_2]}"
 
-        # Current status
-        echo -e "${BCYAN}${BOX_V}${NC}  Current: ${CYAN}${WIZARD_STATE[fan_hotend]:-not configured}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        # Display current status
+        local primary_status=$([[ -n "$primary_port" ]] && echo "done" || echo "")
+        local primary_info="${primary_port:-not assigned}"
+        print_menu_item "1" "$primary_status" "Fan Port" "$primary_info"
 
-        print_menu_item "1" "" "Enable - standard hotend fan"
-        print_menu_item "2" "" "Enable - multi-pin (2+ fans)"
-        print_menu_item "3" "" "None - water cooled hotend"
-
-        # Port assignment option
-        if [[ "${WIZARD_STATE[fan_hotend]}" == "enabled" ]]; then
-            echo -e "${BCYAN}${BOX_V}${NC}"
-            if [[ "$fan_on_toolboard" == "yes" ]]; then
-                echo -e "${BCYAN}${BOX_V}${NC}  Port: ${GREEN}toolboard:${HARDWARE_STATE[toolboard_fan_hotend]}${NC}"
-            elif [[ -n "${WIZARD_STATE[board]}" ]]; then
-                local port_info="${HARDWARE_STATE[fan_hotend]:-not assigned}"
-                print_menu_item "P" "" "Assign Port(s)" "${port_info}"
-            fi
-        fi
+        local secondary_status=$([[ -n "$secondary_port" ]] && echo "done" || echo "")
+        local secondary_info="${secondary_port:-not set}"
+        print_menu_item "2" "$secondary_status" "Multi-pin (2nd fan)" "$secondary_info"
 
         print_separator
+        print_action_item "C" "Clear (disable fan)"
         print_action_item "B" "Back"
         print_footer
 
@@ -4090,27 +4205,32 @@ menu_fan_hotend() {
 
         case "$choice" in
             1)
-                WIZARD_STATE[fan_hotend]="enabled"
-                WIZARD_STATE[fan_hotend_multipin]=""
-                echo -e "${GREEN}✓${NC} Hotend fan enabled"
-                sleep 1
+                if [[ -n "${WIZARD_STATE[board]}" ]]; then
+                    save_state
+                    python3 "${SCRIPT_DIR}/setup-hardware.py" --fan "fan_hotend"
+                    load_hardware_state
+                else
+                    echo -e "${YELLOW}Select a main board first${NC}"
+                    sleep 1
+                fi
                 ;;
             2)
-                WIZARD_STATE[fan_hotend]="enabled"
-                WIZARD_STATE[fan_hotend_multipin]="yes"
-                echo -e "${GREEN}✓${NC} Hotend fan enabled (multi-pin)"
-                sleep 1
-                ;;
-            3)
-                WIZARD_STATE[fan_hotend]="none"
-                WIZARD_STATE[fan_hotend_multipin]=""
-                echo -e "${GREEN}✓${NC} Hotend fan disabled (water cooled)"
-                sleep 1
-                ;;
-            [pP])
-                if [[ "${WIZARD_STATE[fan_hotend]}" == "enabled" && -n "${WIZARD_STATE[board]}" ]]; then
-                    menu_fan_port_assign "fan_hotend" "Hotend"
+                if [[ -n "${WIZARD_STATE[board]}" ]]; then
+                    save_state
+                    python3 "${SCRIPT_DIR}/setup-hardware.py" --fan-multipin "fan_hotend"
+                    load_hardware_state
+                else
+                    echo -e "${YELLOW}Select a main board first${NC}"
+                    sleep 1
                 fi
+                ;;
+            [cC])
+                save_state
+                python3 "${SCRIPT_DIR}/setup-hardware.py" --clear-port "fan_hotend"
+                python3 "${SCRIPT_DIR}/setup-hardware.py" --clear-port "fan_hotend_2"
+                load_hardware_state
+                echo -e "${GREEN}✓${NC} Hotend fan cleared"
+                sleep 1
                 ;;
             [bB]) return ;;
         esac
@@ -4126,25 +4246,21 @@ menu_fan_controller() {
         echo -e "${BCYAN}${BOX_V}${NC}  Runs when steppers or heaters are active."
         echo -e "${BCYAN}${BOX_V}${NC}"
 
-        # Current status
-        local status_info="${WIZARD_STATE[fan_controller]:-not configured}"
-        [[ "${WIZARD_STATE[fan_controller_multipin]}" == "yes" ]] && status_info="${status_info} (multi-pin)"
-        echo -e "${BCYAN}${BOX_V}${NC}  Current: ${CYAN}${status_info}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        # Determine current port assignment
+        local primary_port="${HARDWARE_STATE[fan_controller]}"
+        local secondary_port="${HARDWARE_STATE[fan_controller_2]}"
 
-        print_menu_item "1" "" "Enable - single fan"
-        print_menu_item "2" "" "Enable - multi-pin (2+ fans on same control)"
-        print_menu_item "3" "" "None - passive cooling or always-on fan"
+        # Display current status
+        local primary_status=$([[ -n "$primary_port" ]] && echo "done" || echo "")
+        local primary_info="${primary_port:-not assigned}"
+        print_menu_item "1" "$primary_status" "Fan Port" "$primary_info"
 
-        # Port assignment option
-        if [[ "${WIZARD_STATE[fan_controller]}" == "enabled" && -n "${WIZARD_STATE[board]}" ]]; then
-            echo -e "${BCYAN}${BOX_V}${NC}"
-            local port_info="${HARDWARE_STATE[fan_controller]:-not assigned}"
-            [[ "${WIZARD_STATE[fan_controller_multipin]}" == "yes" && -n "${HARDWARE_STATE[fan_controller_2]}" ]] && port_info="${port_info}, ${HARDWARE_STATE[fan_controller_2]}"
-            print_menu_item "P" "" "Assign Port(s)" "${port_info}"
-        fi
+        local secondary_status=$([[ -n "$secondary_port" ]] && echo "done" || echo "")
+        local secondary_info="${secondary_port:-not set}"
+        print_menu_item "2" "$secondary_status" "Multi-pin (2nd fan)" "$secondary_info"
 
         print_separator
+        print_action_item "C" "Clear (disable fan)"
         print_action_item "B" "Back"
         print_footer
 
@@ -4153,27 +4269,32 @@ menu_fan_controller() {
 
         case "$choice" in
             1)
-                WIZARD_STATE[fan_controller]="enabled"
-                WIZARD_STATE[fan_controller_multipin]=""
-                echo -e "${GREEN}✓${NC} Controller fan enabled (single)"
-                sleep 1
+                if [[ -n "${WIZARD_STATE[board]}" ]]; then
+                    save_state
+                    python3 "${SCRIPT_DIR}/setup-hardware.py" --fan "fan_controller"
+                    load_hardware_state
+                else
+                    echo -e "${YELLOW}Select a main board first${NC}"
+                    sleep 1
+                fi
                 ;;
             2)
-                WIZARD_STATE[fan_controller]="enabled"
-                WIZARD_STATE[fan_controller_multipin]="yes"
-                echo -e "${GREEN}✓${NC} Controller fan enabled (multi-pin)"
-                sleep 1
-                ;;
-            3)
-                WIZARD_STATE[fan_controller]="none"
-                WIZARD_STATE[fan_controller_multipin]=""
-                echo -e "${GREEN}✓${NC} Controller fan disabled"
-                sleep 1
-                ;;
-            [pP])
-                if [[ "${WIZARD_STATE[fan_controller]}" == "enabled" && -n "${WIZARD_STATE[board]}" ]]; then
-                    menu_fan_port_assign "fan_controller" "Controller"
+                if [[ -n "${WIZARD_STATE[board]}" ]]; then
+                    save_state
+                    python3 "${SCRIPT_DIR}/setup-hardware.py" --fan-multipin "fan_controller"
+                    load_hardware_state
+                else
+                    echo -e "${YELLOW}Select a main board first${NC}"
+                    sleep 1
                 fi
+                ;;
+            [cC])
+                save_state
+                python3 "${SCRIPT_DIR}/setup-hardware.py" --clear-port "fan_controller"
+                python3 "${SCRIPT_DIR}/setup-hardware.py" --clear-port "fan_controller_2"
+                load_hardware_state
+                echo -e "${GREEN}✓${NC} Controller fan cleared"
+                sleep 1
                 ;;
             [bB]) return ;;
         esac
@@ -4189,25 +4310,21 @@ menu_fan_exhaust() {
         echo -e "${BCYAN}${BOX_V}${NC}  Manually controlled via SET_FAN_SPEED FAN=exhaust_fan SPEED=x"
         echo -e "${BCYAN}${BOX_V}${NC}"
 
-        # Current status
-        local status_info="${WIZARD_STATE[fan_exhaust]:-not configured}"
-        [[ "${WIZARD_STATE[fan_exhaust_multipin]}" == "yes" ]] && status_info="${status_info} (multi-pin)"
-        echo -e "${BCYAN}${BOX_V}${NC}  Current: ${CYAN}${status_info}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        # Determine current port assignment
+        local primary_port="${HARDWARE_STATE[fan_exhaust]}"
+        local secondary_port="${HARDWARE_STATE[fan_exhaust_2]}"
 
-        print_menu_item "1" "" "Enable - single fan"
-        print_menu_item "2" "" "Enable - multi-pin (2+ fans on same control)"
-        print_menu_item "3" "" "None - no exhaust fan"
+        # Display current status
+        local primary_status=$([[ -n "$primary_port" ]] && echo "done" || echo "")
+        local primary_info="${primary_port:-not assigned}"
+        print_menu_item "1" "$primary_status" "Fan Port" "$primary_info"
 
-        # Port assignment option
-        if [[ "${WIZARD_STATE[fan_exhaust]}" == "enabled" && -n "${WIZARD_STATE[board]}" ]]; then
-            echo -e "${BCYAN}${BOX_V}${NC}"
-            local port_info="${HARDWARE_STATE[fan_exhaust]:-not assigned}"
-            [[ "${WIZARD_STATE[fan_exhaust_multipin]}" == "yes" && -n "${HARDWARE_STATE[fan_exhaust_2]}" ]] && port_info="${port_info}, ${HARDWARE_STATE[fan_exhaust_2]}"
-            print_menu_item "P" "" "Assign Port(s)" "${port_info}"
-        fi
+        local secondary_status=$([[ -n "$secondary_port" ]] && echo "done" || echo "")
+        local secondary_info="${secondary_port:-not set}"
+        print_menu_item "2" "$secondary_status" "Multi-pin (2nd fan)" "$secondary_info"
 
         print_separator
+        print_action_item "C" "Clear (disable fan)"
         print_action_item "B" "Back"
         print_footer
 
@@ -4216,27 +4333,32 @@ menu_fan_exhaust() {
 
         case "$choice" in
             1)
-                WIZARD_STATE[fan_exhaust]="enabled"
-                WIZARD_STATE[fan_exhaust_multipin]=""
-                echo -e "${GREEN}✓${NC} Exhaust fan enabled (single)"
-                sleep 1
+                if [[ -n "${WIZARD_STATE[board]}" ]]; then
+                    save_state
+                    python3 "${SCRIPT_DIR}/setup-hardware.py" --fan "fan_exhaust"
+                    load_hardware_state
+                else
+                    echo -e "${YELLOW}Select a main board first${NC}"
+                    sleep 1
+                fi
                 ;;
             2)
-                WIZARD_STATE[fan_exhaust]="enabled"
-                WIZARD_STATE[fan_exhaust_multipin]="yes"
-                echo -e "${GREEN}✓${NC} Exhaust fan enabled (multi-pin)"
-                sleep 1
-                ;;
-            3)
-                WIZARD_STATE[fan_exhaust]="none"
-                WIZARD_STATE[fan_exhaust_multipin]=""
-                echo -e "${GREEN}✓${NC} Exhaust fan disabled"
-                sleep 1
-                ;;
-            [pP])
-                if [[ "${WIZARD_STATE[fan_exhaust]}" == "enabled" && -n "${WIZARD_STATE[board]}" ]]; then
-                    menu_fan_port_assign "fan_exhaust" "Exhaust"
+                if [[ -n "${WIZARD_STATE[board]}" ]]; then
+                    save_state
+                    python3 "${SCRIPT_DIR}/setup-hardware.py" --fan-multipin "fan_exhaust"
+                    load_hardware_state
+                else
+                    echo -e "${YELLOW}Select a main board first${NC}"
+                    sleep 1
                 fi
+                ;;
+            [cC])
+                save_state
+                python3 "${SCRIPT_DIR}/setup-hardware.py" --clear-port "fan_exhaust"
+                python3 "${SCRIPT_DIR}/setup-hardware.py" --clear-port "fan_exhaust_2"
+                load_hardware_state
+                echo -e "${GREEN}✓${NC} Exhaust fan cleared"
+                sleep 1
                 ;;
             [bB]) return ;;
         esac
@@ -4252,28 +4374,29 @@ menu_fan_chamber() {
         echo -e "${BCYAN}${BOX_V}${NC}  Can be manual or temperature-controlled."
         echo -e "${BCYAN}${BOX_V}${NC}"
 
-        # Current status
-        local status_info="${WIZARD_STATE[fan_chamber]:-not configured}"
-        [[ "${WIZARD_STATE[fan_chamber_type]}" == "temperature" ]] && status_info="${status_info} (temp: ${WIZARD_STATE[fan_chamber_target_temp]:-45}°C)"
-        [[ "${WIZARD_STATE[fan_chamber_multipin]}" == "yes" ]] && status_info="${status_info} (multi-pin)"
-        echo -e "${BCYAN}${BOX_V}${NC}  Current: ${CYAN}${status_info}${NC}"
+        # Determine current port assignment
+        local primary_port="${HARDWARE_STATE[fan_chamber]}"
+        local secondary_port="${HARDWARE_STATE[fan_chamber_2]}"
+
+        # Display current status
+        local primary_status=$([[ -n "$primary_port" ]] && echo "done" || echo "")
+        local primary_info="${primary_port:-not assigned}"
+        print_menu_item "1" "$primary_status" "Fan Port" "$primary_info"
+
+        local secondary_status=$([[ -n "$secondary_port" ]] && echo "done" || echo "")
+        local secondary_info="${secondary_port:-not set}"
+        print_menu_item "2" "$secondary_status" "Multi-pin (2nd fan)" "$secondary_info"
+
         echo -e "${BCYAN}${BOX_V}${NC}"
 
-        print_menu_item "1" "" "Manual [fan_generic] - single fan"
-        print_menu_item "2" "" "Manual [fan_generic] - multi-pin (2+ fans)"
-        print_menu_item "3" "" "Temperature controlled [temperature_fan] - single"
-        print_menu_item "4" "" "Temperature controlled [temperature_fan] - multi-pin"
-        print_menu_item "5" "" "None - no chamber fan"
-
-        # Port assignment option
-        if [[ "${WIZARD_STATE[fan_chamber]}" == "enabled" && -n "${WIZARD_STATE[board]}" ]]; then
-            echo -e "${BCYAN}${BOX_V}${NC}"
-            local port_info="${HARDWARE_STATE[fan_chamber]:-not assigned}"
-            [[ "${WIZARD_STATE[fan_chamber_multipin]}" == "yes" && -n "${HARDWARE_STATE[fan_chamber_2]}" ]] && port_info="${port_info}, ${HARDWARE_STATE[fan_chamber_2]}"
-            print_menu_item "P" "" "Assign Port(s)" "${port_info}"
-        fi
+        # Fan type/mode selection (only relevant if port is assigned)
+        local type_status=$([[ -n "${WIZARD_STATE[fan_chamber_type]}" ]] && echo "done" || echo "")
+        local type_info="${WIZARD_STATE[fan_chamber_type]:-manual}"
+        [[ "$type_info" == "temperature" ]] && type_info="temp-controlled (${WIZARD_STATE[fan_chamber_target_temp]:-45}°C)"
+        print_menu_item "3" "$type_status" "Control Mode" "$type_info"
 
         print_separator
+        print_action_item "C" "Clear (disable fan)"
         print_action_item "B" "Back"
         print_footer
 
@@ -4282,46 +4405,73 @@ menu_fan_chamber() {
 
         case "$choice" in
             1)
-                WIZARD_STATE[fan_chamber]="enabled"
-                WIZARD_STATE[fan_chamber_type]="manual"
-                WIZARD_STATE[fan_chamber_multipin]=""
-                echo -e "${GREEN}✓${NC} Chamber fan enabled (manual, single)"
-                sleep 1
+                if [[ -n "${WIZARD_STATE[board]}" ]]; then
+                    save_state
+                    python3 "${SCRIPT_DIR}/setup-hardware.py" --fan "fan_chamber"
+                    load_hardware_state
+                else
+                    echo -e "${YELLOW}Select a main board first${NC}"
+                    sleep 1
+                fi
                 ;;
             2)
-                WIZARD_STATE[fan_chamber]="enabled"
-                WIZARD_STATE[fan_chamber_type]="manual"
-                WIZARD_STATE[fan_chamber_multipin]="yes"
-                echo -e "${GREEN}✓${NC} Chamber fan enabled (manual, multi-pin)"
-                sleep 1
+                if [[ -n "${WIZARD_STATE[board]}" ]]; then
+                    save_state
+                    python3 "${SCRIPT_DIR}/setup-hardware.py" --fan-multipin "fan_chamber"
+                    load_hardware_state
+                else
+                    echo -e "${YELLOW}Select a main board first${NC}"
+                    sleep 1
+                fi
                 ;;
             3)
-                WIZARD_STATE[fan_chamber]="enabled"
-                WIZARD_STATE[fan_chamber_type]="temperature"
-                WIZARD_STATE[fan_chamber_multipin]=""
-                menu_fan_chamber_temp_settings
+                menu_fan_chamber_mode
                 ;;
-            4)
-                WIZARD_STATE[fan_chamber]="enabled"
-                WIZARD_STATE[fan_chamber_type]="temperature"
-                WIZARD_STATE[fan_chamber_multipin]="yes"
-                menu_fan_chamber_temp_settings
-                ;;
-            5)
-                WIZARD_STATE[fan_chamber]="none"
+            [cC])
+                save_state
+                python3 "${SCRIPT_DIR}/setup-hardware.py" --clear-port "fan_chamber"
+                python3 "${SCRIPT_DIR}/setup-hardware.py" --clear-port "fan_chamber_2"
                 WIZARD_STATE[fan_chamber_type]=""
-                WIZARD_STATE[fan_chamber_multipin]=""
-                echo -e "${GREEN}✓${NC} Chamber fan disabled"
+                WIZARD_STATE[fan_chamber_target_temp]=""
+                WIZARD_STATE[fan_chamber_sensor_type]=""
+                load_hardware_state
+                echo -e "${GREEN}✓${NC} Chamber fan cleared"
                 sleep 1
-                ;;
-            [pP])
-                if [[ "${WIZARD_STATE[fan_chamber]}" == "enabled" && -n "${WIZARD_STATE[board]}" ]]; then
-                    menu_fan_port_assign "fan_chamber" "Chamber"
-                fi
                 ;;
             [bB]) return ;;
         esac
     done
+}
+
+menu_fan_chamber_mode() {
+    clear_screen
+    print_header "Chamber Fan Control Mode"
+
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Select control mode:${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_menu_item "1" "" "Manual [fan_generic]" "SET_FAN_SPEED control"
+    print_menu_item "2" "" "Temperature [temperature_fan]" "Auto control to target temp"
+    print_separator
+    print_action_item "B" "Back"
+    print_footer
+
+    echo -en "${BYELLOW}Select mode${NC}: "
+    read -r choice
+
+    case "$choice" in
+        1)
+            WIZARD_STATE[fan_chamber_type]="manual"
+            WIZARD_STATE[fan_chamber_target_temp]=""
+            WIZARD_STATE[fan_chamber_sensor_type]=""
+            echo -e "${GREEN}✓${NC} Set to manual control"
+            sleep 1
+            ;;
+        2)
+            WIZARD_STATE[fan_chamber_type]="temperature"
+            menu_fan_chamber_temp_settings
+            ;;
+        [bB]) return ;;
+    esac
 }
 
 menu_fan_chamber_temp_settings() {
@@ -4367,25 +4517,21 @@ menu_fan_rscs() {
         echo -e "${BCYAN}${BOX_V}${NC}  Controlled via SET_FAN_SPEED FAN=rscs_fan SPEED=x"
         echo -e "${BCYAN}${BOX_V}${NC}"
 
-        # Current status
-        local status_info="${WIZARD_STATE[fan_rscs]:-not configured}"
-        [[ "${WIZARD_STATE[fan_rscs_multipin]}" == "yes" ]] && status_info="${status_info} (multi-pin)"
-        echo -e "${BCYAN}${BOX_V}${NC}  Current: ${CYAN}${status_info}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        # Determine current port assignment
+        local primary_port="${HARDWARE_STATE[fan_rscs]}"
+        local secondary_port="${HARDWARE_STATE[fan_rscs_2]}"
 
-        print_menu_item "1" "" "Enable - single fan"
-        print_menu_item "2" "" "Enable - multi-pin (2+ fans on same control)"
-        print_menu_item "3" "" "None - no filter fan"
+        # Display current status
+        local primary_status=$([[ -n "$primary_port" ]] && echo "done" || echo "")
+        local primary_info="${primary_port:-not assigned}"
+        print_menu_item "1" "$primary_status" "Fan Port" "$primary_info"
 
-        # Port assignment option
-        if [[ "${WIZARD_STATE[fan_rscs]}" == "enabled" && -n "${WIZARD_STATE[board]}" ]]; then
-            echo -e "${BCYAN}${BOX_V}${NC}"
-            local port_info="${HARDWARE_STATE[fan_rscs]:-not assigned}"
-            [[ "${WIZARD_STATE[fan_rscs_multipin]}" == "yes" && -n "${HARDWARE_STATE[fan_rscs_2]}" ]] && port_info="${port_info}, ${HARDWARE_STATE[fan_rscs_2]}"
-            print_menu_item "P" "" "Assign Port(s)" "${port_info}"
-        fi
+        local secondary_status=$([[ -n "$secondary_port" ]] && echo "done" || echo "")
+        local secondary_info="${secondary_port:-not set}"
+        print_menu_item "2" "$secondary_status" "Multi-pin (2nd fan)" "$secondary_info"
 
         print_separator
+        print_action_item "C" "Clear (disable fan)"
         print_action_item "B" "Back"
         print_footer
 
@@ -4394,27 +4540,32 @@ menu_fan_rscs() {
 
         case "$choice" in
             1)
-                WIZARD_STATE[fan_rscs]="enabled"
-                WIZARD_STATE[fan_rscs_multipin]=""
-                echo -e "${GREEN}✓${NC} RSCS/Filter fan enabled (single)"
-                sleep 1
+                if [[ -n "${WIZARD_STATE[board]}" ]]; then
+                    save_state
+                    python3 "${SCRIPT_DIR}/setup-hardware.py" --fan "fan_rscs"
+                    load_hardware_state
+                else
+                    echo -e "${YELLOW}Select a main board first${NC}"
+                    sleep 1
+                fi
                 ;;
             2)
-                WIZARD_STATE[fan_rscs]="enabled"
-                WIZARD_STATE[fan_rscs_multipin]="yes"
-                echo -e "${GREEN}✓${NC} RSCS/Filter fan enabled (multi-pin)"
-                sleep 1
-                ;;
-            3)
-                WIZARD_STATE[fan_rscs]="none"
-                WIZARD_STATE[fan_rscs_multipin]=""
-                echo -e "${GREEN}✓${NC} RSCS/Filter fan disabled"
-                sleep 1
-                ;;
-            [pP])
-                if [[ "${WIZARD_STATE[fan_rscs]}" == "enabled" && -n "${WIZARD_STATE[board]}" ]]; then
-                    menu_fan_port_assign "fan_rscs" "RSCS/Filter"
+                if [[ -n "${WIZARD_STATE[board]}" ]]; then
+                    save_state
+                    python3 "${SCRIPT_DIR}/setup-hardware.py" --fan-multipin "fan_rscs"
+                    load_hardware_state
+                else
+                    echo -e "${YELLOW}Select a main board first${NC}"
+                    sleep 1
                 fi
+                ;;
+            [cC])
+                save_state
+                python3 "${SCRIPT_DIR}/setup-hardware.py" --clear-port "fan_rscs"
+                python3 "${SCRIPT_DIR}/setup-hardware.py" --clear-port "fan_rscs_2"
+                load_hardware_state
+                echo -e "${GREEN}✓${NC} RSCS/Filter fan cleared"
+                sleep 1
                 ;;
             [bB]) return ;;
         esac
@@ -4431,25 +4582,21 @@ menu_fan_radiator() {
         echo -e "${BCYAN}${BOX_V}${NC}  Common for water-cooled hotends with external radiator."
         echo -e "${BCYAN}${BOX_V}${NC}"
 
-        # Current status
-        local status_info="${WIZARD_STATE[fan_radiator]:-not configured}"
-        [[ "${WIZARD_STATE[fan_radiator_multipin]}" == "yes" ]] && status_info="${status_info} (multi-pin)"
-        echo -e "${BCYAN}${BOX_V}${NC}  Current: ${CYAN}${status_info}${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}"
+        # Determine current port assignment
+        local primary_port="${HARDWARE_STATE[fan_radiator]}"
+        local secondary_port="${HARDWARE_STATE[fan_radiator_2]}"
 
-        print_menu_item "1" "" "Enable - single fan"
-        print_menu_item "2" "" "Enable - multi-pin (2+ fans on radiator)"
-        print_menu_item "3" "" "None - no radiator fan"
+        # Display current status
+        local primary_status=$([[ -n "$primary_port" ]] && echo "done" || echo "")
+        local primary_info="${primary_port:-not assigned}"
+        print_menu_item "1" "$primary_status" "Fan Port" "$primary_info"
 
-        # Port assignment option
-        if [[ "${WIZARD_STATE[fan_radiator]}" == "enabled" && -n "${WIZARD_STATE[board]}" ]]; then
-            echo -e "${BCYAN}${BOX_V}${NC}"
-            local port_info="${HARDWARE_STATE[fan_radiator]:-not assigned}"
-            [[ "${WIZARD_STATE[fan_radiator_multipin]}" == "yes" && -n "${HARDWARE_STATE[fan_radiator_2]}" ]] && port_info="${port_info}, ${HARDWARE_STATE[fan_radiator_2]}"
-            print_menu_item "P" "" "Assign Port(s)" "${port_info}"
-        fi
+        local secondary_status=$([[ -n "$secondary_port" ]] && echo "done" || echo "")
+        local secondary_info="${secondary_port:-not set}"
+        print_menu_item "2" "$secondary_status" "Multi-pin (2nd fan)" "$secondary_info"
 
         print_separator
+        print_action_item "C" "Clear (disable fan)"
         print_action_item "B" "Back"
         print_footer
 
@@ -4458,27 +4605,32 @@ menu_fan_radiator() {
 
         case "$choice" in
             1)
-                WIZARD_STATE[fan_radiator]="enabled"
-                WIZARD_STATE[fan_radiator_multipin]=""
-                echo -e "${GREEN}✓${NC} Radiator fan enabled (single)"
-                sleep 1
+                if [[ -n "${WIZARD_STATE[board]}" ]]; then
+                    save_state
+                    python3 "${SCRIPT_DIR}/setup-hardware.py" --fan "fan_radiator"
+                    load_hardware_state
+                else
+                    echo -e "${YELLOW}Select a main board first${NC}"
+                    sleep 1
+                fi
                 ;;
             2)
-                WIZARD_STATE[fan_radiator]="enabled"
-                WIZARD_STATE[fan_radiator_multipin]="yes"
-                echo -e "${GREEN}✓${NC} Radiator fan enabled (multi-pin)"
-                sleep 1
-                ;;
-            3)
-                WIZARD_STATE[fan_radiator]="none"
-                WIZARD_STATE[fan_radiator_multipin]=""
-                echo -e "${GREEN}✓${NC} Radiator fan disabled"
-                sleep 1
-                ;;
-            [pP])
-                if [[ "${WIZARD_STATE[fan_radiator]}" == "enabled" && -n "${WIZARD_STATE[board]}" ]]; then
-                    menu_fan_port_assign "fan_radiator" "Radiator"
+                if [[ -n "${WIZARD_STATE[board]}" ]]; then
+                    save_state
+                    python3 "${SCRIPT_DIR}/setup-hardware.py" --fan-multipin "fan_radiator"
+                    load_hardware_state
+                else
+                    echo -e "${YELLOW}Select a main board first${NC}"
+                    sleep 1
                 fi
+                ;;
+            [cC])
+                save_state
+                python3 "${SCRIPT_DIR}/setup-hardware.py" --clear-port "fan_radiator"
+                python3 "${SCRIPT_DIR}/setup-hardware.py" --clear-port "fan_radiator_2"
+                load_hardware_state
+                echo -e "${GREEN}✓${NC} Radiator fan cleared"
+                sleep 1
                 ;;
             [bB]) return ;;
         esac

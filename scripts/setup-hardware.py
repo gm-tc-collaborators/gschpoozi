@@ -2238,6 +2238,7 @@ def main():
     parser.add_argument('--fan', type=str, metavar='KEY', help='Assign fan port (e.g., fan_part_cooling)')
     parser.add_argument('--fan-multipin', type=str, metavar='KEY', help='Assign secondary fan pin')
     parser.add_argument('--lighting', action='store_true', help='Configure lighting')
+    parser.add_argument('--clear-port', type=str, metavar='KEY', help='Clear a port assignment (e.g., fan_part_cooling)')
     parser.add_argument('--list-boards', action='store_true', help='List available boards')
     parser.add_argument('--output', type=str, help='Output state file path')
     
@@ -2362,6 +2363,16 @@ def main():
     elif args.lighting:
         print(f"{Colors.YELLOW}Lighting configuration not yet implemented in CLI mode.{Colors.NC}")
         print(f"Use the full setup menu: python3 setup-hardware.py")
+    elif getattr(args, 'clear_port', None):
+        # Clear a port assignment from both mainboard and toolboard
+        key = args.clear_port
+        if key in state.port_assignments:
+            del state.port_assignments[key]
+        # Also check toolboard assignments with common prefixes
+        tb_key = key.replace('fan_', 'fan_')  # fan_part_cooling -> fan_part_cooling
+        if tb_key in state.toolboard_assignments:
+            del state.toolboard_assignments[tb_key]
+        state.save()
     else:
         main_menu()
 

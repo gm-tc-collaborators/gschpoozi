@@ -52,17 +52,19 @@ User → [configure.sh] → [setup-hardware.py] → [generate-config.py] → Out
 
 ## Critical Klipper Syntax Rules
 
-**COLON not EQUALS** - Klipper uses `:` for all parameters:
-```ini
-# CORRECT
-step_pin: PE9
-microsteps: 16
+**See [KLIPPER_CONFIG_GUIDELINES.md](./KLIPPER_CONFIG_GUIDELINES.md) for comprehensive documentation.**
 
-# WRONG - will break Klipper
-step_pin = PE9
-```
+Quick reference:
 
-**Pin modifiers:** `^` for pullup, `!` for invert (e.g., `^!PA4`)
+| Rule | Correct | Wrong |
+|------|---------|-------|
+| Parameter separator | `step_pin: PE9` | `step_pin = PE9` |
+| Pin invert | `!PA4` | `PA4!` |
+| Pin pullup | `^PA4` | `PA4^` |
+| Combined modifiers | `^!PA4` | `!^PA4` |
+| Multi-MCU pin | `toolhead:PA1` | `PA1@toolhead` |
+| Section name | `[stepper_x]` | `[Stepper_X]` |
+| Multi-pin reference | `multi_pin:name` | `multi_pin.name` |
 
 **Gcode macros use Jinja2** (not Python):
 ```ini
@@ -73,7 +75,7 @@ gcode:
     {% endif %}
 ```
 
-**Section names are lowercase** with underscores: `[stepper_x]`, `[filament_switch_sensor e0_sensor]`
+**Section ordering matters:** `[multi_pin]` must be defined BEFORE sections that reference it.
 
 **Multi-line gcode must be indented** (4 spaces or tab)
 
