@@ -1142,15 +1142,36 @@ def generate_hardware_cfg(
     # Lighting configuration
     lighting_type = wizard_state.get('lighting_type', '')
     lighting_pin = wizard_state.get('lighting_pin', '')
-    lighting_count = wizard_state.get('lighting_count', '1')
-    lighting_color_order = wizard_state.get('lighting_color_order', 'GRB')
+    lighting_count = wizard_state.get('lighting_count') or '1'
+    lighting_color_order = wizard_state.get('lighting_color_order') or 'GRB'
+    has_leds = wizard_state.get('has_leds', '')
 
-    if lighting_type and lighting_type != 'none':
+    # Check for toolboard RGB LEDs
+    toolboard_rgb = None
+    if toolboard:
+        misc_ports = toolboard.get('misc_ports', {})
+        if 'RGB' in misc_ports:
+            toolboard_rgb = misc_ports['RGB']
+
+    if (lighting_type and lighting_type != 'none') or has_leds == 'yes':
         lines.append("# " + "─" * 77)
         lines.append("# LIGHTING")
         lines.append("# " + "─" * 77)
 
-        if lighting_type == 'neopixel':
+        # Use toolboard RGB if available and has_leds is enabled
+        if has_leds == 'yes' and toolboard_rgb:
+            tb_mcu = toolboard.get('mcu_name', 'toolhead')
+            rgb_pin = toolboard_rgb.get('pin', 'REPLACE_PIN')
+            rgb_count = toolboard_rgb.get('chain_count', 3)
+            rgb_order = toolboard_rgb.get('color_order', 'GRB')
+            lines.append("[neopixel status_led]")
+            lines.append(f"pin: {tb_mcu}:{rgb_pin}")
+            lines.append(f"chain_count: {rgb_count}")
+            lines.append(f"color_order: {rgb_order}")
+            lines.append("initial_RED: 0.2")
+            lines.append("initial_GREEN: 0.2")
+            lines.append("initial_BLUE: 0.2")
+        elif lighting_type == 'neopixel':
             lines.append("[neopixel status_led]")
             if lighting_pin:
                 lines.append(f"pin: {lighting_pin}")
