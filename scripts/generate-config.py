@@ -148,14 +148,27 @@ def generate_hardware_cfg(
     bed_therm = wizard_state.get('bed_thermistor', 'Generic 3950')
     bed_pullup = wizard_state.get('bed_pullup_resistor', '')
 
-    # Get rotation distance and microstep settings
-    microsteps = wizard_state.get('microsteps', '16')
-    rotation_distance_xy = wizard_state.get('rotation_distance_xy', '40')
-    rotation_distance_z = wizard_state.get('rotation_distance_z', '8')
-    rotation_distance_e = wizard_state.get('rotation_distance_e', '22.6789511')
-    stepper_step_angle = wizard_state.get('stepper_step_angle', '1.8')
-    # full_steps_per_rotation: 200 for 1.8°, 400 for 0.9°
-    full_steps = '200' if stepper_step_angle == '1.8' else '400'
+    # Get per-axis stepper settings (step angle, microsteps, rotation distance)
+    # X axis
+    x_step_angle = wizard_state.get('stepper_x_step_angle', '1.8')
+    x_microsteps = wizard_state.get('stepper_x_microsteps', '16')
+    x_rotation_distance = wizard_state.get('stepper_x_rotation_distance', '40')
+    x_full_steps = '200' if x_step_angle == '1.8' else '400'
+    # Y axis
+    y_step_angle = wizard_state.get('stepper_y_step_angle', '1.8')
+    y_microsteps = wizard_state.get('stepper_y_microsteps', '16')
+    y_rotation_distance = wizard_state.get('stepper_y_rotation_distance', '40')
+    y_full_steps = '200' if y_step_angle == '1.8' else '400'
+    # Z axis
+    z_step_angle = wizard_state.get('stepper_z_step_angle', '1.8')
+    z_microsteps = wizard_state.get('stepper_z_microsteps', '16')
+    z_rotation_distance = wizard_state.get('stepper_z_rotation_distance', '8')
+    z_full_steps = '200' if z_step_angle == '1.8' else '400'
+    # Extruder
+    e_step_angle = wizard_state.get('stepper_e_step_angle', '1.8')
+    e_microsteps = wizard_state.get('stepper_e_microsteps', '16')
+    e_rotation_distance = wizard_state.get('stepper_e_rotation_distance', '22.6789511')
+    e_full_steps = '200' if e_step_angle == '1.8' else '400'
 
     # Get driver type
     driver_x = wizard_state.get('driver_X', wizard_state.get('stepper_driver', 'TMC2209'))
@@ -235,10 +248,10 @@ def generate_hardware_cfg(
     lines.append(f"step_pin: {x_pins['step_pin']}      # {x_port}")
     lines.append(f"dir_pin: {x_pins['dir_pin']}       # {x_port}")
     lines.append(f"enable_pin: !{x_pins['enable_pin']}  # {x_port}")
-    lines.append(f"microsteps: {microsteps}")
-    lines.append(f"rotation_distance: {rotation_distance_xy}")
-    if full_steps != '200':
-        lines.append(f"full_steps_per_rotation: {full_steps}  # 0.9° stepper")
+    lines.append(f"microsteps: {x_microsteps}")
+    lines.append(f"rotation_distance: {x_rotation_distance}")
+    if x_full_steps != '200':
+        lines.append(f"full_steps_per_rotation: {x_full_steps}  # 0.9° stepper")
     
     # Endstop - check for toolboard, sensorless, or physical on mainboard
     tb_assignments = hardware_state.get('toolboard_assignments', {}) if toolboard else {}
@@ -278,10 +291,10 @@ def generate_hardware_cfg(
     lines.append(f"step_pin: {y_pins['step_pin']}      # {y_port}")
     lines.append(f"dir_pin: {y_pins['dir_pin']}       # {y_port}")
     lines.append(f"enable_pin: !{y_pins['enable_pin']}  # {y_port}")
-    lines.append(f"microsteps: {microsteps}")
-    lines.append(f"rotation_distance: {rotation_distance_xy}")
-    if full_steps != '200':
-        lines.append(f"full_steps_per_rotation: {full_steps}  # 0.9° stepper")
+    lines.append(f"microsteps: {y_microsteps}")
+    lines.append(f"rotation_distance: {y_rotation_distance}")
+    if y_full_steps != '200':
+        lines.append(f"full_steps_per_rotation: {y_full_steps}  # 0.9° stepper")
 
     y_endstop = assignments.get('endstop_y', '')
     if y_endstop == 'sensorless':
@@ -314,10 +327,10 @@ def generate_hardware_cfg(
         lines.append(f"step_pin: {x1_pins['step_pin']}      # {x1_port}")
         lines.append(f"dir_pin: {x1_pins['dir_pin']}       # {x1_port}")
         lines.append(f"enable_pin: !{x1_pins['enable_pin']}  # {x1_port}")
-        lines.append(f"microsteps: {microsteps}")
-        lines.append(f"rotation_distance: {rotation_distance_xy}")
-        if full_steps != '200':
-            lines.append(f"full_steps_per_rotation: {full_steps}  # 0.9° stepper")
+        lines.append(f"microsteps: {x_microsteps}")
+        lines.append(f"rotation_distance: {x_rotation_distance}")
+        if x_full_steps != '200':
+            lines.append(f"full_steps_per_rotation: {x_full_steps}  # 0.9° stepper")
         lines.append("")
 
         y1_port = assignments.get('stepper_y1', 'MOTOR_3')
@@ -326,10 +339,10 @@ def generate_hardware_cfg(
         lines.append(f"step_pin: {y1_pins['step_pin']}      # {y1_port}")
         lines.append(f"dir_pin: {y1_pins['dir_pin']}       # {y1_port}")
         lines.append(f"enable_pin: !{y1_pins['enable_pin']}  # {y1_port}")
-        lines.append(f"microsteps: {microsteps}")
-        lines.append(f"rotation_distance: {rotation_distance_xy}")
-        if full_steps != '200':
-            lines.append(f"full_steps_per_rotation: {full_steps}  # 0.9° stepper")
+        lines.append(f"microsteps: {y_microsteps}")
+        lines.append(f"rotation_distance: {y_rotation_distance}")
+        if y_full_steps != '200':
+            lines.append(f"full_steps_per_rotation: {y_full_steps}  # 0.9° stepper")
         lines.append("")
     
     # Stepper Z (and Z1, Z2, Z3 if multi-Z)
@@ -344,10 +357,10 @@ def generate_hardware_cfg(
         lines.append(f"step_pin: {z_pins['step_pin']}      # {z_port}")
         lines.append(f"dir_pin: {z_pins['dir_pin']}       # {z_port}")
         lines.append(f"enable_pin: !{z_pins['enable_pin']}  # {z_port}")
-        lines.append(f"microsteps: {microsteps}")
-        lines.append(f"rotation_distance: {rotation_distance_z}")
-        if full_steps != '200':
-            lines.append(f"full_steps_per_rotation: {full_steps}  # 0.9° stepper")
+        lines.append(f"microsteps: {z_microsteps}")
+        lines.append(f"rotation_distance: {z_rotation_distance}")
+        if z_full_steps != '200':
+            lines.append(f"full_steps_per_rotation: {z_full_steps}  # 0.9° stepper")
         
         if z_idx == 0:
             # Use correct virtual endstop based on probe type
@@ -405,10 +418,10 @@ def generate_hardware_cfg(
         lines.append(f"dir_pin: {e_pins['dir_pin']}       # {e_port}")
         lines.append(f"enable_pin: !{e_pins['enable_pin']}  # {e_port}")
 
-    lines.append(f"microsteps: {microsteps}")
-    lines.append(f"rotation_distance: {rotation_distance_e}  # Calibrate with Klipper esteps test")
-    if full_steps != '200':
-        lines.append(f"full_steps_per_rotation: {full_steps}  # 0.9° stepper")
+    lines.append(f"microsteps: {e_microsteps}")
+    lines.append(f"rotation_distance: {e_rotation_distance}  # Calibrate with Klipper esteps test")
+    if e_full_steps != '200':
+        lines.append(f"full_steps_per_rotation: {e_full_steps}  # 0.9° stepper")
     lines.append("nozzle_diameter: 0.400")
     lines.append("filament_diameter: 1.750")
     
