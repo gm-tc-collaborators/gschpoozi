@@ -120,29 +120,28 @@ print_header() {
     local title="$1"
     local padding=$(( (BOX_WIDTH - ${#title} - 2) / 2 ))
 
-    echo -e "${BCYAN}"
-    echo -n "${BOX_TL}"
+    # Top border
+    echo -en "${BCYAN}${BOX_TL}"
     printf "${BOX_H}%.0s" $(seq 1 $BOX_WIDTH)
-    echo "${BOX_TR}"
+    echo -e "${BOX_TR}${NC}"
 
-    echo -n "${BOX_V}"
-    printf " %.0s" $(seq 1 $padding)
+    # Title line
+    echo -en "${BCYAN}${BOX_V}${NC}"
+    printf "%${padding}s" ""
     echo -n " ${title} "
-    printf " %.0s" $(seq 1 $((BOX_WIDTH - padding - ${#title} - 2)))
-    echo "${BOX_V}"
+    printf "%$((BOX_WIDTH - padding - ${#title} - 2))s" ""
+    echo -e "${BCYAN}${BOX_V}${NC}"
 
-    echo -n "${BOX_LT}"
+    # Separator
+    echo -en "${BCYAN}${BOX_LT}"
     printf "${BOX_H}%.0s" $(seq 1 $BOX_WIDTH)
-    echo "${BOX_RT}"
-    echo -e "${NC}"
+    echo -e "${BOX_RT}${NC}"
 }
 
 print_footer() {
-    echo -e "${BCYAN}"
-    echo -n "${BOX_BL}"
+    echo -en "${BCYAN}${BOX_BL}"
     printf "${BOX_H}%.0s" $(seq 1 $BOX_WIDTH)
-    echo "${BOX_BR}"
-    echo -e "${NC}"
+    echo -e "${BOX_BR}${NC}"
 }
 
 print_menu_item() {
