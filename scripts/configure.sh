@@ -828,6 +828,7 @@ menu_stepper_calibration() {
         echo -e "${BCYAN}${BOX_V}${NC}"
 
         print_separator
+        print_action_item "D" "Interactive Discovery (live motor testing)"
         print_action_item "G" "Generate calibration.cfg now"
         print_action_item "I" "Show calibration instructions"
         print_action_item "B" "Back"
@@ -837,6 +838,9 @@ menu_stepper_calibration() {
         read -r choice
 
         case "$choice" in
+            [dD])
+                run_motor_discovery
+                ;;
             [gG])
                 echo -e "\n${CYAN}Generating calibration.cfg...${NC}"
                 python3 "${SCRIPT_DIR}/generate-config.py" --output-dir "${OUTPUT_DIR}" --calibration-only
@@ -854,6 +858,113 @@ menu_stepper_calibration() {
                 ;;
         esac
     done
+}
+
+run_motor_discovery() {
+    # Pre-flight checks
+    clear_screen
+    print_header "Motor Discovery - Pre-flight Check"
+    
+    # Check if board is selected
+    if [[ -z "${WIZARD_STATE[mainboard]}" ]]; then
+        echo -e "${BCYAN}${BOX_V}${NC}  ${RED}Error: No main board selected!${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}  Please select a board first in the wizard."
+        print_footer
+        wait_for_key
+        return 1
+    fi
+    
+    # Check if MCU serial is available
+    local mcu_serial="${HARDWARE_STATE[mcu_serial]:-}"
+    if [[ -z "$mcu_serial" ]]; then
+        echo -e "${BCYAN}${BOX_V}${NC}  ${RED}Error: MCU serial not detected!${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}  Please ensure:"
+        echo -e "${BCYAN}${BOX_V}${NC}  - MCU is connected via USB/serial"
+        echo -e "${BCYAN}${BOX_V}${NC}  - Klipper firmware is flashed on the board"
+        print_footer
+        wait_for_key
+        return 1
+    fi
+    
+    # Check if Klipper/Moonraker are running
+    if ! systemctl is-active --quiet klipper 2>/dev/null; then
+        echo -e "${BCYAN}${BOX_V}${NC}  ${RED}Error: Klipper service is not running!${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}  Start Klipper first: ${CYAN}sudo systemctl start klipper${NC}"
+        print_footer
+        wait_for_key
+        return 1
+    fi
+    
+    if ! systemctl is-active --quiet moonraker 2>/dev/null; then
+        echo -e "${BCYAN}${BOX_V}${NC}  ${RED}Error: Moonraker service is not running!${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}  Start Moonraker first: ${CYAN}sudo systemctl start moonraker${NC}"
+        print_footer
+        wait_for_key
+        return 1
+    fi
+    
+    echo -e "${BCYAN}${BOX_V}${NC}  ${GREEN}✓${NC} Board selected: ${CYAN}${WIZARD_STATE[board_name]}${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  ${GREEN}✓${NC} MCU serial: ${CYAN}${mcu_serial}${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  ${GREEN}✓${NC} Klipper running"
+    echo -e "${BCYAN}${BOX_V}${NC}  ${GREEN}✓${NC} Moonraker running"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_separator
+    
+    echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}WARNING: This will temporarily replace your printer.cfg${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}with a discovery config. It will be restored after.${NC}"
+    echo -e "${BCYAN}${BOX_V}${NC}"
+    print_footer
+    
+    if ! confirm "Proceed with motor discovery?"; then
+        return 0
+    fi
+    
+    # Build arguments for motor-discovery.py
+    local args=(
+        "--board" "${WIZARD_STATE[mainboard]}"
+        "--mcu-serial" "${mcu_serial}"
+    )
+    
+    # Add driver type
+    if [[ -n "${WIZARD_STATE[driver_X]}" ]]; then
+        args+=("--driver" "${WIZARD_STATE[driver_X]}")
+    fi
+    
+    # Add kinematics
+    if [[ -n "${WIZARD_STATE[kinematics]}" ]]; then
+        args+=("--kinematics" "${WIZARD_STATE[kinematics]}")
+    fi
+    
+    # Add Z count
+    if [[ -n "${WIZARD_STATE[z_stepper_count]}" ]]; then
+        args+=("--z-count" "${WIZARD_STATE[z_stepper_count]}")
+    fi
+    
+    # Check for toolboard
+    if [[ -n "${WIZARD_STATE[toolboard]}" && "${WIZARD_STATE[toolboard]}" != "none" ]]; then
+        args+=("--has-toolboard")
+    fi
+    
+    # Run the discovery script
+    echo ""
+    python3 "${SCRIPT_DIR}/motor-discovery.py" "${args[@]}"
+    local result=$?
+    
+    # Check if results file exists
+    local results_file="${HOME}/printer_data/config/.motor_mapping.json"
+    if [[ $result -eq 0 && -f "$results_file" ]]; then
+        echo -e "\n${GREEN}Motor discovery completed!${NC}"
+        echo -e "${WHITE}Results saved to: ${CYAN}${results_file}${NC}"
+        
+        # Load results into wizard state
+        if command -v jq &>/dev/null; then
+            echo -e "\n${WHITE}Discovered mappings:${NC}"
+            jq -r '.motor_mapping | to_entries[] | "  \(.key) → \(.value.port)" + (if .value.dir_invert then " (INVERT)" else "" end)' "$results_file"
+        fi
+    fi
+    
+    wait_for_key
+    return $result
 }
 
 show_calibration_instructions() {
