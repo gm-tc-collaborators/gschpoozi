@@ -70,8 +70,10 @@
       "pin": "PB3"
     },
     "RGB": {
-      "label": "NeoPixel RGB",
-      "pin": "PB8"
+      "label": "Filament Input LED (WS2812B)",
+      "pin": "PB8",
+      "chain_count": 1,
+      "color_order": "GRB"
     },
     "HOTEND_LED": {
       "label": "Hotend Light",

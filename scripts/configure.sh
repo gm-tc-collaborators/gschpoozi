@@ -2057,6 +2057,10 @@ init_state() {
         [fan_rd_hardware_pwm]=""
         [fan_rd_shutdown_speed]=""
         [fan_rd_kick_start]=""
+        # Lighting configuration
+        [lighting_type]=""
+        [lighting_count]=""
+        [lighting_color_order]=""
     )
 }
 
@@ -5180,11 +5184,18 @@ menu_lighting() {
         echo -e "${BCYAN}${BOX_V}${NC}  Current: ${CYAN}${light_type}${NC}"
         echo -e "${BCYAN}${BOX_V}${NC}"
 
-        print_menu_item "1" "" "Neopixel (WS2812, SK6812)"
-        print_menu_item "2" "" "Dotstar (APA102)"
-        print_menu_item "3" "" "PCA9533 (I2C LED driver)"
-        print_menu_item "4" "" "Simple PWM LED"
-        print_menu_item "5" "" "None - no lighting"
+        # Show checkmark for currently selected type
+        local neo_status=$([[ "$light_type" == "neopixel" ]] && echo "done" || echo "")
+        local dot_status=$([[ "$light_type" == "dotstar" ]] && echo "done" || echo "")
+        local pca_status=$([[ "$light_type" == "pca9533" ]] && echo "done" || echo "")
+        local pwm_status=$([[ "$light_type" == "pwm" ]] && echo "done" || echo "")
+        local none_status=$([[ "$light_type" == "none" ]] && echo "done" || echo "")
+
+        print_menu_item "1" "$neo_status" "Neopixel (WS2812, SK6812)"
+        print_menu_item "2" "$dot_status" "Dotstar (APA102)"
+        print_menu_item "3" "$pca_status" "PCA9533 (I2C LED driver)"
+        print_menu_item "4" "$pwm_status" "Simple PWM LED"
+        print_menu_item "5" "$none_status" "None - no lighting"
 
         # Port/pin assignment option if type is selected
         if [[ -n "${WIZARD_STATE[lighting_type]}" && "${WIZARD_STATE[lighting_type]}" != "none" ]]; then
@@ -5246,6 +5257,9 @@ menu_lighting() {
                 ;;
             [bB]) return ;;
         esac
+
+        # Save state after lighting type selection
+        save_state
     done
 }
 
