@@ -138,6 +138,86 @@ def wait_for_key():
     """Wait for any key press."""
     input(f"\n{Colors.WHITE}Press Enter to continue...{Colors.NC}")
 
+
+def configure_pin_modifiers(pin_name: str, is_adc: bool = False) -> str:
+    """
+    Configure pin modifiers (inversion, pull-up/pull-down) for input pins.
+
+    Klipper pin modifiers:
+    - ^ = pull-up resistor (activates internal pull-up)
+    - ~ = pull-down resistor (activates internal pull-down)
+    - ! = inverted logic (LOW = triggered)
+
+    Combined example: ^!PA4 = pull-up + inverted
+
+    Args:
+        pin_name: Name of the pin/function being configured (for display)
+        is_adc: True for ADC pins (thermistors) - only offer pull-up, no inversion
+
+    Returns:
+        Modifier string (e.g., "^!", "^", "!", "") to prepend to pin
+    """
+    print_info("")
+    print_info(f"{Colors.BWHITE}Pin Options for {pin_name}:{Colors.NC}")
+    print_info("")
+
+    modifiers = ""
+
+    if not is_adc:
+        # Digital input - ask about inversion
+        print_info(f"{Colors.WHITE}Is the signal inverted (active LOW)?{Colors.NC}")
+        print_info(f"  Most mechanical switches: NO (active HIGH when triggered)")
+        print_info(f"  Some optical/hall sensors: YES (active LOW when triggered)")
+        print_info("")
+        invert_choice = prompt("Inverted signal? [y/N]").strip().lower()
+        if invert_choice == 'y':
+            modifiers += "!"
+
+    # Ask about pull-up/pull-down
+    print_info("")
+    print_info(f"{Colors.WHITE}Internal resistor configuration:{Colors.NC}")
+    print_info(f"  Most switches need pull-up (^) - signal floats HIGH, goes LOW when triggered")
+    print_info(f"  Some sensors have built-in pull-up - select None")
+    print_info("")
+    print_info(f"  1) {Colors.CYAN}^{Colors.NC} Pull-UP   - Most common for mechanical switches")
+    print_info(f"  2) {Colors.CYAN}~{Colors.NC} Pull-DOWN - Rarely needed")
+    print_info(f"  3) None      - Sensor has built-in resistor")
+    print_info("")
+
+    resistor_choice = prompt("Select resistor [1/2/3]", "1").strip()
+    if resistor_choice == "1":
+        modifiers = "^" + modifiers  # Pull-up goes before inversion
+    elif resistor_choice == "2":
+        modifiers = "~" + modifiers  # Pull-down goes before inversion
+
+    if modifiers:
+        print_info(f"\n{Colors.GREEN}Pin modifiers: {modifiers}{Colors.NC}")
+    else:
+        print_info(f"\n{Colors.GREEN}No pin modifiers{Colors.NC}")
+
+    return modifiers
+
+
+def get_pin_with_modifiers(assignment_key: str) -> str:
+    """
+    Get the full pin string with modifiers for a given assignment.
+
+    Args:
+        assignment_key: The key in port_assignments (e.g., 'endstop_x')
+
+    Returns:
+        Full pin string with modifiers (e.g., '^!PA4') or empty string if not assigned
+    """
+    port_name = state.port_assignments.get(assignment_key, "")
+    if not port_name or port_name == "sensorless":
+        return port_name
+
+    modifiers = state.port_assignments.get(f"{assignment_key}_modifiers", "")
+    # Note: The actual pin resolution happens in generate-config.py
+    # Here we just store the modifier to be applied later
+    return modifiers  # Return just modifiers, pin resolution is separate
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # BOARD LOADING
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -973,15 +1053,20 @@ def assign_endstop_ports(board: Dict):
         num = 1
         for endstop_func in required_endstops:
             current_port = state.port_assignments.get(endstop_func, "")
+            modifiers = state.port_assignments.get(f"{endstop_func}_modifiers", "")
             if current_port == "sensorless":
                 display = "Sensorless (DIAG pin)"
             elif current_port:
                 port_info = endstop_ports.get(current_port, {})
                 label = port_info.get('label', current_port)
-                display = f"{current_port} - {label}"
+                # Show modifiers if configured
+                if modifiers:
+                    display = f"{current_port} - {label} [{modifiers}pin]"
+                else:
+                    display = f"{current_port} - {label}"
             else:
                 display = "not assigned"
-            
+
             status = "done" if current_port else ""
             axis_name = endstop_func.replace('endstop_', '').upper()
             print_menu_item(str(num), f"{axis_name} Endstop", display, status)
@@ -1072,13 +1157,31 @@ def select_endstop_port(endstop_func: str, endstop_ports: Dict, endstop_list: Li
     try:
         idx = int(choice) - 1
         if 0 <= idx < len(endstop_list):
-            state.port_assignments[endstop_func] = endstop_list[idx]
+            port_name = endstop_list[idx]
+            state.port_assignments[endstop_func] = port_name
+
+            # Configure pin modifiers (inversion, pull-up/pull-down)
+            axis_name = endstop_func.replace('endstop_', '').upper()
+            modifiers = configure_pin_modifiers(f"{axis_name} Endstop")
+            if modifiers:
+                state.port_assignments[f"{endstop_func}_modifiers"] = modifiers
+            elif f"{endstop_func}_modifiers" in state.port_assignments:
+                del state.port_assignments[f"{endstop_func}_modifiers"]
+
+            state.save()
         elif idx == sensorless_idx - 1:
             state.port_assignments[endstop_func] = "sensorless"
+            # Clear any modifiers for sensorless
+            if f"{endstop_func}_modifiers" in state.port_assignments:
+                del state.port_assignments[f"{endstop_func}_modifiers"]
+            state.save()
         elif idx == sensorless_idx:
             # Clear assignment
             if endstop_func in state.port_assignments:
                 del state.port_assignments[endstop_func]
+            if f"{endstop_func}_modifiers" in state.port_assignments:
+                del state.port_assignments[f"{endstop_func}_modifiers"]
+            state.save()
     except ValueError:
         pass
 
@@ -2120,10 +2223,18 @@ def select_single_endstop(axis: str, board: Dict) -> bool:
     return False
 
 
-def select_flexible_port(port_type: str, assignment_key: str, title: str) -> bool:
+def select_flexible_port(port_type: str, assignment_key: str, title: str,
+                         supports_modifiers: bool = False, is_adc: bool = False) -> bool:
     """
     Flexible port selection - offers BOTH mainboard and toolboard ports.
     User chooses which board to assign to.
+
+    Args:
+        port_type: Type of port ('heater', 'thermistor', 'endstop', 'fan', etc.)
+        assignment_key: Key for storing in port_assignments
+        title: Header title for the menu
+        supports_modifiers: If True, prompt for pin modifiers (inversion, pull-up/down)
+        is_adc: If True and supports_modifiers, only offer pull-up (for ADC pins)
     """
     boards = load_available_boards()
     board = boards.get(state.board_id)
@@ -2213,8 +2324,12 @@ def select_flexible_port(port_type: str, assignment_key: str, title: str) -> boo
     if choice.lower() == 'c':
         if assignment_key in state.port_assignments:
             del state.port_assignments[assignment_key]
+        if f"{assignment_key}_modifiers" in state.port_assignments:
+            del state.port_assignments[f"{assignment_key}_modifiers"]
         if assignment_key in state.toolboard_assignments:
             del state.toolboard_assignments[assignment_key]
+        if f"{assignment_key}_modifiers" in state.toolboard_assignments:
+            del state.toolboard_assignments[f"{assignment_key}_modifiers"]
         print(f"\n{Colors.GREEN}Assignment cleared.{Colors.NC}")
         return True
 
@@ -2222,18 +2337,39 @@ def select_flexible_port(port_type: str, assignment_key: str, title: str) -> boo
         idx = int(choice) - 1
         if 0 <= idx < len(port_map):
             board_type, port_name = port_map[idx]
+
+            # Configure pin modifiers if supported
+            modifiers = ""
+            if supports_modifiers:
+                modifiers = configure_pin_modifiers(title, is_adc=is_adc)
+
             if board_type == 'mainboard':
                 state.port_assignments[assignment_key] = port_name
+                if modifiers:
+                    state.port_assignments[f"{assignment_key}_modifiers"] = modifiers
+                elif f"{assignment_key}_modifiers" in state.port_assignments:
+                    del state.port_assignments[f"{assignment_key}_modifiers"]
                 # Clear toolboard assignment if any
                 if assignment_key in state.toolboard_assignments:
                     del state.toolboard_assignments[assignment_key]
+                if f"{assignment_key}_modifiers" in state.toolboard_assignments:
+                    del state.toolboard_assignments[f"{assignment_key}_modifiers"]
                 print(f"\n{Colors.GREEN}Assigned {assignment_key} to mainboard:{port_name}{Colors.NC}")
             else:
                 state.toolboard_assignments[assignment_key] = port_name
+                if modifiers:
+                    state.toolboard_assignments[f"{assignment_key}_modifiers"] = modifiers
+                elif f"{assignment_key}_modifiers" in state.toolboard_assignments:
+                    del state.toolboard_assignments[f"{assignment_key}_modifiers"]
                 # Clear mainboard assignment if any
                 if assignment_key in state.port_assignments:
                     del state.port_assignments[assignment_key]
+                if f"{assignment_key}_modifiers" in state.port_assignments:
+                    del state.port_assignments[f"{assignment_key}_modifiers"]
                 print(f"\n{Colors.GREEN}Assigned {assignment_key} to toolboard:{port_name}{Colors.NC}")
+
+            if modifiers:
+                print(f"{Colors.GREEN}Pin modifiers: {modifiers}{Colors.NC}")
             return True
     except ValueError:
         pass
@@ -2629,7 +2765,8 @@ def main():
             print(f"{Colors.RED}Error: No board selected.{Colors.NC}")
             sys.exit(1)
         # Offer BOTH mainboard and toolboard ports - user chooses
-        if select_flexible_port('endstop', 'probe_pin', 'Select Probe Pin'):
+        if select_flexible_port('endstop', 'probe_pin', 'Select Probe Pin',
+                                supports_modifiers=True):
             state.save()
     elif args.fan:
         if not state.board_id:
