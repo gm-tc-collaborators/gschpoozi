@@ -492,12 +492,54 @@ def generate_hardware_cfg(
     fan_radiator = wizard_state.get('fan_radiator', '')
     fan_radiator_multipin = wizard_state.get('fan_radiator_multipin', '')
     
-    # Advanced settings
-    pc_max_power = wizard_state.get('fan_pc_max_power', '')
-    pc_cycle_time = wizard_state.get('fan_pc_cycle_time', '')
-    pc_hardware_pwm = wizard_state.get('fan_pc_hardware_pwm', '')
-    pc_shutdown_speed = wizard_state.get('fan_pc_shutdown_speed', '')
-    pc_kick_start = wizard_state.get('fan_pc_kick_start', '')
+    # Advanced settings for all fans (prefix: pc=part cooling, hf=hotend, cf=controller, ex=exhaust, ch=chamber, rs=rscs, rd=radiator)
+    def get_fan_settings(prefix: str) -> dict:
+        """Get advanced settings for a fan type."""
+        return {
+            'max_power': wizard_state.get(f'fan_{prefix}_max_power', ''),
+            'cycle_time': wizard_state.get(f'fan_{prefix}_cycle_time', ''),
+            'hardware_pwm': wizard_state.get(f'fan_{prefix}_hardware_pwm', ''),
+            'shutdown_speed': wizard_state.get(f'fan_{prefix}_shutdown_speed', ''),
+            'kick_start': wizard_state.get(f'fan_{prefix}_kick_start', ''),
+        }
+
+    def add_fan_settings(lines: List[str], settings: dict, defaults: dict = None):
+        """Add fan advanced settings to config lines, using defaults where not specified."""
+        if defaults is None:
+            defaults = {}
+        # max_power
+        if settings['max_power']:
+            lines.append(f"max_power: {settings['max_power']}")
+        elif defaults.get('max_power'):
+            lines.append(f"max_power: {defaults['max_power']}")
+        # cycle_time
+        if settings['cycle_time']:
+            lines.append(f"cycle_time: {settings['cycle_time']}")
+        elif defaults.get('cycle_time'):
+            lines.append(f"cycle_time: {defaults['cycle_time']}")
+        # hardware_pwm
+        if settings['hardware_pwm']:
+            lines.append(f"hardware_pwm: {settings['hardware_pwm']}")
+        elif defaults.get('hardware_pwm'):
+            lines.append(f"hardware_pwm: {defaults['hardware_pwm']}")
+        # shutdown_speed
+        if settings['shutdown_speed']:
+            lines.append(f"shutdown_speed: {settings['shutdown_speed']}")
+        elif defaults.get('shutdown_speed'):
+            lines.append(f"shutdown_speed: {defaults['shutdown_speed']}")
+        # kick_start_time
+        if settings['kick_start']:
+            lines.append(f"kick_start_time: {settings['kick_start']}")
+        elif defaults.get('kick_start'):
+            lines.append(f"kick_start_time: {defaults['kick_start']}")
+
+    pc_settings = get_fan_settings('pc')
+    hf_settings = get_fan_settings('hf')
+    cf_settings = get_fan_settings('cf')
+    ex_settings = get_fan_settings('ex')
+    ch_settings = get_fan_settings('ch')
+    rs_settings = get_fan_settings('rs')
+    rd_settings = get_fan_settings('rd')
     
     # Helper function to generate multi_pin section
     def generate_multipin(name: str, pin1: str, pin2: str, port1: str, port2: str) -> List[str]:
@@ -540,18 +582,9 @@ def generate_hardware_cfg(
             pc_pin = get_fan_pin(board, pc_port)
             lines.append("[fan]")
             lines.append(f"pin: {pc_pin}  # {pc_port} - Part cooling")
-    
-    # Add advanced settings if specified
-    if pc_max_power:
-        lines.append(f"max_power: {pc_max_power}")
-    if pc_cycle_time:
-        lines.append(f"cycle_time: {pc_cycle_time}")
-    if pc_hardware_pwm:
-        lines.append(f"hardware_pwm: {pc_hardware_pwm}")
-    if pc_shutdown_speed:
-        lines.append(f"shutdown_speed: {pc_shutdown_speed}")
-    if pc_kick_start:
-        lines.append(f"kick_start_time: {pc_kick_start}")
+
+    # Add advanced settings (no defaults for part cooling - all optional)
+    add_fan_settings(lines, pc_settings)
     lines.append("")
     
     # Hotend fan (only if not water cooled / actually used)
@@ -561,18 +594,16 @@ def generate_hardware_cfg(
             hf_pin = get_fan_pin(toolboard, hf_port)
             lines.append("[heater_fan hotend_fan]")
             lines.append(f"pin: toolboard:{hf_pin}  # {hf_port}")
-            lines.append("max_power: 1.0")
-            lines.append("kick_start_time: 0.5")
-            lines.append("heater: extruder")
-            lines.append("heater_temp: 50.0")
-            lines.append("")
         elif assignments.get('fan_hotend'):
             hf_port = assignments.get('fan_hotend', 'FAN1')
             hf_pin = get_fan_pin(board, hf_port)
             lines.append("[heater_fan hotend_fan]")
             lines.append(f"pin: {hf_pin}  # {hf_port}")
-            lines.append("max_power: 1.0")
-            lines.append("kick_start_time: 0.5")
+        else:
+            hf_port = None
+
+        if hf_port:
+            add_fan_settings(lines, hf_settings, {'max_power': '1.0', 'kick_start': '0.5'})
             lines.append("heater: extruder")
             lines.append("heater_temp: 50.0")
             lines.append("")
@@ -582,7 +613,7 @@ def generate_hardware_cfg(
     cf2_port = assignments.get('fan_controller_pin2', '')
     if cf_port:
         cf_pin = get_fan_pin(board, cf_port)
-        
+
         # Multi-pin if second port is assigned
         if cf2_port:
             cf2_pin = get_fan_pin(board, cf2_port)
@@ -592,9 +623,8 @@ def generate_hardware_cfg(
         else:
             lines.append("[controller_fan electronics_fan]")
             lines.append(f"pin: {cf_pin}  # {cf_port}")
-        
-        lines.append("max_power: 1.0")
-        lines.append("kick_start_time: 0.5")
+
+        add_fan_settings(lines, cf_settings, {'max_power': '1.0', 'kick_start': '0.5'})
         lines.append("heater: heater_bed, extruder")
         lines.append("idle_timeout: 60")
         lines.append("idle_speed: 0.5")
@@ -605,7 +635,7 @@ def generate_hardware_cfg(
     ex2_port = assignments.get('fan_exhaust_pin2', '')
     if ex_port:
         ex_pin = get_fan_pin(board, ex_port)
-        
+
         # Multi-pin if second port is assigned
         if ex2_port:
             ex2_pin = get_fan_pin(board, ex2_port)
@@ -615,10 +645,8 @@ def generate_hardware_cfg(
         else:
             lines.append("[fan_generic exhaust_fan]")
             lines.append(f"pin: {ex_pin}  # {ex_port}")
-        
-        lines.append("max_power: 1.0")
-        lines.append("shutdown_speed: 0")
-        lines.append("kick_start_time: 0.5")
+
+        add_fan_settings(lines, ex_settings, {'max_power': '1.0', 'shutdown_speed': '0', 'kick_start': '0.5'})
         lines.append("off_below: 0.10")
         lines.append("# Control with: SET_FAN_SPEED FAN=exhaust_fan SPEED=0.5")
         lines.append("")
@@ -628,7 +656,7 @@ def generate_hardware_cfg(
     ch2_port = assignments.get('fan_chamber_pin2', '')
     if ch_port:
         ch_pin = get_fan_pin(board, ch_port)
-        
+
         # Multi-pin if second port is assigned
         if ch2_port:
             ch2_pin = get_fan_pin(board, ch2_port)
@@ -636,18 +664,16 @@ def generate_hardware_cfg(
             pin_value = "multi_pin:chamber_pins"
         else:
             pin_value = f"{ch_pin}  # {ch_port}"
-        
+
         if fan_chamber_type == 'temperature':
             # Temperature-controlled chamber fan
             ch_sensor_type = wizard_state.get('fan_chamber_sensor_type', 'Generic 3950')
             ch_sensor_pin = wizard_state.get('fan_chamber_sensor_pin', 'REPLACE_PIN')
             ch_target_temp = wizard_state.get('fan_chamber_target_temp', '45')
-            
+
             lines.append("[temperature_fan chamber]")
             lines.append(f"pin: {pin_value}")
-            lines.append("max_power: 1.0")
-            lines.append("shutdown_speed: 0")
-            lines.append("kick_start_time: 0.5")
+            add_fan_settings(lines, ch_settings, {'max_power': '1.0', 'shutdown_speed': '0', 'kick_start': '0.5'})
             lines.append(f"sensor_type: {ch_sensor_type}")
             lines.append(f"sensor_pin: {ch_sensor_pin}  # Configure chamber thermistor pin")
             lines.append("min_temp: 0")
@@ -659,9 +685,7 @@ def generate_hardware_cfg(
             # Manual chamber fan (default)
             lines.append("[fan_generic chamber_fan]")
             lines.append(f"pin: {pin_value}")
-            lines.append("max_power: 1.0")
-            lines.append("shutdown_speed: 0")
-            lines.append("kick_start_time: 0.5")
+            add_fan_settings(lines, ch_settings, {'max_power': '1.0', 'shutdown_speed': '0', 'kick_start': '0.5'})
             lines.append("off_below: 0.10")
             lines.append("# Control with: SET_FAN_SPEED FAN=chamber_fan SPEED=0.5")
         lines.append("")
@@ -671,7 +695,7 @@ def generate_hardware_cfg(
     rs2_port = assignments.get('fan_rscs_pin2', '')
     if rs_port:
         rs_pin = get_fan_pin(board, rs_port)
-        
+
         # Multi-pin if second port is assigned
         if rs2_port:
             rs2_pin = get_fan_pin(board, rs2_port)
@@ -681,10 +705,8 @@ def generate_hardware_cfg(
         else:
             lines.append("[fan_generic rscs_fan]")
             lines.append(f"pin: {rs_pin}  # {rs_port}")
-        
-        lines.append("max_power: 1.0")
-        lines.append("shutdown_speed: 0")
-        lines.append("kick_start_time: 0.5")
+
+        add_fan_settings(lines, rs_settings, {'max_power': '1.0', 'shutdown_speed': '0', 'kick_start': '0.5'})
         lines.append("off_below: 0.10")
         lines.append("# Recirculating active carbon/HEPA filter")
         lines.append("# Control with: SET_FAN_SPEED FAN=rscs_fan SPEED=0.5")
@@ -695,7 +717,7 @@ def generate_hardware_cfg(
     rd2_port = assignments.get('fan_radiator_pin2', '')
     if rd_port:
         rd_pin = get_fan_pin(board, rd_port)
-        
+
         # Multi-pin if second port is assigned
         if rd2_port:
             rd2_pin = get_fan_pin(board, rd2_port)
@@ -705,9 +727,8 @@ def generate_hardware_cfg(
         else:
             lines.append("[heater_fan radiator_fan]")
             lines.append(f"pin: {rd_pin}  # {rd_port}")
-        
-        lines.append("max_power: 1.0")
-        lines.append("kick_start_time: 0.5")
+
+        add_fan_settings(lines, rd_settings, {'max_power': '1.0', 'kick_start': '0.5'})
         lines.append("heater: extruder")
         lines.append("heater_temp: 50.0")
         lines.append("# Water cooling radiator fan - runs when hotend is hot")

@@ -1162,10 +1162,10 @@ def assign_fan_ports(board: Dict):
         rd_display = f"{rd_port} (pin: {rd_pin})" if rd_port else "not assigned"
         print_menu_item("7", "Radiator Fan [heater_fan]", rd_display, rd_status)
         
-        # Multi-pin section
+        # Multi-pin section (only for mainboard fans - no mixing with toolboard)
         print_info("")
         print_info(f"{Colors.BWHITE}Multi-Pin (2nd port for same control):{Colors.NC}")
-        
+
         # Helper to show multi-pin port
         def show_multipin_port(key, label, num):
             port = state.port_assignments.get(key, '')
@@ -1173,8 +1173,13 @@ def assign_fan_ports(board: Dict):
             status = "done" if port else ""
             display = f"{port} (pin: {pin})" if port else "not assigned"
             print_menu_item(num, label, display, status)
-        
-        show_multipin_port('fan_part_cooling_pin2', 'Part Cooling Pin 2', 'A')
+
+        # Part cooling pin2 only available if part cooling is on mainboard
+        if not pc_on_toolboard:
+            show_multipin_port('fan_part_cooling_pin2', 'Part Cooling Pin 2', 'A')
+        else:
+            print_info(f"  A) Part Cooling Pin 2 - {Colors.YELLOW}N/A (fan on toolboard){Colors.NC}")
+
         show_multipin_port('fan_controller_pin2', 'Controller Fan Pin 2', 'B')
         show_multipin_port('fan_rscs_pin2', 'RSCS/Filter Pin 2', 'C')
         show_multipin_port('fan_radiator_pin2', 'Radiator Fan Pin 2', 'D')
@@ -1215,7 +1220,7 @@ def assign_fan_ports(board: Dict):
             select_fan_port('fan_rscs', 'RSCS/Filter Fan', fan_ports, fan_list)
         elif choice == '7':
             select_fan_port('fan_radiator', 'Radiator Fan', fan_ports, fan_list)
-        elif choice == 'a':
+        elif choice == 'a' and not pc_on_toolboard:
             select_fan_port('fan_part_cooling_pin2', 'Part Cooling Pin 2', fan_ports, fan_list)
         elif choice == 'b':
             select_fan_port('fan_controller_pin2', 'Controller Fan Pin 2', fan_ports, fan_list)
@@ -1525,6 +1530,11 @@ def assign_toolboard_fans(toolboard: Dict):
             state.toolboard_assignments['fan_part_cooling'] = 'none'
         elif 1 <= idx < len(fan_list) + 1:
             state.toolboard_assignments['fan_part_cooling'] = fan_list[idx - 1]
+            # Clear mainboard assignments when moving to toolboard (no mixing allowed)
+            if 'fan_part_cooling' in state.port_assignments:
+                del state.port_assignments['fan_part_cooling']
+            if 'fan_part_cooling_pin2' in state.port_assignments:
+                del state.port_assignments['fan_part_cooling_pin2']
     except ValueError:
         pass
     
@@ -1555,9 +1565,12 @@ def assign_toolboard_fans(toolboard: Dict):
             state.toolboard_assignments['fan_hotend'] = 'none'
         elif 1 <= idx < len(fan_list) + 1:
             state.toolboard_assignments['fan_hotend'] = fan_list[idx - 1]
+            # Clear mainboard assignment when moving to toolboard (no mixing allowed)
+            if 'fan_hotend' in state.port_assignments:
+                del state.port_assignments['fan_hotend']
     except ValueError:
         pass
-    
+
     wait_for_key()
 
 def assign_toolboard_endstop(toolboard: Dict):
@@ -1615,6 +1628,241 @@ def assign_toolboard_endstop(toolboard: Dict):
             wait_for_key()
     except ValueError:
         pass
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# LIGHTING PIN ASSIGNMENT
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def assign_lighting_port():
+    """Assign lighting pin with support for different LED types."""
+    wizard_state = load_wizard_state()
+    lighting_type = wizard_state.get('lighting_type', '')
+
+    if not lighting_type or lighting_type == 'none':
+        print(f"{Colors.YELLOW}No lighting type selected. Select type in wizard first.{Colors.NC}")
+        wait_for_key()
+        return
+
+    boards = load_available_boards()
+    board = boards.get(state.board_id)
+    if not board:
+        print(f"{Colors.RED}No board selected!{Colors.NC}")
+        wait_for_key()
+        return
+
+    # Check for toolboard
+    toolboard = None
+    has_toolboard = state.toolboard_id and state.toolboard_id != 'none'
+    if has_toolboard:
+        toolboards = load_available_toolboards()
+        toolboard = toolboards.get(state.toolboard_id)
+
+    clear_screen()
+    print_header(f"Lighting Pin Assignment - {lighting_type.upper()}")
+
+    # Build list of available ports based on lighting type
+    port_options = []
+    num = 1
+
+    # For addressable LEDs (neopixel/dotstar) - prefer dedicated ports
+    if lighting_type in ('neopixel', 'dotstar'):
+        print_info(f"{Colors.BWHITE}Addressable LED Options:{Colors.NC}")
+        print_info(f"{Colors.WHITE}(Neopixel/Dotstar need a data pin, some boards have dedicated ports){Colors.NC}")
+        print_info("")
+
+        # Check for dedicated NEOPIXEL port in misc_ports
+        misc_ports = board.get('misc_ports', {})
+        if 'NEOPIXEL' in misc_ports:
+            port = misc_ports['NEOPIXEL']
+            pin = port.get('pin', '?')
+            label = port.get('label', 'NeoPixel')
+            current = state.port_assignments.get('lighting_pin', '')
+            status = "done" if current == f"NEOPIXEL:{pin}" else ""
+            print_menu_item(str(num), f"NEOPIXEL", f"{label} - pin: {pin}", status)
+            port_options.append(('mainboard', 'NEOPIXEL', pin, 'misc'))
+            num += 1
+
+        # Fan ports can also work for data signal
+        print_info("")
+        print_info(f"{Colors.BWHITE}Fan Ports (can be used for LED data):{Colors.NC}")
+        fan_ports = board.get('fan_ports', {})
+        for port_name, port in fan_ports.items():
+            pin = port.get('pin', '?')
+            label = port.get('label', port_name)
+            status = "done" if state.port_assignments.get('lighting_pin', '') == f"{port_name}:{pin}" else ""
+            print_menu_item(str(num), port_name, f"{label} - pin: {pin}", status)
+            port_options.append(('mainboard', port_name, pin, 'fan'))
+            num += 1
+
+    # For PWM LED - fan ports and heater ports
+    elif lighting_type == 'pwm':
+        print_info(f"{Colors.BWHITE}PWM LED Options:{Colors.NC}")
+        print_info(f"{Colors.WHITE}(Simple on/off or dimmable LED via PWM signal){Colors.NC}")
+        print_info("")
+
+        # Fan ports (most common for PWM LED)
+        print_info(f"{Colors.BWHITE}Fan Ports:{Colors.NC}")
+        fan_ports = board.get('fan_ports', {})
+        for port_name, port in fan_ports.items():
+            pin = port.get('pin', '?')
+            label = port.get('label', port_name)
+            status = "done" if state.port_assignments.get('lighting_pin', '') == f"{port_name}:{pin}" else ""
+            print_menu_item(str(num), port_name, f"{label} - pin: {pin}", status)
+            port_options.append(('mainboard', port_name, pin, 'fan'))
+            num += 1
+
+        # Heater ports (for high-power LEDs)
+        print_info("")
+        print_info(f"{Colors.BWHITE}Heater Ports (high-power LEDs):{Colors.NC}")
+        print_info(f"{Colors.YELLOW}⚠ For high-current LEDs that need more power than fan ports{Colors.NC}")
+        heater_ports = board.get('heater_ports', {})
+        for port_name, port in heater_ports.items():
+            if port_name in ('HB',):  # Skip heated bed
+                continue
+            pin = port.get('pin', '?')
+            label = port.get('label', port_name)
+            status = "done" if state.port_assignments.get('lighting_pin', '') == f"{port_name}:{pin}" else ""
+            print_menu_item(str(num), port_name, f"{label} - pin: {pin} (HIGH POWER)", status)
+            port_options.append(('mainboard', port_name, pin, 'heater'))
+            num += 1
+
+    # PCA9533 - I2C device
+    elif lighting_type == 'pca9533':
+        print_info(f"{Colors.BWHITE}PCA9533 I2C LED Driver:{Colors.NC}")
+        print_info(f"{Colors.WHITE}(I2C device - uses I2C bus, address configurable){Colors.NC}")
+        print_info("")
+        print_info(f"  Default I2C address: 0x62")
+        print_info(f"  Uses the board's I2C bus (usually i2c_software or i2c_mcu)")
+        print_info("")
+
+        # For PCA9533, we just need to store that it's configured
+        current = state.port_assignments.get('lighting_pin', '')
+        status = "done" if current == "i2c:pca9533" else ""
+        print_menu_item(str(num), "I2C", "PCA9533 on I2C bus", status)
+        port_options.append(('mainboard', 'I2C', 'pca9533', 'i2c'))
+        num += 1
+
+    # Toolboard options (if available and applicable)
+    if has_toolboard and toolboard and lighting_type in ('neopixel', 'dotstar', 'pwm'):
+        print_info("")
+        print_info(f"{Colors.BWHITE}Toolboard Options ({state.toolboard_name}):{Colors.NC}")
+
+        # Toolboard misc ports
+        tb_misc = toolboard.get('misc_ports', {})
+        if 'NEOPIXEL' in tb_misc and lighting_type in ('neopixel', 'dotstar'):
+            port = tb_misc['NEOPIXEL']
+            pin = port.get('pin', '?')
+            label = port.get('label', 'NeoPixel')
+            status = "done" if state.toolboard_assignments.get('lighting_pin', '') == f"NEOPIXEL:{pin}" else ""
+            print_menu_item(str(num), f"TB:NEOPIXEL", f"Toolboard {label} - pin: {pin}", status)
+            port_options.append(('toolboard', 'NEOPIXEL', pin, 'misc'))
+            num += 1
+
+        # Toolboard fan ports
+        tb_fan_ports = toolboard.get('fan_ports', {})
+        for port_name, port in tb_fan_ports.items():
+            pin = port.get('pin', '?')
+            label = port.get('label', port_name)
+            status = "done" if state.toolboard_assignments.get('lighting_pin', '') == f"{port_name}:{pin}" else ""
+            print_menu_item(str(num), f"TB:{port_name}", f"Toolboard {label} - pin: {pin}", status)
+            port_options.append(('toolboard', port_name, pin, 'fan'))
+            num += 1
+
+    # Manual pin entry option
+    print_info("")
+    print_menu_item("M", "Manual", "Enter pin manually (e.g., PA8, PB0)", "")
+
+    # Clear option
+    print_info("")
+    print_action("X", "Clear lighting pin assignment")
+
+    print_separator()
+    print_action("B", "Back")
+    print_footer()
+
+    choice = prompt("Select port for lighting").strip()
+
+    if choice.lower() == 'b':
+        return
+    elif choice.lower() == 'x':
+        # Clear assignments
+        if 'lighting_pin' in state.port_assignments:
+            del state.port_assignments['lighting_pin']
+        if 'lighting_clock_pin' in state.port_assignments:
+            del state.port_assignments['lighting_clock_pin']
+        if 'lighting_pin' in state.toolboard_assignments:
+            del state.toolboard_assignments['lighting_pin']
+        if 'lighting_clock_pin' in state.toolboard_assignments:
+            del state.toolboard_assignments['lighting_clock_pin']
+        print(f"\n{Colors.GREEN}Lighting pin assignment cleared{Colors.NC}")
+        state.save()
+        wait_for_key()
+        return
+    elif choice.lower() == 'm':
+        # Manual pin entry
+        print_info("")
+        pin = prompt("Enter data pin (e.g., PA8, PB0)").strip().upper()
+        if pin:
+            # Ask mainboard or toolboard
+            if has_toolboard:
+                loc = prompt("Mainboard or Toolboard? [m/t]").strip().lower()
+                if loc == 't':
+                    state.toolboard_assignments['lighting_pin'] = f"manual:{pin}"
+                    if 'lighting_pin' in state.port_assignments:
+                        del state.port_assignments['lighting_pin']
+                else:
+                    state.port_assignments['lighting_pin'] = f"manual:{pin}"
+                    if 'lighting_pin' in state.toolboard_assignments:
+                        del state.toolboard_assignments['lighting_pin']
+            else:
+                state.port_assignments['lighting_pin'] = f"manual:{pin}"
+
+            # For Dotstar, also need clock pin
+            if lighting_type == 'dotstar':
+                clock = prompt("Enter clock pin for Dotstar (e.g., PA9)").strip().upper()
+                if clock:
+                    if has_toolboard and loc == 't':
+                        state.toolboard_assignments['lighting_clock_pin'] = f"manual:{clock}"
+                    else:
+                        state.port_assignments['lighting_clock_pin'] = f"manual:{clock}"
+
+            print(f"\n{Colors.GREEN}Lighting pin assigned: {pin}{Colors.NC}")
+            state.save()
+        wait_for_key()
+        return
+
+    try:
+        idx = int(choice) - 1
+        if 0 <= idx < len(port_options):
+            location, port_name, pin, port_type = port_options[idx]
+
+            if location == 'toolboard':
+                state.toolboard_assignments['lighting_pin'] = f"{port_name}:{pin}"
+                # Clear mainboard assignment
+                if 'lighting_pin' in state.port_assignments:
+                    del state.port_assignments['lighting_pin']
+                print(f"\n{Colors.GREEN}Lighting assigned to toolboard:{port_name} (pin: {pin}){Colors.NC}")
+            else:
+                state.port_assignments['lighting_pin'] = f"{port_name}:{pin}"
+                # Clear toolboard assignment
+                if 'lighting_pin' in state.toolboard_assignments:
+                    del state.toolboard_assignments['lighting_pin']
+                print(f"\n{Colors.GREEN}Lighting assigned to {port_name} (pin: {pin}){Colors.NC}")
+
+            # For Dotstar on mainboard, need clock pin
+            if lighting_type == 'dotstar' and location == 'mainboard':
+                print_info("")
+                print_info(f"{Colors.YELLOW}Dotstar also needs a clock pin.{Colors.NC}")
+                clock = prompt("Enter clock pin (e.g., PA9) or press Enter to skip").strip().upper()
+                if clock:
+                    state.port_assignments['lighting_clock_pin'] = f"manual:{clock}"
+                    print(f"{Colors.GREEN}Clock pin: {clock}{Colors.NC}")
+
+            state.save()
+            wait_for_key()
+    except ValueError:
+        pass
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # MOTOR FUNCTION CALCULATION
@@ -2361,8 +2609,7 @@ def main():
         if select_single_port('fan', fan_ports, fan_key, f'Select Secondary Pin for {args.fan_multipin}'):
             state.save()
     elif args.lighting:
-        print(f"{Colors.YELLOW}Lighting configuration not yet implemented in CLI mode.{Colors.NC}")
-        print(f"Use the full setup menu: python3 setup-hardware.py")
+        assign_lighting_port()
     elif getattr(args, 'clear_port', None):
         # Clear a port assignment from both mainboard and toolboard
         key = args.clear_port

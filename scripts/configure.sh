@@ -27,6 +27,9 @@ PRINTER_CFG="${DEFAULT_CONFIG_DIR}/printer.cfg"
 # State file for wizard selections
 STATE_FILE="${REPO_ROOT}/.wizard-state"
 
+# Installation library path
+INSTALL_LIB_DIR="${LIB_DIR}"
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # COLORS AND FORMATTING
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -2149,6 +2152,15 @@ except:
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# SOURCE INSTALLATION LIBRARY
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Source the Klipper installation library (provides do_install_* functions)
+if [[ -f "${LIB_DIR}/klipper-install.sh" ]]; then
+    source "${LIB_DIR}/klipper-install.sh"
+fi
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # KLIPPER COMPONENT DETECTION
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -2205,87 +2217,93 @@ get_moonraker_version() {
 # ═══════════════════════════════════════════════════════════════════════════════
 
 install_klipper() {
-    clear_screen
-    print_header "Install Klipper"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}Coming soon!${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  Klipper installation will be implemented in a future update."
-    echo -e "${BCYAN}${BOX_V}${NC}  For now, please use KIAUH to install Klipper:"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${CYAN}https://github.com/dw-0/kiauh${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    print_footer
-    wait_for_key
+    if type do_install_klipper &>/dev/null; then
+        do_install_klipper
+    else
+        clear_screen
+        print_header "Install Klipper"
+        echo -e "${BCYAN}${BOX_V}${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}  ${RED}Installation library not found!${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}  Please ensure scripts/lib/klipper-install.sh exists."
+        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_footer
+        wait_for_key
+    fi
 }
 
 install_moonraker() {
-    clear_screen
-    print_header "Install Moonraker"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}Coming soon!${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  Moonraker installation will be implemented in a future update."
-    echo -e "${BCYAN}${BOX_V}${NC}  For now, please use KIAUH to install Moonraker:"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${CYAN}https://github.com/dw-0/kiauh${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    print_footer
-    wait_for_key
+    if type do_install_moonraker &>/dev/null; then
+        do_install_moonraker
+    else
+        clear_screen
+        print_header "Install Moonraker"
+        echo -e "${BCYAN}${BOX_V}${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}  ${RED}Installation library not found!${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}  Please ensure scripts/lib/klipper-install.sh exists."
+        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_footer
+        wait_for_key
+    fi
 }
 
 install_mainsail() {
-    clear_screen
-    print_header "Install Mainsail"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}Coming soon!${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  Mainsail installation will be implemented in a future update."
-    echo -e "${BCYAN}${BOX_V}${NC}  For now, please use KIAUH to install Mainsail:"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${CYAN}https://github.com/dw-0/kiauh${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    print_footer
-    wait_for_key
+    if type do_install_mainsail &>/dev/null; then
+        do_install_mainsail
+    else
+        clear_screen
+        print_header "Install Mainsail"
+        echo -e "${BCYAN}${BOX_V}${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}  ${RED}Installation library not found!${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}  Please ensure scripts/lib/klipper-install.sh exists."
+        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_footer
+        wait_for_key
+    fi
 }
 
 install_fluidd() {
-    clear_screen
-    print_header "Install Fluidd"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}Coming soon!${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  Fluidd installation will be implemented in a future update."
-    echo -e "${BCYAN}${BOX_V}${NC}  For now, please use KIAUH to install Fluidd:"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${CYAN}https://github.com/dw-0/kiauh${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    print_footer
-    wait_for_key
+    if type do_install_fluidd &>/dev/null; then
+        do_install_fluidd
+    else
+        clear_screen
+        print_header "Install Fluidd"
+        echo -e "${BCYAN}${BOX_V}${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}  ${RED}Installation library not found!${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}  Please ensure scripts/lib/klipper-install.sh exists."
+        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_footer
+        wait_for_key
+    fi
 }
 
 install_crowsnest() {
-    clear_screen
-    print_header "Install Crowsnest"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}Coming soon!${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  Crowsnest installation will be implemented in a future update."
-    echo -e "${BCYAN}${BOX_V}${NC}  For now, please install manually:"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${CYAN}https://github.com/mainsail-crew/crowsnest${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    print_footer
-    wait_for_key
+    if type do_install_crowsnest &>/dev/null; then
+        do_install_crowsnest
+    else
+        clear_screen
+        print_header "Install Crowsnest"
+        echo -e "${BCYAN}${BOX_V}${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}  ${RED}Installation library not found!${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}  Please ensure scripts/lib/klipper-install.sh exists."
+        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_footer
+        wait_for_key
+    fi
 }
 
 install_sonar() {
-    clear_screen
-    print_header "Install Sonar"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}Coming soon!${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}  Sonar installation will be implemented in a future update."
-    echo -e "${BCYAN}${BOX_V}${NC}  For now, please install manually:"
-    echo -e "${BCYAN}${BOX_V}${NC}  ${CYAN}https://github.com/mainsail-crew/sonar${NC}"
-    echo -e "${BCYAN}${BOX_V}${NC}"
-    print_footer
-    wait_for_key
+    if type do_install_sonar &>/dev/null; then
+        do_install_sonar
+    else
+        clear_screen
+        print_header "Install Sonar"
+        echo -e "${BCYAN}${BOX_V}${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}  ${RED}Installation library not found!${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}  Please ensure scripts/lib/klipper-install.sh exists."
+        echo -e "${BCYAN}${BOX_V}${NC}"
+        print_footer
+        wait_for_key
+    fi
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
