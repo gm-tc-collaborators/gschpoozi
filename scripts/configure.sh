@@ -101,9 +101,10 @@ print_box_line() {
     if [[ $padding -lt 0 ]]; then padding=0; fi
 
     # Print: left border + indent + content + padding + right border
+    # Use %b to interpret escape sequences in content
     printf "${BCYAN}${BOX_V}${NC}"
     printf "%${indent}s" ""
-    printf "%s" "$content"
+    printf "%b" "$content"
     printf "%${padding}s" ""
     printf "${BCYAN}${BOX_V}${NC}\n"
 }
