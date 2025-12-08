@@ -2,6 +2,24 @@
 
 > A simple, wizard-based Klipper configuration generator.
 
+---
+
+## ⚠️ ALPHA SOFTWARE - READ BEFORE USE ⚠️
+
+**This software is in late alpha. Generated configurations have NOT been tested on all hardware combinations.**
+
+Before using generated configs on your printer:
+
+1. **REVIEW ALL GENERATED FILES** - Check pin assignments match your actual wiring
+2. **BACKUP YOUR EXISTING CONFIG** - Save your current printer.cfg first
+3. **TEST WITH MOTORS OFF** - Use `STEPPER_BUZZ` to verify directions before homing
+4. **START COLD** - Don't heat bed/nozzle until basic movement is verified
+5. **WATCH THE FIRST HOME** - Be ready to hit emergency stop
+
+**The authors are not responsible for any damage to your printer. Use at your own risk.**
+
+---
+
 **gschpoozi** makes setting up Klipper easy. Instead of copying and editing complex config files, run the wizard, answer questions about your printer, and get a clean, working configuration.
 
 Inspired by [Klippain](https://github.com/Frix-x/klippain), but built from the ground up with simplicity as the #1 priority.

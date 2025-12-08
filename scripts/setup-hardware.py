@@ -2656,6 +2656,7 @@ def main():
     parser.add_argument('--thermistor-extruder', action='store_true', help='Assign hotend thermistor port')
     parser.add_argument('--heater-bed', action='store_true', help='Assign bed heater port')
     parser.add_argument('--thermistor-bed', action='store_true', help='Assign bed thermistor port')
+    parser.add_argument('--thermistor-chamber', action='store_true', help='Assign chamber thermistor port')
     parser.add_argument('--endstop-x', action='store_true', help='Assign X endstop port')
     parser.add_argument('--endstop-y', action='store_true', help='Assign Y endstop port')
     parser.add_argument('--endstop-z', action='store_true', help='Assign Z endstop port')
@@ -2738,6 +2739,13 @@ def main():
             sys.exit(1)
         # Offer BOTH mainboard and toolboard ports - user chooses
         if select_flexible_port('thermistor', 'thermistor_bed', 'Select Bed Thermistor Port'):
+            state.save()
+    elif getattr(args, 'thermistor_chamber', False):
+        if not state.board_id:
+            print(f"{Colors.RED}Error: No board selected.{Colors.NC}")
+            sys.exit(1)
+        # Offer mainboard thermistor ports for chamber sensor
+        if select_flexible_port('thermistor', 'thermistor_chamber', 'Select Chamber Thermistor Port'):
             state.save()
     elif getattr(args, 'endstop_x', False):
         if not state.board_id:

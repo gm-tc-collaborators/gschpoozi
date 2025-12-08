@@ -6441,11 +6441,16 @@ menu_extras() {
     local cs_status=$([[ "${WIZARD_STATE[has_chamber_sensor]}" == "yes" ]] && echo "[x]" || echo "[ ]")
 
     echo -e "${BCYAN}${BOX_V}${NC}  1) ${fs_status} Filament Sensor"
-    # Show chamber sensor with type info and pin reminder
+    # Show chamber sensor with type info and port assignment
     if [[ "${WIZARD_STATE[has_chamber_sensor]}" == "yes" ]]; then
         local cs_type="${WIZARD_STATE[chamber_sensor_type]:-Generic 3950}"
+        local cs_port="${HARDWARE_STATE[thermistor_chamber]:-not assigned}"
         echo -e "${BCYAN}${BOX_V}${NC}  2) ${cs_status} Chamber Temperature Sensor ${WHITE}(${cs_type})${NC}"
-        echo -e "${BCYAN}${BOX_V}${NC}     ${YELLOW}→ Assign thermistor port in Hardware Setup${NC}"
+        if [[ "$cs_port" == "not assigned" ]]; then
+            echo -e "${BCYAN}${BOX_V}${NC}     ${YELLOW}Port: not assigned - press P to assign${NC}"
+        else
+            echo -e "${BCYAN}${BOX_V}${NC}     ${GREEN}Port: ${cs_port}${NC}"
+        fi
     else
         echo -e "${BCYAN}${BOX_V}${NC}  2) ${cs_status} Chamber Temperature Sensor"
     fi
@@ -6467,6 +6472,13 @@ menu_extras() {
     
     echo -e "${BCYAN}${BOX_V}${NC}  5) ${led_status} Status LEDs (NeoPixel on toolhead)"
     echo -e "${BCYAN}${BOX_V}${NC}  6) ${cl_status} Case Lighting"
+
+    # Show port assignment option if chamber sensor is enabled
+    if [[ "${WIZARD_STATE[has_chamber_sensor]}" == "yes" ]]; then
+        echo -e "${BCYAN}${BOX_V}${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Port Assignment:${NC}"
+        print_menu_item "P" "" "Assign Chamber Thermistor Port"
+    fi
 
     print_separator
     print_action_item "B" "Back"
@@ -6493,6 +6505,15 @@ menu_extras() {
             else
                 WIZARD_STATE[has_chamber_sensor]="yes"
                 select_chamber_sensor_type
+                # Prompt to assign thermistor port if board is selected
+                if [[ -n "${WIZARD_STATE[board]}" ]]; then
+                    save_state
+                    echo ""
+                    echo -e "${CYAN}Now assign the thermistor port for the chamber sensor...${NC}"
+                    sleep 1
+                    python3 "${SCRIPT_DIR}/setup-hardware.py" --thermistor-chamber
+                    load_hardware_state
+                fi
             fi
             menu_extras  # Refresh
             ;;
@@ -6539,6 +6560,15 @@ menu_extras() {
             else
                 WIZARD_STATE[has_camera]="yes"
                 select_camera_type
+            fi
+            menu_extras  # Refresh
+            ;;
+        [pP])
+            # Assign chamber thermistor port
+            if [[ "${WIZARD_STATE[has_chamber_sensor]}" == "yes" && -n "${WIZARD_STATE[board]}" ]]; then
+                save_state
+                python3 "${SCRIPT_DIR}/setup-hardware.py" --thermistor-chamber
+                load_hardware_state
             fi
             menu_extras  # Refresh
             ;;
@@ -6723,15 +6753,36 @@ generate_config() {
         return
     fi
     
-    echo -e "${BCYAN}${BOX_V}${NC}  Configuration Summary:"
+    # ═══════════════════════════════════════════════════════════════════════════
+    # SAFETY WARNINGS
+    # ═══════════════════════════════════════════════════════════════════════════
+    echo -e "${BYELLOW}╔═══════════════════════════════════════════════════════════════════════════════╗${NC}"
+    echo -e "${BYELLOW}║${NC}  ${BRED}⚠️  IMPORTANT SAFETY WARNINGS  ⚠️${NC}                                           ${BYELLOW}║${NC}"
+    echo -e "${BYELLOW}╠═══════════════════════════════════════════════════════════════════════════════╣${NC}"
+    echo -e "${BYELLOW}║${NC}                                                                               ${BYELLOW}║${NC}"
+    echo -e "${BYELLOW}║${NC}  ${BWHITE}Before using this config on your printer:${NC}                                   ${BYELLOW}║${NC}"
+    echo -e "${BYELLOW}║${NC}                                                                               ${BYELLOW}║${NC}"
+    echo -e "${BYELLOW}║${NC}  ${CYAN}1.${NC} REVIEW generated files - verify pin assignments match your wiring        ${BYELLOW}║${NC}"
+    echo -e "${BYELLOW}║${NC}  ${CYAN}2.${NC} BACKUP existing config - save your current printer.cfg first             ${BYELLOW}║${NC}"
+    echo -e "${BYELLOW}║${NC}  ${CYAN}3.${NC} TEST with motors off - use STEPPER_BUZZ to verify directions             ${BYELLOW}║${NC}"
+    echo -e "${BYELLOW}║${NC}  ${CYAN}4.${NC} START cold - don't heat bed/nozzle until movement is verified            ${BYELLOW}║${NC}"
+    echo -e "${BYELLOW}║${NC}  ${CYAN}5.${NC} WATCH first home - keep hand on emergency stop                           ${BYELLOW}║${NC}"
+    echo -e "${BYELLOW}║${NC}                                                                               ${BYELLOW}║${NC}"
+    echo -e "${BYELLOW}║${NC}  ${DIM}See docs/USAGE.md for complete safety checklist.${NC}                            ${BYELLOW}║${NC}"
+    echo -e "${BYELLOW}╚═══════════════════════════════════════════════════════════════════════════════╝${NC}"
+    echo ""
+    
+    echo -e "${BCYAN}${BOX_V}${NC}  ${BWHITE}Configuration Summary:${NC}"
     echo -e "${BCYAN}${BOX_V}${NC}  • Board: ${WIZARD_STATE[board_name]}"
     echo -e "${BCYAN}${BOX_V}${NC}  • Kinematics: ${WIZARD_STATE[kinematics]}"
     echo -e "${BCYAN}${BOX_V}${NC}  • Bed: ${WIZARD_STATE[bed_size_x]}x${WIZARD_STATE[bed_size_y]}x${WIZARD_STATE[bed_size_z]}"
     echo -e "${BCYAN}${BOX_V}${NC}  • Probe: ${WIZARD_STATE[probe_type]:-none}"
+    [[ -n "${WIZARD_STATE[probe_mode]}" ]] && echo -e "${BCYAN}${BOX_V}${NC}  • Probe Mode: ${WIZARD_STATE[probe_mode]}"
     echo -e "${BCYAN}${BOX_V}${NC}"
     echo -e "${BCYAN}${BOX_V}${NC}  Output directory: ${OUTPUT_DIR}"
     print_footer
     
+    echo -e "${BYELLOW}I understand the risks and have read the safety warnings.${NC}"
     if ! confirm "Generate configuration?"; then
         return
     fi

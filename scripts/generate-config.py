@@ -912,16 +912,14 @@ def generate_hardware_cfg(
             if probe_mode == 'touch':
                 lines.append("")
                 lines.append("# Contact mode settings (Beacon Rev H+ required)")
-                lines.append("home_method: contact  # Use contact mode for Z homing")
-                lines.append(f"home_xy_position: {home_x}, {home_y}  # Center of bed")
+                lines.append("home_method: contact")
+                lines.append(f"home_xy_position: {home_x}, {home_y}")
                 lines.append("home_z_hop: 5")
                 lines.append("home_z_hop_speed: 30")
-                lines.append("home_xy_move_speed: 300")
-                lines.append("home_autocalibrate: unhomed  # Auto-calibrate on first home")
-                lines.append("contact_max_hotend_temperature: 180  # Safety limit for contact")
+                lines.append("contact_max_hotend_temperature: 180")
                 lines.append("")
-                lines.append("# Contact mode calibration")
-                lines.append("# Run BEACON_CALIBRATE_CONTACT after setup")
+                lines.append("# For additional contact mode options, see:")
+                lines.append("# https://docs.beacon3d.com/")
             else:
                 lines.append("")
                 lines.append("# Proximity mode (default)")
@@ -940,32 +938,20 @@ def generate_hardware_cfg(
             lines.append("x_offset: 0")
             lines.append("y_offset: 20  # Adjust for your toolhead")
             
-            # Touch mode configuration for Cartographer
+            lines.append("mesh_main_direction: x")
+            lines.append("mesh_runs: 2")
+            
+            # Mode-specific comments
             if probe_mode == 'touch':
                 lines.append("")
-                lines.append("# Touch mode settings")
-                lines.append("calibration_method: touch")
-                lines.append("touch_location: {}, {}  # Center of bed".format(home_x, home_y))
-                lines.append("touch_z_offset: 0.05")
-                lines.append("touch_max_temp: 150  # Max hotend temp for touch")
-                lines.append("touch_speed: 3")
-                lines.append("touch_sample_count: 3")
-                lines.append("touch_retract_dist: 2")
-                lines.append("touch_retract_speed: 10")
-                lines.append("touch_move_speed: 150")
-                lines.append("")
-                lines.append("# Mesh still uses scan mode for speed")
-                lines.append("mesh_main_direction: x")
-                lines.append("mesh_runs: 2")
-                lines.append("")
-                lines.append("# Touch mode calibration")
-                lines.append("# Run CARTOGRAPHER_TOUCH_CALIBRATE after setup")
+                lines.append("# Touch mode enabled")
+                lines.append("# Cartographer touch mode provides higher precision Z homing")
+                lines.append("# For touch mode setup and calibration, see:")
+                lines.append("# https://docs.cartographer3d.com/")
             else:
                 lines.append("")
                 lines.append("# Scan/Proximity mode (default)")
-                lines.append("calibration_method: scan")
-                lines.append("mesh_main_direction: x")
-                lines.append("mesh_runs: 2")
+                lines.append("# Uses eddy current sensing for contactless Z reference")
                 
         elif probe_type == 'btt-eddy':
             lines.append("[mcu eddy]")
@@ -1001,13 +987,7 @@ def generate_hardware_cfg(
                 lines.append("sample_retract_dist: 2")
                 lines.append("samples_result: median")
                 lines.append("")
-                lines.append("[safe_z_home]")
-                lines.append(f"home_xy_position: {home_x}, {home_y}")
-                lines.append("z_hop: 10")
-                lines.append("z_hop_speed: 25")
-                lines.append("speed: 150")
-                lines.append("")
-                lines.append("# Touch mode calibration")
+                lines.append("# Touch mode calibration:")
                 lines.append("# Run PROBE_EDDY_CURRENT_CALIBRATE CHIP=btt_eddy")
             else:
                 lines.append("")
@@ -1022,14 +1002,6 @@ def generate_hardware_cfg(
                 lines.append("sensor_type: Generic 3950")
                 lines.append("sensor_pin: eddy:gpio26")
                 lines.append("horizontal_move_z: 2")
-                lines.append("")
-                lines.append("# Rapid scanning bed mesh")
-                lines.append("[bed_mesh]")
-                lines.append("horizontal_move_z: 2")
-                lines.append("speed: 400")
-                lines.append("probe_count: 9, 9")
-                lines.append("algorithm: bicubic")
-                lines.append("scan_overshoot: 8")
                 lines.append("")
                 lines.append("# Calibration commands:")
                 lines.append("# PROBE_EDDY_CURRENT_CALIBRATE CHIP=btt_eddy")
@@ -1053,6 +1025,48 @@ def generate_hardware_cfg(
             lines.append("sample_retract_dist: 2")
             lines.append("samples_result: median")
         
+        lines.append("")
+        
+        # ─────────────────────────────────────────────────────────────────────
+        # SAFE Z HOME - Required for ALL probe types
+        # ─────────────────────────────────────────────────────────────────────
+        lines.append("# " + "─" * 77)
+        lines.append("# SAFE Z HOME")
+        lines.append("# " + "─" * 77)
+        lines.append("[safe_z_home]")
+        lines.append(f"home_xy_position: {home_x}, {home_y}  # Center of bed")
+        lines.append("z_hop: 10  # Lift Z before homing")
+        lines.append("z_hop_speed: 25")
+        lines.append("speed: 150")
+        lines.append("")
+        
+        # ─────────────────────────────────────────────────────────────────────
+        # BED MESH - Required for ALL probe types
+        # ─────────────────────────────────────────────────────────────────────
+        lines.append("# " + "─" * 77)
+        lines.append("# BED MESH")
+        lines.append("# " + "─" * 77)
+        lines.append("[bed_mesh]")
+        lines.append("speed: 150")
+        lines.append("horizontal_move_z: 5")
+        
+        # Eddy current probes can use rapid scanning
+        if probe_type in ('beacon', 'cartographer', 'btt-eddy'):
+            lines.append("# Eddy probe: use rapid scan for faster mesh")
+            lines.append("# BED_MESH_CALIBRATE METHOD=rapid_scan")
+            if probe_type == 'btt-eddy':
+                lines.append("scan_overshoot: 8")
+            lines.append("mesh_min: 30, 30")
+            lines.append(f"mesh_max: {home_x * 2 - 30}, {home_y * 2 - 30}")
+            lines.append("probe_count: 9, 9")
+            lines.append("algorithm: bicubic")
+        else:
+            # Pin-based probes (BLTouch, Klicky, Inductive)
+            lines.append("mesh_min: 30, 30")
+            lines.append(f"mesh_max: {home_x * 2 - 30}, {home_y * 2 - 30}")
+            lines.append("probe_count: 5, 5")
+            lines.append("algorithm: bicubic")
+            lines.append("# Use ADAPTIVE=1 for adaptive meshing: BED_MESH_CALIBRATE ADAPTIVE=1")
         lines.append("")
     
     # Leveling configuration based on Z motor count

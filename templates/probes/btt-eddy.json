@@ -43,7 +43,7 @@
       "horizontal_move_z": 2
     },
     "stepper_z": {
-      "endstop_pin": "probe:z_virtual_endstop",
+      "endstop_pin": "btt_eddy:z_virtual_endstop",
       "homing_retract_dist": 0
     },
     "bed_mesh": {

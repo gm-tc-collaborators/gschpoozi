@@ -4,36 +4,72 @@ Complete guide to configuring your 3D printer with the gschpoozi wizard.
 
 ## Table of Contents
 
+- [Quick Start](#quick-start)
 - [Installation](#installation)
-- [Running the Wizard](#running-the-wizard)
+- [Navigating the Wizard](#navigating-the-wizard)
 - [Main Menu](#main-menu)
 - [Board Configuration](#board-configuration)
 - [Motion Configuration](#motion-configuration)
 - [Components Configuration](#components-configuration)
 - [Generated Config Files](#generated-config-files)
 - [After Configuration](#after-configuration)
+- [Safety Checklist](#safety-checklist)
 - [Troubleshooting](#troubleshooting)
+
+---
+
+## Quick Start
+
+gschpoozi is a complete Klipper installation and configuration system. You only need two things:
+
+```bash
+# 1. Clone the repository
+cd ~ && git clone https://github.com/gueee/gschpoozi.git
+
+# 2. Run the configuration wizard
+~/gschpoozi/scripts/configure.sh
+```
+
+That's it! The script handles everything including Klipper installation if needed.
 
 ---
 
 ## Installation
 
-### Prerequisites
+### What You Need
 
-- Klipper installed and running
-- SSH access to your printer
-- Basic familiarity with your printer's hardware
+- **A Raspberry Pi** (or similar SBC) connected to your printer
+- **SSH access** to your Pi
+- **Basic knowledge** of your printer's hardware (board type, motors, probe, etc.)
 
-### Install gschpoozi
+**You do NOT need Klipper pre-installed** - the script will install it automatically if it's not present.
 
-```bash
-cd ~
-git clone https://github.com/gueee/gschpoozi.git
-```
+### Install Steps
 
-### Optional: Add to Moonraker for Updates
+1. **SSH into your Raspberry Pi:**
+   ```bash
+   ssh pi@your-printer-ip
+   ```
 
-Add to your `moonraker.conf`:
+2. **Clone gschpoozi:**
+   ```bash
+   cd ~
+   git clone https://github.com/gueee/gschpoozi.git
+   ```
+
+3. **Run the wizard:**
+   ```bash
+   ~/gschpoozi/scripts/configure.sh
+   ```
+
+The wizard will:
+- Install Klipper, Moonraker, and Mainsail/Fluidd if not present
+- Guide you through hardware configuration
+- Generate ready-to-use config files
+
+### Adding to Moonraker Update Manager
+
+After setup, add this to `moonraker.conf` for automatic updates:
 
 ```ini
 [update_manager gschpoozi]
@@ -50,20 +86,37 @@ info_tags:
 
 ---
 
-## Running the Wizard
+## Navigating the Wizard
 
-Start the configuration wizard:
+The wizard uses a menu-driven terminal interface. Here's how to use it:
 
-```bash
-~/gschpoozi/scripts/configure.sh
+### Navigation Keys
+
+| Key | Action |
+|-----|--------|
+| **1-9** | Select numbered menu options |
+| **B** | Go back to previous menu |
+| **Q** | Quit the wizard (progress is saved) |
+| **Enter** | Confirm selection or accept default |
+
+### Visual Indicators
+
+```
+  1) [✓] Boards              Already configured
+  2) [ ] Motion              Not yet configured
+  3) [→] Components          Currently selected
 ```
 
-The wizard uses a menu-driven interface. Navigate using:
-- **Number keys** - Select menu options
-- **B** - Go back to previous menu
-- **Q** - Quit the wizard
+- **[✓]** - Section is complete
+- **[ ]** - Section needs configuration
+- **[→]** - Currently active/selected
 
-Your selections are automatically saved and will be remembered if you exit and restart.
+### Saved State
+
+Your selections are automatically saved as you go. If you quit and restart the wizard, all your previous choices are remembered. You can:
+- Exit anytime and resume later
+- Go back and change individual settings
+- Re-generate configs after making changes
 
 ---
 
@@ -542,6 +595,89 @@ position_endstop: 300.5    # Fine-tuned endstop position
 [probe]
 z_offset: 1.234            # Or let SAVE_CONFIG handle this
 ```
+
+---
+
+## Safety Checklist
+
+**Before powering motors or heaters, complete this checklist:**
+
+### Pre-Flight Checks
+
+1. **Review Generated Config Files**
+   - Open `~/printer_data/config/gschpoozi/hardware.cfg`
+   - Verify all pin assignments match your actual wiring
+   - Check thermistor types match your hardware
+   - Verify probe type and settings
+
+2. **Verify MCU Connection**
+   ```bash
+   ls /dev/serial/by-id/
+   ```
+   Ensure your board appears and the serial path matches the config.
+
+3. **Check Klipper Starts Without Errors**
+   - Restart Klipper: `sudo systemctl restart klipper`
+   - Check logs: `journalctl -u klipper -f`
+   - Look for any `mcu` or `config` errors
+
+### Motor Safety Tests
+
+**Do these BEFORE homing:**
+
+4. **Identify Each Motor**
+   ```gcode
+   STEPPER_BUZZ STEPPER=stepper_x
+   STEPPER_BUZZ STEPPER=stepper_y
+   STEPPER_BUZZ STEPPER=stepper_z
+   STEPPER_BUZZ STEPPER=extruder
+   ```
+   Each motor should buzz briefly. Verify the correct motor moves for each command.
+
+5. **Check Movement Directions**
+   - Move each axis manually (motors off)
+   - Note which way is positive
+   - Use `SET_KINEMATIC_POSITION X=150 Y=150 Z=50` to set a fake position
+   - Send `G1 X160 F1000` - X should move in positive direction
+   - If wrong, add `!` to invert: `dir_pin: !PF12`
+
+### Homing Safety
+
+6. **First Home Attempt**
+   - **Keep hand on power switch** or emergency stop
+   - Home X first: `G28 X`
+   - Home Y: `G28 Y`
+   - Home Z: `G28 Z` (ensure probe is working first)
+   - Watch for crashes - stop immediately if wrong direction
+
+### Heater Safety
+
+7. **Verify Thermistors Read Correctly**
+   - Room temperature should show ~20-25°C
+   - If reading -14°C or 0°C: wiring issue
+   - If reading very high: wrong thermistor type
+
+8. **PID Tune Before Printing**
+   ```gcode
+   PID_CALIBRATE HEATER=extruder TARGET=200
+   PID_CALIBRATE HEATER=heater_bed TARGET=60
+   SAVE_CONFIG
+   ```
+
+### Probe Calibration
+
+9. **Calibrate Probe Z Offset**
+   ```gcode
+   G28
+   PROBE_CALIBRATE
+   ```
+   Follow the paper test procedure.
+
+10. **Test Bed Mesh**
+    ```gcode
+    BED_MESH_CALIBRATE
+    ```
+    Ensure probe reaches all points without crashing.
 
 ---
 
