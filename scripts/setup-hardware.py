@@ -733,7 +733,8 @@ def select_board() -> Optional[Dict]:
         
         for mfr, mfr_boards in sorted(by_manufacturer.items()):
             print_info(f"{Colors.BWHITE}{mfr}:{Colors.NC}")
-            for board_id, board in mfr_boards:
+            # Sort boards alphabetically by name within each manufacturer
+            for board_id, board in sorted(mfr_boards, key=lambda x: x[1]['name']):
                 motor_count = len(board.get('motor_ports', {}))
                 heater_count = len(board.get('heater_ports', {}))
                 fan_count = len(board.get('fan_ports', {}))
