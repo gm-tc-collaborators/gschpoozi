@@ -2103,6 +2103,16 @@ try:
     for key, value in toolboard_assignments.items():
         print(f\"HARDWARE_STATE[toolboard_{key}]='{value}'\")
 
+    # Load MCU serial IDs into WIZARD_STATE
+    mcu_serial = data.get('mcu_serial') or ''
+    toolboard_serial = data.get('toolboard_serial') or ''
+    toolboard_canbus_uuid = data.get('toolboard_canbus_uuid') or ''
+    probe_serial = data.get('probe_serial') or ''
+    print(f\"WIZARD_STATE[mcu_serial]='{mcu_serial}'\")
+    print(f\"WIZARD_STATE[toolboard_serial]='{toolboard_serial}'\")
+    print(f\"WIZARD_STATE[toolboard_canbus_uuid]='{toolboard_canbus_uuid}'\")
+    print(f\"WIZARD_STATE[probe_serial]='{probe_serial}'\")
+
 except Exception as e:
     pass
 " 2>/dev/null)"
