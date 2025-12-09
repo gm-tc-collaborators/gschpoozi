@@ -1,0 +1,138 @@
+{
+  "id": "fysetc-h36-combo",
+  "name": "FYSETC H36 Combo",
+  "type": "toolboard",
+  "manufacturer": "FYSETC",
+  "mcu": "stm32g0b1",
+  "mcu_name": "toolboard",
+  "connection": "CAN",
+  "canbus_capable": true,
+  "source": "https://github.com/FYSETC/H36_Combo",
+  "notes": "125C high temp rating (CAN mode only), 85C USB. 36mm toolhead board.",
+
+  "motor_ports": {
+    "EXTRUDER": {
+      "label": "Extruder Motor",
+      "step_pin": "PB9",
+      "dir_pin": "PB8",
+      "enable_pin": "PB7",
+      "uart_pin": "PC14",
+      "notes": "Onboard TMC2209"
+    }
+  },
+
+  "heater_ports": {
+    "HE": {
+      "label": "Hotend Heater",
+      "pin": "PA7",
+      "voltage": 24
+    }
+  },
+
+  "fan_ports": {
+    "FAN0": {
+      "label": "Part Cooling Fan",
+      "pin": "PA9",
+      "pwm": true,
+      "tachometer_pin": "PC6"
+    },
+    "FAN1": {
+      "label": "Hotend Fan",
+      "pin": "PB15",
+      "pwm": true,
+      "tachometer_pin": "PB14"
+    },
+    "FAN2": {
+      "label": "Fan 2",
+      "pin": "PB13",
+      "pwm": true
+    },
+    "FAN3": {
+      "label": "Fan 3",
+      "pin": "PA5",
+      "pwm": true,
+      "tachometer_pin": "PB0"
+    }
+  },
+
+  "thermistor_ports": {
+    "TH0": {
+      "label": "Hotend Thermistor",
+      "pin": "PA6"
+    },
+    "DRIVER_TEMP": {
+      "label": "Driver Temperature",
+      "pin": "PA3",
+      "notes": "TMC2209 temperature monitor"
+    }
+  },
+
+  "endstop_ports": {
+    "IO0": {
+      "label": "IO.0 / Endstop",
+      "pin": "PA15"
+    },
+    "IO1": {
+      "label": "IO.1 / Endstop",
+      "pin": "PC7"
+    },
+    "IO2": {
+      "label": "IO.2 / Endstop",
+      "pin": "PA8"
+    }
+  },
+
+  "misc_ports": {
+    "RGB": {
+      "label": "Stealthburner LEDs",
+      "pin": "PA10",
+      "chain_count": 3,
+      "color_order": "GRB"
+    },
+    "RGB_EXT": {
+      "label": "Extension LEDs",
+      "pin": "PB1"
+    },
+    "ADXL345": {
+      "label": "Onboard Accelerometer",
+      "cs_pin": "PB12",
+      "notes": "Built-in ADXL345 for input shaper"
+    }
+  },
+
+  "spi_config": {
+    "spi_adxl": {
+      "mosi_pin": "PB11",
+      "miso_pin": "PB2",
+      "sck_pin": "PB10"
+    }
+  },
+
+  "accelerometer": {
+    "type": "ADXL345",
+    "cs_pin": "PB12",
+    "spi_software_sclk_pin": "PB10",
+    "spi_software_mosi_pin": "PB11",
+    "spi_software_miso_pin": "PB2"
+  },
+
+  "klipper_config": {
+    "mcu": {
+      "canbus_uuid": "REPLACE_WITH_UUID",
+      "restart_method": "command"
+    },
+    "tmc2209": {
+      "sense_resistor": 0.110,
+      "interpolate": true,
+      "run_current_max": 0.8
+    }
+  },
+
+  "default_assignments": {
+    "extruder": "EXTRUDER",
+    "heater_extruder": "HE",
+    "thermistor_extruder": "TH0",
+    "fan_part_cooling": "FAN0",
+    "fan_hotend": "FAN1"
+  }
+}
