@@ -5271,7 +5271,7 @@ menu_fans() {
                 port="${HARDWARE_STATE[${fan_key}]}"
             fi
             # Check for multi-pin
-            if [[ -n "${HARDWARE_STATE[${fan_key}_2]}" ]]; then
+            if [[ -n "${HARDWARE_STATE[${fan_key}_pin2]}" ]]; then
                 port="${port} (multi-pin)"
             fi
             echo "${port:-not configured}"
@@ -5363,7 +5363,7 @@ menu_fan_part_cooling() {
         elif [[ -n "${HARDWARE_STATE[fan_part_cooling]}" ]]; then
             primary_port="${HARDWARE_STATE[fan_part_cooling]}"
         fi
-        [[ -n "${HARDWARE_STATE[fan_part_cooling_2]}" ]] && secondary_port="${HARDWARE_STATE[fan_part_cooling_2]}"
+        [[ -n "${HARDWARE_STATE[fan_part_cooling_pin2]}" ]] && secondary_port="${HARDWARE_STATE[fan_part_cooling_pin2]}"
 
         # Display current status
         local primary_status=$([[ -n "$primary_port" ]] && echo "done" || echo "")
@@ -5454,7 +5454,7 @@ menu_fan_hotend() {
         elif [[ -n "${HARDWARE_STATE[fan_hotend]}" ]]; then
             primary_port="${HARDWARE_STATE[fan_hotend]}"
         fi
-        [[ -n "${HARDWARE_STATE[fan_hotend_2]}" ]] && secondary_port="${HARDWARE_STATE[fan_hotend_2]}"
+        [[ -n "${HARDWARE_STATE[fan_hotend_pin2]}" ]] && secondary_port="${HARDWARE_STATE[fan_hotend_pin2]}"
 
         # Display current status
         local primary_status=$([[ -n "$primary_port" ]] && echo "done" || echo "")
@@ -5518,7 +5518,7 @@ menu_fan_controller() {
 
         # Determine current port assignment
         local primary_port="${HARDWARE_STATE[fan_controller]}"
-        local secondary_port="${HARDWARE_STATE[fan_controller_2]}"
+        local secondary_port="${HARDWARE_STATE[fan_controller_pin2]}"
 
         # Display current status
         local primary_status=$([[ -n "$primary_port" ]] && echo "done" || echo "")
@@ -5588,7 +5588,7 @@ menu_fan_exhaust() {
 
         # Determine current port assignment
         local primary_port="${HARDWARE_STATE[fan_exhaust]}"
-        local secondary_port="${HARDWARE_STATE[fan_exhaust_2]}"
+        local secondary_port="${HARDWARE_STATE[fan_exhaust_pin2]}"
 
         # Display current status
         local primary_status=$([[ -n "$primary_port" ]] && echo "done" || echo "")
@@ -5820,7 +5820,7 @@ menu_fan_chamber() {
 
         # Determine current port assignment
         local primary_port="${HARDWARE_STATE[fan_chamber]}"
-        local secondary_port="${HARDWARE_STATE[fan_chamber_2]}"
+        local secondary_port="${HARDWARE_STATE[fan_chamber_pin2]}"
 
         # Display current status
         local primary_status=$([[ -n "$primary_port" ]] && echo "done" || echo "")
@@ -5910,7 +5910,7 @@ menu_fan_rscs() {
 
         # Determine current port assignment
         local primary_port="${HARDWARE_STATE[fan_rscs]}"
-        local secondary_port="${HARDWARE_STATE[fan_rscs_2]}"
+        local secondary_port="${HARDWARE_STATE[fan_rscs_pin2]}"
 
         # Display current status
         local primary_status=$([[ -n "$primary_port" ]] && echo "done" || echo "")
@@ -5981,7 +5981,7 @@ menu_fan_radiator() {
 
         # Determine current port assignment
         local primary_port="${HARDWARE_STATE[fan_radiator]}"
-        local secondary_port="${HARDWARE_STATE[fan_radiator_2]}"
+        local secondary_port="${HARDWARE_STATE[fan_radiator_pin2]}"
 
         # Display current status
         local primary_status=$([[ -n "$primary_port" ]] && echo "done" || echo "")
