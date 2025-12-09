@@ -5574,10 +5574,16 @@ menu_fan_controller() {
 menu_fan_exhaust() {
     while true; do
         clear_screen
-        print_header "Exhaust Fan [fan_generic]"
+
+        # Determine fan type for header
+        local fan_type="${WIZARD_STATE[fan_exhaust_type]:-manual}"
+        local header_type="fan_generic"
+        [[ "$fan_type" == "heater" ]] && header_type="heater_fan"
+        [[ "$fan_type" == "temperature" ]] && header_type="temperature_fan"
+        print_header "Exhaust Fan [$header_type]"
 
         print_box_line "${BWHITE}Enclosure exhaust fan${NC}"
-        print_box_line "Manually controlled via SET_FAN_SPEED FAN=exhaust_fan SPEED=x"
+        print_box_line "Removes hot air / controls chamber temperature."
         print_empty_line
 
         # Determine current port assignment
@@ -5592,6 +5598,24 @@ menu_fan_exhaust() {
         local secondary_status=$([[ -n "$secondary_port" ]] && echo "done" || echo "")
         local secondary_info="${secondary_port:-not set}"
         print_menu_item "2" "$secondary_status" "Multi-pin (2nd fan)" "$secondary_info"
+
+        print_empty_line
+
+        # Control mode selection
+        local type_status=$([[ -n "${WIZARD_STATE[fan_exhaust_type]}" ]] && echo "done" || echo "")
+        local type_info="${WIZARD_STATE[fan_exhaust_type]:-manual}"
+        case "$type_info" in
+            heater)
+                local heater="${WIZARD_STATE[fan_exhaust_heater]:-extruder}"
+                local temp="${WIZARD_STATE[fan_exhaust_heater_temp]:-50}"
+                type_info="heater-triggered ($heater @ ${temp}°C)"
+                ;;
+            temperature)
+                local target="${WIZARD_STATE[fan_exhaust_target_temp]:-45}"
+                type_info="temp-controlled (target ${target}°C)"
+                ;;
+        esac
+        print_menu_item "3" "$type_status" "Control Mode" "$type_info"
 
         print_separator
         print_action_item "C" "Clear (disable fan)"
@@ -5622,10 +5646,18 @@ menu_fan_exhaust() {
                     sleep 1
                 fi
                 ;;
+            3)
+                menu_fan_control_mode "exhaust" "exhaust_fan"
+                ;;
             [cC])
                 save_state
                 python3 "${SCRIPT_DIR}/setup-hardware.py" --clear-port "fan_exhaust"
                 python3 "${SCRIPT_DIR}/setup-hardware.py" --clear-port "fan_exhaust_2"
+                WIZARD_STATE[fan_exhaust_type]=""
+                WIZARD_STATE[fan_exhaust_heater]=""
+                WIZARD_STATE[fan_exhaust_heater_temp]=""
+                WIZARD_STATE[fan_exhaust_sensor_type]=""
+                WIZARD_STATE[fan_exhaust_target_temp]=""
                 load_hardware_state
                 echo -e "${GREEN}✓${NC} Exhaust fan cleared"
                 sleep 1
@@ -5635,10 +5667,152 @@ menu_fan_exhaust() {
     done
 }
 
+# Generic fan control mode selection menu
+# Usage: menu_fan_control_mode <fan_key> <fan_display_name>
+# fan_key: exhaust, chamber, radiator (used for state variable prefix)
+# fan_display_name: exhaust_fan, chamber_fan, radiator_fan (for display)
+menu_fan_control_mode() {
+    local fan_key="$1"
+    local fan_display="$2"
+
+    clear_screen
+    print_header "${fan_display} Control Mode"
+
+    print_box_line "${BWHITE}Select control mode:${NC}"
+    print_empty_line
+    print_menu_item "1" "" "Manual [fan_generic]" "SET_FAN_SPEED control"
+    print_menu_item "2" "" "Heater-triggered [heater_fan]" "ON when heater reaches temp"
+    print_menu_item "3" "" "Temperature-controlled [temperature_fan]" "Maintain target temp"
+    print_separator
+    print_action_item "B" "Back"
+    print_footer
+
+    echo -en "${BYELLOW}Select mode${NC}: "
+    read -r choice
+
+    case "$choice" in
+        1)
+            WIZARD_STATE[fan_${fan_key}_type]="manual"
+            # Clear heater/temp settings
+            WIZARD_STATE[fan_${fan_key}_heater]=""
+            WIZARD_STATE[fan_${fan_key}_heater_temp]=""
+            WIZARD_STATE[fan_${fan_key}_sensor_type]=""
+            WIZARD_STATE[fan_${fan_key}_target_temp]=""
+            save_state
+            echo -e "${GREEN}✓${NC} Set to manual control"
+            sleep 1
+            ;;
+        2)
+            WIZARD_STATE[fan_${fan_key}_type]="heater"
+            # Clear temperature settings
+            WIZARD_STATE[fan_${fan_key}_sensor_type]=""
+            WIZARD_STATE[fan_${fan_key}_target_temp]=""
+            menu_fan_heater_settings "$fan_key" "$fan_display"
+            ;;
+        3)
+            WIZARD_STATE[fan_${fan_key}_type]="temperature"
+            # Clear heater settings
+            WIZARD_STATE[fan_${fan_key}_heater]=""
+            WIZARD_STATE[fan_${fan_key}_heater_temp]=""
+            menu_fan_temp_settings "$fan_key" "$fan_display"
+            ;;
+        [bB]) return ;;
+    esac
+}
+
+# Heater-triggered fan settings
+# Usage: menu_fan_heater_settings <fan_key> <fan_display_name>
+menu_fan_heater_settings() {
+    local fan_key="$1"
+    local fan_display="$2"
+
+    clear_screen
+    print_header "${fan_display} Heater Settings"
+
+    print_box_line "${BWHITE}Select which heater triggers this fan:${NC}"
+    print_empty_line
+    print_menu_item "1" "" "Extruder" "Fan runs when hotend is hot"
+    print_menu_item "2" "" "Heated Bed" "Fan runs when bed is hot"
+    print_menu_item "3" "" "Both (extruder + bed)" "Fan runs when either is hot"
+    print_footer
+
+    echo -en "${BYELLOW}Select heater${NC}: "
+    read -r choice
+
+    case "$choice" in
+        1) WIZARD_STATE[fan_${fan_key}_heater]="extruder" ;;
+        2) WIZARD_STATE[fan_${fan_key}_heater]="heater_bed" ;;
+        3) WIZARD_STATE[fan_${fan_key}_heater]="extruder, heater_bed" ;;
+        *) WIZARD_STATE[fan_${fan_key}_heater]="extruder" ;;
+    esac
+
+    # Temperature threshold
+    echo ""
+    echo -en "  Activation temperature (°C) [50]: "
+    read -r heater_temp
+    WIZARD_STATE[fan_${fan_key}_heater_temp]="${heater_temp:-50}"
+
+    save_state
+    echo -e "${GREEN}✓${NC} Heater fan configured: ${WIZARD_STATE[fan_${fan_key}_heater]} @ ${WIZARD_STATE[fan_${fan_key}_heater_temp]}°C"
+    sleep 1
+}
+
+# Temperature-controlled fan settings
+# Usage: menu_fan_temp_settings <fan_key> <fan_display_name>
+menu_fan_temp_settings() {
+    local fan_key="$1"
+    local fan_display="$2"
+
+    clear_screen
+    print_header "${fan_display} Temperature Settings"
+
+    print_box_line "${BWHITE}Configure temperature-controlled fan${NC}"
+    print_box_line "Requires a temperature sensor to monitor."
+    print_empty_line
+
+    # Sensor type selection
+    print_box_line "${BWHITE}Temperature Sensor Type:${NC}"
+    print_menu_item "1" "" "Generic 3950 (NTC 100K)"
+    print_menu_item "2" "" "NTC 100K MGB18-104F39050L32"
+    print_menu_item "3" "" "ATC Semitec 104GT-2"
+    print_menu_item "4" "" "Use chamber sensor" "If already configured"
+    print_footer
+
+    echo -en "${BYELLOW}Select sensor type${NC}: "
+    read -r choice
+
+    case "$choice" in
+        1) WIZARD_STATE[fan_${fan_key}_sensor_type]="Generic 3950" ;;
+        2) WIZARD_STATE[fan_${fan_key}_sensor_type]="NTC 100K MGB18-104F39050L32" ;;
+        3) WIZARD_STATE[fan_${fan_key}_sensor_type]="ATC Semitec 104GT-2" ;;
+        4)
+            # Use existing chamber sensor
+            WIZARD_STATE[fan_${fan_key}_sensor_type]="chamber"
+            ;;
+        *) WIZARD_STATE[fan_${fan_key}_sensor_type]="Generic 3950" ;;
+    esac
+
+    # Target temperature
+    echo ""
+    echo -en "  Target temperature (°C) [45]: "
+    read -r target_temp
+    WIZARD_STATE[fan_${fan_key}_target_temp]="${target_temp:-45}"
+
+    save_state
+    echo -e "${GREEN}✓${NC} Temperature fan configured: target ${WIZARD_STATE[fan_${fan_key}_target_temp]}°C"
+    sleep 1
+}
+
 menu_fan_chamber() {
     while true; do
         clear_screen
-        print_header "Chamber Fan"
+
+        # Determine fan type for header
+        local fan_type="${WIZARD_STATE[fan_chamber_type]:-manual}"
+        local header_type="fan_generic"
+        [[ "$fan_type" == "heater" ]] && header_type="heater_fan"
+        [[ "$fan_type" == "temperature" ]] && header_type="temperature_fan"
+        print_header "Chamber Fan [$header_type]"
 
         print_box_line "${BWHITE}Chamber circulation/heating fan${NC}"
         print_box_line "Can be manual or temperature-controlled."
@@ -5659,10 +5833,20 @@ menu_fan_chamber() {
 
         print_empty_line
 
-        # Fan type/mode selection (only relevant if port is assigned)
+        # Fan type/mode selection
         local type_status=$([[ -n "${WIZARD_STATE[fan_chamber_type]}" ]] && echo "done" || echo "")
         local type_info="${WIZARD_STATE[fan_chamber_type]:-manual}"
-        [[ "$type_info" == "temperature" ]] && type_info="temp-controlled (${WIZARD_STATE[fan_chamber_target_temp]:-45}°C)"
+        case "$type_info" in
+            heater)
+                local heater="${WIZARD_STATE[fan_chamber_heater]:-extruder}"
+                local temp="${WIZARD_STATE[fan_chamber_heater_temp]:-50}"
+                type_info="heater-triggered ($heater @ ${temp}°C)"
+                ;;
+            temperature)
+                local target="${WIZARD_STATE[fan_chamber_target_temp]:-45}"
+                type_info="temp-controlled (target ${target}°C)"
+                ;;
+        esac
         print_menu_item "3" "$type_status" "Control Mode" "$type_info"
 
         print_separator
@@ -5695,15 +5879,17 @@ menu_fan_chamber() {
                 fi
                 ;;
             3)
-                menu_fan_chamber_mode
+                menu_fan_control_mode "chamber" "chamber_fan"
                 ;;
             [cC])
                 save_state
                 python3 "${SCRIPT_DIR}/setup-hardware.py" --clear-port "fan_chamber"
                 python3 "${SCRIPT_DIR}/setup-hardware.py" --clear-port "fan_chamber_2"
                 WIZARD_STATE[fan_chamber_type]=""
-                WIZARD_STATE[fan_chamber_target_temp]=""
+                WIZARD_STATE[fan_chamber_heater]=""
+                WIZARD_STATE[fan_chamber_heater_temp]=""
                 WIZARD_STATE[fan_chamber_sensor_type]=""
+                WIZARD_STATE[fan_chamber_target_temp]=""
                 load_hardware_state
                 echo -e "${GREEN}✓${NC} Chamber fan cleared"
                 sleep 1
@@ -5711,71 +5897,6 @@ menu_fan_chamber() {
             [bB]) return ;;
         esac
     done
-}
-
-menu_fan_chamber_mode() {
-    clear_screen
-    print_header "Chamber Fan Control Mode"
-
-    print_box_line "${BWHITE}Select control mode:${NC}"
-    print_empty_line
-    print_menu_item "1" "" "Manual [fan_generic]" "SET_FAN_SPEED control"
-    print_menu_item "2" "" "Temperature [temperature_fan]" "Auto control to target temp"
-    print_separator
-    print_action_item "B" "Back"
-    print_footer
-
-    echo -en "${BYELLOW}Select mode${NC}: "
-    read -r choice
-
-    case "$choice" in
-        1)
-            WIZARD_STATE[fan_chamber_type]="manual"
-            WIZARD_STATE[fan_chamber_target_temp]=""
-            WIZARD_STATE[fan_chamber_sensor_type]=""
-            echo -e "${GREEN}✓${NC} Set to manual control"
-            sleep 1
-            ;;
-        2)
-            WIZARD_STATE[fan_chamber_type]="temperature"
-            menu_fan_chamber_temp_settings
-            ;;
-        [bB]) return ;;
-    esac
-}
-
-menu_fan_chamber_temp_settings() {
-    clear_screen
-    print_header "Chamber Temperature Fan Settings"
-    
-    print_box_line "${BWHITE}Configure temperature-controlled chamber fan${NC}"
-    print_empty_line
-    
-    # Sensor type
-    print_box_line "${BWHITE}Chamber Temperature Sensor:${NC}"
-    print_menu_item "1" "" "Generic 3950 (NTC 100K)"
-    print_menu_item "2" "" "NTC 100K MGB18-104F39050L32"
-    print_menu_item "3" "" "ATC Semitec 104GT-2"
-    print_footer
-    
-    echo -en "${BYELLOW}Select sensor type${NC}: "
-    read -r choice
-    
-    case "$choice" in
-        1) WIZARD_STATE[fan_chamber_sensor_type]="Generic 3950" ;;
-        2) WIZARD_STATE[fan_chamber_sensor_type]="NTC 100K MGB18-104F39050L32" ;;
-        3) WIZARD_STATE[fan_chamber_sensor_type]="ATC Semitec 104GT-2" ;;
-        *) WIZARD_STATE[fan_chamber_sensor_type]="Generic 3950" ;;
-    esac
-    
-    # Target temperature
-    echo ""
-    echo -en "  Enter target chamber temperature (°C) [45]: "
-    read -r target_temp
-    WIZARD_STATE[fan_chamber_target_temp]="${target_temp:-45}"
-    
-    echo -e "${GREEN}✓${NC} Temperature fan configured: ${WIZARD_STATE[fan_chamber_sensor_type]} @ ${WIZARD_STATE[fan_chamber_target_temp]}°C"
-    sleep 1
 }
 
 menu_fan_rscs() {
@@ -5845,10 +5966,16 @@ menu_fan_rscs() {
 menu_fan_radiator() {
     while true; do
         clear_screen
-        print_header "Radiator Fan [heater_fan]"
+
+        # Determine fan type for header (default to heater for radiator - water cooling)
+        local fan_type="${WIZARD_STATE[fan_radiator_type]:-heater}"
+        local header_type="heater_fan"
+        [[ "$fan_type" == "manual" ]] && header_type="fan_generic"
+        [[ "$fan_type" == "temperature" ]] && header_type="temperature_fan"
+        print_header "Radiator Fan [$header_type]"
 
         print_box_line "${BWHITE}Water cooling radiator fan(s)${NC}"
-        print_box_line "Runs when extruder is hot (like hotend fan)."
+        print_box_line "Typically runs when extruder is hot (like hotend fan)."
         print_box_line "Common for water-cooled hotends with external radiator."
         print_empty_line
 
@@ -5864,6 +5991,27 @@ menu_fan_radiator() {
         local secondary_status=$([[ -n "$secondary_port" ]] && echo "done" || echo "")
         local secondary_info="${secondary_port:-not set}"
         print_menu_item "2" "$secondary_status" "Multi-pin (2nd fan)" "$secondary_info"
+
+        print_empty_line
+
+        # Control mode selection
+        local type_status=$([[ -n "${WIZARD_STATE[fan_radiator_type]}" ]] && echo "done" || echo "")
+        local type_info="${WIZARD_STATE[fan_radiator_type]:-heater}"
+        case "$type_info" in
+            manual)
+                type_info="manual (SET_FAN_SPEED)"
+                ;;
+            heater)
+                local heater="${WIZARD_STATE[fan_radiator_heater]:-extruder}"
+                local temp="${WIZARD_STATE[fan_radiator_heater_temp]:-50}"
+                type_info="heater-triggered ($heater @ ${temp}°C)"
+                ;;
+            temperature)
+                local target="${WIZARD_STATE[fan_radiator_target_temp]:-45}"
+                type_info="temp-controlled (target ${target}°C)"
+                ;;
+        esac
+        print_menu_item "3" "$type_status" "Control Mode" "$type_info"
 
         print_separator
         print_action_item "C" "Clear (disable fan)"
@@ -5894,10 +6042,18 @@ menu_fan_radiator() {
                     sleep 1
                 fi
                 ;;
+            3)
+                menu_fan_control_mode "radiator" "radiator_fan"
+                ;;
             [cC])
                 save_state
                 python3 "${SCRIPT_DIR}/setup-hardware.py" --clear-port "fan_radiator"
                 python3 "${SCRIPT_DIR}/setup-hardware.py" --clear-port "fan_radiator_2"
+                WIZARD_STATE[fan_radiator_type]=""
+                WIZARD_STATE[fan_radiator_heater]=""
+                WIZARD_STATE[fan_radiator_heater_temp]=""
+                WIZARD_STATE[fan_radiator_sensor_type]=""
+                WIZARD_STATE[fan_radiator_target_temp]=""
                 load_hardware_state
                 echo -e "${GREEN}✓${NC} Radiator fan cleared"
                 sleep 1

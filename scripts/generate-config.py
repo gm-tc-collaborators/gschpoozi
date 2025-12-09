@@ -715,13 +715,15 @@ def generate_hardware_cfg(
     fan_controller_multipin = wizard_state.get('fan_controller_multipin', '')
     fan_exhaust = wizard_state.get('fan_exhaust', '')
     fan_exhaust_multipin = wizard_state.get('fan_exhaust_multipin', '')
+    fan_exhaust_type = wizard_state.get('fan_exhaust_type', 'manual')  # manual, heater, temperature
     fan_chamber = wizard_state.get('fan_chamber', '')
-    fan_chamber_type = wizard_state.get('fan_chamber_type', '')
+    fan_chamber_type = wizard_state.get('fan_chamber_type', 'manual')  # manual, heater, temperature
     fan_chamber_multipin = wizard_state.get('fan_chamber_multipin', '')
     fan_rscs = wizard_state.get('fan_rscs', '')
     fan_rscs_multipin = wizard_state.get('fan_rscs_multipin', '')
     fan_radiator = wizard_state.get('fan_radiator', '')
     fan_radiator_multipin = wizard_state.get('fan_radiator_multipin', '')
+    fan_radiator_type = wizard_state.get('fan_radiator_type', 'heater')  # manual, heater, temperature (default heater for water cooling)
     
     # Advanced settings for all fans (prefix: pc=part cooling, hf=hotend, cf=controller, ex=exhaust, ch=chamber, rs=rscs, rd=radiator)
     def get_fan_settings(prefix: str) -> dict:
@@ -861,7 +863,7 @@ def generate_hardware_cfg(
         lines.append("idle_speed: 0.5")
         lines.append("")
     
-    # Exhaust fan (fan_generic) - generated if port is assigned
+    # Exhaust fan - generated if port is assigned (control type: manual/heater/temperature)
     ex_port = assignments.get('fan_exhaust')
     ex2_port = assignments.get('fan_exhaust_pin2', '')
     if ex_port:
@@ -871,18 +873,68 @@ def generate_hardware_cfg(
         if ex2_port:
             ex2_pin = get_fan_pin(board, ex2_port)
             lines.extend(generate_multipin('exhaust', ex_pin, ex2_pin, ex_port, ex2_port))
-            lines.append("[fan_generic exhaust_fan]")
-            lines.append("pin: multi_pin:exhaust_pins")
+            pin_value = "multi_pin:exhaust_pins"
         else:
-            lines.append("[fan_generic exhaust_fan]")
-            lines.append(f"pin: {ex_pin}  # {ex_port}")
+            pin_value = f"{ex_pin}  # {ex_port}"
 
-        add_fan_settings(lines, ex_settings, {'max_power': '1.0', 'shutdown_speed': '0', 'kick_start': '0.5'})
-        lines.append("off_below: 0.10")
-        lines.append("# Control with: SET_FAN_SPEED FAN=exhaust_fan SPEED=0.5")
+        if fan_exhaust_type == 'heater':
+            # Heater-triggered exhaust fan
+            ex_heater = wizard_state.get('fan_exhaust_heater', 'extruder')
+            ex_heater_temp = wizard_state.get('fan_exhaust_heater_temp', '50')
+            lines.append("[heater_fan exhaust_fan]")
+            lines.append(f"pin: {pin_value}")
+            add_fan_settings(lines, ex_settings, {'max_power': '1.0', 'kick_start': '0.5'})
+            lines.append(f"heater: {ex_heater}")
+            lines.append(f"heater_temp: {ex_heater_temp}.0")
+            lines.append("# Exhaust fan - runs when heater is active")
+        elif fan_exhaust_type == 'temperature':
+            # Temperature-controlled exhaust fan
+            ex_sensor_type = wizard_state.get('fan_exhaust_sensor_type', '')
+            ex_target_temp = wizard_state.get('fan_exhaust_target_temp', '45')
+
+            lines.append("[temperature_fan exhaust]")
+            lines.append(f"pin: {pin_value}")
+            add_fan_settings(lines, ex_settings, {'max_power': '1.0', 'shutdown_speed': '0', 'kick_start': '0.5'})
+
+            # Check if using existing chamber sensor or dedicated sensor
+            if ex_sensor_type == 'chamber':
+                lines.append("sensor_type: temperature_combined")
+                lines.append("sensor_list: temperature_sensor chamber")
+                lines.append("combination_method: max")
+            else:
+                # Need dedicated sensor pin from hardware state
+                ex_sensor_pin = assignments.get('fan_exhaust_sensor', '')
+                if ex_sensor_pin:
+                    sensor_type = ex_sensor_type or 'Generic 3950'
+                    lines.append(f"sensor_type: {sensor_type}")
+                    lines.append(f"sensor_pin: {ex_sensor_pin}")
+                else:
+                    # Fall back to chamber sensor if available
+                    chamber_configured = wizard_state.get('has_chamber_sensor', '')
+                    if chamber_configured == 'yes':
+                        lines.append("sensor_type: temperature_combined")
+                        lines.append("sensor_list: temperature_sensor chamber")
+                        lines.append("combination_method: max")
+                    else:
+                        sensor_type = ex_sensor_type or 'Generic 3950'
+                        lines.append(f"sensor_type: {sensor_type}")
+                        lines.append("sensor_pin: SET_SENSOR_PIN  # Assign in Hardware Setup")
+
+            lines.append("min_temp: 0")
+            lines.append("max_temp: 80")
+            lines.append(f"target_temp: {ex_target_temp}")
+            lines.append("control: watermark")
+            lines.append("# Temperature-controlled exhaust - maintains target chamber temp")
+        else:
+            # Manual control (default)
+            lines.append("[fan_generic exhaust_fan]")
+            lines.append(f"pin: {pin_value}")
+            add_fan_settings(lines, ex_settings, {'max_power': '1.0', 'shutdown_speed': '0', 'kick_start': '0.5'})
+            lines.append("off_below: 0.10")
+            lines.append("# Control with: SET_FAN_SPEED FAN=exhaust_fan SPEED=0.5")
         lines.append("")
     
-    # Chamber fan (fan_generic or temperature_fan) - generated if port is assigned
+    # Chamber fan - generated if port is assigned (control type: manual/heater/temperature)
     ch_port = assignments.get('fan_chamber')
     ch2_port = assignments.get('fan_chamber_pin2', '')
     if ch_port:
@@ -896,18 +948,49 @@ def generate_hardware_cfg(
         else:
             pin_value = f"{ch_pin}  # {ch_port}"
 
-        ch_sensor_pin = wizard_state.get('fan_chamber_sensor_pin', '')
-
-        if fan_chamber_type == 'temperature' and ch_sensor_pin:
-            # Temperature-controlled chamber fan (only if sensor pin is configured)
-            ch_sensor_type = wizard_state.get('fan_chamber_sensor_type', 'Generic 3950')
+        if fan_chamber_type == 'heater':
+            # Heater-triggered chamber fan
+            ch_heater = wizard_state.get('fan_chamber_heater', 'extruder')
+            ch_heater_temp = wizard_state.get('fan_chamber_heater_temp', '50')
+            lines.append("[heater_fan chamber_fan]")
+            lines.append(f"pin: {pin_value}")
+            add_fan_settings(lines, ch_settings, {'max_power': '1.0', 'kick_start': '0.5'})
+            lines.append(f"heater: {ch_heater}")
+            lines.append(f"heater_temp: {ch_heater_temp}.0")
+            lines.append("# Chamber fan - runs when heater is active")
+        elif fan_chamber_type == 'temperature':
+            # Temperature-controlled chamber fan
+            ch_sensor_type = wizard_state.get('fan_chamber_sensor_type', '')
             ch_target_temp = wizard_state.get('fan_chamber_target_temp', '45')
 
             lines.append("[temperature_fan chamber]")
             lines.append(f"pin: {pin_value}")
             add_fan_settings(lines, ch_settings, {'max_power': '1.0', 'shutdown_speed': '0', 'kick_start': '0.5'})
-            lines.append(f"sensor_type: {ch_sensor_type}")
-            lines.append(f"sensor_pin: {ch_sensor_pin}")
+
+            # Check if using existing chamber sensor or dedicated sensor
+            if ch_sensor_type == 'chamber':
+                lines.append("sensor_type: temperature_combined")
+                lines.append("sensor_list: temperature_sensor chamber")
+                lines.append("combination_method: max")
+            else:
+                # Use chamber sensor pin from hardware assignments if available
+                ch_sensor_pin = assignments.get('fan_chamber_sensor', wizard_state.get('fan_chamber_sensor_pin', ''))
+                if ch_sensor_pin:
+                    sensor_type = ch_sensor_type or 'Generic 3950'
+                    lines.append(f"sensor_type: {sensor_type}")
+                    lines.append(f"sensor_pin: {ch_sensor_pin}")
+                else:
+                    # Check if chamber sensor is configured elsewhere
+                    chamber_configured = wizard_state.get('has_chamber_sensor', '')
+                    if chamber_configured == 'yes':
+                        lines.append("sensor_type: temperature_combined")
+                        lines.append("sensor_list: temperature_sensor chamber")
+                        lines.append("combination_method: max")
+                    else:
+                        sensor_type = ch_sensor_type or 'Generic 3950'
+                        lines.append(f"sensor_type: {sensor_type}")
+                        lines.append("sensor_pin: SET_SENSOR_PIN  # Assign in Hardware Setup")
+
             lines.append("min_temp: 0")
             lines.append("max_temp: 80")
             lines.append(f"target_temp: {ch_target_temp}")
@@ -944,7 +1027,7 @@ def generate_hardware_cfg(
         lines.append("# Control with: SET_FAN_SPEED FAN=rscs_fan SPEED=0.5")
         lines.append("")
     
-    # Radiator fan (heater_fan - for water cooling) - generated if port is assigned
+    # Radiator fan - generated if port is assigned (control type: manual/heater/temperature, default heater for water cooling)
     rd_port = assignments.get('fan_radiator')
     rd2_port = assignments.get('fan_radiator_pin2', '')
     if rd_port:
@@ -954,16 +1037,59 @@ def generate_hardware_cfg(
         if rd2_port:
             rd2_pin = get_fan_pin(board, rd2_port)
             lines.extend(generate_multipin('radiator', rd_pin, rd2_pin, rd_port, rd2_port))
-            lines.append("[heater_fan radiator_fan]")
-            lines.append("pin: multi_pin:radiator_pins")
+            pin_value = "multi_pin:radiator_pins"
         else:
-            lines.append("[heater_fan radiator_fan]")
-            lines.append(f"pin: {rd_pin}  # {rd_port}")
+            pin_value = f"{rd_pin}  # {rd_port}"
 
-        add_fan_settings(lines, rd_settings, {'max_power': '1.0', 'kick_start': '0.5'})
-        lines.append("heater: extruder")
-        lines.append("heater_temp: 50.0")
-        lines.append("# Water cooling radiator fan - runs when hotend is hot")
+        if fan_radiator_type == 'manual':
+            # Manual control
+            lines.append("[fan_generic radiator_fan]")
+            lines.append(f"pin: {pin_value}")
+            add_fan_settings(lines, rd_settings, {'max_power': '1.0', 'shutdown_speed': '0', 'kick_start': '0.5'})
+            lines.append("off_below: 0.10")
+            lines.append("# Water cooling radiator fan - manual control")
+            lines.append("# Control with: SET_FAN_SPEED FAN=radiator_fan SPEED=0.5")
+        elif fan_radiator_type == 'temperature':
+            # Temperature-controlled radiator fan
+            rd_sensor_type = wizard_state.get('fan_radiator_sensor_type', '')
+            rd_target_temp = wizard_state.get('fan_radiator_target_temp', '45')
+
+            lines.append("[temperature_fan radiator]")
+            lines.append(f"pin: {pin_value}")
+            add_fan_settings(lines, rd_settings, {'max_power': '1.0', 'shutdown_speed': '0', 'kick_start': '0.5'})
+
+            # Check if using existing chamber sensor or dedicated sensor
+            if rd_sensor_type == 'chamber':
+                lines.append("sensor_type: temperature_combined")
+                lines.append("sensor_list: temperature_sensor chamber")
+                lines.append("combination_method: max")
+            else:
+                # Need dedicated sensor pin from hardware state
+                rd_sensor_pin = assignments.get('fan_radiator_sensor', '')
+                if rd_sensor_pin:
+                    sensor_type = rd_sensor_type or 'Generic 3950'
+                    lines.append(f"sensor_type: {sensor_type}")
+                    lines.append(f"sensor_pin: {rd_sensor_pin}")
+                else:
+                    sensor_type = rd_sensor_type or 'Generic 3950'
+                    lines.append(f"sensor_type: {sensor_type}")
+                    lines.append("sensor_pin: SET_SENSOR_PIN  # Assign in Hardware Setup")
+
+            lines.append("min_temp: 0")
+            lines.append("max_temp: 80")
+            lines.append(f"target_temp: {rd_target_temp}")
+            lines.append("control: watermark")
+            lines.append("# Temperature-controlled radiator fan")
+        else:
+            # Heater-triggered (default for water cooling)
+            rd_heater = wizard_state.get('fan_radiator_heater', 'extruder')
+            rd_heater_temp = wizard_state.get('fan_radiator_heater_temp', '50')
+            lines.append("[heater_fan radiator_fan]")
+            lines.append(f"pin: {pin_value}")
+            add_fan_settings(lines, rd_settings, {'max_power': '1.0', 'kick_start': '0.5'})
+            lines.append(f"heater: {rd_heater}")
+            lines.append(f"heater_temp: {rd_heater_temp}.0")
+            lines.append("# Water cooling radiator fan - runs when hotend is hot")
         lines.append("")
     
     # Probe configuration
