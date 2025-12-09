@@ -1,0 +1,332 @@
+{
+  "version": "1.0",
+  "description": "START_PRINT macro building blocks definition",
+
+  "building_blocks": {
+    "home": {
+      "id": "home",
+      "name": "Conditional Homing",
+      "macro_name": "_HOME_IF_NEEDED",
+      "description": "Home axes only if not already homed",
+      "default_enabled": true,
+      "required": true,
+      "order": 10,
+      "dependencies": [],
+      "hardware_requirements": [],
+      "parameters": []
+    },
+
+    "heat_bed": {
+      "id": "heat_bed",
+      "name": "Bed Heating",
+      "macro_name": "_HEAT_BED",
+      "description": "Set bed temperature and optionally wait",
+      "default_enabled": true,
+      "required": true,
+      "order": 5,
+      "dependencies": [],
+      "hardware_requirements": [],
+      "parameters": [
+        {"name": "BED", "type": "int", "default": 60, "description": "Bed temperature"}
+      ]
+    },
+
+    "heat_soak": {
+      "id": "heat_soak",
+      "name": "Heat Soak",
+      "macro_name": "_HEAT_SOAK",
+      "description": "Wait for bed temperature to stabilize after reaching target",
+      "default_enabled": false,
+      "required": false,
+      "order": 15,
+      "dependencies": ["heat_bed"],
+      "hardware_requirements": [],
+      "parameters": [
+        {"name": "SOAK_TIME", "type": "int", "default": 0, "description": "Minutes to soak (0=disabled)"}
+      ],
+      "config_variables": {
+        "heat_soak_time": {"type": "int", "default": 0, "description": "Default soak time in minutes"}
+      }
+    },
+
+    "chamber_heat": {
+      "id": "chamber_heat",
+      "name": "Chamber Heating",
+      "macro_name": "_CHAMBER_WAIT",
+      "description": "Wait for chamber to reach target temperature",
+      "default_enabled": false,
+      "required": false,
+      "order": 20,
+      "dependencies": [],
+      "hardware_requirements": ["chamber_sensor"],
+      "parameters": [
+        {"name": "CHAMBER", "type": "int", "default": 0, "description": "Chamber temperature (0=skip)"}
+      ],
+      "config_variables": {
+        "chamber_temp_default": {"type": "int", "default": 0, "description": "Default chamber temp"}
+      }
+    },
+
+    "level_bed": {
+      "id": "level_bed",
+      "name": "Bed Leveling",
+      "macro_name": "_LEVEL_BED",
+      "description": "Run QGL (4Z) or Z_TILT (2-3Z) based on configuration",
+      "default_enabled": true,
+      "required": false,
+      "order": 30,
+      "dependencies": ["home"],
+      "hardware_requirements": ["multi_z"],
+      "auto_select": {
+        "condition": "z_stepper_count",
+        "values": {
+          "1": "none",
+          "2": "z_tilt",
+          "3": "z_tilt",
+          "4": "quad_gantry_level"
+        }
+      },
+      "parameters": []
+    },
+
+    "calibrate_z": {
+      "id": "calibrate_z",
+      "name": "Z Calibration",
+      "macro_name": "_CALIBRATE_Z",
+      "description": "Probe-specific Z calibration (Beacon contact, Cartographer touch, etc.)",
+      "default_enabled": true,
+      "required": false,
+      "order": 35,
+      "dependencies": ["home", "level_bed"],
+      "hardware_requirements": ["probe"],
+      "probe_specific": {
+        "beacon": {
+          "proximity": "# Beacon proximity mode - no special calibration needed",
+          "touch": "BEACON_CALIBRATE_NOZZLE_TEMP_OFFSET"
+        },
+        "cartographer": {
+          "proximity": "# Cartographer scan mode - no special calibration needed",
+          "touch": "CARTOGRAPHER_TOUCH"
+        },
+        "btt-eddy": {
+          "proximity": "# BTT Eddy proximity mode",
+          "touch": "# BTT Eddy touch calibration"
+        },
+        "bltouch": "# BLTouch - standard probe behavior",
+        "klicky": "# Klicky - attach probe before mesh",
+        "inductive": "# Inductive probe - no special calibration",
+        "voron-tap": "# Voron TAP - nozzle contact probe"
+      },
+      "parameters": []
+    },
+
+    "bed_mesh": {
+      "id": "bed_mesh",
+      "name": "Bed Mesh",
+      "macro_name": "_BED_MESH",
+      "description": "Generate or load bed mesh",
+      "default_enabled": true,
+      "required": false,
+      "order": 40,
+      "dependencies": ["home", "level_bed"],
+      "hardware_requirements": ["probe"],
+      "parameters": [
+        {"name": "MESH", "type": "string", "default": "adaptive", "description": "Mesh mode: adaptive/full/saved/none"}
+      ],
+      "config_variables": {
+        "bed_mesh_mode": {"type": "string", "default": "adaptive", "options": ["adaptive", "full", "saved", "none"], "description": "Default mesh mode"}
+      },
+      "modes": {
+        "adaptive": "Mesh only the print area (requires slicer integration)",
+        "full": "Full bed mesh every print",
+        "saved": "Load previously saved mesh profile",
+        "none": "Skip mesh (trust existing)"
+      }
+    },
+
+    "heat_extruder": {
+      "id": "heat_extruder",
+      "name": "Extruder Heating",
+      "macro_name": "_HEAT_EXTRUDER",
+      "description": "Heat extruder to print temperature",
+      "default_enabled": true,
+      "required": true,
+      "order": 45,
+      "dependencies": [],
+      "hardware_requirements": [],
+      "parameters": [
+        {"name": "EXTRUDER", "type": "int", "default": 200, "description": "Extruder temperature"}
+      ],
+      "notes": "Extruder heating is delayed until after probing to prevent oozing on bed"
+    },
+
+    "clean_nozzle": {
+      "id": "clean_nozzle",
+      "name": "Nozzle Cleaning",
+      "macro_name": "_CLEAN_NOZZLE",
+      "description": "Brush/wipe nozzle at cleaning station",
+      "default_enabled": false,
+      "required": false,
+      "order": 50,
+      "dependencies": ["heat_extruder"],
+      "hardware_requirements": ["nozzle_brush"],
+      "parameters": [
+        {"name": "WIPES", "type": "int", "default": 3, "description": "Number of wipe passes"}
+      ],
+      "config_variables": {
+        "brush_enabled": {"type": "bool", "default": false, "description": "Enable nozzle brushing"},
+        "brush_x": {"type": "float", "default": 50, "description": "Brush X position"},
+        "brush_y": {"type": "float", "default": 305, "description": "Brush Y position"},
+        "brush_z": {"type": "float", "default": 1, "description": "Brush Z height"},
+        "brush_width": {"type": "float", "default": 30, "description": "Brush width for wipe motion"},
+        "wipe_count": {"type": "int", "default": 3, "description": "Number of wipe passes"}
+      }
+    },
+
+    "purge": {
+      "id": "purge",
+      "name": "Purge",
+      "macro_name": "_PURGE",
+      "description": "Purge filament before printing",
+      "default_enabled": true,
+      "required": false,
+      "order": 55,
+      "dependencies": ["heat_extruder"],
+      "hardware_requirements": [],
+      "parameters": [
+        {"name": "PURGE", "type": "string", "default": "line", "description": "Purge style: line/blob/adaptive/none"}
+      ],
+      "config_variables": {
+        "purge_style": {"type": "string", "default": "line", "options": ["line", "blob", "adaptive", "none"], "description": "Default purge style"},
+        "purge_amount": {"type": "float", "default": 30, "description": "Filament to purge in mm"},
+        "purge_x": {"type": "float", "default": 5, "description": "Purge line X start position"},
+        "purge_y": {"type": "float", "default": 5, "description": "Purge line Y start position"}
+      },
+      "styles": {
+        "line": "Simple line purge along bed edge",
+        "blob": "Purge blob into bucket then wipe",
+        "adaptive": "Purge near print area (KAMP-style)",
+        "none": "Skip purging"
+      }
+    },
+
+    "status_led": {
+      "id": "status_led",
+      "name": "LED Status",
+      "macro_name": "_STATUS_LED",
+      "description": "Update LED colors during startup phases",
+      "default_enabled": false,
+      "required": false,
+      "order": 0,
+      "dependencies": [],
+      "hardware_requirements": ["leds"],
+      "parameters": [
+        {"name": "STATUS", "type": "string", "default": "ready", "description": "Status: heating/homing/leveling/meshing/printing/complete/error"}
+      ],
+      "config_variables": {
+        "led_enabled": {"type": "bool", "default": false, "description": "Enable LED status updates"},
+        "led_name": {"type": "string", "default": "status_led", "description": "Name of neopixel section"}
+      },
+      "status_colors": {
+        "heating": {"r": 1.0, "g": 0.2, "b": 0.0, "description": "Orange - heating"},
+        "homing": {"r": 0.0, "g": 0.5, "b": 1.0, "description": "Blue - homing"},
+        "leveling": {"r": 0.5, "g": 0.0, "b": 1.0, "description": "Purple - leveling"},
+        "meshing": {"r": 0.0, "g": 1.0, "b": 0.5, "description": "Cyan - meshing"},
+        "printing": {"r": 1.0, "g": 1.0, "b": 1.0, "description": "White - printing"},
+        "complete": {"r": 0.0, "g": 1.0, "b": 0.0, "description": "Green - complete"},
+        "error": {"r": 1.0, "g": 0.0, "b": 0.0, "description": "Red - error"}
+      }
+    }
+  },
+
+  "end_print_blocks": {
+    "park": {
+      "id": "park",
+      "name": "Park Toolhead",
+      "macro_name": "_PARK",
+      "description": "Move toolhead to park position",
+      "default_enabled": true,
+      "required": false,
+      "order": 10,
+      "parameters": [
+        {"name": "PARK", "type": "string", "default": "front", "description": "Park position: front/back/center"}
+      ],
+      "config_variables": {
+        "park_position": {"type": "string", "default": "front", "options": ["front", "back", "center"], "description": "Default park position"},
+        "park_z_hop": {"type": "float", "default": 10, "description": "Z hop before parking"},
+        "park_z_max": {"type": "float", "default": 50, "description": "Max Z height for parking"}
+      }
+    },
+
+    "retract": {
+      "id": "retract",
+      "name": "Retract Filament",
+      "macro_name": "_END_RETRACT",
+      "description": "Retract filament at end of print",
+      "default_enabled": true,
+      "required": false,
+      "order": 5,
+      "config_variables": {
+        "end_retract_length": {"type": "float", "default": 10, "description": "Retraction length in mm"},
+        "end_retract_speed": {"type": "float", "default": 30, "description": "Retraction speed in mm/s"}
+      }
+    },
+
+    "cooldown": {
+      "id": "cooldown",
+      "name": "Cooldown",
+      "macro_name": "_COOLDOWN",
+      "description": "Turn off heaters and optionally fans",
+      "default_enabled": true,
+      "required": false,
+      "order": 20,
+      "config_variables": {
+        "turn_off_bed": {"type": "bool", "default": true, "description": "Turn off bed heater"},
+        "turn_off_extruder": {"type": "bool", "default": true, "description": "Turn off extruder"},
+        "turn_off_fans": {"type": "bool", "default": false, "description": "Turn off part cooling fan"},
+        "fan_off_delay": {"type": "int", "default": 0, "description": "Seconds to wait before turning off fans"}
+      }
+    },
+
+    "disable_motors": {
+      "id": "disable_motors",
+      "name": "Disable Motors",
+      "macro_name": "_DISABLE_MOTORS",
+      "description": "Disable stepper motors after print",
+      "default_enabled": true,
+      "required": false,
+      "order": 30,
+      "config_variables": {
+        "motor_off_delay": {"type": "int", "default": 300, "description": "Seconds to wait before disabling motors (0=immediate)"}
+      }
+    }
+  },
+
+  "execution_order": {
+    "start_print": [
+      "status_led:heating",
+      "heat_bed",
+      "home",
+      "heat_soak",
+      "chamber_heat",
+      "status_led:leveling",
+      "level_bed",
+      "calibrate_z",
+      "status_led:meshing",
+      "bed_mesh",
+      "status_led:heating",
+      "heat_extruder",
+      "clean_nozzle",
+      "purge",
+      "status_led:printing"
+    ],
+    "end_print": [
+      "retract",
+      "park",
+      "cooldown",
+      "status_led:complete",
+      "disable_motors"
+    ]
+  }
+}
+

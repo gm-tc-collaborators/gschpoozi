@@ -190,7 +190,7 @@
 - [ ] Full wizard flow testing
 - [ ] Config generation with actual pin mappings
 - [ ] Installation script for printer deployment
-- [ ] Macro templates (PRINT_START, PRINT_END, etc.)
+- [x] Macro templates (START_PRINT, END_PRINT, building blocks)
 
 ### Medium Priority
 - [x] More probe templates (Klicky, TAP, BLTouch) - Done!
@@ -220,7 +220,15 @@ gschpoozi/
 │   ├── probes/                # Probe templates (9)
 │   ├── extruders/             # Extruder profiles (9)
 │   ├── can-adapters/          # CAN adapters (4)
-│   └── hardware/              # Generic hardware (fans, lights, sensors)
+│   ├── hardware/              # Generic hardware (fans, lights, sensors)
+│   └── macros/                # Macro building blocks
+│       ├── building-blocks.json
+│       ├── purge-styles.json
+│       ├── start-print.cfg.template
+│       └── end-print.cfg.template
+├── docs/
+│   ├── USAGE.md               # User manual
+│   └── PROBE_CONFIGURATION.md
 ├── README.md
 ├── PROGRESS.md                # This file
 └── LICENSE                    # GPL-3.0

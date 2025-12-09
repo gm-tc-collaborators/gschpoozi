@@ -1,0 +1,301 @@
+{
+  "version": "1.0",
+  "description": "Purge pattern definitions for START_PRINT macro",
+
+  "purge_styles": {
+    "line": {
+      "id": "line",
+      "name": "Line Purge",
+      "description": "Simple purge line along the front edge of the bed",
+      "default": true,
+      "wizard_description": "Extrudes a line along the bed edge - simple and reliable",
+      "config_variables": {
+        "purge_x": {
+          "type": "float",
+          "default": 5,
+          "description": "X start position for purge line",
+          "auto_calculate": false
+        },
+        "purge_y": {
+          "type": "float",
+          "default": 5,
+          "description": "Y start position for purge line",
+          "auto_calculate": false
+        },
+        "purge_amount": {
+          "type": "float",
+          "default": 30,
+          "description": "Amount of filament to purge (mm)",
+          "min": 10,
+          "max": 100
+        },
+        "purge_height": {
+          "type": "float",
+          "default": 0.3,
+          "description": "Z height for purge line"
+        },
+        "purge_speed": {
+          "type": "float",
+          "default": 25,
+          "description": "Purge extrusion speed (mm/s)"
+        }
+      },
+      "gcode_template": [
+        "G92 E0",
+        "G0 Z5 F3000",
+        "G0 X{purge_x} Y{purge_y} F6000",
+        "G0 Z{purge_height} F1000",
+        "G1 Y{purge_y + line_length} E{purge_amount} F{purge_speed * 60}",
+        "G1 E-0.5 F3000",
+        "G0 Z2 F3000",
+        "G0 X{purge_x + 5} F6000",
+        "G92 E0"
+      ],
+      "notes": [
+        "Line length is calculated from purge_amount (~3mm per mm of filament)",
+        "Small retract at end prevents stringing when moving to print"
+      ]
+    },
+
+    "blob": {
+      "id": "blob",
+      "name": "Blob Purge",
+      "description": "Purge a blob into a bucket, then wipe on brush",
+      "default": false,
+      "wizard_description": "Purges into a bucket - best for enclosed printers with brush stations",
+      "requires": ["nozzle_brush"],
+      "config_variables": {
+        "bucket_x": {
+          "type": "float",
+          "default": 50,
+          "description": "Bucket X position",
+          "auto_calculate": "brush_x"
+        },
+        "bucket_y": {
+          "type": "float",
+          "default": 305,
+          "description": "Bucket Y position (usually past bed max)",
+          "auto_calculate": "bed_size_y + 5"
+        },
+        "bucket_z": {
+          "type": "float",
+          "default": 5,
+          "description": "Bucket Z height"
+        },
+        "purge_amount": {
+          "type": "float",
+          "default": 40,
+          "description": "Amount of filament to purge (mm)"
+        },
+        "purge_speed": {
+          "type": "float",
+          "default": 3,
+          "description": "Slow purge speed for blob formation (mm/s)"
+        }
+      },
+      "gcode_template": [
+        "G0 Z10 F3000",
+        "G0 X{bucket_x} Y{bucket_y} F6000",
+        "G0 Z{bucket_z} F1000",
+        "G92 E0",
+        "G1 E{purge_amount} F{purge_speed * 60}",
+        "G1 E-2 F3000",
+        "G4 P1000",
+        "G0 Z{bucket_z + 10} F3000",
+        "G92 E0"
+      ],
+      "notes": [
+        "Slow extrusion forms a blob that drops into bucket",
+        "Pause allows blob to detach before moving",
+        "Usually followed by _CLEAN_NOZZLE for wipe"
+      ]
+    },
+
+    "adaptive": {
+      "id": "adaptive",
+      "name": "Adaptive Purge",
+      "description": "Purge line positioned near the print area (KAMP-style)",
+      "default": false,
+      "wizard_description": "Places purge near your print - best for slicers that pass print bounds",
+      "requires_slicer": true,
+      "slicer_params": ["PRINT_MIN", "PRINT_MAX"],
+      "config_variables": {
+        "purge_amount": {
+          "type": "float",
+          "default": 30,
+          "description": "Amount of filament to purge (mm)"
+        },
+        "purge_offset": {
+          "type": "float",
+          "default": 10,
+          "description": "Offset from print area edge"
+        },
+        "purge_height": {
+          "type": "float",
+          "default": 0.3,
+          "description": "Z height for purge line"
+        },
+        "adaptive_length": {
+          "type": "float",
+          "default": 30,
+          "description": "Length of adaptive purge line"
+        }
+      },
+      "gcode_template": [
+        "{% if PRINT_MIN is defined %}",
+        "  {% set min = PRINT_MIN.split(',')|map('float')|list %}",
+        "  {% set start_x = [min[0] - purge_offset, 5]|max %}",
+        "  {% set start_y = [min[1], 5]|max %}",
+        "{% else %}",
+        "  {% set start_x = 5 %}",
+        "  {% set start_y = 5 %}",
+        "{% endif %}",
+        "G92 E0",
+        "G0 Z5 F3000",
+        "G0 X{start_x} Y{start_y} F6000",
+        "G0 Z{purge_height} F1000",
+        "G1 Y{start_y + adaptive_length} E{purge_amount} F1500",
+        "G1 E-0.5 F3000",
+        "G0 Z2 F3000",
+        "G92 E0"
+      ],
+      "slicer_integration": {
+        "prusaslicer": {
+          "start_gcode": "START_PRINT ... PRINT_MIN={first_layer_print_min[0]},{first_layer_print_min[1]} PRINT_MAX={first_layer_print_max[0]},{first_layer_print_max[1]}"
+        },
+        "orcaslicer": {
+          "start_gcode": "START_PRINT ... PRINT_MIN={first_layer_print_min[0]},{first_layer_print_min[1]} PRINT_MAX={first_layer_print_max[0]},{first_layer_print_max[1]}"
+        },
+        "cura": {
+          "note": "Cura doesn't expose print bounds easily - falls back to line purge"
+        }
+      },
+      "notes": [
+        "Falls back to line purge if slicer doesn't provide print bounds",
+        "Positions purge just outside the print area to avoid contamination"
+      ]
+    },
+
+    "voron": {
+      "id": "voron",
+      "name": "VORON Purge",
+      "description": "VORON-style bucket purge with nozzle scrub",
+      "default": false,
+      "wizard_description": "Full VORON decontamination sequence with bucket and brush",
+      "requires": ["nozzle_brush", "purge_bucket"],
+      "config_variables": {
+        "bucket_x_start": {
+          "type": "float",
+          "default": 17,
+          "description": "Bucket X start position"
+        },
+        "bucket_x_end": {
+          "type": "float",
+          "default": 50,
+          "description": "Bucket X end position"
+        },
+        "bucket_y": {
+          "type": "float",
+          "default": 305,
+          "description": "Bucket Y position"
+        },
+        "bucket_z": {
+          "type": "float",
+          "default": 3,
+          "description": "Bucket Z height"
+        },
+        "purge_amount": {
+          "type": "float",
+          "default": 50,
+          "description": "Amount of filament to purge (mm)"
+        },
+        "ooze_dwell": {
+          "type": "int",
+          "default": 3,
+          "description": "Seconds to dwell for ooze"
+        }
+      },
+      "gcode_template": [
+        "; VORON decontamination sequence",
+        "G0 Z10 F3000",
+        "G0 X{bucket_x_start} Y{bucket_y} F6000",
+        "G0 Z{bucket_z} F1000",
+        "G92 E0",
+        "; Purge in sweeping motion across bucket",
+        "G1 X{bucket_x_end} E{purge_amount/2} F300",
+        "G1 X{bucket_x_start} E{purge_amount/2} F300",
+        "; Retract and dwell for ooze",
+        "G1 E-2 F1800",
+        "G4 P{ooze_dwell * 1000}",
+        "; Wipe on brush",
+        "_CLEAN_NOZZLE WIPES=5",
+        "G92 E0"
+      ],
+      "notes": [
+        "Based on VORON nozzle_scrub.cfg pattern",
+        "Includes dwell time for nozzle to ooze remaining filament",
+        "Always followed by brush cleaning"
+      ]
+    },
+
+    "none": {
+      "id": "none",
+      "name": "No Purge",
+      "description": "Skip purging entirely",
+      "default": false,
+      "wizard_description": "Don't purge - use if your slicer handles priming",
+      "gcode_template": ["; Purge disabled"],
+      "notes": [
+        "Use when slicer already includes a skirt or brim for priming",
+        "Not recommended for most prints"
+      ]
+    }
+  },
+
+  "slicer_examples": {
+    "description": "Copy-paste examples for popular slicers",
+    
+    "prusaslicer": {
+      "name": "PrusaSlicer / SuperSlicer",
+      "basic": "START_PRINT BED=[first_layer_bed_temperature] EXTRUDER=[first_layer_temperature]",
+      "with_chamber": "START_PRINT BED=[first_layer_bed_temperature] EXTRUDER=[first_layer_temperature] CHAMBER=[chamber_temperature]",
+      "with_material": "START_PRINT BED=[first_layer_bed_temperature] EXTRUDER=[first_layer_temperature] MATERIAL=[filament_type]",
+      "full_adaptive": "START_PRINT BED=[first_layer_bed_temperature] EXTRUDER=[first_layer_temperature] CHAMBER=[chamber_temperature] MATERIAL=[filament_type] PRINT_MIN={first_layer_print_min[0]},{first_layer_print_min[1]} PRINT_MAX={first_layer_print_max[0]},{first_layer_print_max[1]}"
+    },
+
+    "orcaslicer": {
+      "name": "OrcaSlicer",
+      "basic": "START_PRINT BED=[first_layer_bed_temperature] EXTRUDER=[first_layer_temperature]",
+      "with_chamber": "START_PRINT BED=[first_layer_bed_temperature] EXTRUDER=[first_layer_temperature] CHAMBER=[chamber_temperature]",
+      "with_material": "START_PRINT BED=[first_layer_bed_temperature] EXTRUDER=[first_layer_temperature] MATERIAL=[filament_type]",
+      "full_adaptive": "START_PRINT BED=[first_layer_bed_temperature] EXTRUDER=[first_layer_temperature] CHAMBER=[chamber_temperature] MATERIAL=[filament_type] PRINT_MIN={first_layer_print_min[0]},{first_layer_print_min[1]} PRINT_MAX={first_layer_print_max[0]},{first_layer_print_max[1]}"
+    },
+
+    "cura": {
+      "name": "Cura",
+      "basic": "START_PRINT BED={material_bed_temperature_layer_0} EXTRUDER={material_print_temperature_layer_0}",
+      "with_material": "START_PRINT BED={material_bed_temperature_layer_0} EXTRUDER={material_print_temperature_layer_0} MATERIAL={material_type}",
+      "note": "Cura doesn't expose first_layer_print_min/max - adaptive purge falls back to line purge"
+    },
+
+    "simplify3d": {
+      "name": "Simplify3D",
+      "basic": "START_PRINT BED=[bed0_temperature] EXTRUDER=[extruder0_temperature]"
+    },
+
+    "ideamaker": {
+      "name": "IdeaMaker",
+      "basic": "START_PRINT BED={bed_temperature_layer_0} EXTRUDER={temperature_extruder1_layer_0}"
+    }
+  },
+
+  "end_print_examples": {
+    "prusaslicer": "END_PRINT",
+    "orcaslicer": "END_PRINT",
+    "cura": "END_PRINT",
+    "simplify3d": "END_PRINT",
+    "ideamaker": "END_PRINT",
+    "note": "END_PRINT doesn't require parameters - all settings come from macros-config.cfg"
+  }
+}
+

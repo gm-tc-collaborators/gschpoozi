@@ -6890,17 +6890,419 @@ select_lcd_display_type() {
     esac
 }
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# MACRO CONFIGURATION
+# ═══════════════════════════════════════════════════════════════════════════════
+
 menu_macros() {
+    while true; do
+        clear_screen
+        print_header "Macro Configuration"
+        
+        print_box_line "${BWHITE}START_PRINT Building Blocks${NC}"
+        print_empty_line
+        
+        # Heat soak
+        local soak_status=$([[ "${WIZARD_STATE[macro_heat_soak]}" == "yes" ]] && echo "done" || echo "")
+        local soak_time="${WIZARD_STATE[macro_heat_soak_time]:-0}"
+        print_menu_item "1" "$soak_status" "Heat Soak" "$([[ "${WIZARD_STATE[macro_heat_soak]}" == "yes" ]] && echo "${soak_time}min" || echo "disabled")"
+        
+        # Chamber heating
+        local chamber_status=$([[ "${WIZARD_STATE[macro_chamber_wait]}" == "yes" ]] && echo "done" || echo "")
+        print_menu_item "2" "$chamber_status" "Chamber Heating" "$([[ "${WIZARD_STATE[macro_chamber_wait]}" == "yes" ]] && echo "enabled" || echo "disabled")"
+        
+        # Bed leveling (auto-detected)
+        local level_method=""
+        local z_count="${WIZARD_STATE[z_stepper_count]:-1}"
+        case "$z_count" in
+            4) level_method="QGL (auto)" ;;
+            3) level_method="Z_TILT (auto)" ;;
+            2) level_method="Z_TILT (auto)" ;;
+            *) level_method="none" ;;
+        esac
+        print_menu_item "3" "done" "Bed Leveling" "${level_method}"
+        
+        # Bed mesh mode
+        local mesh_mode="${WIZARD_STATE[macro_bed_mesh_mode]:-adaptive}"
+        print_menu_item "4" "done" "Bed Mesh" "${mesh_mode}"
+        
+        # Nozzle cleaning
+        local brush_status=$([[ "${WIZARD_STATE[macro_brush_enabled]}" == "yes" ]] && echo "done" || echo "")
+        print_menu_item "5" "$brush_status" "Nozzle Cleaning" "$([[ "${WIZARD_STATE[macro_brush_enabled]}" == "yes" ]] && echo "enabled" || echo "disabled")"
+        
+        # Purge style
+        local purge_style="${WIZARD_STATE[macro_purge_style]:-line}"
+        print_menu_item "6" "done" "Purge Style" "${purge_style}"
+        
+        # LED status
+        local led_status=$([[ "${WIZARD_STATE[macro_led_enabled]}" == "yes" ]] && echo "done" || echo "")
+        print_menu_item "7" "$led_status" "LED Status" "$([[ "${WIZARD_STATE[macro_led_enabled]}" == "yes" ]] && echo "enabled" || echo "disabled")"
+        
+        print_empty_line
+        print_box_line "${BWHITE}END_PRINT Options${NC}"
+        print_empty_line
+        
+        # Park position
+        local park_pos="${WIZARD_STATE[macro_park_position]:-front}"
+        print_menu_item "8" "done" "Park Position" "${park_pos}"
+        
+        # Cooldown behavior
+        local cooldown="${WIZARD_STATE[macro_cooldown_bed]:-yes}"
+        print_menu_item "9" "done" "Cooldown" "bed:${cooldown}"
+        
+        print_separator
+        print_action_item "S" "Show Slicer Start G-code"
+        print_action_item "B" "Back"
+        print_footer
+        
+        echo -en "${BYELLOW}Select option${NC}: "
+        read -r choice
+        
+        case "$choice" in
+            1) menu_macro_heat_soak ;;
+            2) menu_macro_chamber ;;
+            3) echo -e "${CYAN}Leveling method is auto-selected based on Z motor count${NC}"; wait_for_key ;;
+            4) menu_macro_bed_mesh ;;
+            5) menu_macro_nozzle_clean ;;
+            6) menu_macro_purge ;;
+            7) menu_macro_led ;;
+            8) menu_macro_park ;;
+            9) menu_macro_cooldown ;;
+            [sS]) show_slicer_gcode ;;
+            [bB]|"") return ;;
+            *) ;;
+        esac
+    done
+}
+
+menu_macro_heat_soak() {
     clear_screen
-    print_header "Macro Configuration"
-    print_box_line "${GREEN}Default macros will be included:${NC}"
-    print_box_line "• PRINT_START / PRINT_END"
-    print_box_line "• Homing routines"
-    print_box_line "• Filament load/unload"
-    print_box_line "• Pause/Resume/Cancel"
-    print_box_line "• Bed mesh helpers"
+    print_header "Heat Soak Configuration"
+    
+    print_box_line "Heat soak waits for the bed temperature to stabilize"
+    print_box_line "after reaching target. Useful for enclosed printers."
     print_empty_line
-    print_box_line "${YELLOW}Custom macro selection coming soon...${NC}"
+    
+    if confirm "Enable heat soak?"; then
+        WIZARD_STATE[macro_heat_soak]="yes"
+        
+        local soak_time=$(prompt_input "Soak time (minutes)" "${WIZARD_STATE[macro_heat_soak_time]:-5}")
+        WIZARD_STATE[macro_heat_soak_time]="$soak_time"
+        
+        echo -e "${GREEN}Heat soak enabled: ${soak_time} minutes${NC}"
+    else
+        WIZARD_STATE[macro_heat_soak]="no"
+        echo -e "${YELLOW}Heat soak disabled${NC}"
+    fi
+    
+    wait_for_key
+}
+
+menu_macro_chamber() {
+    clear_screen
+    print_header "Chamber Heating Configuration"
+    
+    # Check if chamber sensor is configured
+    if [[ "${WIZARD_STATE[has_chamber_sensor]}" != "yes" ]]; then
+        print_box_line "${YELLOW}No chamber sensor configured.${NC}"
+        print_box_line "Configure a chamber sensor in Components > Extras first."
+        print_footer
+        wait_for_key
+        return
+    fi
+    
+    print_box_line "Chamber heating waits for the enclosure to reach"
+    print_box_line "the target temperature before printing."
+    print_empty_line
+    
+    if confirm "Enable chamber temperature wait?"; then
+        WIZARD_STATE[macro_chamber_wait]="yes"
+        
+        local default_temp="${WIZARD_STATE[macro_chamber_temp_default]:-45}"
+        local temp=$(prompt_input "Default chamber temperature (°C)" "$default_temp")
+        WIZARD_STATE[macro_chamber_temp_default]="$temp"
+        
+        echo -e "${GREEN}Chamber wait enabled: ${temp}°C default${NC}"
+    else
+        WIZARD_STATE[macro_chamber_wait]="no"
+        echo -e "${YELLOW}Chamber wait disabled${NC}"
+    fi
+    
+    wait_for_key
+}
+
+menu_macro_bed_mesh() {
+    clear_screen
+    print_header "Bed Mesh Mode"
+    
+    print_box_line "${BWHITE}Select default bed mesh behavior:${NC}"
+    print_empty_line
+    print_menu_item "1" "" "adaptive" "Mesh only print area (requires slicer setup)"
+    print_menu_item "2" "" "full" "Full bed mesh every print"
+    print_menu_item "3" "" "saved" "Load previously saved mesh"
+    print_menu_item "4" "" "none" "Skip mesh (trust existing)"
+    print_footer
+    
+    echo -en "${BYELLOW}Select mode${NC}: "
+    read -r choice
+    
+    case "$choice" in
+        1) WIZARD_STATE[macro_bed_mesh_mode]="adaptive" ;;
+        2) WIZARD_STATE[macro_bed_mesh_mode]="full" ;;
+        3) WIZARD_STATE[macro_bed_mesh_mode]="saved" ;;
+        4) WIZARD_STATE[macro_bed_mesh_mode]="none" ;;
+        *) return ;;
+    esac
+    
+    echo -e "${GREEN}Bed mesh mode set to: ${WIZARD_STATE[macro_bed_mesh_mode]}${NC}"
+    wait_for_key
+}
+
+menu_macro_nozzle_clean() {
+    clear_screen
+    print_header "Nozzle Cleaning Configuration"
+    
+    print_box_line "Configure a physical brush/wiper for nozzle cleaning."
+    print_box_line "The nozzle will wipe across the brush before printing."
+    print_empty_line
+    
+    if confirm "Enable nozzle cleaning?"; then
+        WIZARD_STATE[macro_brush_enabled]="yes"
+        
+        # Get bed size for default position
+        local bed_x="${WIZARD_STATE[bed_size_x]:-300}"
+        local bed_y="${WIZARD_STATE[bed_size_y]:-300}"
+        
+        echo -e "\n${CYAN}Brush Position Configuration${NC}"
+        echo -e "Enter the position where your brush is mounted."
+        echo -e "(Usually at the back of the bed, past Y max)"
+        
+        local brush_x=$(prompt_input "Brush X position" "${WIZARD_STATE[macro_brush_x]:-50}")
+        WIZARD_STATE[macro_brush_x]="$brush_x"
+        
+        local brush_y=$(prompt_input "Brush Y position" "${WIZARD_STATE[macro_brush_y]:-$((bed_y + 5))}")
+        WIZARD_STATE[macro_brush_y]="$brush_y"
+        
+        local brush_z=$(prompt_input "Brush Z height" "${WIZARD_STATE[macro_brush_z]:-1}")
+        WIZARD_STATE[macro_brush_z]="$brush_z"
+        
+        local brush_width=$(prompt_input "Brush width (mm)" "${WIZARD_STATE[macro_brush_width]:-30}")
+        WIZARD_STATE[macro_brush_width]="$brush_width"
+        
+        local wipe_count=$(prompt_input "Wipe count" "${WIZARD_STATE[macro_wipe_count]:-3}")
+        WIZARD_STATE[macro_wipe_count]="$wipe_count"
+        
+        echo -e "${GREEN}Nozzle cleaning enabled at X:${brush_x} Y:${brush_y}${NC}"
+    else
+        WIZARD_STATE[macro_brush_enabled]="no"
+        echo -e "${YELLOW}Nozzle cleaning disabled${NC}"
+    fi
+    
+    wait_for_key
+}
+
+menu_macro_purge() {
+    clear_screen
+    print_header "Purge Style"
+    
+    print_box_line "${BWHITE}Select purge method:${NC}"
+    print_empty_line
+    print_menu_item "1" "" "line" "Simple line along bed edge"
+    print_menu_item "2" "" "blob" "Blob into bucket (requires bucket)"
+    print_menu_item "3" "" "adaptive" "Purge near print area (KAMP-style)"
+    print_menu_item "4" "" "voron" "VORON-style bucket + brush"
+    print_menu_item "5" "" "none" "No purging (slicer handles it)"
+    print_footer
+    
+    echo -en "${BYELLOW}Select style${NC}: "
+    read -r choice
+    
+    case "$choice" in
+        1) WIZARD_STATE[macro_purge_style]="line" ;;
+        2) 
+            WIZARD_STATE[macro_purge_style]="blob"
+            menu_macro_purge_bucket
+            ;;
+        3) WIZARD_STATE[macro_purge_style]="adaptive" ;;
+        4) 
+            WIZARD_STATE[macro_purge_style]="voron"
+            menu_macro_purge_bucket
+            ;;
+        5) WIZARD_STATE[macro_purge_style]="none" ;;
+        *) return ;;
+    esac
+    
+    # Configure purge amount
+    if [[ "${WIZARD_STATE[macro_purge_style]}" != "none" ]]; then
+        local purge_amount=$(prompt_input "Purge amount (mm of filament)" "${WIZARD_STATE[macro_purge_amount]:-30}")
+        WIZARD_STATE[macro_purge_amount]="$purge_amount"
+    fi
+    
+    echo -e "${GREEN}Purge style set to: ${WIZARD_STATE[macro_purge_style]}${NC}"
+    wait_for_key
+}
+
+menu_macro_purge_bucket() {
+    echo -e "\n${CYAN}Bucket/Purge Position Configuration${NC}"
+    
+    local bed_x="${WIZARD_STATE[bed_size_x]:-300}"
+    local bed_y="${WIZARD_STATE[bed_size_y]:-300}"
+    
+    local bucket_x=$(prompt_input "Bucket X position" "${WIZARD_STATE[macro_bucket_x]:-$((bed_x / 2))}")
+    WIZARD_STATE[macro_bucket_x]="$bucket_x"
+    
+    local bucket_y=$(prompt_input "Bucket Y position" "${WIZARD_STATE[macro_bucket_y]:-$((bed_y + 5))}")
+    WIZARD_STATE[macro_bucket_y]="$bucket_y"
+    
+    local bucket_z=$(prompt_input "Bucket Z height" "${WIZARD_STATE[macro_bucket_z]:-5}")
+    WIZARD_STATE[macro_bucket_z]="$bucket_z"
+}
+
+menu_macro_led() {
+    clear_screen
+    print_header "LED Status Configuration"
+    
+    # Check if LEDs are configured
+    if [[ "${WIZARD_STATE[has_leds]}" != "yes" && "${WIZARD_STATE[lighting_type]}" != "neopixel" ]]; then
+        print_box_line "${YELLOW}No NeoPixel LEDs configured.${NC}"
+        print_box_line "Configure LEDs in Components > Lighting first."
+        print_footer
+        wait_for_key
+        return
+    fi
+    
+    print_box_line "LED status updates change LED colors during"
+    print_box_line "different phases of the print start sequence."
+    print_empty_line
+    print_box_line "Colors: ${CYAN}heating${NC} → ${BLUE}homing${NC} → ${MAGENTA}leveling${NC} → ${CYAN}meshing${NC} → ${WHITE}printing${NC}"
+    print_empty_line
+    
+    if confirm "Enable LED status updates?"; then
+        WIZARD_STATE[macro_led_enabled]="yes"
+        
+        local led_name=$(prompt_input "LED section name" "${WIZARD_STATE[macro_led_name]:-status_led}")
+        WIZARD_STATE[macro_led_name]="$led_name"
+        
+        echo -e "${GREEN}LED status enabled for: ${led_name}${NC}"
+    else
+        WIZARD_STATE[macro_led_enabled]="no"
+        echo -e "${YELLOW}LED status disabled${NC}"
+    fi
+    
+    wait_for_key
+}
+
+menu_macro_park() {
+    clear_screen
+    print_header "Park Position"
+    
+    print_box_line "${BWHITE}Where should the toolhead park after printing?${NC}"
+    print_empty_line
+    print_menu_item "1" "" "front" "Front center (easy part removal)"
+    print_menu_item "2" "" "back" "Back center"
+    print_menu_item "3" "" "center" "Bed center"
+    print_menu_item "4" "" "front_left" "Front left corner"
+    print_menu_item "5" "" "front_right" "Front right corner"
+    print_menu_item "6" "" "back_left" "Back left corner"
+    print_menu_item "7" "" "back_right" "Back right corner"
+    print_footer
+    
+    echo -en "${BYELLOW}Select position${NC}: "
+    read -r choice
+    
+    case "$choice" in
+        1) WIZARD_STATE[macro_park_position]="front" ;;
+        2) WIZARD_STATE[macro_park_position]="back" ;;
+        3) WIZARD_STATE[macro_park_position]="center" ;;
+        4) WIZARD_STATE[macro_park_position]="front_left" ;;
+        5) WIZARD_STATE[macro_park_position]="front_right" ;;
+        6) WIZARD_STATE[macro_park_position]="back_left" ;;
+        7) WIZARD_STATE[macro_park_position]="back_right" ;;
+        *) return ;;
+    esac
+    
+    # Z settings
+    local z_hop=$(prompt_input "Z hop height (mm)" "${WIZARD_STATE[macro_park_z_hop]:-10}")
+    WIZARD_STATE[macro_park_z_hop]="$z_hop"
+    
+    local z_max=$(prompt_input "Max Z for parking" "${WIZARD_STATE[macro_park_z_max]:-50}")
+    WIZARD_STATE[macro_park_z_max]="$z_max"
+    
+    echo -e "${GREEN}Park position: ${WIZARD_STATE[macro_park_position]}, Z hop: ${z_hop}mm${NC}"
+    wait_for_key
+}
+
+menu_macro_cooldown() {
+    clear_screen
+    print_header "Cooldown Behavior"
+    
+    print_box_line "${BWHITE}Configure what turns off after printing:${NC}"
+    print_empty_line
+    
+    if confirm "Turn off bed heater?"; then
+        WIZARD_STATE[macro_cooldown_bed]="yes"
+    else
+        WIZARD_STATE[macro_cooldown_bed]="no"
+    fi
+    
+    if confirm "Turn off extruder?"; then
+        WIZARD_STATE[macro_cooldown_extruder]="yes"
+    else
+        WIZARD_STATE[macro_cooldown_extruder]="no"
+    fi
+    
+    if confirm "Turn off part cooling fan?"; then
+        WIZARD_STATE[macro_cooldown_fans]="yes"
+        
+        local delay=$(prompt_input "Fan off delay (seconds, 0=immediate)" "${WIZARD_STATE[macro_fan_off_delay]:-0}")
+        WIZARD_STATE[macro_fan_off_delay]="$delay"
+    else
+        WIZARD_STATE[macro_cooldown_fans]="no"
+    fi
+    
+    local motor_delay=$(prompt_input "Motor off delay (seconds, 0=immediate)" "${WIZARD_STATE[macro_motor_off_delay]:-300}")
+    WIZARD_STATE[macro_motor_off_delay]="$motor_delay"
+    
+    echo -e "${GREEN}Cooldown configured${NC}"
+    wait_for_key
+}
+
+show_slicer_gcode() {
+    clear_screen
+    print_header "Slicer Start G-code"
+    
+    print_box_line "${BWHITE}Copy this to your slicer's Start G-code:${NC}"
+    print_empty_line
+    
+    print_box_line "${CYAN}PrusaSlicer / SuperSlicer / OrcaSlicer:${NC}"
+    print_empty_line
+    echo -e "${GREEN}START_PRINT BED=[first_layer_bed_temperature] EXTRUDER=[first_layer_temperature]${NC}"
+    echo ""
+    
+    # Show with optional parameters based on configuration
+    local full_cmd="START_PRINT BED=[first_layer_bed_temperature] EXTRUDER=[first_layer_temperature]"
+    
+    if [[ "${WIZARD_STATE[macro_chamber_wait]}" == "yes" ]]; then
+        full_cmd="${full_cmd} CHAMBER=[chamber_temperature]"
+    fi
+    
+    full_cmd="${full_cmd} MATERIAL=[filament_type]"
+    
+    if [[ "${WIZARD_STATE[macro_bed_mesh_mode]}" == "adaptive" || "${WIZARD_STATE[macro_purge_style]}" == "adaptive" ]]; then
+        echo -e "${YELLOW}For adaptive mesh/purge, also add:${NC}"
+        echo -e "${GREEN}PRINT_MIN={first_layer_print_min[0]},{first_layer_print_min[1]} PRINT_MAX={first_layer_print_max[0]},{first_layer_print_max[1]}${NC}"
+    fi
+    
+    print_empty_line
+    print_box_line "${CYAN}Cura:${NC}"
+    print_empty_line
+    echo -e "${GREEN}START_PRINT BED={material_bed_temperature_layer_0} EXTRUDER={material_print_temperature_layer_0}${NC}"
+    
+    print_empty_line
+    print_box_line "${CYAN}End G-code (all slicers):${NC}"
+    print_empty_line
+    echo -e "${GREEN}END_PRINT${NC}"
+    
     print_footer
     wait_for_key
 }
@@ -7105,174 +7507,14 @@ EOF
 }
 
 generate_macros_cfg() {
-    local output="${OUTPUT_DIR}/macros.cfg"
-    
-    cat > "${output}" << 'EOF'
-# ═══════════════════════════════════════════════════════════════════════════════
-# MACROS & MAINSAIL ESSENTIALS
-# Generated by gschpoozi
-# ═══════════════════════════════════════════════════════════════════════════════
-
-# ─────────────────────────────────────────────────────────────────────────────
-# MAINSAIL / FLUIDD REQUIRED SECTIONS
-# ─────────────────────────────────────────────────────────────────────────────
-[virtual_sdcard]
-path: ~/printer_data/gcodes
-on_error_gcode: CANCEL_PRINT
-
-[display_status]
-# Required for M117 messages and print status
-
-[pause_resume]
-# Required for PAUSE/RESUME functionality
-
-[exclude_object]
-# Required for object cancellation in Mainsail/Fluidd
-
-[respond]
-# Required for M118 messages
-
-# ─────────────────────────────────────────────────────────────────────────────
-# PRINT START
-# Usage: PRINT_START BED_TEMP=60 EXTRUDER_TEMP=200
-# ─────────────────────────────────────────────────────────────────────────────
-[gcode_macro PRINT_START]
-description: Start print routine - heat, home, level, purge
-gcode:
-    {% set BED_TEMP = params.BED_TEMP|default(60)|float %}
-    {% set EXTRUDER_TEMP = params.EXTRUDER_TEMP|default(200)|float %}
-    
-    M117 Heating bed...
-    M140 S{BED_TEMP}                    ; Start bed heating
-    M104 S150                           ; Preheat nozzle (no ooze)
-    
-    M117 Homing...
-    G28                                 ; Home all axes
-    
-    M117 Waiting for bed...
-    M190 S{BED_TEMP}                    ; Wait for bed temp
-    
-    M117 Bed mesh...
-    BED_MESH_CALIBRATE                  ; Adaptive bed mesh
-    
-    M117 Heating nozzle...
-    G1 X5 Y5 Z10 F3000                  ; Move to front corner
-    M109 S{EXTRUDER_TEMP}               ; Wait for nozzle temp
-    
-    M117 Purging...
-    PURGE_LINE                          ; Draw purge line
-    
-    M117 Printing...
-
-# ─────────────────────────────────────────────────────────────────────────────
-# PRINT END
-# ─────────────────────────────────────────────────────────────────────────────
-[gcode_macro PRINT_END]
-description: End print routine - retract, park, cool down
-gcode:
-    {% set max_y = printer.toolhead.axis_maximum.y|float %}
-    {% set max_x = printer.toolhead.axis_maximum.x|float %}
-    
-    M400                                ; Wait for buffer to clear
-    G92 E0                              ; Reset extruder
-    G1 E-5.0 F3600                      ; Retract filament
-    
-    G91                                 ; Relative positioning
-    G1 Z10 F3000                        ; Raise Z
-    G90                                 ; Absolute positioning
-    
-    G1 X{max_x - 10} Y{max_y - 10} F6000  ; Park at rear
-    
-    M104 S0                             ; Turn off hotend
-    M140 S0                             ; Turn off bed
-    M106 S0                             ; Turn off part cooling fan
-    M84                                 ; Disable steppers
-    
-    M117 Print complete!
-
-# ─────────────────────────────────────────────────────────────────────────────
-# PURGE LINE
-# ─────────────────────────────────────────────────────────────────────────────
-[gcode_macro PURGE_LINE]
-description: Draw a purge line at the front of the bed
-gcode:
-    G92 E0                              ; Reset extruder
-    G1 X5 Y5 Z0.3 F3000                 ; Move to start
-    G1 X100 Y5 Z0.3 E15 F1500           ; Draw line
-    G1 X100 Y5.4 Z0.3 F3000             ; Move over
-    G1 X5 Y5.4 Z0.3 E30 F1500           ; Draw second line
-    G92 E0                              ; Reset extruder
-    G1 Z2 F3000                         ; Lift nozzle
-
-# ─────────────────────────────────────────────────────────────────────────────
-# PAUSE / RESUME / CANCEL
-# ─────────────────────────────────────────────────────────────────────────────
-[gcode_macro PAUSE]
-description: Pause the print
-rename_existing: BASE_PAUSE
-gcode:
-    {% set X = params.X|default(10)|float %}
-    {% set Y = params.Y|default(10)|float %}
-    {% set Z = params.Z|default(10)|float %}
-    {% set E = params.E|default(5)|float %}
-    
-    SAVE_GCODE_STATE NAME=PAUSE_state
-    BASE_PAUSE
-    G91
-    G1 E-{E} F2100
-    G1 Z{Z} F3000
-    G90
-    G1 X{X} Y{Y} F6000
-
-[gcode_macro RESUME]
-description: Resume the print
-rename_existing: BASE_RESUME
-gcode:
-    {% set E = params.E|default(5)|float %}
-    
-    G91
-    G1 E{E} F2100
-    G90
-    RESTORE_GCODE_STATE NAME=PAUSE_state MOVE=1 MOVE_SPEED=60
-    BASE_RESUME
-
-[gcode_macro CANCEL_PRINT]
-description: Cancel the print
-rename_existing: BASE_CANCEL_PRINT
-gcode:
-    PRINT_END
-    BASE_CANCEL_PRINT
-
-# ─────────────────────────────────────────────────────────────────────────────
-# FILAMENT
-# ─────────────────────────────────────────────────────────────────────────────
-[gcode_macro LOAD_FILAMENT]
-description: Load filament into the extruder
-gcode:
-    {% set TEMP = params.TEMP|default(220)|float %}
-    {% set LENGTH = params.LENGTH|default(100)|float %}
-    
-    M109 S{TEMP}                        ; Heat nozzle
-    M83                                 ; Relative extrusion
-    G1 E{LENGTH} F300                   ; Extrude
-    M82                                 ; Absolute extrusion
-    M104 S0                             ; Cool down
-
-[gcode_macro UNLOAD_FILAMENT]
-description: Unload filament from the extruder
-gcode:
-    {% set TEMP = params.TEMP|default(220)|float %}
-    {% set LENGTH = params.LENGTH|default(100)|float %}
-    
-    M109 S{TEMP}                        ; Heat nozzle
-    M83                                 ; Relative extrusion
-    G1 E10 F300                         ; Purge a little
-    G1 E-{LENGTH} F1800                 ; Retract
-    M82                                 ; Absolute extrusion
-    M104 S0                             ; Cool down
-EOF
-
-    echo -e "  ${GREEN}✓${NC} macros.cfg"
+    # Use Python generator for macros (reads from wizard state)
+    python3 "${SCRIPT_DIR}/generate-config.py" --output-dir "${OUTPUT_DIR}" --macros-only
+    if [[ $? -eq 0 ]]; then
+        echo -e "  ${GREEN}✓${NC} macros.cfg (from wizard configuration)"
+        echo -e "  ${GREEN}✓${NC} macros-config.cfg (user-editable variables)"
+    else
+        echo -e "  ${RED}✗${NC} Failed to generate macros"
+    fi
 }
 
 generate_homing_cfg() {
@@ -7339,6 +7581,7 @@ generate_printer_cfg() {
         echo -e "  ${YELLOW}!${NC} printer.cfg exists - not overwriting"
         echo -e "    Add these includes manually if needed:"
         echo -e "    ${CYAN}[include gschpoozi/hardware.cfg]${NC}"
+        echo -e "    ${CYAN}[include gschpoozi/macros-config.cfg]${NC}"
         echo -e "    ${CYAN}[include gschpoozi/macros.cfg]${NC}"
         echo -e "    ${CYAN}[include gschpoozi/homing.cfg]${NC}"
         return
@@ -7353,14 +7596,15 @@ generate_printer_cfg() {
 
 # ─────────────────────────────────────────────────────────────────────────────
 # GSCHPOOZI INCLUDES
+# NOTE: macros-config.cfg MUST be included before macros.cfg
 # ─────────────────────────────────────────────────────────────────────────────
 [include gschpoozi/hardware.cfg]
+[include gschpoozi/macros-config.cfg]
 [include gschpoozi/macros.cfg]
 [include gschpoozi/homing.cfg]
 
 # Optional: Uncomment if you have these features
-#[include gschpoozi/probe.cfg]
-#[include gschpoozi/sensors.cfg]
+#[include gschpoozi/calibration.cfg]
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # YOUR OVERRIDES BELOW
