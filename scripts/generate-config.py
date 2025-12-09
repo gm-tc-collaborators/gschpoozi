@@ -96,7 +96,48 @@ def get_motor_pins(board: Dict, port_name: str) -> Dict[str, str]:
         'uart_pin': port.get('uart_pin'),
         'cs_pin': port.get('cs_pin'),
         'diag_pin': port.get('diag_pin'),
+        'spi_bus': port.get('spi_bus'),
     }
+
+def get_spi_pins(board: Dict, spi_bus_name: str = None) -> Dict[str, str]:
+    """Get SPI pins from board config.
+
+    Handles two formats:
+    1. Direct TMC pins: spi_config.tmc_mosi, tmc_miso, tmc_sck
+    2. Named bus: spi_config.spi4.mosi_pin, miso_pin, sck_pin
+    """
+    spi_config = board.get('spi_config', {})
+
+    # Try direct TMC pins first (Mellow style)
+    if 'tmc_mosi' in spi_config:
+        return {
+            'mosi': spi_config.get('tmc_mosi'),
+            'miso': spi_config.get('tmc_miso'),
+            'sck': spi_config.get('tmc_sck'),
+            'bus': spi_config.get('tmc_spi_bus'),
+        }
+
+    # Try named bus (BTT style)
+    if spi_bus_name and spi_bus_name in spi_config:
+        bus_config = spi_config[spi_bus_name]
+        return {
+            'mosi': bus_config.get('mosi_pin'),
+            'miso': bus_config.get('miso_pin'),
+            'sck': bus_config.get('sck_pin'),
+            'bus': spi_bus_name,
+        }
+
+    # Check all named buses
+    for bus_name, bus_config in spi_config.items():
+        if isinstance(bus_config, dict) and 'mosi_pin' in bus_config:
+            return {
+                'mosi': bus_config.get('mosi_pin'),
+                'miso': bus_config.get('miso_pin'),
+                'sck': bus_config.get('sck_pin'),
+                'bus': bus_name,
+            }
+
+    return {'mosi': None, 'miso': None, 'sck': None, 'bus': None}
 
 def get_heater_pin(board: Dict, port_name: str) -> str:
     """Get heater pin for a given port."""
@@ -400,8 +441,11 @@ def generate_hardware_cfg(
     lines.append("# TMC DRIVERS")
     lines.append("# " + "─" * 77)
 
+    # Get SPI pins from board config (for SPI-based TMC drivers)
+    spi_pins = get_spi_pins(board)
+
     # Helper to generate TMC section
-    def generate_tmc_section(stepper_name: str, driver_type: str, uart_pin: str,
+    def generate_tmc_section(stepper_name: str, driver_type: str, motor_pins: Dict,
                               run_current: str = "0.8", mcu_prefix: str = "") -> List[str]:
         """Generate TMC driver config section."""
         tmc_lines = []
@@ -409,13 +453,32 @@ def generate_hardware_cfg(
         prefix = f"{mcu_prefix}:" if mcu_prefix else ""
 
         tmc_lines.append(f"[{driver_lower} {stepper_name}]")
-        if 'spi' in driver_lower or driver_type in ('TMC5160', 'TMC2130'):
-            tmc_lines.append(f"cs_pin: {prefix}{uart_pin}")
-            tmc_lines.append("spi_software_miso_pin: REPLACE_MISO")
-            tmc_lines.append("spi_software_mosi_pin: REPLACE_MOSI")
-            tmc_lines.append("spi_software_sclk_pin: REPLACE_SCLK")
+        is_spi_driver = 'spi' in driver_lower or driver_type in ('TMC5160', 'TMC2130')
+
+        if is_spi_driver:
+            # Use cs_pin if available, fall back to uart_pin
+            cs_pin = motor_pins.get('cs_pin') or motor_pins.get('uart_pin')
+            tmc_lines.append(f"cs_pin: {prefix}{cs_pin}")
+
+            # Check if motor port specifies spi_bus (BTT style)
+            motor_spi_bus = motor_pins.get('spi_bus')
+            if motor_spi_bus:
+                # Use hardware SPI bus
+                tmc_lines.append(f"spi_bus: {motor_spi_bus}")
+            elif spi_pins.get('mosi') and spi_pins.get('miso') and spi_pins.get('sck'):
+                # Use software SPI with actual pins from board config
+                tmc_lines.append(f"spi_software_miso_pin: {spi_pins['miso']}")
+                tmc_lines.append(f"spi_software_mosi_pin: {spi_pins['mosi']}")
+                tmc_lines.append(f"spi_software_sclk_pin: {spi_pins['sck']}")
+            else:
+                # No SPI config found - add comment for manual config
+                tmc_lines.append("# SPI pins not found in board config - configure manually:")
+                tmc_lines.append("# spi_software_miso_pin: REPLACE_MISO")
+                tmc_lines.append("# spi_software_mosi_pin: REPLACE_MOSI")
+                tmc_lines.append("# spi_software_sclk_pin: REPLACE_SCLK")
         else:
-            tmc_lines.append(f"uart_pin: {prefix}{uart_pin}")
+            tmc_lines.append(f"uart_pin: {prefix}{motor_pins.get('uart_pin')}")
+
         tmc_lines.append(f"run_current: {run_current}")
         # Add stealthchop for quiet operation on XY, off for Z/extruder typically
         if 'x' in stepper_name.lower() or 'y' in stepper_name.lower():
@@ -430,29 +493,29 @@ def generate_hardware_cfg(
 
     # Stepper X TMC
     driver_x_type = wizard_state.get('driver_X', default_driver)
-    if driver_x_type and x_pins.get('uart_pin'):
-        lines.extend(generate_tmc_section('stepper_x', driver_x_type, x_pins['uart_pin']))
+    if driver_x_type and (x_pins.get('uart_pin') or x_pins.get('cs_pin')):
+        lines.extend(generate_tmc_section('stepper_x', driver_x_type, x_pins))
 
     # Stepper Y TMC
     driver_y_type = wizard_state.get('driver_Y', default_driver)
     y_port = assignments.get('stepper_y', 'MOTOR_1')
     y_pins_tmc = get_motor_pins(board, y_port)
-    if driver_y_type and y_pins_tmc.get('uart_pin'):
-        lines.extend(generate_tmc_section('stepper_y', driver_y_type, y_pins_tmc['uart_pin']))
+    if driver_y_type and (y_pins_tmc.get('uart_pin') or y_pins_tmc.get('cs_pin')):
+        lines.extend(generate_tmc_section('stepper_y', driver_y_type, y_pins_tmc))
 
     # AWD: X1 and Y1 TMC
     if kinematics == 'corexy-awd':
         driver_x1_type = wizard_state.get('driver_X1', default_driver)
         x1_port = assignments.get('stepper_x1', 'MOTOR_2')
         x1_pins_tmc = get_motor_pins(board, x1_port)
-        if driver_x1_type and x1_pins_tmc.get('uart_pin'):
-            lines.extend(generate_tmc_section('stepper_x1', driver_x1_type, x1_pins_tmc['uart_pin']))
+        if driver_x1_type and (x1_pins_tmc.get('uart_pin') or x1_pins_tmc.get('cs_pin')):
+            lines.extend(generate_tmc_section('stepper_x1', driver_x1_type, x1_pins_tmc))
 
         driver_y1_type = wizard_state.get('driver_Y1', default_driver)
         y1_port = assignments.get('stepper_y1', 'MOTOR_3')
         y1_pins_tmc = get_motor_pins(board, y1_port)
-        if driver_y1_type and y1_pins_tmc.get('uart_pin'):
-            lines.extend(generate_tmc_section('stepper_y1', driver_y1_type, y1_pins_tmc['uart_pin']))
+        if driver_y1_type and (y1_pins_tmc.get('uart_pin') or y1_pins_tmc.get('cs_pin')):
+            lines.extend(generate_tmc_section('stepper_y1', driver_y1_type, y1_pins_tmc))
 
     # Stepper Z TMC (and Z1, Z2, Z3)
     for z_idx in range(z_count):
@@ -463,8 +526,8 @@ def generate_hardware_cfg(
         z_port_name = f"stepper_z{suffix}" if suffix else "stepper_z"
         z_port_tmc = assignments.get(z_port_name, f'MOTOR_{4 + z_idx}')
         z_pins_tmc = get_motor_pins(board, z_port_tmc)
-        if driver_z_type and z_pins_tmc.get('uart_pin'):
-            lines.extend(generate_tmc_section(stepper_name, driver_z_type, z_pins_tmc['uart_pin'], "0.8"))
+        if driver_z_type and (z_pins_tmc.get('uart_pin') or z_pins_tmc.get('cs_pin')):
+            lines.extend(generate_tmc_section(stepper_name, driver_z_type, z_pins_tmc, "0.8"))
 
     # Extruder TMC (on mainboard or toolboard)
     driver_e_type = wizard_state.get('driver_E', default_driver)
@@ -473,13 +536,13 @@ def generate_hardware_cfg(
     if extruder_on_tb:
         e_port_tmc = hardware_state.get('toolboard_assignments', {}).get('extruder', 'EXTRUDER')
         e_pins_tmc = get_motor_pins(toolboard, e_port_tmc)
-        if driver_e_type and e_pins_tmc.get('uart_pin'):
-            lines.extend(generate_tmc_section('extruder', driver_e_type, e_pins_tmc['uart_pin'], "0.5", "toolboard"))
+        if driver_e_type and (e_pins_tmc.get('uart_pin') or e_pins_tmc.get('cs_pin')):
+            lines.extend(generate_tmc_section('extruder', driver_e_type, e_pins_tmc, "0.5", "toolboard"))
     else:
         e_port_tmc = assignments.get('extruder', 'MOTOR_5')
         e_pins_tmc = get_motor_pins(board, e_port_tmc)
-        if driver_e_type and e_pins_tmc.get('uart_pin'):
-            lines.extend(generate_tmc_section('extruder', driver_e_type, e_pins_tmc['uart_pin'], "0.5"))
+        if driver_e_type and (e_pins_tmc.get('uart_pin') or e_pins_tmc.get('cs_pin')):
+            lines.extend(generate_tmc_section('extruder', driver_e_type, e_pins_tmc, "0.5"))
 
     # Extruder (on main board or toolboard)
     lines.append("# " + "─" * 77)
