@@ -1375,14 +1375,34 @@ def generate_hardware_cfg(
 
     # Filament sensor configuration
     has_filament_sensor = wizard_state.get('has_filament_sensor', '')
-    filament_sensor_pin = wizard_state.get('filament_sensor_pin', '')
+    filament_sensor_type = wizard_state.get('filament_sensor_type', 'switch')
+    # Try hardware assignments first, then wizard state
+    filament_port = assignments.get('filament_sensor', '')
+    if filament_port:
+        filament_sensor_pin = get_endstop_pin(board, filament_port)
+    else:
+        filament_sensor_pin = wizard_state.get('filament_sensor_pin', '')
 
     if has_filament_sensor == 'yes':
         lines.append("# " + "─" * 77)
         lines.append("# FILAMENT SENSOR")
         lines.append("# " + "─" * 77)
-        lines.append("[filament_switch_sensor filament_sensor]")
-        lines.append("switch_pin: ^REPLACE_PIN  # Filament sensor pin")
+
+        if filament_sensor_type == 'motion':
+            lines.append("[filament_motion_sensor filament_sensor]")
+            if filament_sensor_pin:
+                lines.append(f"switch_pin: ^{filament_sensor_pin}  # {filament_port or 'direct pin'}")
+            else:
+                lines.append("switch_pin: ^REPLACE_PIN  # Assign in Hardware Setup")
+            lines.append("detection_length: 7.0  # Adjust based on your sensor")
+            lines.append("extruder: extruder")
+        else:
+            lines.append("[filament_switch_sensor filament_sensor]")
+            if filament_sensor_pin:
+                lines.append(f"switch_pin: ^{filament_sensor_pin}  # {filament_port or 'direct pin'}")
+            else:
+                lines.append("switch_pin: ^REPLACE_PIN  # Assign in Hardware Setup")
+
         lines.append("pause_on_runout: True")
         lines.append("runout_gcode:")
         lines.append("    M600  # Pause for filament change")
