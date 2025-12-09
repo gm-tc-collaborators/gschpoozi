@@ -158,10 +158,35 @@ def get_fan_pin(board: Dict, port_name: str) -> str:
     return port.get('pin', 'REPLACE_PIN')
 
 def get_endstop_pin(board: Dict, port_name: str) -> str:
-    """Get endstop pin for a given port."""
+    """Get endstop pin for a given port.
+
+    Handles different naming conventions between boards:
+    - BTT style: STOP_0, STOP_1, STOP_2...
+    - Mellow style: IO0, IO1, IO2...
+    """
     endstop_ports = board.get('endstop_ports', {})
-    port = endstop_ports.get(port_name, {})
-    return port.get('pin', 'REPLACE_PIN')
+
+    # Direct lookup first
+    if port_name in endstop_ports:
+        return endstop_ports[port_name].get('pin', 'REPLACE_PIN')
+
+    # Try mapping STOP_x -> IOx (BTT to Mellow)
+    if port_name.startswith('STOP_'):
+        io_name = f"IO{port_name[5:]}"
+        if io_name in endstop_ports:
+            return endstop_ports[io_name].get('pin', 'REPLACE_PIN')
+
+    # Try mapping IOx -> STOP_x (Mellow to BTT)
+    if port_name.startswith('IO') and port_name[2:].isdigit():
+        stop_name = f"STOP_{port_name[2:]}"
+        if stop_name in endstop_ports:
+            return endstop_ports[stop_name].get('pin', 'REPLACE_PIN')
+
+    # If port_name looks like a pin (e.g., PG12), use it directly
+    if len(port_name) >= 2 and port_name[0] == 'P' and port_name[1].isalpha():
+        return port_name
+
+    return 'REPLACE_PIN'
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # CONFIG GENERATION
