@@ -37,7 +37,7 @@
       "pin": "gpio12"
     }
   },
-  "mcu_name": "toolhead",
+  "mcu_name": "toolboard",
   "misc_ports": {
     "NEOPIXEL": {
       "label": "NeoPixel/RGB LED",

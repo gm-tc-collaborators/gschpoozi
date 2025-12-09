@@ -69,7 +69,7 @@ def convert_to_gschpoozi_format(board_data: dict, is_toolboard: bool = False) ->
     }
     
     if is_toolboard:
-        result['mcu_name'] = 'toolhead'
+        result['mcu_name'] = 'toolboard'
     
     # Extract motor ports - handle multiple naming conventions
     motor_patterns = [

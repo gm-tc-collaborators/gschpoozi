@@ -54,7 +54,7 @@
       "pin": "PB8"
     }
   },
-  "mcu_name": "toolhead",
+  "mcu_name": "toolboard",
   "misc_ports": {
     "SERVO": {
       "label": "Servo",

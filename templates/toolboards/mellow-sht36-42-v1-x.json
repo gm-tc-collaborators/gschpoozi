@@ -29,5 +29,5 @@
     }
   },
   "endstop_ports": {},
-  "mcu_name": "toolhead"
+  "mcu_name": "toolboard"
 }

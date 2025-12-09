@@ -4,6 +4,7 @@
   "type": "toolboard",
   "manufacturer": "BigTreeTech",
   "mcu": "stm32g0b1xx",
+  "mcu_name": "toolboard",
   "connection": "USB",
   "canbus_capable": false,
   "notes": "36mm toolhead board for direct drive extruders",
