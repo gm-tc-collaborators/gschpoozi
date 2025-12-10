@@ -247,8 +247,8 @@ def generate_discovery_config(board: dict, mcu_serial: str, driver_type: str = "
             f"enable_pin: !{port_config['enable_pin']}",
             "microsteps: 16",
             "rotation_distance: 40",
-            "velocity: 50",
-            "accel: 1000",
+            "velocity: 500",  # High velocity for audible buzz
+            "accel: 50000",   # High accel for rapid direction changes
             "",
         ])
     
@@ -351,15 +351,19 @@ class MotorDiscovery:
             self.api.send_gcode(f"MANUAL_STEPPER STEPPER={stepper_name} ENABLE=1")
             time.sleep(0.2)
             
-            # Audible buzz: rapid tiny oscillations create a tone from motor coils
-            # Small distance + high speed + many cycles = audible frequency
-            # This makes the DRIVEN motor audible, while passive belt-connected
-            # motors remain silent (they're just being rotated by the belt)
-            for _ in range(80):  # More cycles for longer audible tone
-                self.api.send_gcode(f"MANUAL_STEPPER STEPPER={stepper_name} MOVE=0.1 SPEED=200")
-                time.sleep(0.01)
-                self.api.send_gcode(f"MANUAL_STEPPER STEPPER={stepper_name} MOVE=-0.1 SPEED=200")
-                time.sleep(0.01)
+            # Audible buzz: very rapid tiny oscillations create audible tone
+            # Tiny distance (0.02mm) + very high speed (500mm/s) + no delays
+            # This creates ~500Hz+ oscillation which is clearly audible
+            # The DRIVEN motor buzzes/sings, passive belt-connected motors are silent
+            for _ in range(200):  # Many rapid cycles
+                self.api.send_gcode(f"MANUAL_STEPPER STEPPER={stepper_name} MOVE=0.02 SPEED=500")
+                self.api.send_gcode(f"MANUAL_STEPPER STEPPER={stepper_name} MOVE=-0.02 SPEED=500")
+            
+            # Brief pause then repeat for longer audible period
+            time.sleep(0.1)
+            for _ in range(200):
+                self.api.send_gcode(f"MANUAL_STEPPER STEPPER={stepper_name} MOVE=0.02 SPEED=500")
+                self.api.send_gcode(f"MANUAL_STEPPER STEPPER={stepper_name} MOVE=-0.02 SPEED=500")
             
             # Disable stepper
             self.api.send_gcode(f"MANUAL_STEPPER STEPPER={stepper_name} ENABLE=0")
