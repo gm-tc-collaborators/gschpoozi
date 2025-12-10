@@ -304,24 +304,26 @@ class MotorDiscovery:
             })
         
         # XY motors
+        # Note: In CoreXY, A belt = X/X1 motors, B belt = Y/Y1 motors
+        # Standard positions: X=rear-left, Y=rear-right, X1=front-right, Y1=front-left
         if self.kinematics == "corexy-awd":
-            # AWD: 4 XY motors
+            # AWD: 4 XY motors (2 per belt)
             steppers.extend([
-                {"name": "stepper_x", "label": "CoreXY Motor A (typically rear-left)", 
+                {"name": "stepper_x", "label": "X Motor (typically rear-left, A belt)", 
                  "direction_prompt": "Did toolhead move diagonally toward FRONT-RIGHT?", "type": "xy"},
-                {"name": "stepper_y", "label": "CoreXY Motor B (typically rear-right)", 
+                {"name": "stepper_y", "label": "Y Motor (typically rear-right, B belt)", 
                  "direction_prompt": "Did toolhead move diagonally toward FRONT-LEFT?", "type": "xy"},
-                {"name": "stepper_x1", "label": "CoreXY Motor A1 (AWD front-left)", 
+                {"name": "stepper_x1", "label": "X1 Motor (typically front-right, A belt)", 
                  "direction_prompt": "Did toolhead move diagonally toward FRONT-RIGHT?", "type": "xy"},
-                {"name": "stepper_y1", "label": "CoreXY Motor B1 (AWD front-right)", 
+                {"name": "stepper_y1", "label": "Y1 Motor (typically front-left, B belt)", 
                  "direction_prompt": "Did toolhead move diagonally toward FRONT-LEFT?", "type": "xy"},
             ])
         elif self.kinematics == "corexy":
             # Standard CoreXY: 2 XY motors
             steppers.extend([
-                {"name": "stepper_x", "label": "CoreXY Motor A (rear-left)", 
+                {"name": "stepper_x", "label": "X Motor (typically rear-left, A belt)", 
                  "direction_prompt": "Did toolhead move diagonally toward FRONT-RIGHT?", "type": "xy"},
-                {"name": "stepper_y", "label": "CoreXY Motor B (rear-right)", 
+                {"name": "stepper_y", "label": "Y Motor (typically rear-right, B belt)", 
                  "direction_prompt": "Did toolhead move diagonally toward FRONT-LEFT?", "type": "xy"},
             ])
         else:
@@ -399,55 +401,65 @@ class MotorDiscovery:
                 print_info("All required motors identified!")
                 break
             
-            clear_screen()
-            print_header(f"Buzzing {port_name}")
-            
-            print(f"\n{YELLOW}👀 Watch your printer carefully!{RESET}")
-            print(f"{WHITE}Motor on {CYAN}{port_name}{WHITE} will buzz in 3 seconds...{RESET}\n")
-            
-            for i in range(3, 0, -1):
-                print(f"  {i}...")
-                time.sleep(1)
-            
-            print(f"\n{GREEN}>>> BUZZING {port_name} NOW <<<{RESET}\n")
-            
-            if not self.buzz_motor(port_name):
-                print(f"\n{YELLOW}Motor didn't respond. Options:{RESET}")
-                print(f"  {CYAN}S){RESET} Skip this port, try next")
-                print(f"  {CYAN}R){RESET} Retry this port")
-                print(f"  {CYAN}A){RESET} Abort discovery")
+            # Buzzing loop - allows repeating buzz until user identifies or skips
+            while True:
+                clear_screen()
+                print_header(f"Testing {port_name}")
+                
+                print(f"\n{YELLOW}👀 Watch your printer carefully!{RESET}")
+                print(f"{WHITE}Motor on {CYAN}{port_name}{WHITE} will buzz in 3 seconds...{RESET}\n")
+                
+                for i in range(3, 0, -1):
+                    print(f"  {i}...")
+                    time.sleep(1)
+                
+                print(f"\n{GREEN}>>> BUZZING {port_name} NOW <<<{RESET}\n")
+                
+                buzz_success = self.buzz_motor(port_name)
+                
+                if not buzz_success:
+                    print_error("Motor didn't respond (may not be connected)")
+                
+                # Show options - always allow repeat, skip, abort
+                remaining = [s for s in self.required_steppers if s['name'] not in identified]
+                
+                print(f"\n{WHITE}Which motor moved?{RESET}")
+                for i, s in enumerate(remaining, 1):
+                    print(f"  {CYAN}{i}){RESET} {s['label']}")
+                print(f"\n  {YELLOW}B){RESET} Buzz again (position yourself near a motor)")
+                print(f"  {YELLOW}S){RESET} Skip this port")
+                print(f"  {YELLOW}A){RESET} Abort discovery")
+                
                 while True:
-                    choice = input(f"\n{YELLOW}Choose [S/r/a]{RESET}: ").strip().lower()
-                    if choice in ("", "s"):
-                        break  # Skip to next port
-                    elif choice == "r":
-                        # Retry - continue with same port (don't break, let loop continue)
-                        if self.buzz_motor(port_name):
-                            break  # Success, proceed to identification
-                        print_error("Still failed")
-                    elif choice == "a":
+                    choice = input(f"\n{YELLOW}Select{RESET}: ").strip().lower()
+                    
+                    if choice == 'b':
+                        break  # Break inner loop to buzz again
+                    elif choice == 's':
+                        print_info(f"Skipped {port_name}")
+                        break
+                    elif choice == 'a':
                         print_info("Discovery aborted by user")
                         return {}  # Abort entire discovery
                     else:
-                        print("Please enter 's', 'r', or 'a'")
-                if choice in ("", "s"):
-                    continue  # Skip to next port
+                        try:
+                            idx = int(choice)
+                            if 1 <= idx <= len(remaining):
+                                stepper = remaining[idx - 1]
+                                port_to_stepper[port_name] = stepper['name']
+                                identified.add(stepper['name'])
+                                print_success(f"{port_name} → {stepper['name']} ({stepper['label']})")
+                                break
+                        except ValueError:
+                            pass
+                        print(f"Please enter 1-{len(remaining)}, B, S, or A")
+                
+                # If user made a selection (not 'b'), exit the buzzing loop
+                if choice != 'b':
+                    break
             
-            # Ask user which motor moved
-            remaining = [s for s in self.required_steppers if s['name'] not in identified]
-            options = [s['label'] for s in remaining]
-            
-            choice = prompt_choice(f"Which motor moved when {port_name} buzzed?", options)
-            
-            if choice is not None:
-                stepper = remaining[choice]
-                port_to_stepper[port_name] = stepper['name']
-                identified.add(stepper['name'])
-                print_success(f"{port_name} → {stepper['name']} ({stepper['label']})")
-            else:
-                print_info(f"Skipped {port_name}")
-            
-            wait_for_key()
+            if choice == 'a':
+                break  # Exit main port loop if aborted
         
         return port_to_stepper
     
