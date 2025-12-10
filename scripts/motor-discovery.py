@@ -245,6 +245,7 @@ def generate_discovery_config(board: dict, mcu_serial: str, driver_type: str = "
         ])
         
         # Add TMC config if driver type is TMC
+        # For manual_stepper, TMC section must be [tmc2209 manual_stepper name]
         if driver_type.startswith("TMC"):
             tmc_type = driver_type.lower()
             uart_pin = port_config.get("uart_pin")
@@ -254,7 +255,7 @@ def generate_discovery_config(board: dict, mcu_serial: str, driver_type: str = "
             if tmc_type in ("tmc2209", "tmc2208", "tmc2225"):
                 if uart_pin:
                     config_lines.extend([
-                        f"[{tmc_type} {stepper_name}]",
+                        f"[{tmc_type} manual_stepper {stepper_name}]",
                         f"uart_pin: {uart_pin}",
                         "run_current: 0.5",
                         "stealthchop_threshold: 999999",
@@ -263,7 +264,7 @@ def generate_discovery_config(board: dict, mcu_serial: str, driver_type: str = "
             elif tmc_type in ("tmc5160", "tmc2240", "tmc2130"):
                 if cs_pin:
                     config_lines.extend([
-                        f"[{tmc_type} {stepper_name}]",
+                        f"[{tmc_type} manual_stepper {stepper_name}]",
                         f"cs_pin: {cs_pin}",
                     ])
                     if spi_bus:
