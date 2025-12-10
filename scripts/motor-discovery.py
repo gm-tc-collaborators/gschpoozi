@@ -338,19 +338,28 @@ class MotorDiscovery:
         return steppers
     
     def buzz_motor(self, port_name: str) -> bool:
-        """Buzz a motor on the given port using MANUAL_STEPPER."""
+        """Buzz a motor with an audible tone.
+        
+        Creates rapid micro-oscillations that produce an audible tone from
+        the motor coils. This allows identifying which motor is being driven
+        even when motors are belt-connected (like X/X1 or Y/Y1 in CoreXY).
+        The driven motor will "sing", the passive motor will be silent.
+        """
         stepper_name = f"stepper_{port_name.lower()}"
         try:
             # Enable stepper
             self.api.send_gcode(f"MANUAL_STEPPER STEPPER={stepper_name} ENABLE=1")
             time.sleep(0.2)
             
-            # Move back and forth (simulating STEPPER_BUZZ)
-            for _ in range(5):
-                self.api.send_gcode(f"MANUAL_STEPPER STEPPER={stepper_name} MOVE=1 SPEED=50")
-                time.sleep(0.15)
-                self.api.send_gcode(f"MANUAL_STEPPER STEPPER={stepper_name} MOVE=-1 SPEED=50")
-                time.sleep(0.15)
+            # Audible buzz: rapid tiny oscillations create a tone from motor coils
+            # Small distance + high speed + many cycles = audible frequency
+            # This makes the DRIVEN motor audible, while passive belt-connected
+            # motors remain silent (they're just being rotated by the belt)
+            for _ in range(80):  # More cycles for longer audible tone
+                self.api.send_gcode(f"MANUAL_STEPPER STEPPER={stepper_name} MOVE=0.1 SPEED=200")
+                time.sleep(0.01)
+                self.api.send_gcode(f"MANUAL_STEPPER STEPPER={stepper_name} MOVE=-0.1 SPEED=200")
+                time.sleep(0.01)
             
             # Disable stepper
             self.api.send_gcode(f"MANUAL_STEPPER STEPPER={stepper_name} ENABLE=0")
@@ -360,16 +369,27 @@ class MotorDiscovery:
             return False
     
     def force_move_motor(self, port_name: str, distance: float = 10, velocity: float = 20) -> bool:
-        """Move a motor in one direction using MANUAL_STEPPER."""
+        """Move a motor in one direction, then return to start.
+        
+        The FIRST movement is the one to observe for direction verification.
+        After a brief pause, the motor returns to the starting position.
+        """
         stepper_name = f"stepper_{port_name.lower()}"
         try:
             self.api.send_gcode(f"MANUAL_STEPPER STEPPER={stepper_name} ENABLE=1")
             time.sleep(0.2)
+            
+            # FIRST movement - this is the direction to observe
             self.api.send_gcode(f"MANUAL_STEPPER STEPPER={stepper_name} MOVE={distance} SPEED={velocity}")
             time.sleep(abs(distance) / velocity + 0.5)
-            # Move back
+            
+            # Pause to let user observe
+            time.sleep(1.0)
+            
+            # Return to start position
             self.api.send_gcode(f"MANUAL_STEPPER STEPPER={stepper_name} MOVE={-distance} SPEED={velocity}")
             time.sleep(abs(distance) / velocity + 0.5)
+            
             self.api.send_gcode(f"MANUAL_STEPPER STEPPER={stepper_name} ENABLE=0")
             return True
         except Exception as e:
@@ -382,7 +402,11 @@ class MotorDiscovery:
         
         print(f"""
 {WHITE}We'll buzz each motor port one at a time.{RESET}
-{WHITE}Watch which physical motor moves and tell us what it is.{RESET}
+{WHITE}Each motor will make an audible tone when buzzed.{RESET}
+
+{YELLOW}TIP for belt-connected motors (X/X1, Y/Y1):{RESET}
+{WHITE}  Both motors on the same belt will rotate, but only the{RESET}
+{WHITE}  DRIVEN motor makes a sound. Listen for which motor is buzzing!{RESET}
 
 {CYAN}Available motor types to identify:{RESET}
 """)
@@ -413,12 +437,14 @@ class MotorDiscovery:
                     print(f"  {i}...")
                     time.sleep(1)
                 
-                print(f"\n{GREEN}>>> BUZZING {port_name} NOW <<<{RESET}\n")
+                print(f"\n{GREEN}>>> BUZZING {port_name} NOW - LISTEN FOR THE TONE! <<<{RESET}\n")
                 
                 buzz_success = self.buzz_motor(port_name)
                 
                 if not buzz_success:
                     print_error("Motor didn't respond (may not be connected)")
+                else:
+                    print(f"{CYAN}🔊 Which motor was making the buzzing sound?{RESET}")
                 
                 # Show options - always allow repeat, skip, abort
                 remaining = [s for s in self.required_steppers if s['name'] not in identified]
@@ -469,7 +495,11 @@ class MotorDiscovery:
         
         print(f"""
 {WHITE}Now we'll test the direction of each motor.{RESET}
-{WHITE}Each motor will move in ONE direction - watch carefully!{RESET}
+{WHITE}Watch the {CYAN}FIRST{WHITE} movement direction, then it returns to start.{RESET}
+
+{YELLOW}IMPORTANT:{RESET}
+{WHITE}  • Observe the INITIAL movement direction (not the return){RESET}
+{WHITE}  • You can repeat the movement if you missed it{RESET}
 """)
         
         wait_for_key("Press Enter to start direction testing...")
@@ -481,55 +511,85 @@ class MotorDiscovery:
             if not stepper_info:
                 continue
             
-            clear_screen()
-            print_header(f"Testing {stepper_info['label']}")
-            
-            # Special warning for extruder
-            if stepper_info.get('warning'):
-                print_warning(stepper_info['warning'])
-                if not prompt_yes_no("Is filament removed? Continue with test?", default=False):
-                    print_info("Skipping extruder direction test")
+            # Direction test loop - allows repeating
+            while True:
+                clear_screen()
+                print_header(f"Testing {stepper_info['label']}")
+                
+                # Z motor clearance warning
+                if stepper_info['type'] == 'z':
+                    print_warning("Ensure at least 30mm Z clearance to avoid crashing into bed/nozzle!")
+                    if not prompt_yes_no("Is there enough clearance? Continue?", default=True):
+                        print_info("Skipping Z direction test")
+                        dir_invert[stepper_name] = False
+                        break
+                
+                # Special warning for extruder
+                if stepper_info.get('warning'):
+                    print_warning(stepper_info['warning'])
+                    if not prompt_yes_no("Is filament removed? Continue with test?", default=False):
+                        print_info("Skipping extruder direction test")
+                        dir_invert[stepper_name] = False
+                        break
+                
+                print(f"\n{WHITE}Port: {CYAN}{port_name}{RESET}")
+                print(f"{WHITE}Testing: {CYAN}{stepper_info['label']}{RESET}")
+                print(f"\n{YELLOW}👀 Watch the FIRST movement direction!{RESET}")
+                print(f"{WHITE}Motor will move in 3 seconds, then return to start...{RESET}\n")
+                
+                for i in range(3, 0, -1):
+                    print(f"  {i}...")
+                    time.sleep(1)
+                
+                # Determine move distance based on motor type
+                if stepper_info['type'] == 'z':
+                    distance = 20  # 20mm for Z - clearly visible
+                    velocity = 15
+                elif stepper_info['type'] == 'extruder':
+                    distance = 20
+                    velocity = 5
+                else:  # XY
+                    distance = 30
+                    velocity = 50
+                
+                print(f"\n{GREEN}>>> FIRST MOVEMENT NOW (watch this!) <<<{RESET}\n")
+                
+                if not self.force_move_motor(port_name, distance, velocity):
+                    print_error("Motor movement failed")
                     dir_invert[stepper_name] = False
-                    continue
-            
-            print(f"\n{WHITE}Port: {CYAN}{port_name}{RESET}")
-            print(f"{WHITE}Testing: {CYAN}{stepper_info['label']}{RESET}")
-            print(f"\n{YELLOW}👀 Watch the motor carefully!{RESET}")
-            print(f"{WHITE}Motor will move in 3 seconds...{RESET}\n")
-            
-            for i in range(3, 0, -1):
-                print(f"  {i}...")
-                time.sleep(1)
-            
-            # Determine move distance based on motor type
-            if stepper_info['type'] == 'z':
-                distance = 5
-                velocity = 10
-            elif stepper_info['type'] == 'extruder':
-                distance = 20
-                velocity = 5
-            else:  # XY
-                distance = 30
-                velocity = 50
-            
-            print(f"\n{GREEN}>>> MOVING NOW <<<{RESET}\n")
-            
-            if not self.force_move_motor(port_name, distance, velocity):
-                print_error("Motor movement failed")
-                dir_invert[stepper_name] = False
-                wait_for_key()
-                continue
-            
-            # Ask about direction
-            correct = prompt_yes_no(stepper_info['direction_prompt'])
-            dir_invert[stepper_name] = not correct
-            
-            if correct:
-                print_success(f"{stepper_name} direction is CORRECT")
-            else:
-                print_warning(f"{stepper_name} direction needs to be INVERTED")
-            
-            wait_for_key()
+                    wait_for_key()
+                    break
+                
+                print(f"\n{WHITE}The motor moved, then returned to start.{RESET}")
+                print(f"\n{WHITE}{stepper_info['direction_prompt']}{RESET}")
+                print(f"\n  {CYAN}Y){RESET} Yes, direction was correct")
+                print(f"  {CYAN}N){RESET} No, direction was wrong (needs invert)")
+                print(f"  {YELLOW}R){RESET} Repeat movement (I didn't see it)")
+                print(f"  {YELLOW}S){RESET} Skip this motor")
+                
+                while True:
+                    choice = input(f"\n{YELLOW}Select{RESET}: ").strip().lower()
+                    
+                    if choice in ('y', 'yes'):
+                        dir_invert[stepper_name] = False
+                        print_success(f"{stepper_name} direction is CORRECT")
+                        break
+                    elif choice in ('n', 'no'):
+                        dir_invert[stepper_name] = True
+                        print_warning(f"{stepper_name} direction needs to be INVERTED")
+                        break
+                    elif choice == 'r':
+                        break  # Break to repeat
+                    elif choice == 's':
+                        dir_invert[stepper_name] = False
+                        print_info(f"Skipped {stepper_name}")
+                        break
+                    else:
+                        print("Please enter Y, N, R, or S")
+                
+                # Exit loop unless repeating
+                if choice != 'r':
+                    break
         
         return dir_invert
     
