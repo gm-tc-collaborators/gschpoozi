@@ -2766,18 +2766,23 @@ show_machine_setup_menu() {
 
     print_menu_item "2" "$(get_step_status toolboard)" "Toolhead Board" "${WIZARD_STATE[toolboard_name]:-none}"
 
-    # Misc MCUs (probes with USB/CAN, MMU, expansion boards)
+    # Misc MCUs (MMU, buffers, expansion boards)
     local misc_mcu_info=""
     local misc_mcu_count=0
     # Count configured misc MCUs
-    if [[ -n "${WIZARD_STATE[probe_type]}" && "${WIZARD_STATE[probe_type]}" =~ ^(beacon|cartographer|btt-eddy)$ ]]; then
-        misc_mcu_count=$((misc_mcu_count + 1))
-        misc_mcu_info="${WIZARD_STATE[probe_type]}"
-    fi
     if [[ -n "${WIZARD_STATE[mmu_type]}" && "${WIZARD_STATE[mmu_type]}" != "none" ]]; then
         misc_mcu_count=$((misc_mcu_count + 1))
+        misc_mcu_info="${WIZARD_STATE[mmu_type]}"
+    fi
+    if [[ -n "${WIZARD_STATE[buffer_type]}" && "${WIZARD_STATE[buffer_type]}" != "none" ]]; then
+        misc_mcu_count=$((misc_mcu_count + 1))
         [[ -n "$misc_mcu_info" ]] && misc_mcu_info="${misc_mcu_info}, "
-        misc_mcu_info="${misc_mcu_info}${WIZARD_STATE[mmu_type]}"
+        misc_mcu_info="${misc_mcu_info}${WIZARD_STATE[buffer_type]}"
+    fi
+    if [[ -n "${WIZARD_STATE[expansion_board]}" && "${WIZARD_STATE[expansion_board]}" != "none" ]]; then
+        misc_mcu_count=$((misc_mcu_count + 1))
+        [[ -n "$misc_mcu_info" ]] && misc_mcu_info="${misc_mcu_info}, "
+        misc_mcu_info="${misc_mcu_info}${WIZARD_STATE[expansion_board]}"
     fi
     [[ -z "$misc_mcu_info" ]] && misc_mcu_info="none configured"
     local misc_status=$([[ $misc_mcu_count -gt 0 ]] && echo "done" || echo "")
@@ -2926,27 +2931,365 @@ show_machine_setup_menu() {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# BOARD SELECTION
+# BOARD SELECTION & MCU SERIAL
 # ═══════════════════════════════════════════════════════════════════════════════
 
 menu_board() {
-    # Call the Python hardware setup script for board selection
-    python3 "${SCRIPT_DIR}/setup-hardware.py" --board
-    
-    # Reload hardware state
-    load_hardware_state
+    while true; do
+        clear_screen
+        print_header "Mainboard Configuration"
+
+        print_box_line "${BWHITE}Main Controller Board:${NC}"
+        print_empty_line
+
+        # Board selection status
+        local board_status=$([[ -n "${WIZARD_STATE[board]}" ]] && echo "done" || echo "")
+        print_menu_item "1" "$board_status" "Select Board" "${WIZARD_STATE[board_name]:-not selected}"
+
+        # MCU Serial ID status
+        local serial_status=""
+        local serial_info="not configured"
+        if [[ -n "${WIZARD_STATE[mcu_serial]}" ]]; then
+            serial_status="done"
+            # Truncate long serial paths for display
+            local short_serial="${WIZARD_STATE[mcu_serial]}"
+            if [[ ${#short_serial} -gt 40 ]]; then
+                short_serial="${short_serial:0:37}..."
+            fi
+            serial_info="${short_serial}"
+        fi
+        print_menu_item "2" "$serial_status" "MCU Serial ID" "${serial_info}"
+
+        print_separator
+        print_action_item "B" "Back"
+        print_footer
+
+        echo -en "${BYELLOW}Select option${NC}: "
+        read -r choice
+
+        case "$choice" in
+            1)
+                # Call the Python hardware setup script for board selection
+                python3 "${SCRIPT_DIR}/setup-hardware.py" --board
+                # Reload hardware state
+                load_hardware_state
+                ;;
+            2) menu_mcu_serial ;;
+            [bB]) return ;;
+            *) ;;
+        esac
+    done
+}
+
+menu_mcu_serial() {
+    clear_screen
+    print_header "MCU Serial ID"
+
+    print_box_line "${BWHITE}Select your main MCU serial device:${NC}"
+    print_empty_line
+
+    if [[ -n "${WIZARD_STATE[mcu_serial]}" ]]; then
+        print_box_line "Current: ${CYAN}${WIZARD_STATE[mcu_serial]}${NC}"
+        print_empty_line
+    fi
+
+    # Scan for USB serial devices
+    local devices=()
+    local i=1
+    while IFS= read -r device; do
+        if [[ -n "$device" ]]; then
+            devices+=("$device")
+            print_box_line "${BWHITE}${i})${NC} /dev/serial/by-id/${device}"
+            i=$((i + 1))
+        fi
+    done < <(ls /dev/serial/by-id/ 2>/dev/null | grep -v "beacon\|cartographer\|eddy" || true)
+
+    if [[ ${#devices[@]} -eq 0 ]]; then
+        print_box_line "${YELLOW}No MCU USB devices found.${NC}"
+        print_box_line "${WHITE}Make sure your board is connected via USB.${NC}"
+    fi
+
+    print_separator
+    print_action_item "M" "Manual entry"
+    print_action_item "C" "Clear"
+    print_action_item "B" "Back"
+    print_footer
+
+    echo -en "${BYELLOW}Select device, M for manual, or C to clear${NC}: "
+    read -r choice
+
+    case "$choice" in
+        [1-9]|[1-9][0-9])
+            local idx=$((choice - 1))
+            if [[ $idx -lt ${#devices[@]} ]]; then
+                WIZARD_STATE[mcu_serial]="/dev/serial/by-id/${devices[$idx]}"
+                echo -e "${GREEN}✓${NC} MCU serial set to: ${WIZARD_STATE[mcu_serial]}"
+                save_state
+                sleep 1
+            fi
+            ;;
+        [mM])
+            echo -en "  Enter serial path: "
+            read -r manual_serial
+            if [[ -n "$manual_serial" ]]; then
+                WIZARD_STATE[mcu_serial]="$manual_serial"
+                save_state
+                echo -e "${GREEN}✓${NC} MCU serial configured"
+                sleep 1
+            fi
+            ;;
+        [cC])
+            WIZARD_STATE[mcu_serial]=""
+            save_state
+            echo -e "${YELLOW}MCU serial cleared${NC}"
+            sleep 1
+            ;;
+        [bB]) return ;;
+        *) ;;
+    esac
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# TOOLBOARD SELECTION
+# TOOLBOARD SELECTION & SERIAL
 # ═══════════════════════════════════════════════════════════════════════════════
 
 menu_toolboard() {
-    # Call the Python hardware setup script for toolboard selection
-    python3 "${SCRIPT_DIR}/setup-hardware.py" --toolboard
-    
-    # Reload hardware state
-    load_hardware_state
+    while true; do
+        clear_screen
+        print_header "Toolboard Configuration"
+
+        print_box_line "${BWHITE}Toolhead Controller Board:${NC}"
+        print_empty_line
+
+        # Toolboard selection status
+        local tb_status=$([[ -n "${WIZARD_STATE[toolboard]}" && "${WIZARD_STATE[toolboard]}" != "none" ]] && echo "done" || echo "")
+        print_menu_item "1" "$tb_status" "Select Toolboard" "${WIZARD_STATE[toolboard_name]:-none}"
+
+        # Only show serial options if a toolboard is selected
+        if [[ -n "${WIZARD_STATE[toolboard]}" && "${WIZARD_STATE[toolboard]}" != "none" ]]; then
+            # Connection type
+            local conn_type="${WIZARD_STATE[toolboard_connection]:-usb}"
+            local conn_status="done"
+            print_menu_item "2" "$conn_status" "Connection Type" "${conn_type^^}"
+
+            # Serial/CAN ID status
+            local serial_status=""
+            local serial_info="not configured"
+            if [[ "$conn_type" == "can" ]]; then
+                if [[ -n "${WIZARD_STATE[toolboard_canbus_uuid]}" ]]; then
+                    serial_status="done"
+                    serial_info="CAN: ${WIZARD_STATE[toolboard_canbus_uuid]}"
+                fi
+            else
+                if [[ -n "${WIZARD_STATE[toolboard_serial]}" ]]; then
+                    serial_status="done"
+                    local short_serial="${WIZARD_STATE[toolboard_serial]}"
+                    if [[ ${#short_serial} -gt 35 ]]; then
+                        short_serial="${short_serial:0:32}..."
+                    fi
+                    serial_info="USB: ${short_serial}"
+                fi
+            fi
+            print_menu_item "3" "$serial_status" "Serial / CAN ID" "${serial_info}"
+        fi
+
+        print_separator
+        print_action_item "B" "Back"
+        print_footer
+
+        echo -en "${BYELLOW}Select option${NC}: "
+        read -r choice
+
+        case "$choice" in
+            1)
+                # Call the Python hardware setup script for toolboard selection
+                python3 "${SCRIPT_DIR}/setup-hardware.py" --toolboard
+                # Reload hardware state
+                load_hardware_state
+                ;;
+            2)
+                if [[ -n "${WIZARD_STATE[toolboard]}" && "${WIZARD_STATE[toolboard]}" != "none" ]]; then
+                    menu_toolboard_connection
+                fi
+                ;;
+            3)
+                if [[ -n "${WIZARD_STATE[toolboard]}" && "${WIZARD_STATE[toolboard]}" != "none" ]]; then
+                    menu_toolboard_serial
+                fi
+                ;;
+            [bB]) return ;;
+            *) ;;
+        esac
+    done
+}
+
+menu_toolboard_connection() {
+    clear_screen
+    print_header "Toolboard Connection Type"
+
+    print_box_line "${BWHITE}How is your toolboard connected?${NC}"
+    print_empty_line
+
+    local current="${WIZARD_STATE[toolboard_connection]:-usb}"
+    print_box_line "Current: ${CYAN}${current^^}${NC}"
+    print_empty_line
+
+    local usb_mark=$([[ "$current" == "usb" ]] && echo "[✓]" || echo "[ ]")
+    local can_mark=$([[ "$current" == "can" ]] && echo "[✓]" || echo "[ ]")
+
+    print_box_line "${BWHITE}1)${NC} ${usb_mark} USB"
+    print_box_line "${BWHITE}2)${NC} ${can_mark} CAN Bus"
+
+    print_separator
+    print_action_item "B" "Back"
+    print_footer
+
+    echo -en "${BYELLOW}Select connection type${NC}: "
+    read -r choice
+
+    case "$choice" in
+        1)
+            WIZARD_STATE[toolboard_connection]="usb"
+            # Clear CAN UUID when switching to USB
+            WIZARD_STATE[toolboard_canbus_uuid]=""
+            save_state
+            echo -e "${GREEN}✓${NC} Connection set to USB"
+            sleep 1
+            ;;
+        2)
+            WIZARD_STATE[toolboard_connection]="can"
+            # Clear USB serial when switching to CAN
+            WIZARD_STATE[toolboard_serial]=""
+            save_state
+            echo -e "${GREEN}✓${NC} Connection set to CAN"
+            sleep 1
+            ;;
+        [bB]) return ;;
+        *) ;;
+    esac
+}
+
+menu_toolboard_serial() {
+    local conn_type="${WIZARD_STATE[toolboard_connection]:-usb}"
+
+    if [[ "$conn_type" == "can" ]]; then
+        # CAN UUID entry
+        clear_screen
+        print_header "Toolboard CAN UUID"
+
+        print_box_line "${BWHITE}Enter your toolboard CAN UUID:${NC}"
+        print_empty_line
+
+        if [[ -n "${WIZARD_STATE[toolboard_canbus_uuid]}" ]]; then
+            print_box_line "Current: ${CYAN}${WIZARD_STATE[toolboard_canbus_uuid]}${NC}"
+            print_empty_line
+        fi
+
+        print_box_line "${WHITE}Run 'python3 ~/katapult/scripts/flashtool.py -q' to find UUIDs${NC}"
+        print_separator
+        print_action_item "C" "Clear"
+        print_action_item "B" "Back"
+        print_footer
+
+        echo -en "${BYELLOW}Enter CAN UUID (or C to clear, B to go back)${NC}: "
+        read -r input
+
+        case "$input" in
+            [cC])
+                WIZARD_STATE[toolboard_canbus_uuid]=""
+                save_state
+                echo -e "${YELLOW}CAN UUID cleared${NC}"
+                sleep 1
+                ;;
+            [bB]) return ;;
+            *)
+                if [[ -n "$input" ]]; then
+                    WIZARD_STATE[toolboard_canbus_uuid]="$input"
+                    save_state
+                    echo -e "${GREEN}✓${NC} Toolboard CAN UUID configured"
+                    sleep 1
+                fi
+                ;;
+        esac
+    else
+        # USB serial selection
+        clear_screen
+        print_header "Toolboard Serial ID"
+
+        print_box_line "${BWHITE}Select your toolboard USB serial device:${NC}"
+        print_empty_line
+
+        if [[ -n "${WIZARD_STATE[toolboard_serial]}" ]]; then
+            print_box_line "Current: ${CYAN}${WIZARD_STATE[toolboard_serial]}${NC}"
+            print_empty_line
+        fi
+
+        # Scan for USB serial devices (filter for common toolboard names)
+        local devices=()
+        local i=1
+        while IFS= read -r device; do
+            if [[ -n "$device" ]]; then
+                devices+=("$device")
+                print_box_line "${BWHITE}${i})${NC} /dev/serial/by-id/${device}"
+                i=$((i + 1))
+            fi
+        done < <(ls /dev/serial/by-id/ 2>/dev/null | grep -iE "ebb|sht|sb2040|toolboard|canbus" || true)
+
+        # Also show other devices if the specific search found nothing
+        if [[ ${#devices[@]} -eq 0 ]]; then
+            while IFS= read -r device; do
+                if [[ -n "$device" ]]; then
+                    devices+=("$device")
+                    print_box_line "${BWHITE}${i})${NC} /dev/serial/by-id/${device}"
+                    i=$((i + 1))
+                fi
+            done < <(ls /dev/serial/by-id/ 2>/dev/null | grep -v "beacon\|cartographer\|eddy" || true)
+        fi
+
+        if [[ ${#devices[@]} -eq 0 ]]; then
+            print_box_line "${YELLOW}No toolboard USB devices found.${NC}"
+            print_box_line "${WHITE}Make sure your toolboard is connected via USB.${NC}"
+        fi
+
+        print_separator
+        print_action_item "M" "Manual entry"
+        print_action_item "C" "Clear"
+        print_action_item "B" "Back"
+        print_footer
+
+        echo -en "${BYELLOW}Select device, M for manual, or C to clear${NC}: "
+        read -r choice
+
+        case "$choice" in
+            [1-9]|[1-9][0-9])
+                local idx=$((choice - 1))
+                if [[ $idx -lt ${#devices[@]} ]]; then
+                    WIZARD_STATE[toolboard_serial]="/dev/serial/by-id/${devices[$idx]}"
+                    echo -e "${GREEN}✓${NC} Toolboard serial set"
+                    save_state
+                    sleep 1
+                fi
+                ;;
+            [mM])
+                echo -en "  Enter serial path: "
+                read -r manual_serial
+                if [[ -n "$manual_serial" ]]; then
+                    WIZARD_STATE[toolboard_serial]="$manual_serial"
+                    save_state
+                    echo -e "${GREEN}✓${NC} Toolboard serial configured"
+                    sleep 1
+                fi
+                ;;
+            [cC])
+                WIZARD_STATE[toolboard_serial]=""
+                save_state
+                echo -e "${YELLOW}Toolboard serial cleared${NC}"
+                sleep 1
+                ;;
+            [bB]) return ;;
+            *) ;;
+        esac
+    fi
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -6794,7 +7137,7 @@ menu_lighting_settings() {
 }
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# MISC MCUs (MMU, Expansion boards, CAN probes)
+# MISC MCUs (MMU, Buffers, Expansion boards)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 menu_misc_mcus() {
@@ -6820,25 +7163,18 @@ menu_misc_mcus() {
         local exp_status=$([[ -n "${WIZARD_STATE[expansion_board]}" && "${WIZARD_STATE[expansion_board]}" != "none" ]] && echo "done" || echo "")
         print_menu_item "2" "$exp_status" "Expansion Board" "${exp_info}"
 
-        # CAN probes (Beacon, Cartographer, Eddy) - shown if selected in endstops
-        local probe_type="${WIZARD_STATE[probe_type]}"
-        if [[ "$probe_type" =~ ^(beacon|cartographer|btt-eddy)$ ]]; then
-            print_empty_line
-            print_box_line "${BWHITE}Probe MCU (from Endstops):${NC}"
-            local probe_mcu_info="${probe_type}"
-            if [[ -n "${WIZARD_STATE[probe_serial]}" ]]; then
-                probe_mcu_info="${probe_mcu_info} (USB: configured)"
-            elif [[ -n "${WIZARD_STATE[probe_canbus_uuid]}" ]]; then
-                probe_mcu_info="${probe_mcu_info} (CAN: configured)"
-            else
-                probe_mcu_info="${probe_mcu_info} (not configured)"
-            fi
-            local probe_mcu_status=$([[ -n "${WIZARD_STATE[probe_serial]}" || -n "${WIZARD_STATE[probe_canbus_uuid]}" ]] && echo "done" || echo "")
-            print_menu_item "3" "$probe_mcu_status" "Probe MCU" "${probe_mcu_info}"
+        # Filament buffer (e.g., ERCF Buffer, TurtleNeck, etc.)
+        local buffer_info="${WIZARD_STATE[buffer_type]:-not configured}"
+        if [[ -n "${WIZARD_STATE[buffer_serial]}" ]]; then
+            buffer_info="${buffer_info} (USB configured)"
+        elif [[ -n "${WIZARD_STATE[buffer_canbus_uuid]}" ]]; then
+            buffer_info="${buffer_info} (CAN configured)"
         fi
+        local buffer_status=$([[ -n "${WIZARD_STATE[buffer_type]}" && "${WIZARD_STATE[buffer_type]}" != "none" ]] && echo "done" || echo "")
+        print_menu_item "3" "$buffer_status" "Filament Buffer" "${buffer_info}"
 
         print_separator
-        print_action_item "B" "Back to Main Menu"
+        print_action_item "B" "Back"
         print_footer
 
         echo -en "${BYELLOW}Select option${NC}: "
@@ -6847,11 +7183,7 @@ menu_misc_mcus() {
         case "$choice" in
             1) menu_mmu ;;
             2) menu_expansion_board ;;
-            3)
-                if [[ "$probe_type" =~ ^(beacon|cartographer|btt-eddy)$ ]]; then
-                    menu_probe_mcu
-                fi
-                ;;
+            3) menu_buffer ;;
             [bB]) return ;;
             *) ;;
         esac
@@ -7094,6 +7426,125 @@ menu_expansion_connection() {
                 WIZARD_STATE[expansion_canbus_uuid]="$can_uuid"
                 WIZARD_STATE[expansion_serial]=""
                 echo -e "${GREEN}✓${NC} Expansion board CAN UUID configured"
+                sleep 1
+            fi
+            ;;
+        [bB]) return ;;
+    esac
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# FILAMENT BUFFER CONFIGURATION
+# ═══════════════════════════════════════════════════════════════════════════════
+
+menu_buffer() {
+    while true; do
+        clear_screen
+        print_header "Filament Buffer"
+
+        print_box_line "${BWHITE}Filament buffer/rewinder configuration:${NC}"
+        print_empty_line
+
+        # Current status
+        print_box_line "Current: ${CYAN}${WIZARD_STATE[buffer_type]:-not configured}${NC}"
+        print_empty_line
+
+        print_menu_item "1" "" "ERCF Buffer" "Enraged Rabbit buffer system"
+        print_menu_item "2" "" "TurtleNeck" "TN / TN2 buffer"
+        print_menu_item "3" "" "Angry Beaver" "Filament buffer with sensors"
+        print_menu_item "4" "" "Other buffer"
+        print_menu_item "5" "" "None - no buffer"
+
+        # Connection config if buffer selected
+        if [[ -n "${WIZARD_STATE[buffer_type]}" && "${WIZARD_STATE[buffer_type]}" != "none" ]]; then
+            print_empty_line
+            local conn_info=""
+            if [[ -n "${WIZARD_STATE[buffer_serial]}" ]]; then
+                conn_info="USB: configured"
+            elif [[ -n "${WIZARD_STATE[buffer_canbus_uuid]}" ]]; then
+                conn_info="CAN: configured"
+            else
+                conn_info="not configured"
+            fi
+            print_menu_item "C" "" "Configure Connection" "${conn_info}"
+        fi
+
+        print_separator
+        print_action_item "B" "Back"
+        print_footer
+
+        echo -en "${BYELLOW}Select option${NC}: "
+        read -r choice
+
+        case "$choice" in
+            1)
+                WIZARD_STATE[buffer_type]="ercf-buffer"
+                save_state
+                ;;
+            2)
+                WIZARD_STATE[buffer_type]="turtleneck"
+                save_state
+                ;;
+            3)
+                WIZARD_STATE[buffer_type]="angry-beaver"
+                save_state
+                ;;
+            4)
+                WIZARD_STATE[buffer_type]="other"
+                save_state
+                ;;
+            5)
+                WIZARD_STATE[buffer_type]="none"
+                WIZARD_STATE[buffer_serial]=""
+                WIZARD_STATE[buffer_canbus_uuid]=""
+                save_state
+                ;;
+            [cC])
+                if [[ -n "${WIZARD_STATE[buffer_type]}" && "${WIZARD_STATE[buffer_type]}" != "none" ]]; then
+                    menu_buffer_connection
+                fi
+                ;;
+            [bB]) return ;;
+        esac
+    done
+}
+
+menu_buffer_connection() {
+    clear_screen
+    print_header "Buffer Connection"
+
+    print_box_line "${BWHITE}Configure buffer connection:${NC}"
+    print_empty_line
+
+    print_menu_item "1" "" "USB connection (serial by-id)"
+    print_menu_item "2" "" "CAN bus (UUID)"
+    print_separator
+    print_action_item "B" "Back"
+    print_footer
+
+    echo -en "${BYELLOW}Select connection type${NC}: "
+    read -r choice
+
+    case "$choice" in
+        1)
+            echo -en "  Enter USB serial path: "
+            read -r serial_path
+            if [[ -n "$serial_path" ]]; then
+                WIZARD_STATE[buffer_serial]="$serial_path"
+                WIZARD_STATE[buffer_canbus_uuid]=""
+                save_state
+                echo -e "${GREEN}✓${NC} Buffer serial configured"
+                sleep 1
+            fi
+            ;;
+        2)
+            echo -en "  Enter CAN UUID: "
+            read -r can_uuid
+            if [[ -n "$can_uuid" ]]; then
+                WIZARD_STATE[buffer_canbus_uuid]="$can_uuid"
+                WIZARD_STATE[buffer_serial]=""
+                save_state
+                echo -e "${GREEN}✓${NC} Buffer CAN UUID configured"
                 sleep 1
             fi
             ;;
