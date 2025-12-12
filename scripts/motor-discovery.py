@@ -263,12 +263,13 @@ class MotorDiscovery:
     """Interactive motor discovery wizard."""
     
     def __init__(self, api: MoonrakerAPI, board: dict, kinematics: str = "corexy", 
-                 z_count: int = 1, has_toolboard: bool = False):
+                 z_count: int = 1, has_toolboard: bool = False, belt_crossing: str = "front"):
         self.api = api
         self.board = board
         self.kinematics = kinematics
         self.z_count = z_count
         self.has_toolboard = has_toolboard
+        self.belt_crossing = belt_crossing  # "front" or "back" - where CoreXY belts cross
         self.motor_ports = list(board.get("motor_ports", {}).keys())
         
         # Discovered mappings: stepper_name -> {"port": "MOTOR_X", "dir_invert": bool}
@@ -307,29 +308,36 @@ class MotorDiscovery:
         # Note: In CoreXY, A belt = X/X1 motors, B belt = Y/Y1 motors
         # Standard positions: X=rear-left, Y=rear-right, X1=front-right, Y1=front-left
         # For AWD: motors on same belt are interchangeable (identical motors)
+        # 
+        # Belt crossing location affects which diagonal each motor controls:
+        # - FRONT crossing (Voron-style): X→BACK-LEFT, Y→BACK-RIGHT
+        # - BACK crossing: X→BACK-RIGHT, Y→BACK-LEFT (diagonals swapped)
+        if self.belt_crossing == "front":
+            x_direction = "BACK-LEFT"
+            y_direction = "BACK-RIGHT"
+        else:  # back
+            x_direction = "BACK-RIGHT"
+            y_direction = "BACK-LEFT"
+        
         if self.kinematics == "corexy-awd":
             # AWD: 4 XY motors (2 per belt, interchangeable within belt group)
-            # A-belt (X/X1) runs back-left to front-right; correct direction = toward BACK-LEFT
-            # B-belt (Y/Y1) runs back-right to front-left; correct direction = toward BACK-RIGHT
             steppers.extend([
                 {"name": "stepper_x", "label": "A-belt motor (X/X1 - first)", 
-                 "direction_prompt": "Did toolhead move diagonally toward BACK-LEFT?", "type": "xy"},
+                 "direction_prompt": f"Did toolhead move diagonally toward {x_direction}?", "type": "xy"},
                 {"name": "stepper_x1", "label": "A-belt motor (X/X1 - second)", 
-                 "direction_prompt": "Did toolhead move diagonally toward BACK-LEFT?", "type": "xy"},
+                 "direction_prompt": f"Did toolhead move diagonally toward {x_direction}?", "type": "xy"},
                 {"name": "stepper_y", "label": "B-belt motor (Y/Y1 - first)", 
-                 "direction_prompt": "Did toolhead move diagonally toward BACK-RIGHT?", "type": "xy"},
+                 "direction_prompt": f"Did toolhead move diagonally toward {y_direction}?", "type": "xy"},
                 {"name": "stepper_y1", "label": "B-belt motor (Y/Y1 - second)", 
-                 "direction_prompt": "Did toolhead move diagonally toward BACK-RIGHT?", "type": "xy"},
+                 "direction_prompt": f"Did toolhead move diagonally toward {y_direction}?", "type": "xy"},
             ])
         elif self.kinematics == "corexy":
             # Standard CoreXY: 2 XY motors
-            # A-belt (X) runs back-left to front-right; correct direction = toward BACK-LEFT
-            # B-belt (Y) runs back-right to front-left; correct direction = toward BACK-RIGHT
             steppers.extend([
                 {"name": "stepper_x", "label": "X Motor (typically rear-left, A belt)", 
-                 "direction_prompt": "Did toolhead move diagonally toward BACK-LEFT?", "type": "xy"},
+                 "direction_prompt": f"Did toolhead move diagonally toward {x_direction}?", "type": "xy"},
                 {"name": "stepper_y", "label": "Y Motor (typically rear-right, B belt)", 
-                 "direction_prompt": "Did toolhead move diagonally toward BACK-RIGHT?", "type": "xy"},
+                 "direction_prompt": f"Did toolhead move diagonally toward {y_direction}?", "type": "xy"},
             ])
         else:
             # Cartesian
@@ -621,6 +629,34 @@ class MotorDiscovery:
             print_info("Discovery cancelled")
             return {}
         
+        # For CoreXY/AWD, ask about belt crossing location
+        if self.kinematics in ("corexy", "corexy-awd"):
+            clear_screen()
+            print_header("Belt Crossing Location")
+            
+            print(f"""
+{WHITE}CoreXY printers have different belt routing configurations.{RESET}
+{WHITE}The belt crossing location affects motor direction detection.{RESET}
+
+{CYAN}Where do your CoreXY belts cross?{RESET}
+""")
+            print(f"  {CYAN}1){RESET} Front of printer (Voron, Trident, RatRig V-Core - most common)")
+            print(f"  {CYAN}2){RESET} Back of printer (some older designs, custom builds)")
+            
+            while True:
+                choice = input(f"\n{YELLOW}Select (1 or 2){RESET}: ").strip()
+                if choice == "1":
+                    self.belt_crossing = "front"
+                    break
+                elif choice == "2":
+                    self.belt_crossing = "back"
+                    break
+                print("Please enter 1 or 2")
+            
+            # Rebuild required steppers with correct direction prompts
+            self.required_steppers = self._build_required_steppers()
+            print_success(f"Belt crossing: {self.belt_crossing.upper()}")
+        
         # Phase 1: Identification
         port_to_stepper = self.run_identification_phase()
         
@@ -662,6 +698,8 @@ def main():
     parser.add_argument("--kinematics", default="corexy", help="Kinematics type")
     parser.add_argument("--z-count", type=int, default=1, help="Number of Z motors")
     parser.add_argument("--has-toolboard", action="store_true", help="Has toolboard (extruder not on main board)")
+    parser.add_argument("--belt-crossing", choices=["front", "back"], default="front",
+                        help="Belt crossing location for CoreXY (default: front)")
     parser.add_argument("--moonraker-url", default=MOONRAKER_URL, help="Moonraker URL")
     parser.add_argument("--output", default=str(RESULTS_FILE), help="Output file for results")
     args = parser.parse_args()
@@ -739,7 +777,8 @@ def main():
             board=board,
             kinematics=args.kinematics,
             z_count=args.z_count,
-            has_toolboard=args.has_toolboard
+            has_toolboard=args.has_toolboard,
+            belt_crossing=args.belt_crossing
         )
         mappings = discovery.run()
         
