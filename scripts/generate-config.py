@@ -81,6 +81,19 @@ def load_toolboard_template(toolboard_id: str) -> Optional[Dict]:
             return json.load(f)
     return None
 
+def load_motor_mapping() -> Dict:
+    """Load motor mapping from discovery wizard results.
+    
+    Returns dict like: {"stepper_x": {"port": "MOTOR_0", "dir_invert": True}, ...}
+    """
+    # Check in printer_data/config first (standard location)
+    motor_mapping_file = Path.home() / "printer_data" / "config" / ".motor_mapping.json"
+    if motor_mapping_file.exists():
+        with open(motor_mapping_file) as f:
+            data = json.load(f)
+            return data.get("motor_mapping", {})
+    return {}
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # PIN RESOLUTION
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -192,6 +205,22 @@ def get_endstop_pin(board: Dict, port_name: str) -> str:
 # CONFIG GENERATION
 # ═══════════════════════════════════════════════════════════════════════════════
 
+def apply_dir_invert(dir_pin: str, stepper_name: str, motor_mapping: Dict) -> str:
+    """Apply direction inversion to dir_pin if configured in motor mapping.
+    
+    If dir_invert is True for this stepper, prepend '!' to invert the pin.
+    If the pin already has '!', remove it (double inversion = no inversion).
+    """
+    needs_invert = motor_mapping.get(stepper_name, {}).get('dir_invert', False)
+    if needs_invert:
+        if dir_pin.startswith('!'):
+            # Already inverted, remove the inversion (double invert = normal)
+            return dir_pin[1:]
+        else:
+            return f"!{dir_pin}"
+    return dir_pin
+
+
 def generate_hardware_cfg(
     wizard_state: Dict,
     hardware_state: Dict,
@@ -202,6 +231,9 @@ def generate_hardware_cfg(
     
     assignments = hardware_state.get('port_assignments', {})
     board_name = hardware_state.get('board_name', 'Unknown')
+    
+    # Load motor mapping for direction inversion settings
+    motor_mapping = load_motor_mapping()
     
     # Get values from wizard state
     kinematics = wizard_state.get('kinematics', 'corexy')
@@ -309,9 +341,10 @@ def generate_hardware_cfg(
     
     x_port = assignments.get('stepper_x', 'MOTOR_0')
     x_pins = get_motor_pins(board, x_port)
+    x_dir_pin = apply_dir_invert(x_pins['dir_pin'], 'stepper_x', motor_mapping)
     lines.append(f"[stepper_x]")
     lines.append(f"step_pin: {x_pins['step_pin']}      # {x_port}")
-    lines.append(f"dir_pin: {x_pins['dir_pin']}       # {x_port}")
+    lines.append(f"dir_pin: {x_dir_pin}       # {x_port}")
     lines.append(f"enable_pin: !{x_pins['enable_pin']}  # {x_port}")
     lines.append(f"microsteps: {x_microsteps}")
     lines.append(f"rotation_distance: {x_rotation_distance}")
@@ -353,9 +386,10 @@ def generate_hardware_cfg(
     # Stepper Y
     y_port = assignments.get('stepper_y', 'MOTOR_1')
     y_pins = get_motor_pins(board, y_port)
+    y_dir_pin = apply_dir_invert(y_pins['dir_pin'], 'stepper_y', motor_mapping)
     lines.append(f"[stepper_y]")
     lines.append(f"step_pin: {y_pins['step_pin']}      # {y_port}")
-    lines.append(f"dir_pin: {y_pins['dir_pin']}       # {y_port}")
+    lines.append(f"dir_pin: {y_dir_pin}       # {y_port}")
     lines.append(f"enable_pin: !{y_pins['enable_pin']}  # {y_port}")
     lines.append(f"microsteps: {y_microsteps}")
     lines.append(f"rotation_distance: {y_rotation_distance}")
@@ -390,9 +424,10 @@ def generate_hardware_cfg(
     if kinematics == 'corexy-awd':
         x1_port = assignments.get('stepper_x1', 'MOTOR_2')
         x1_pins = get_motor_pins(board, x1_port)
+        x1_dir_pin = apply_dir_invert(x1_pins['dir_pin'], 'stepper_x1', motor_mapping)
         lines.append(f"[stepper_x1]")
         lines.append(f"step_pin: {x1_pins['step_pin']}      # {x1_port}")
-        lines.append(f"dir_pin: {x1_pins['dir_pin']}       # {x1_port}")
+        lines.append(f"dir_pin: {x1_dir_pin}       # {x1_port}")
         lines.append(f"enable_pin: !{x1_pins['enable_pin']}  # {x1_port}")
         lines.append(f"microsteps: {x_microsteps}")
         lines.append(f"rotation_distance: {x_rotation_distance}")
@@ -402,9 +437,10 @@ def generate_hardware_cfg(
 
         y1_port = assignments.get('stepper_y1', 'MOTOR_3')
         y1_pins = get_motor_pins(board, y1_port)
+        y1_dir_pin = apply_dir_invert(y1_pins['dir_pin'], 'stepper_y1', motor_mapping)
         lines.append(f"[stepper_y1]")
         lines.append(f"step_pin: {y1_pins['step_pin']}      # {y1_port}")
-        lines.append(f"dir_pin: {y1_pins['dir_pin']}       # {y1_port}")
+        lines.append(f"dir_pin: {y1_dir_pin}       # {y1_port}")
         lines.append(f"enable_pin: !{y1_pins['enable_pin']}  # {y1_port}")
         lines.append(f"microsteps: {y_microsteps}")
         lines.append(f"rotation_distance: {y_rotation_distance}")
@@ -418,11 +454,12 @@ def generate_hardware_cfg(
         z_key = f"stepper_z{suffix}" if suffix else "stepper_z"
         z_port = assignments.get(z_key, f'MOTOR_{2 + z_idx}')
         z_pins = get_motor_pins(board, z_port)
+        z_dir_pin = apply_dir_invert(z_pins['dir_pin'], z_key, motor_mapping)
         
         section_name = f"stepper_z{suffix}"
         lines.append(f"[{section_name}]")
         lines.append(f"step_pin: {z_pins['step_pin']}      # {z_port}")
-        lines.append(f"dir_pin: {z_pins['dir_pin']}       # {z_port}")
+        lines.append(f"dir_pin: {z_dir_pin}       # {z_port}")
         lines.append(f"enable_pin: !{z_pins['enable_pin']}  # {z_port}")
         lines.append(f"microsteps: {z_microsteps}")
         lines.append(f"rotation_distance: {z_rotation_distance}")
@@ -587,15 +624,17 @@ def generate_hardware_cfg(
         # Extruder motor on toolboard
         e_port = tb_assignments.get('extruder', 'EXTRUDER')
         e_pins = get_motor_pins(toolboard, e_port)
+        e_dir_pin = apply_dir_invert(e_pins['dir_pin'], 'extruder', motor_mapping)
         lines.append(f"step_pin: toolboard:{e_pins['step_pin']}      # {e_port}")
-        lines.append(f"dir_pin: toolboard:{e_pins['dir_pin']}       # {e_port}")
+        lines.append(f"dir_pin: toolboard:{e_dir_pin}       # {e_port}")
         lines.append(f"enable_pin: !toolboard:{e_pins['enable_pin']}  # {e_port}")
     else:
         # Extruder motor on main board
         e_port = assignments.get('extruder', 'MOTOR_5')
         e_pins = get_motor_pins(board, e_port)
+        e_dir_pin = apply_dir_invert(e_pins['dir_pin'], 'extruder', motor_mapping)
         lines.append(f"step_pin: {e_pins['step_pin']}      # {e_port}")
-        lines.append(f"dir_pin: {e_pins['dir_pin']}       # {e_port}")
+        lines.append(f"dir_pin: {e_dir_pin}       # {e_port}")
         lines.append(f"enable_pin: !{e_pins['enable_pin']}  # {e_port}")
 
     lines.append(f"microsteps: {e_microsteps}")

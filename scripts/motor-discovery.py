@@ -309,23 +309,27 @@ class MotorDiscovery:
         # For AWD: motors on same belt are interchangeable (identical motors)
         if self.kinematics == "corexy-awd":
             # AWD: 4 XY motors (2 per belt, interchangeable within belt group)
+            # A-belt (X/X1) runs back-left to front-right; correct direction = toward BACK-LEFT
+            # B-belt (Y/Y1) runs back-right to front-left; correct direction = toward BACK-RIGHT
             steppers.extend([
                 {"name": "stepper_x", "label": "A-belt motor (X/X1 - first)", 
-                 "direction_prompt": "Did toolhead move diagonally toward FRONT-RIGHT?", "type": "xy"},
+                 "direction_prompt": "Did toolhead move diagonally toward BACK-LEFT?", "type": "xy"},
                 {"name": "stepper_x1", "label": "A-belt motor (X/X1 - second)", 
-                 "direction_prompt": "Did toolhead move diagonally toward FRONT-RIGHT?", "type": "xy"},
+                 "direction_prompt": "Did toolhead move diagonally toward BACK-LEFT?", "type": "xy"},
                 {"name": "stepper_y", "label": "B-belt motor (Y/Y1 - first)", 
-                 "direction_prompt": "Did toolhead move diagonally toward FRONT-LEFT?", "type": "xy"},
+                 "direction_prompt": "Did toolhead move diagonally toward BACK-RIGHT?", "type": "xy"},
                 {"name": "stepper_y1", "label": "B-belt motor (Y/Y1 - second)", 
-                 "direction_prompt": "Did toolhead move diagonally toward FRONT-LEFT?", "type": "xy"},
+                 "direction_prompt": "Did toolhead move diagonally toward BACK-RIGHT?", "type": "xy"},
             ])
         elif self.kinematics == "corexy":
             # Standard CoreXY: 2 XY motors
+            # A-belt (X) runs back-left to front-right; correct direction = toward BACK-LEFT
+            # B-belt (Y) runs back-right to front-left; correct direction = toward BACK-RIGHT
             steppers.extend([
                 {"name": "stepper_x", "label": "X Motor (typically rear-left, A belt)", 
-                 "direction_prompt": "Did toolhead move diagonally toward FRONT-RIGHT?", "type": "xy"},
+                 "direction_prompt": "Did toolhead move diagonally toward BACK-LEFT?", "type": "xy"},
                 {"name": "stepper_y", "label": "Y Motor (typically rear-right, B belt)", 
-                 "direction_prompt": "Did toolhead move diagonally toward FRONT-LEFT?", "type": "xy"},
+                 "direction_prompt": "Did toolhead move diagonally toward BACK-RIGHT?", "type": "xy"},
             ])
         else:
             # Cartesian
