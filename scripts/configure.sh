@@ -4894,14 +4894,17 @@ menu_endstop_z() {
             print_empty_line
             if [[ "${WIZARD_STATE[probe_type]}" =~ ^(beacon|cartographer|btt-eddy)$ ]]; then
                 local mcu_info=""
+                local mcu_status=""
                 if [[ -n "${WIZARD_STATE[probe_serial]}" ]]; then
                     mcu_info="USB: ${WIZARD_STATE[probe_serial]}"
+                    mcu_status="done"
                 elif [[ -n "${WIZARD_STATE[probe_canbus_uuid]}" ]]; then
                     mcu_info="CAN: ${WIZARD_STATE[probe_canbus_uuid]}"
+                    mcu_status="done"
                 else
                     mcu_info="not configured"
                 fi
-                print_menu_item "P" "" "Configure Probe MCU" "${mcu_info}"
+                print_menu_item "P" "$mcu_status" "Configure Probe MCU" "${mcu_info}"
                 
                 # Show operation mode option for eddy probes
                 local mode_info="${WIZARD_STATE[probe_mode]:-not set}"
