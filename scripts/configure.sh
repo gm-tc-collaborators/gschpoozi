@@ -3463,6 +3463,10 @@ menu_steppers() {
                             WIZARD_STATE[driver_${axis}]="$driver"
                         fi
                     done
+                    # Update legacy stepper_driver if not already set by X driver
+                    if [[ -z "${WIZARD_STATE[stepper_driver]}" ]]; then
+                        WIZARD_STATE[stepper_driver]="$driver"
+                    fi
                 fi
                 ;;
             [bB])
