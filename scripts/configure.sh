@@ -4629,8 +4629,17 @@ menu_endstop_x() {
         # Port assignment only for physical switches
         if [[ "${WIZARD_STATE[endstop_x_type]}" != "sensorless" ]]; then
             if [[ -n "${WIZARD_STATE[board]}" ]]; then
-                local port_status=$([[ -n "${HARDWARE_STATE[endstop_x]}" ]] && echo "done" || echo "")
-                print_menu_item "3" "$port_status" "Port Assignment" "${HARDWARE_STATE[endstop_x]:-not assigned}"
+                # Check both mainboard and toolboard assignments
+                local port_info="not assigned"
+                local port_status=""
+                if [[ -n "${HARDWARE_STATE[toolboard_endstop_x]}" && "${HARDWARE_STATE[toolboard_endstop_x]}" != "none" ]]; then
+                    port_info="toolboard:${HARDWARE_STATE[toolboard_endstop_x]}"
+                    port_status="done"
+                elif [[ -n "${HARDWARE_STATE[endstop_x]}" ]]; then
+                    port_info="${HARDWARE_STATE[endstop_x]}"
+                    port_status="done"
+                fi
+                print_menu_item "3" "$port_status" "Port Assignment" "$port_info"
             else
                 print_box_line "${YELLOW}3) Port Assignment: select board first${NC}"
             fi
@@ -4728,8 +4737,17 @@ menu_endstop_y() {
         # Port assignment only for physical switches
         if [[ "${WIZARD_STATE[endstop_y_type]}" != "sensorless" ]]; then
             if [[ -n "${WIZARD_STATE[board]}" ]]; then
-                local port_status=$([[ -n "${HARDWARE_STATE[endstop_y]}" ]] && echo "done" || echo "")
-                print_menu_item "3" "$port_status" "Port Assignment" "${HARDWARE_STATE[endstop_y]:-not assigned}"
+                # Check both mainboard and toolboard assignments
+                local port_info="not assigned"
+                local port_status=""
+                if [[ -n "${HARDWARE_STATE[toolboard_endstop_y]}" && "${HARDWARE_STATE[toolboard_endstop_y]}" != "none" ]]; then
+                    port_info="toolboard:${HARDWARE_STATE[toolboard_endstop_y]}"
+                    port_status="done"
+                elif [[ -n "${HARDWARE_STATE[endstop_y]}" ]]; then
+                    port_info="${HARDWARE_STATE[endstop_y]}"
+                    port_status="done"
+                fi
+                print_menu_item "3" "$port_status" "Port Assignment" "$port_info"
             else
                 print_box_line "${YELLOW}3) Port Assignment: select board first${NC}"
             fi

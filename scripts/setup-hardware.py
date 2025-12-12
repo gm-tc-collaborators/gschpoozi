@@ -971,7 +971,7 @@ def select_port_for_function(function: str, ports: Dict, port_type: str):
     num = 1
     port_list = list(ports.keys())
     
-    # Build list of used ports and who uses them
+    # Build list of used ports and who uses them (check both mainboard and toolboard)
     used_by_map = {}
     for func, assigned_port in state.port_assignments.items():
         # Skip modifier entries and the current function
@@ -979,6 +979,13 @@ def select_port_for_function(function: str, ports: Dict, port_type: str):
             continue
         if assigned_port and func != function:
             used_by_map[assigned_port] = func
+    
+    # Also check toolboard assignments for duplicates
+    for func, assigned_port in state.toolboard_assignments.items():
+        if func.endswith('_dir_invert') or func.endswith('_modifiers'):
+            continue
+        if assigned_port and assigned_port != 'none' and func != function:
+            used_by_map[assigned_port] = f"toolboard:{func}"
     
     for port_name in port_list:
         port = ports[port_name]
@@ -1242,12 +1249,17 @@ def select_endstop_port(endstop_func: str, endstop_ports: Dict, endstop_list: Li
         port = endstop_ports[port_name]
         label = port.get('label', port_name)
         
-        # Check if already used by another function
+        # Check if already used by another function (mainboard and toolboard)
         used_by = None
         for func, assigned_port in state.port_assignments.items():
             if assigned_port == port_name and func != endstop_func:
                 used_by = func
                 break
+        if not used_by:
+            for func, assigned_port in state.toolboard_assignments.items():
+                if assigned_port == port_name and assigned_port != 'none' and func != endstop_func:
+                    used_by = f"toolboard:{func}"
+                    break
         
         if used_by:
             status_text = f"{Colors.YELLOW}(used by {used_by}){Colors.NC}"
@@ -1283,12 +1295,17 @@ def select_endstop_port(endstop_func: str, endstop_ports: Dict, endstop_list: Li
         if 0 <= idx < len(endstop_list):
             port_name = endstop_list[idx]
             
-            # Check if port is already used by another function
+            # Check if port is already used by another function (mainboard and toolboard)
             used_by = None
             for func, assigned_port in state.port_assignments.items():
                 if assigned_port == port_name and func != endstop_func and not func.endswith('_modifiers'):
                     used_by = func.replace('_', ' ')
                     break
+            if not used_by:
+                for func, assigned_port in state.toolboard_assignments.items():
+                    if assigned_port == port_name and assigned_port != 'none' and func != endstop_func:
+                        used_by = f"toolboard:{func}"
+                        break
             
             if used_by:
                 print(f"\n{Colors.YELLOW}⚠️  {port_name} is already assigned to '{used_by}'{Colors.NC}")
@@ -1490,18 +1507,23 @@ def select_fan_port(fan_key: str, fan_name: str, fan_ports: Dict, fan_list: List
     print_menu_item(str(num), "None/Skip", "Do not configure this fan", none_status)
     num += 1
     
-    # Show which ports are already used
+    # Show which ports are already used (check mainboard and toolboard)
     for port_name in fan_list:
         port = fan_ports[port_name]
         label = port.get('label', port_name)
         pin = port.get('pin', '?')
         
-        # Check if port is already used by another function
+        # Check if port is already used by another function (mainboard + toolboard)
         used_by = None
         for func, assigned_port in state.port_assignments.items():
             if assigned_port == port_name and func != fan_key:
                 used_by = func.replace('fan_', '').replace('_', ' ')
                 break
+        if not used_by:
+            for func, assigned_port in state.toolboard_assignments.items():
+                if assigned_port == port_name and assigned_port != 'none' and func != fan_key:
+                    used_by = f"toolboard:{func}"
+                    break
         
         if used_by:
             status_text = f"{Colors.YELLOW}(used by {used_by}){Colors.NC}"
@@ -1532,12 +1554,17 @@ def select_fan_port(fan_key: str, fan_name: str, fan_ports: Dict, fan_list: List
             selected_port = fan_list[idx - 1]
             pin = fan_ports[selected_port].get('pin', '?')
             
-            # Check if port is already used by another function
+            # Check if port is already used by another function (mainboard + toolboard)
             used_by = None
             for func, assigned_port in state.port_assignments.items():
                 if assigned_port == selected_port and func != fan_key:
                     used_by = func.replace('fan_', '').replace('_', ' ')
                     break
+            if not used_by:
+                for func, assigned_port in state.toolboard_assignments.items():
+                    if assigned_port == selected_port and assigned_port != 'none' and func != fan_key:
+                        used_by = f"toolboard:{func}"
+                        break
             
             if used_by:
                 print(f"\n{Colors.YELLOW}⚠️  {selected_port} is already assigned to '{used_by}'{Colors.NC}")
