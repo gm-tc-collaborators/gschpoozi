@@ -289,7 +289,7 @@ create_klipper_env() {
     
     status_msg "Creating Klipper environment file..."
     cat > "$env_file" << EOF
-KLIPPER_ARGS="${PRINTER_DATA}/config/printer.cfg -l ${PRINTER_DATA}/logs/klippy.log -I ${PRINTER_DATA}/comms/klippy.serial -a ${PRINTER_DATA}/comms/klippy.sock"
+KLIPPER_ARGS=${PRINTER_DATA}/config/printer.cfg -l ${PRINTER_DATA}/logs/klippy.log -I ${PRINTER_DATA}/comms/klippy.serial -a ${PRINTER_DATA}/comms/klippy.sock
 EOF
     
     ok_msg "Created $env_file"
