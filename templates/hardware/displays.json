@@ -56,6 +56,266 @@
     }
   },
 
+  "touchscreens": {
+    "description": "KlipperScreen-compatible touchscreen models with overlay and driver requirements",
+    
+    "rotation_matrices": {
+      "0":   "1 0 0 0 1 0 0 0 1",
+      "90":  "0 -1 1 1 0 0 0 0 1",
+      "180": "-1 0 1 0 -1 1 0 0 1",
+      "270": "0 1 0 -1 0 1 0 0 1"
+    },
+
+    "hdmi": {
+      "btt_hdmi5": {
+        "name": "BTT HDMI5",
+        "manufacturer": "BigTreeTech",
+        "size": "5 inch",
+        "resolution": "800x480",
+        "connection": "hdmi",
+        "touch_connection": "usb",
+        "driver_required": false,
+        "overlay_fix": null,
+        "rotation_config": "display_hdmi_rotate",
+        "touch_device_name": "wch.cn USB2IIC_CTP_CONTROL",
+        "notes": "Usually plug-and-play, may need rotation config"
+      },
+      "btt_hdmi7": {
+        "name": "BTT HDMI7",
+        "manufacturer": "BigTreeTech",
+        "size": "7 inch",
+        "resolution": "1024x600",
+        "connection": "hdmi",
+        "touch_connection": "usb",
+        "driver_required": false,
+        "overlay_fix": null,
+        "rotation_config": "display_hdmi_rotate",
+        "touch_device_name": "wch.cn USB2IIC_CTP_CONTROL",
+        "notes": "Usually plug-and-play, may need rotation config"
+      },
+      "waveshare_hdmi_5": {
+        "name": "Waveshare 5\" HDMI",
+        "manufacturer": "Waveshare",
+        "size": "5 inch",
+        "resolution": "800x480",
+        "connection": "hdmi",
+        "touch_connection": "usb",
+        "driver_required": false,
+        "overlay_fix": null,
+        "hdmi_config": {
+          "hdmi_group": 2,
+          "hdmi_mode": 87,
+          "hdmi_cvt": "800 480 60 6 0 0 0"
+        },
+        "notes": "May need hdmi_cvt for proper resolution"
+      },
+      "waveshare_hdmi_7": {
+        "name": "Waveshare 7\" HDMI",
+        "manufacturer": "Waveshare",
+        "size": "7 inch",
+        "resolution": "1024x600",
+        "connection": "hdmi",
+        "touch_connection": "usb",
+        "driver_required": false,
+        "overlay_fix": null,
+        "hdmi_config": {
+          "hdmi_group": 2,
+          "hdmi_mode": 87,
+          "hdmi_cvt": "1024 600 60 6 0 0 0"
+        },
+        "notes": "May need hdmi_cvt for proper resolution"
+      },
+      "generic_hdmi": {
+        "name": "Generic HDMI Touchscreen",
+        "manufacturer": "Various",
+        "connection": "hdmi",
+        "touch_connection": "usb",
+        "driver_required": false,
+        "overlay_fix": null,
+        "notes": "Most HDMI displays work out of the box"
+      }
+    },
+
+    "dsi": {
+      "rpi_official_7": {
+        "name": "Official Raspberry Pi 7\" Display",
+        "manufacturer": "Raspberry Pi Foundation",
+        "size": "7 inch",
+        "resolution": "800x480",
+        "connection": "dsi",
+        "touch_connection": "i2c",
+        "driver_required": false,
+        "overlay_fix": "vc4-fkms-v3d",
+        "touch_device_name": "raspberrypi-ts",
+        "rotation_overlay": "display_lcd_rotate",
+        "notes": "May need fkms overlay fix on Bullseye/Bookworm"
+      },
+      "waveshare_dsi_4_3": {
+        "name": "Waveshare 4.3\" DSI",
+        "manufacturer": "Waveshare",
+        "size": "4.3 inch",
+        "resolution": "800x480",
+        "connection": "dsi",
+        "touch_connection": "i2c",
+        "driver_required": true,
+        "driver_repo": "https://github.com/waveshare/LCD-show",
+        "driver_script": "LCD43-show",
+        "overlay_fix": "vc4-fkms-v3d",
+        "touch_device_name": "10-0038 Goodix Capacitive TouchScreen",
+        "notes": "Requires Waveshare LCD-show driver"
+      },
+      "waveshare_dsi_5": {
+        "name": "Waveshare 5\" DSI",
+        "manufacturer": "Waveshare",
+        "size": "5 inch",
+        "resolution": "800x480",
+        "connection": "dsi",
+        "touch_connection": "i2c",
+        "driver_required": true,
+        "driver_repo": "https://github.com/waveshare/LCD-show",
+        "driver_script": "LCD5-show",
+        "overlay_fix": "vc4-fkms-v3d",
+        "touch_device_name": "10-0038 Goodix Capacitive TouchScreen",
+        "notes": "Requires Waveshare LCD-show driver"
+      },
+      "waveshare_dsi_7": {
+        "name": "Waveshare 7\" DSI",
+        "manufacturer": "Waveshare",
+        "size": "7 inch",
+        "resolution": "1024x600",
+        "connection": "dsi",
+        "touch_connection": "i2c",
+        "driver_required": true,
+        "driver_repo": "https://github.com/waveshare/LCD-show",
+        "driver_script": "LCD7C-show",
+        "overlay_fix": "vc4-fkms-v3d",
+        "touch_device_name": "10-0014 Goodix Capacitive TouchScreen",
+        "notes": "Requires Waveshare LCD-show driver"
+      },
+      "waveshare_dsi_7_9": {
+        "name": "Waveshare 7.9\" DSI",
+        "manufacturer": "Waveshare",
+        "size": "7.9 inch",
+        "resolution": "400x1280",
+        "connection": "dsi",
+        "touch_connection": "i2c",
+        "driver_required": true,
+        "driver_repo": "https://github.com/waveshare/LCD-show",
+        "driver_script": "LCD79-show",
+        "overlay_fix": "vc4-fkms-v3d",
+        "notes": "Tall aspect ratio display"
+      },
+      "waveshare_dsi_10_1": {
+        "name": "Waveshare 10.1\" DSI",
+        "manufacturer": "Waveshare",
+        "size": "10.1 inch",
+        "resolution": "1280x800",
+        "connection": "dsi",
+        "touch_connection": "i2c",
+        "driver_required": true,
+        "driver_repo": "https://github.com/waveshare/LCD-show",
+        "driver_script": "LCD101-show",
+        "overlay_fix": "vc4-fkms-v3d",
+        "notes": "Requires Waveshare LCD-show driver"
+      }
+    },
+
+    "spi_tft": {
+      "mellow_fly_tft_v2": {
+        "name": "Mellow FLY-TFT-V2",
+        "manufacturer": "Mellow",
+        "size": "3.5 inch",
+        "resolution": "480x320",
+        "connection": "spi",
+        "touch_connection": "i2c",
+        "driver_required": true,
+        "driver_repo": "https://github.com/kluoyun/FLY-TFT",
+        "driver_script": "scripts/install.sh",
+        "overlay": "fly-tft-v2",
+        "i2c_required": true,
+        "rotation_param": "r90",
+        "touch_device_name": "ns2009",
+        "notes": "Needs I2C enabled (dtparam=i2c_arm=on)"
+      },
+      "waveshare_spi_3_5": {
+        "name": "Waveshare 3.5\" SPI (A/B)",
+        "manufacturer": "Waveshare",
+        "size": "3.5 inch",
+        "resolution": "480x320",
+        "connection": "spi",
+        "touch_connection": "spi",
+        "driver_required": true,
+        "driver_repo": "https://github.com/waveshare/LCD-show",
+        "driver_script": "LCD35-show",
+        "overlay": "waveshare35a",
+        "touch_device_name": "ADS7846 Touchscreen",
+        "spi_speed": 16000000,
+        "notes": "May require fbcp for framebuffer copying"
+      },
+      "waveshare_spi_4": {
+        "name": "Waveshare 4\" SPI",
+        "manufacturer": "Waveshare",
+        "size": "4 inch",
+        "resolution": "480x320",
+        "connection": "spi",
+        "touch_connection": "spi",
+        "driver_required": true,
+        "driver_repo": "https://github.com/waveshare/LCD-show",
+        "driver_script": "LCD4-show",
+        "overlay": "waveshare35a",
+        "touch_device_name": "ADS7846 Touchscreen",
+        "notes": "May require fbcp for framebuffer copying"
+      },
+      "goodtft_3_5": {
+        "name": "Generic 3.5\" TFT (GoodTFT/Clones)",
+        "manufacturer": "Various",
+        "size": "3.5 inch",
+        "resolution": "480x320",
+        "connection": "spi",
+        "touch_connection": "spi",
+        "driver_required": true,
+        "driver_repo": "https://github.com/goodtft/LCD-show",
+        "driver_script": "LCD35-show",
+        "overlay": "tft35a",
+        "touch_device_name": "ADS7846 Touchscreen",
+        "notes": "Common cheap displays, use GoodTFT drivers"
+      },
+      "generic_ili9486": {
+        "name": "Generic ILI9486 3.5\" TFT",
+        "manufacturer": "Various",
+        "size": "3.5 inch",
+        "resolution": "480x320",
+        "connection": "spi",
+        "touch_connection": "spi",
+        "driver_required": true,
+        "overlay": "piscreen2r",
+        "touch_device_name": "ADS7846 Touchscreen",
+        "notes": "Uses piscreen2r overlay, common clone display"
+      }
+    },
+
+    "troubleshooting": {
+      "overlay_fix": {
+        "description": "Common fix for DSI touch not working",
+        "issue": "Touch input not responding on DSI displays",
+        "solution": "Change vc4-kms-v3d to vc4-fkms-v3d in config.txt",
+        "applies_to": ["dsi", "some_spi"],
+        "os_versions": ["bullseye", "bookworm"]
+      },
+      "touch_calibration": {
+        "description": "Touch input misaligned with display",
+        "tool": "libinput-calibration or xinput",
+        "udev_rule_path": "/etc/udev/rules.d/51-touchscreen.rules",
+        "udev_template": "ACTION==\"add\", ATTRS{name}==\"DEVICE_NAME\", ENV{LIBINPUT_CALIBRATION_MATRIX}=\"MATRIX\""
+      },
+      "config_txt_paths": {
+        "legacy": "/boot/config.txt",
+        "bookworm": "/boot/firmware/config.txt",
+        "cb1_armbian": "/boot/armbianEnv.txt"
+      }
+    }
+  },
+
   "lcd_displays": {
     "description": "Direct LCD/OLED displays connected to mainboard, configured in printer.cfg",
 

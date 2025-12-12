@@ -7033,7 +7033,29 @@ menu_extras() {
     local ks_status=$([[ "${WIZARD_STATE[has_klipperscreen]}" == "yes" ]] && echo "[x]" || echo "[ ]")
     local lcd_status=$([[ "${WIZARD_STATE[has_lcd_display]}" == "yes" ]] && echo "[x]" || echo "[ ]")
     
-    print_box_line "3) ${ks_status} KlipperScreen (HDMI/DSI touchscreen)"
+    # Build KlipperScreen info string
+    local ks_info=""
+    if [[ "${WIZARD_STATE[has_klipperscreen]}" == "yes" ]]; then
+        local model="${WIZARD_STATE[touchscreen_model]:-}"
+        local rotation="${WIZARD_STATE[touchscreen_rotation]:-0}"
+        if [[ -n "$model" ]]; then
+            # Format model name for display
+            case "$model" in
+                btt_hdmi5) ks_info=" - BTT HDMI5" ;;
+                btt_hdmi7) ks_info=" - BTT HDMI7" ;;
+                waveshare_hdmi_*) ks_info=" - Waveshare HDMI" ;;
+                rpi_official_7) ks_info=" - RPi Official 7\"" ;;
+                waveshare_dsi_*) ks_info=" - Waveshare DSI" ;;
+                mellow_fly_tft_v2) ks_info=" - Mellow FLY-TFT" ;;
+                waveshare_spi_*) ks_info=" - Waveshare SPI" ;;
+                goodtft_3_5|generic_*) ks_info=" - Generic TFT" ;;
+                *) ks_info=" - ${model}" ;;
+            esac
+            ks_info="${ks_info}, ${rotation}°"
+        fi
+    fi
+    
+    print_box_line "3) ${ks_status} KlipperScreen${ks_info}"
     print_box_line "4) ${lcd_status} LCD Display (Mini12864/ST7920)"
     
     print_empty_line
@@ -7069,6 +7091,13 @@ menu_extras() {
     fi
     if [[ "${WIZARD_STATE[has_leds]}" == "yes" || "${WIZARD_STATE[has_caselight]}" == "yes" ]]; then
         print_menu_item "L" "" "Assign Lighting Pin"
+    fi
+    
+    # Show touch panel setup option if KlipperScreen is selected
+    if [[ "${WIZARD_STATE[has_klipperscreen]}" == "yes" && -n "${WIZARD_STATE[touchscreen_model]:-}" ]]; then
+        print_empty_line
+        print_box_line "${BWHITE}Touch Panel:${NC}"
+        print_menu_item "T" "" "Generate Touch Panel Setup Script"
     fi
 
     print_separator
@@ -7112,6 +7141,8 @@ menu_extras() {
             if [[ "${WIZARD_STATE[has_klipperscreen]}" == "yes" ]]; then
                 WIZARD_STATE[has_klipperscreen]=""
                 WIZARD_STATE[klipperscreen_type]=""
+                WIZARD_STATE[touchscreen_model]=""
+                WIZARD_STATE[touchscreen_rotation]=""
             else
                 WIZARD_STATE[has_klipperscreen]="yes"
                 select_klipperscreen_type
@@ -7187,6 +7218,20 @@ menu_extras() {
                 save_state
                 python3 "${SCRIPT_DIR}/setup-hardware.py" --lighting
                 load_hardware_state
+            fi
+            menu_extras  # Refresh
+            ;;
+        [tT])
+            # Generate touch panel setup script
+            if [[ "${WIZARD_STATE[has_klipperscreen]}" == "yes" && -n "${WIZARD_STATE[touchscreen_model]:-}" ]]; then
+                echo ""
+                if generate_touch_panel_script; then
+                    echo -e "${GREEN}Press Enter to continue...${NC}"
+                    read -r
+                else
+                    echo -e "${RED}Failed to generate script. Press Enter to continue...${NC}"
+                    read -r
+                fi
             fi
             menu_extras  # Refresh
             ;;
@@ -7293,20 +7338,452 @@ select_klipperscreen_type() {
     clear_screen
     print_header "KlipperScreen Display Type"
     
-    print_box_line "${WHITE}Select your touchscreen connection:${NC}"
+    print_box_line "${WHITE}Select your touchscreen connection type:${NC}"
     print_empty_line
-    print_box_line "1) HDMI Touchscreen (BTT HDMI5/7, Waveshare, etc.)"
-    print_box_line "2) DSI Display (Raspberry Pi official display)"
-    print_box_line "3) SPI TFT (small 3.5\" displays)"
+    print_box_line "1) HDMI Touchscreen (BTT HDMI5/7, Waveshare HDMI, etc.)"
+    print_box_line "2) DSI Display (Raspberry Pi ribbon cable displays)"
+    print_box_line "3) SPI TFT (small 3.5\" GPIO displays)"
     print_footer
     
     echo -en "${BYELLOW}Select type${NC}: "
     read -r choice
     
     case "$choice" in
-        1) WIZARD_STATE[klipperscreen_type]="hdmi" ;;
-        2) WIZARD_STATE[klipperscreen_type]="dsi" ;;
-        3) WIZARD_STATE[klipperscreen_type]="spi_tft" ;;
+        1) 
+            WIZARD_STATE[klipperscreen_type]="hdmi"
+            select_hdmi_model
+            ;;
+        2) 
+            WIZARD_STATE[klipperscreen_type]="dsi"
+            select_dsi_model
+            ;;
+        3) 
+            WIZARD_STATE[klipperscreen_type]="spi_tft"
+            select_spi_model
+            ;;
+    esac
+    
+    # If a model was selected, ask for rotation and offer setup script
+    if [[ -n "${WIZARD_STATE[touchscreen_model]:-}" ]]; then
+        select_display_rotation
+        offer_touch_panel_setup
+    fi
+}
+
+select_hdmi_model() {
+    clear_screen
+    print_header "HDMI Touchscreen Model"
+    
+    print_box_line "${WHITE}Select your HDMI display:${NC}"
+    print_empty_line
+    print_box_line "1) BTT HDMI5 (5\" 800x480)"
+    print_box_line "2) BTT HDMI7 (7\" 1024x600)"
+    print_box_line "3) Waveshare 5\" HDMI"
+    print_box_line "4) Waveshare 7\" HDMI"
+    print_box_line "5) Generic HDMI Touchscreen"
+    print_footer
+    
+    echo -en "${BYELLOW}Select model${NC}: "
+    read -r choice
+    
+    case "$choice" in
+        1) WIZARD_STATE[touchscreen_model]="btt_hdmi5" ;;
+        2) WIZARD_STATE[touchscreen_model]="btt_hdmi7" ;;
+        3) WIZARD_STATE[touchscreen_model]="waveshare_hdmi_5" ;;
+        4) WIZARD_STATE[touchscreen_model]="waveshare_hdmi_7" ;;
+        5) WIZARD_STATE[touchscreen_model]="generic_hdmi" ;;
+    esac
+}
+
+select_dsi_model() {
+    clear_screen
+    print_header "DSI Touchscreen Model"
+    
+    print_box_line "${WHITE}Select your DSI display:${NC}"
+    print_empty_line
+    print_box_line "1) Official Raspberry Pi 7\" Display"
+    print_box_line "2) Waveshare 4.3\" DSI"
+    print_box_line "3) Waveshare 5\" DSI"
+    print_box_line "4) Waveshare 7\" DSI"
+    print_box_line "5) Waveshare 7.9\" DSI"
+    print_box_line "6) Waveshare 10.1\" DSI"
+    print_footer
+    
+    echo -en "${BYELLOW}Select model${NC}: "
+    read -r choice
+    
+    case "$choice" in
+        1) WIZARD_STATE[touchscreen_model]="rpi_official_7" ;;
+        2) WIZARD_STATE[touchscreen_model]="waveshare_dsi_4_3" ;;
+        3) WIZARD_STATE[touchscreen_model]="waveshare_dsi_5" ;;
+        4) WIZARD_STATE[touchscreen_model]="waveshare_dsi_7" ;;
+        5) WIZARD_STATE[touchscreen_model]="waveshare_dsi_7_9" ;;
+        6) WIZARD_STATE[touchscreen_model]="waveshare_dsi_10_1" ;;
+    esac
+}
+
+select_spi_model() {
+    clear_screen
+    print_header "SPI TFT Display Model"
+    
+    print_box_line "${WHITE}Select your SPI TFT display:${NC}"
+    print_empty_line
+    print_box_line "1) Mellow FLY-TFT-V2 (recommended for Mellow boards)"
+    print_box_line "2) Waveshare 3.5\" SPI"
+    print_box_line "3) Waveshare 4\" SPI"
+    print_box_line "4) Generic 3.5\" TFT (GoodTFT/clones)"
+    print_box_line "5) Generic ILI9486 3.5\" TFT"
+    print_footer
+    
+    echo -en "${BYELLOW}Select model${NC}: "
+    read -r choice
+    
+    case "$choice" in
+        1) WIZARD_STATE[touchscreen_model]="mellow_fly_tft_v2" ;;
+        2) WIZARD_STATE[touchscreen_model]="waveshare_spi_3_5" ;;
+        3) WIZARD_STATE[touchscreen_model]="waveshare_spi_4" ;;
+        4) WIZARD_STATE[touchscreen_model]="goodtft_3_5" ;;
+        5) WIZARD_STATE[touchscreen_model]="generic_ili9486" ;;
+    esac
+}
+
+select_display_rotation() {
+    clear_screen
+    print_header "Display Rotation"
+    
+    print_box_line "${WHITE}Select your display orientation:${NC}"
+    print_empty_line
+    print_box_line "Rotation depends on how your display is mounted."
+    print_box_line "You can change this later if the touch is inverted."
+    print_empty_line
+    print_box_line "1) 0°   - Normal (default landscape)"
+    print_box_line "2) 90°  - Rotated clockwise"
+    print_box_line "3) 180° - Upside down"
+    print_box_line "4) 270° - Rotated counter-clockwise"
+    print_footer
+    
+    echo -en "${BYELLOW}Select rotation [1]${NC}: "
+    read -r choice
+    
+    case "$choice" in
+        2) WIZARD_STATE[touchscreen_rotation]="90" ;;
+        3) WIZARD_STATE[touchscreen_rotation]="180" ;;
+        4) WIZARD_STATE[touchscreen_rotation]="270" ;;
+        *) WIZARD_STATE[touchscreen_rotation]="0" ;;
+    esac
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PLATFORM DETECTION FOR TOUCH PANEL SETUP
+# ═══════════════════════════════════════════════════════════════════════════════
+
+detect_host_platform() {
+    # Detect the host platform for touch panel configuration
+    # Sets: PLATFORM_TYPE, PLATFORM_MODEL, OS_VERSION, CONFIG_TXT_PATH
+    
+    local platform_type="unknown"
+    local platform_model=""
+    local os_version=""
+    local config_txt_path=""
+    
+    # Check for Raspberry Pi
+    if [[ -f /proc/device-tree/model ]]; then
+        local model_string
+        model_string=$(cat /proc/device-tree/model 2>/dev/null | tr -d '\0')
+        
+        if [[ "$model_string" == *"Raspberry Pi"* ]]; then
+            platform_type="raspberry_pi"
+            
+            # Extract Pi model
+            if [[ "$model_string" == *"Pi 5"* ]]; then
+                platform_model="pi5"
+            elif [[ "$model_string" == *"Pi 4"* ]]; then
+                platform_model="pi4"
+            elif [[ "$model_string" == *"Pi 3"* ]]; then
+                platform_model="pi3"
+            elif [[ "$model_string" == *"Pi Zero 2"* ]]; then
+                platform_model="pizero2"
+            elif [[ "$model_string" == *"Pi Zero"* ]]; then
+                platform_model="pizero"
+            else
+                platform_model="other_pi"
+            fi
+        elif [[ "$model_string" == *"CB1"* ]] || [[ "$model_string" == *"Manta"* ]]; then
+            # BTT CB1 or Manta with CB1
+            platform_type="cb1"
+            platform_model="cb1"
+        fi
+    fi
+    
+    # Check for CB1/Armbian if not detected via device-tree
+    if [[ "$platform_type" == "unknown" ]]; then
+        if [[ -f /etc/armbian-release ]]; then
+            platform_type="armbian"
+            # Could be CB1 or other Armbian SBC
+            if grep -q "BOARD=cb1" /etc/armbian-release 2>/dev/null; then
+                platform_model="cb1"
+                platform_type="cb1"
+            else
+                platform_model="generic_armbian"
+            fi
+        fi
+    fi
+    
+    # Detect OS version (Debian codename)
+    if [[ -f /etc/os-release ]]; then
+        # shellcheck source=/dev/null
+        source /etc/os-release
+        case "${VERSION_CODENAME:-}" in
+            bullseye) os_version="bullseye" ;;
+            bookworm) os_version="bookworm" ;;
+            buster)   os_version="buster" ;;
+            *)        os_version="${VERSION_CODENAME:-unknown}" ;;
+        esac
+    fi
+    
+    # Determine config.txt path based on platform and OS
+    if [[ "$platform_type" == "raspberry_pi" ]]; then
+        if [[ "$os_version" == "bookworm" ]]; then
+            # Bookworm moved config.txt to /boot/firmware/
+            config_txt_path="/boot/firmware/config.txt"
+        else
+            # Bullseye and earlier
+            config_txt_path="/boot/config.txt"
+        fi
+    elif [[ "$platform_type" == "cb1" ]]; then
+        # CB1 uses Armbian-style configuration
+        config_txt_path="/boot/armbianEnv.txt"
+    else
+        # Default to common location
+        if [[ -f /boot/firmware/config.txt ]]; then
+            config_txt_path="/boot/firmware/config.txt"
+        elif [[ -f /boot/config.txt ]]; then
+            config_txt_path="/boot/config.txt"
+        else
+            config_txt_path="/boot/config.txt"
+        fi
+    fi
+    
+    # Store results
+    WIZARD_STATE[platform_type]="$platform_type"
+    WIZARD_STATE[platform_model]="$platform_model"
+    WIZARD_STATE[os_version]="$os_version"
+    WIZARD_STATE[config_txt_path]="$config_txt_path"
+    
+    # Return success if platform was detected
+    [[ "$platform_type" != "unknown" ]]
+}
+
+get_platform_display_name() {
+    # Returns a human-readable platform name
+    local platform="${WIZARD_STATE[platform_type]:-unknown}"
+    local model="${WIZARD_STATE[platform_model]:-}"
+    
+    case "$platform" in
+        raspberry_pi)
+            case "$model" in
+                pi5) echo "Raspberry Pi 5" ;;
+                pi4) echo "Raspberry Pi 4" ;;
+                pi3) echo "Raspberry Pi 3" ;;
+                pizero2) echo "Raspberry Pi Zero 2" ;;
+                pizero) echo "Raspberry Pi Zero" ;;
+                *) echo "Raspberry Pi" ;;
+            esac
+            ;;
+        cb1) echo "BTT CB1" ;;
+        armbian) echo "Armbian SBC" ;;
+        *) echo "Unknown Platform" ;;
+    esac
+}
+
+generate_touch_panel_script() {
+    # Generate a customized touch panel setup script based on user selections
+    # Reads from displays.json and substitutes into the template
+    
+    local model="${WIZARD_STATE[touchscreen_model]:-}"
+    local conn_type="${WIZARD_STATE[klipperscreen_type]:-}"
+    local rotation="${WIZARD_STATE[touchscreen_rotation]:-0}"
+    
+    if [[ -z "$model" ]]; then
+        echo -e "${RED}No touchscreen model selected${NC}"
+        return 1
+    fi
+    
+    local displays_json="${SCRIPT_DIR}/../templates/hardware/displays.json"
+    local template="${SCRIPT_DIR}/lib/touch-panel-setup.sh.template"
+    local output_dir="${HOME}/printer_data/config/scripts"
+    local output_file="${output_dir}/touch-panel-setup.sh"
+    
+    if [[ ! -f "$displays_json" ]]; then
+        echo -e "${RED}displays.json not found${NC}"
+        return 1
+    fi
+    
+    if [[ ! -f "$template" ]]; then
+        echo -e "${RED}Template not found: $template${NC}"
+        return 1
+    fi
+    
+    # Extract display info from JSON using python
+    local display_info
+    display_info=$(python3 << EOF
+import json
+import sys
+
+try:
+    with open("$displays_json", 'r') as f:
+        data = json.load(f)
+    
+    model = "$model"
+    conn_type = "$conn_type"
+    
+    # Find the display in the touchscreens section
+    touchscreens = data.get('touchscreens', {})
+    display = None
+    
+    # Search in the connection type category
+    if conn_type in touchscreens:
+        display = touchscreens[conn_type].get(model)
+    
+    # If not found, search all categories
+    if not display:
+        for category in ['hdmi', 'dsi', 'spi_tft']:
+            if category in touchscreens and model in touchscreens[category]:
+                display = touchscreens[category][model]
+                break
+    
+    if not display:
+        print("ERROR:Display not found in database", file=sys.stderr)
+        sys.exit(1)
+    
+    # Output display properties
+    print(f"DISPLAY_NAME={display.get('name', model)}")
+    print(f"DRIVER_REQUIRED={str(display.get('driver_required', False)).lower()}")
+    print(f"DRIVER_REPO={display.get('driver_repo', '')}")
+    print(f"DRIVER_SCRIPT={display.get('driver_script', '')}")
+    print(f"OVERLAY_FIX={display.get('overlay_fix', '')}")
+    print(f"OVERLAY_NAME={display.get('overlay', '')}")
+    print(f"TOUCH_DEVICE_NAME={display.get('touch_device_name', '')}")
+    print(f"I2C_REQUIRED={str(display.get('i2c_required', False)).lower()}")
+    
+    # Handle HDMI config if present
+    hdmi_config = display.get('hdmi_config', {})
+    if hdmi_config:
+        config_parts = []
+        for key, value in hdmi_config.items():
+            config_parts.append(f"{key}={value}")
+        print(f"HDMI_CONFIG={','.join(config_parts)}")
+    else:
+        print("HDMI_CONFIG=")
+
+except Exception as e:
+    print(f"ERROR:{e}", file=sys.stderr)
+    sys.exit(1)
+EOF
+    )
+    
+    if [[ $? -ne 0 ]]; then
+        echo -e "${RED}Failed to parse display configuration${NC}"
+        return 1
+    fi
+    
+    # Parse the output into variables
+    local display_name="" driver_required="" driver_repo="" driver_script=""
+    local overlay_fix="" overlay_name="" touch_device_name="" i2c_required="" hdmi_config=""
+    
+    while IFS='=' read -r key value; do
+        case "$key" in
+            DISPLAY_NAME) display_name="$value" ;;
+            DRIVER_REQUIRED) driver_required="$value" ;;
+            DRIVER_REPO) driver_repo="$value" ;;
+            DRIVER_SCRIPT) driver_script="$value" ;;
+            OVERLAY_FIX) overlay_fix="$value" ;;
+            OVERLAY_NAME) overlay_name="$value" ;;
+            TOUCH_DEVICE_NAME) touch_device_name="$value" ;;
+            I2C_REQUIRED) i2c_required="$value" ;;
+            HDMI_CONFIG) hdmi_config="$value" ;;
+        esac
+    done <<< "$display_info"
+    
+    # Create output directory
+    mkdir -p "$output_dir"
+    
+    # Generate the script from template with substitutions
+    local generation_date
+    generation_date=$(date '+%Y-%m-%d %H:%M:%S')
+    
+    sed -e "s|{{DISPLAY_MODEL}}|$model|g" \
+        -e "s|{{DISPLAY_NAME}}|$display_name|g" \
+        -e "s|{{CONNECTION_TYPE}}|$conn_type|g" \
+        -e "s|{{ROTATION}}|$rotation|g" \
+        -e "s|{{DRIVER_REQUIRED}}|$driver_required|g" \
+        -e "s|{{DRIVER_REPO}}|$driver_repo|g" \
+        -e "s|{{DRIVER_SCRIPT}}|$driver_script|g" \
+        -e "s|{{OVERLAY_FIX}}|$overlay_fix|g" \
+        -e "s|{{OVERLAY_NAME}}|$overlay_name|g" \
+        -e "s|{{TOUCH_DEVICE_NAME}}|$touch_device_name|g" \
+        -e "s|{{I2C_REQUIRED}}|$i2c_required|g" \
+        -e "s|{{HDMI_CONFIG}}|$hdmi_config|g" \
+        -e "s|{{GENERATION_DATE}}|$generation_date|g" \
+        "$template" > "$output_file"
+    
+    chmod +x "$output_file"
+    
+    echo -e "${GREEN}Touch panel setup script generated!${NC}"
+    echo -e "${CYAN}Location: ${output_file}${NC}"
+    echo ""
+    echo -e "${YELLOW}To configure your touch panel, run:${NC}"
+    echo -e "  ${BWHITE}sudo bash ${output_file}${NC}"
+    echo ""
+    
+    return 0
+}
+
+offer_touch_panel_setup() {
+    # Called after KlipperScreen selection to offer generating the setup script
+    
+    if [[ "${WIZARD_STATE[has_klipperscreen]}" != "yes" ]]; then
+        return 0
+    fi
+    
+    if [[ -z "${WIZARD_STATE[touchscreen_model]:-}" ]]; then
+        return 0
+    fi
+    
+    clear_screen
+    print_header "Touch Panel Setup Script"
+    
+    print_box_line "${WHITE}Generate a touch panel setup script?${NC}"
+    print_empty_line
+    print_box_line "This will create a script that configures:"
+    print_box_line "  - Display overlays and drivers"
+    print_box_line "  - Touch calibration"
+    print_box_line "  - Rotation settings"
+    print_empty_line
+    print_box_line "${CYAN}Selected: ${WIZARD_STATE[touchscreen_model]} (${WIZARD_STATE[touchscreen_rotation]:-0}°)${NC}"
+    print_empty_line
+    print_box_line "1) Generate setup script"
+    print_box_line "2) Skip for now"
+    print_footer
+    
+    echo -en "${BYELLOW}Choice [1]${NC}: "
+    read -r choice
+    
+    case "$choice" in
+        2) 
+            echo -e "${CYAN}Skipped. You can generate the script later from the Extras menu.${NC}"
+            sleep 1
+            ;;
+        *)
+            echo ""
+            if generate_touch_panel_script; then
+                echo -e "${GREEN}Press Enter to continue...${NC}"
+                read -r
+            else
+                echo -e "${RED}Failed to generate script. Press Enter to continue...${NC}"
+                read -r
+            fi
+            ;;
     esac
 }
 
