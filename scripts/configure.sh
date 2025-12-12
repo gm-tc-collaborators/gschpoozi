@@ -2108,10 +2108,12 @@ try:
     toolboard_serial = data.get('toolboard_serial') or ''
     toolboard_canbus_uuid = data.get('toolboard_canbus_uuid') or ''
     probe_serial = data.get('probe_serial') or ''
+    probe_canbus_uuid = data.get('probe_canbus_uuid') or ''
     print(f\"WIZARD_STATE[mcu_serial]='{mcu_serial}'\")
     print(f\"WIZARD_STATE[toolboard_serial]='{toolboard_serial}'\")
     print(f\"WIZARD_STATE[toolboard_canbus_uuid]='{toolboard_canbus_uuid}'\")
     print(f\"WIZARD_STATE[probe_serial]='{probe_serial}'\")
+    print(f\"WIZARD_STATE[probe_canbus_uuid]='{probe_canbus_uuid}'\")
 
 except Exception as e:
     pass
@@ -2174,6 +2176,8 @@ init_state() {
         [bed_pullup_resistor]=""
         [probe_type]=""
         [probe_mode]=""              # "proximity" or "touch" for eddy current probes
+        [probe_serial]=""            # USB serial path for MCU-based probes
+        [probe_canbus_uuid]=""       # CAN UUID for MCU-based probes
         [beacon_revision]=""         # "revd" or "revh" for Beacon hardware version
         [z_home_x]=""                # X position for Z homing (safe_z_home)
         [z_home_y]=""                # Y position for Z homing (safe_z_home)
