@@ -8414,6 +8414,26 @@ generate_config() {
     fi
     
     # ═══════════════════════════════════════════════════════════════════════════
+    # CHECK PROBE MODULE INSTALLATION
+    # ═══════════════════════════════════════════════════════════════════════════
+    local probe_type="${WIZARD_STATE[probe_type]}"
+    if [[ -n "$probe_type" && "$probe_type" != "none" && "$probe_type" != "endstop" && "$probe_type" != "bltouch" && "$probe_type" != "klicky" && "$probe_type" != "inductive" ]]; then
+        if ! is_probe_installed "$probe_type"; then
+            echo -e "${YELLOW}⚠️  ${probe_type} module is not installed!${NC}"
+            echo -e "${WHITE}The generated config requires the ${probe_type} Klipper module.${NC}"
+            echo ""
+            if confirm "Install ${probe_type} module now?"; then
+                case "$probe_type" in
+                    beacon) install_beacon ;;
+                    cartographer) install_cartographer ;;
+                    btt-eddy) install_btt_eddy ;;
+                esac
+                echo ""
+            fi
+        fi
+    fi
+    
+    # ═══════════════════════════════════════════════════════════════════════════
     # SAFETY WARNINGS
     # ═══════════════════════════════════════════════════════════════════════════
     echo -e "${BYELLOW}╔═══════════════════════════════════════════════════════════════════════════════╗${NC}"
