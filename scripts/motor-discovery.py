@@ -363,15 +363,12 @@ class MotorDiscovery:
             self.api.send_gcode(f"MANUAL_STEPPER STEPPER={stepper_name} ENABLE=1")
             time.sleep(0.2)
             
-            # Set position reference to 0 (required for MOVE to work correctly)
-            self.api.send_gcode(f"MANUAL_STEPPER STEPPER={stepper_name} SET_POSITION=0")
-            
             # Visible movement: 20mm back-and-forth, 5 times
-            # For belt-connected motors, watch which BELT moves
+            # Using relative-style moves (no SET_POSITION needed)
             for _ in range(5):
                 self.api.send_gcode(f"MANUAL_STEPPER STEPPER={stepper_name} MOVE=20 SPEED=25")
                 time.sleep(1.0)
-                self.api.send_gcode(f"MANUAL_STEPPER STEPPER={stepper_name} MOVE=0 SPEED=25")
+                self.api.send_gcode(f"MANUAL_STEPPER STEPPER={stepper_name} MOVE=-20 SPEED=25")
                 time.sleep(0.5)
             
             # Disable stepper
@@ -392,9 +389,6 @@ class MotorDiscovery:
             self.api.send_gcode(f"MANUAL_STEPPER STEPPER={stepper_name} ENABLE=1")
             time.sleep(0.2)
             
-            # Set position reference to 0 (required for MOVE to work correctly)
-            self.api.send_gcode(f"MANUAL_STEPPER STEPPER={stepper_name} SET_POSITION=0")
-            
             # FIRST movement - this is the direction to observe
             self.api.send_gcode(f"MANUAL_STEPPER STEPPER={stepper_name} MOVE={distance} SPEED={velocity}")
             time.sleep(abs(distance) / velocity + 0.5)
@@ -402,8 +396,8 @@ class MotorDiscovery:
             # Pause to let user observe
             time.sleep(1.0)
             
-            # Return to start position (back to 0)
-            self.api.send_gcode(f"MANUAL_STEPPER STEPPER={stepper_name} MOVE=0 SPEED={velocity}")
+            # Return to start position (negative of distance)
+            self.api.send_gcode(f"MANUAL_STEPPER STEPPER={stepper_name} MOVE={-distance} SPEED={velocity}")
             time.sleep(abs(distance) / velocity + 0.5)
             
             self.api.send_gcode(f"MANUAL_STEPPER STEPPER={stepper_name} ENABLE=0")
