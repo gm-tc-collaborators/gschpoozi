@@ -1218,8 +1218,8 @@ def generate_hardware_cfg(
     probe_type = wizard_state.get('probe_type', '')
     probe_mode = wizard_state.get('probe_mode', 'proximity')  # Default to proximity
     # Get probe serial/CAN - check wizard state first, then hardware state as fallback
-    probe_serial = wizard_state.get('probe_serial', hardware_state.get('probe_serial'))
-    probe_canbus_uuid = wizard_state.get('probe_canbus_uuid', hardware_state.get('probe_canbus_uuid'))
+    probe_serial = wizard_state.get('probe_serial') or hardware_state.get('probe_serial')
+    probe_canbus_uuid = wizard_state.get('probe_canbus_uuid') or hardware_state.get('probe_canbus_uuid')
     
     # Get bed dimensions for homing position calculations
     bed_x = int(wizard_state.get('bed_size_x', '300') or '300')
