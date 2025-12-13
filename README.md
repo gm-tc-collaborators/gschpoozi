@@ -4,19 +4,19 @@
 
 ---
 
-## ⚠️ ALPHA SOFTWARE - READ BEFORE USE ⚠️
+## Beta Software
 
-**This software is in late alpha. Generated configurations have NOT been tested on all hardware combinations.**
+This software is in beta. While core functionality is stable, some hardware combinations may require manual adjustments.
 
-Before using generated configs on your printer:
+**Before using generated configs:**
+- Review generated files and verify pin assignments match your wiring
+- Backup your existing printer.cfg
+- Test with `STEPPER_BUZZ` before homing
+- Be ready to hit emergency stop on first home
 
-1. **REVIEW ALL GENERATED FILES** - Check pin assignments match your actual wiring
-2. **BACKUP YOUR EXISTING CONFIG** - Save your current printer.cfg first
-3. **TEST WITH MOTORS OFF** - Use `STEPPER_BUZZ` to verify directions before homing
-4. **START COLD** - Don't heat bed/nozzle until basic movement is verified
-5. **WATCH THE FIRST HOME** - Be ready to hit emergency stop
-
-**The authors are not responsible for any damage to your printer. Use at your own risk.**
+**Known Limitations:**
+- Interactive motor discovery is not yet functional - you need to know which stepper is connected to which driver port
+- Manual verification of motor directions is required
 
 ---
 
