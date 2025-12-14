@@ -237,11 +237,29 @@ class GschpooziWizard:
                 self._mcu_setup()
             elif choice == "2.2":
                 self._printer_settings()
+            elif choice == "2.3":
+                self._stepper_axis("x")
+            elif choice == "2.4":
+                self._stepper_axis("y")
+            elif choice == "2.5":
+                self._stepper_z()
+            elif choice == "2.6":
+                self._extruder_setup()
+            elif choice == "2.7":
+                self._heater_bed_setup()
+            elif choice == "2.8":
+                self._fans_setup()
+            elif choice == "2.9":
+                self._probe_setup()
+            elif choice == "2.10":
+                self._homing_setup()
+            elif choice == "2.11":
+                self._bed_leveling_setup()
             else:
-                # Placeholder for other sections
+                # Placeholder for remaining sections (2.12-2.16)
                 self.ui.msgbox(
                     f"Section {choice} coming soon!\n\n"
-                    "This section will be implemented next.",
+                    "Optional hardware - implement as needed.",
                     title=f"Section {choice}"
                 )
     
@@ -492,6 +510,494 @@ class GschpooziWizard:
             title="Settings Saved"
         )
     
+    def _stepper_axis(self, axis: str) -> None:
+        """Configure X or Y axis stepper."""
+        axis_upper = axis.upper()
+        state_key = f"stepper_{axis}"
+        
+        # Motor port (simplified - would come from board template)
+        motor_port = self.ui.inputbox(
+            f"Motor port for {axis_upper} axis (e.g., MOTOR0, MOTOR1):",
+            default=f"MOTOR{'0' if axis == 'x' else '1'}",
+            title=f"Stepper {axis_upper} - Motor Port"
+        )
+        if motor_port is None:
+            return
+        
+        # Belt configuration
+        belt_pitch = self.ui.radiolist(
+            f"Belt pitch for {axis_upper} axis:",
+            [
+                ("2", "2mm GT2 (most common)", True),
+                ("3", "3mm HTD3M", False),
+            ],
+            title=f"Stepper {axis_upper} - Belt"
+        )
+        
+        pulley_teeth = self.ui.radiolist(
+            f"Pulley teeth for {axis_upper} axis:",
+            [
+                ("16", "16 tooth", False),
+                ("20", "20 tooth (most common)", True),
+                ("24", "24 tooth", False),
+            ],
+            title=f"Stepper {axis_upper} - Pulley"
+        )
+        
+        # Endstop
+        endstop_type = self.ui.radiolist(
+            f"Endstop type for {axis_upper} axis:",
+            [
+                ("physical", "Physical switch", True),
+                ("sensorless", "Sensorless (StallGuard)", False),
+            ],
+            title=f"Stepper {axis_upper} - Endstop"
+        )
+        
+        # Position
+        bed_size = self.state.get(f"printer.bed_size_{axis}", 350)
+        position_max = self.ui.inputbox(
+            f"Position max for {axis_upper} (mm):",
+            default=str(bed_size),
+            title=f"Stepper {axis_upper} - Position"
+        )
+        
+        position_endstop = self.ui.inputbox(
+            f"Position endstop for {axis_upper} (0 for min, {position_max} for max):",
+            default=position_max,
+            title=f"Stepper {axis_upper} - Endstop Position"
+        )
+        
+        # TMC Driver
+        run_current = self.ui.inputbox(
+            f"TMC run current for {axis_upper} (A):",
+            default="1.0",
+            title=f"Stepper {axis_upper} - Driver"
+        )
+        
+        # Save
+        self.state.set(f"{state_key}.motor_port", motor_port)
+        self.state.set(f"{state_key}.belt_pitch", int(belt_pitch or 2))
+        self.state.set(f"{state_key}.pulley_teeth", int(pulley_teeth or 20))
+        self.state.set(f"{state_key}.endstop_type", endstop_type or "physical")
+        self.state.set(f"{state_key}.position_max", int(position_max or bed_size))
+        self.state.set(f"{state_key}.position_endstop", int(position_endstop or position_max or bed_size))
+        self.state.set(f"{state_key}.run_current", float(run_current or 1.0))
+        self.state.save()
+        
+        self.ui.msgbox(
+            f"Stepper {axis_upper} configured!\n\n"
+            f"Motor: {motor_port}\n"
+            f"Belt: {belt_pitch}mm × {pulley_teeth}T\n"
+            f"Endstop: {endstop_type}\n"
+            f"Position: 0 to {position_max}mm\n"
+            f"Current: {run_current}A",
+            title="Configuration Saved"
+        )
+    
+    def _stepper_z(self) -> None:
+        """Configure Z axis stepper(s)."""
+        # Number of Z motors
+        z_count = self.ui.radiolist(
+            "How many Z motors?",
+            [
+                ("1", "Single Z motor", False),
+                ("2", "Dual Z (Z tilt)", False),
+                ("3", "Triple Z", False),
+                ("4", "Quad Z (QGL)", True),
+            ],
+            title="Z Axis - Motor Count"
+        )
+        
+        # Drive type
+        drive_type = self.ui.radiolist(
+            "Z drive type:",
+            [
+                ("leadscrew", "Leadscrew (T8, TR8)", True),
+                ("belt", "Belt driven", False),
+            ],
+            title="Z Axis - Drive"
+        )
+        
+        if drive_type == "leadscrew":
+            pitch = self.ui.radiolist(
+                "Leadscrew pitch:",
+                [
+                    ("8", "8mm (T8 standard)", True),
+                    ("4", "4mm (high speed)", False),
+                    ("2", "2mm (TR8x2)", False),
+                ],
+                title="Z Axis - Leadscrew"
+            )
+        else:
+            pitch = "2"  # Belt driven uses belt pitch
+        
+        # Endstop
+        endstop_type = self.ui.radiolist(
+            "Z endstop type:",
+            [
+                ("probe", "Probe (virtual endstop)", True),
+                ("physical_mainboard", "Physical switch (mainboard)", False),
+                ("physical_toolboard", "Physical switch (toolboard)", False),
+            ],
+            title="Z Axis - Endstop"
+        )
+        
+        # Position
+        bed_z = self.state.get("printer.bed_size_z", 350)
+        position_max = self.ui.inputbox(
+            "Z position max (mm):",
+            default=str(bed_z),
+            title="Z Axis - Position"
+        )
+        
+        # Current
+        run_current = self.ui.inputbox(
+            "TMC run current for Z (A):",
+            default="0.8",
+            title="Z Axis - Driver"
+        )
+        
+        # Save
+        self.state.set("stepper_z.z_motor_count", int(z_count or 4))
+        self.state.set("stepper_z.drive_type", drive_type or "leadscrew")
+        self.state.set("stepper_z.leadscrew_pitch", int(pitch or 8))
+        self.state.set("stepper_z.endstop_type", endstop_type or "probe")
+        self.state.set("stepper_z.position_max", int(position_max or bed_z))
+        self.state.set("stepper_z.run_current", float(run_current or 0.8))
+        self.state.save()
+        
+        self.ui.msgbox(
+            f"Z Axis configured!\n\n"
+            f"Motors: {z_count}\n"
+            f"Drive: {drive_type} ({pitch}mm)\n"
+            f"Endstop: {endstop_type}\n"
+            f"Height: {position_max}mm\n"
+            f"Current: {run_current}A",
+            title="Configuration Saved"
+        )
+    
+    def _extruder_setup(self) -> None:
+        """Configure extruder."""
+        # Extruder type
+        extruder_types = [
+            ("sherpa_mini", "Sherpa Mini"),
+            ("orbiter_v2", "Orbiter v2.0/v2.5"),
+            ("smart_orbiter_v3", "Smart Orbiter v3"),
+            ("clockwork2", "Clockwork 2"),
+            ("galileo2", "Galileo 2"),
+            ("lgx_lite", "LGX Lite"),
+            ("bmg", "BMG"),
+            ("vz_hextrudort_10t", "VZ-Hextrudort 10T"),
+            ("custom", "Custom"),
+        ]
+        
+        extruder_type = self.ui.radiolist(
+            "Select your extruder type:",
+            [(k, v, False) for k, v in extruder_types],
+            title="Extruder - Type"
+        )
+        
+        # Location
+        has_toolboard = self.state.get("mcu.toolboard.enabled", False)
+        if has_toolboard:
+            location = self.ui.radiolist(
+                "Where is the extruder motor connected?",
+                [
+                    ("mainboard", "Mainboard", False),
+                    ("toolboard", "Toolboard", True),
+                ],
+                title="Extruder - Location"
+            )
+        else:
+            location = "mainboard"
+        
+        # Thermistor
+        sensor_type = self.ui.radiolist(
+            "Hotend thermistor type:",
+            [
+                ("Generic 3950", "Generic 3950 (most common)", True),
+                ("ATC Semitec 104GT-2", "ATC Semitec 104GT-2", False),
+                ("PT1000", "PT1000", False),
+                ("SliceEngineering 450", "SliceEngineering 450°C", False),
+            ],
+            title="Extruder - Thermistor"
+        )
+        
+        # Max temp
+        max_temp = self.ui.inputbox(
+            "Maximum hotend temperature (°C):",
+            default="300",
+            title="Extruder - Max Temp"
+        )
+        
+        # Save
+        self.state.set("extruder.extruder_type", extruder_type or "clockwork2")
+        self.state.set("extruder.location", location)
+        self.state.set("extruder.heater_location", location)
+        self.state.set("extruder.sensor_location", location)
+        self.state.set("extruder.sensor_type", sensor_type or "Generic 3950")
+        self.state.set("extruder.max_temp", int(max_temp or 300))
+        self.state.save()
+        
+        self.ui.msgbox(
+            f"Extruder configured!\n\n"
+            f"Type: {extruder_type}\n"
+            f"Location: {location}\n"
+            f"Thermistor: {sensor_type}\n"
+            f"Max temp: {max_temp}°C",
+            title="Configuration Saved"
+        )
+    
+    def _heater_bed_setup(self) -> None:
+        """Configure heated bed."""
+        # Thermistor
+        sensor_type = self.ui.radiolist(
+            "Bed thermistor type:",
+            [
+                ("Generic 3950", "Generic 3950 (most common)", True),
+                ("NTC 100K beta 3950", "NTC 100K beta 3950", False),
+                ("PT1000", "PT1000", False),
+            ],
+            title="Heated Bed - Thermistor"
+        )
+        
+        # Max temp
+        max_temp = self.ui.inputbox(
+            "Maximum bed temperature (°C):",
+            default="120",
+            title="Heated Bed - Max Temp"
+        )
+        
+        # Save
+        self.state.set("heater_bed.sensor_type", sensor_type or "Generic 3950")
+        self.state.set("heater_bed.max_temp", int(max_temp or 120))
+        self.state.save()
+        
+        self.ui.msgbox(
+            f"Heated bed configured!\n\n"
+            f"Thermistor: {sensor_type}\n"
+            f"Max temp: {max_temp}°C\n\n"
+            "Remember to run PID_CALIBRATE HEATER=heater_bed TARGET=60",
+            title="Configuration Saved"
+        )
+    
+    def _fans_setup(self) -> None:
+        """Configure fans."""
+        has_toolboard = self.state.get("mcu.toolboard.enabled", False)
+        
+        # Part cooling fan location
+        if has_toolboard:
+            part_location = self.ui.radiolist(
+                "Part cooling fan connected to:",
+                [
+                    ("mainboard", "Mainboard", False),
+                    ("toolboard", "Toolboard", True),
+                ],
+                title="Fans - Part Cooling"
+            )
+        else:
+            part_location = "mainboard"
+        
+        # Hotend fan location
+        if has_toolboard:
+            hotend_location = self.ui.radiolist(
+                "Hotend fan connected to:",
+                [
+                    ("mainboard", "Mainboard", False),
+                    ("toolboard", "Toolboard", True),
+                ],
+                title="Fans - Hotend"
+            )
+        else:
+            hotend_location = "mainboard"
+        
+        # Controller fan
+        has_controller_fan = self.ui.yesno(
+            "Do you have an electronics cooling fan?",
+            title="Fans - Controller"
+        )
+        
+        # Save
+        self.state.set("fans.part_cooling.location", part_location)
+        self.state.set("fans.hotend.location", hotend_location)
+        self.state.set("fans.controller.enabled", has_controller_fan)
+        self.state.save()
+        
+        self.ui.msgbox(
+            f"Fans configured!\n\n"
+            f"Part cooling: {part_location}\n"
+            f"Hotend: {hotend_location}\n"
+            f"Controller fan: {'Yes' if has_controller_fan else 'No'}",
+            title="Configuration Saved"
+        )
+    
+    def _probe_setup(self) -> None:
+        """Configure probe."""
+        probe_types = [
+            ("none", "No Probe"),
+            ("tap", "Voron Tap"),
+            ("klicky", "Klicky / Euclid"),
+            ("bltouch", "BLTouch / 3DTouch"),
+            ("inductive", "Inductive (PINDA)"),
+            ("beacon", "Beacon (eddy current)"),
+            ("cartographer", "Cartographer"),
+        ]
+        
+        probe_type = self.ui.radiolist(
+            "Select your probe type:",
+            [(k, v, k == "tap") for k, v in probe_types],
+            title="Probe - Type"
+        )
+        
+        if probe_type == "none":
+            self.state.delete("probe")
+            self.state.save()
+            return
+        
+        # Offsets (for non-Tap probes)
+        if probe_type != "tap":
+            x_offset = self.ui.inputbox(
+                "Probe X offset from nozzle (mm):",
+                default="0",
+                title="Probe - X Offset"
+            )
+            y_offset = self.ui.inputbox(
+                "Probe Y offset from nozzle (mm):",
+                default="0",
+                title="Probe - Y Offset"
+            )
+        else:
+            x_offset = "0"
+            y_offset = "0"
+        
+        # Location for non-eddy probes
+        has_toolboard = self.state.get("mcu.toolboard.enabled", False)
+        if probe_type not in ["beacon", "cartographer"] and has_toolboard:
+            location = self.ui.radiolist(
+                "Probe connected to:",
+                [
+                    ("mainboard", "Mainboard", False),
+                    ("toolboard", "Toolboard", True),
+                ],
+                title="Probe - Connection"
+            )
+        else:
+            location = "toolboard" if has_toolboard else "mainboard"
+        
+        # Save
+        self.state.set("probe.probe_type", probe_type)
+        self.state.set("probe.x_offset", float(x_offset or 0))
+        self.state.set("probe.y_offset", float(y_offset or 0))
+        self.state.set("probe.location", location)
+        self.state.save()
+        
+        self.ui.msgbox(
+            f"Probe configured!\n\n"
+            f"Type: {probe_type}\n"
+            f"Offset: X={x_offset}, Y={y_offset}\n"
+            f"Location: {location}\n\n"
+            "Remember to run PROBE_CALIBRATE for Z offset",
+            title="Configuration Saved"
+        )
+    
+    def _homing_setup(self) -> None:
+        """Configure homing."""
+        probe_type = self.state.get("probe.probe_type", "none")
+        
+        # Homing method based on probe
+        if probe_type in ["beacon", "cartographer"]:
+            methods = [
+                ("beacon_contact", "Beacon Contact", True),
+                ("homing_override", "Custom Homing Override", False),
+            ]
+        else:
+            methods = [
+                ("safe_z_home", "Safe Z Home (standard)", True),
+                ("homing_override", "Homing Override (sensorless)", False),
+            ]
+        
+        method = self.ui.radiolist(
+            "Z homing method:",
+            methods,
+            title="Homing - Method"
+        )
+        
+        # Z hop
+        z_hop = self.ui.inputbox(
+            "Z hop height for homing (mm):",
+            default="10",
+            title="Homing - Z Hop"
+        )
+        
+        # Save
+        self.state.set("homing.homing_method", method or "safe_z_home")
+        self.state.set("homing.z_hop", int(z_hop or 10))
+        self.state.save()
+        
+        self.ui.msgbox(
+            f"Homing configured!\n\n"
+            f"Method: {method}\n"
+            f"Z hop: {z_hop}mm",
+            title="Configuration Saved"
+        )
+    
+    def _bed_leveling_setup(self) -> None:
+        """Configure bed leveling."""
+        z_count = self.state.get("stepper_z.z_motor_count", 1)
+        
+        # Leveling type based on Z motor count
+        if z_count == 4:
+            leveling_options = [
+                ("qgl", "Quad Gantry Level", True),
+                ("none", "None", False),
+            ]
+        elif z_count >= 2:
+            leveling_options = [
+                ("z_tilt", "Z Tilt Adjust", True),
+                ("none", "None", False),
+            ]
+        else:
+            leveling_options = [
+                ("none", "None (single Z)", True),
+            ]
+        
+        leveling_type = self.ui.radiolist(
+            "Bed leveling type:",
+            leveling_options,
+            title="Bed Leveling - Type"
+        )
+        
+        # Bed mesh
+        enable_mesh = self.ui.yesno(
+            "Enable bed mesh?",
+            title="Bed Leveling - Mesh",
+            default_no=False
+        )
+        
+        if enable_mesh:
+            probe_count = self.ui.inputbox(
+                "Mesh probe count (e.g., 5,5):",
+                default="5,5",
+                title="Bed Mesh - Probe Count"
+            )
+        else:
+            probe_count = "5,5"
+        
+        # Save
+        self.state.set("bed_leveling.leveling_type", leveling_type or "none")
+        self.state.set("bed_leveling.bed_mesh.enabled", enable_mesh)
+        self.state.set("bed_leveling.bed_mesh.probe_count", probe_count)
+        self.state.save()
+        
+        self.ui.msgbox(
+            f"Bed leveling configured!\n\n"
+            f"Type: {leveling_type}\n"
+            f"Mesh: {'Enabled' if enable_mesh else 'Disabled'}\n"
+            f"Probe count: {probe_count}",
+            title="Configuration Saved"
+        )
+    
     # -------------------------------------------------------------------------
     # Category 3: Tuning
     # -------------------------------------------------------------------------
@@ -551,17 +1057,28 @@ class GschpooziWizard:
         
         self.ui.infobox("Generating configuration...", title="Please wait")
         
-        # TODO: Actually generate config
-        import time
-        time.sleep(2)
-        
-        self.ui.msgbox(
-            "Configuration generated!\n\n"
-            "(This is a placeholder - actual generation coming soon)\n\n"
-            "Files would be written to:\n"
-            "~/printer_data/config/",
-            title="Generation Complete"
-        )
+        try:
+            from generator import ConfigGenerator
+            
+            generator = ConfigGenerator(state=self.state)
+            files = generator.generate()
+            written = generator.write_files(files)
+            
+            file_list = "\n".join(f"• {p.name}" for p in written[:8])
+            if len(written) > 8:
+                file_list += f"\n  ... and {len(written) - 8} more"
+            
+            self.ui.msgbox(
+                f"Configuration generated!\n\n"
+                f"Created {len(written)} files:\n{file_list}\n\n"
+                f"Location: {generator.output_dir}",
+                title="Generation Complete"
+            )
+        except Exception as e:
+            self.ui.msgbox(
+                f"Error generating configuration:\n\n{e}",
+                title="Generation Failed"
+            )
 
 
 def main():
