@@ -1698,29 +1698,346 @@ categories:
     description: "Optional features and calibration"
     generates_config: true
     sections:
+      # 3.1 TMC Autotune
       - id: "3.1"
         name: "TMC Autotune"
         plugin_required: "klipper_tmc_autotune"
+        description: "Automatic TMC driver optimization"
+        sections:
+          - id: "3.1.1"
+            name: "Autotune Settings"
+            klipper_section: "[autotune_tmc]"
+            parameters:
+              - name: "enabled"
+                type: "bool"
+                default: false
+                description: "Check and install plugin during config generation"
+              - name: "motor_x"
+                type: "select"
+                source: "motor_presets"
+                condition: "enabled == true"
+              - name: "motor_y"
+                type: "select"
+                source: "motor_presets"
+                condition: "enabled == true"
+              - name: "motor_z"
+                type: "select"
+                source: "motor_presets"
+                condition: "enabled == true"
+              - name: "motor_extruder"
+                type: "select"
+                source: "motor_presets"
+                condition: "enabled == true"
+              - name: "voltage"
+                type: "choice"
+                options: [24, 48]
+                default: 24
+                condition: "enabled == true"
+              - name: "tuning_goal"
+                type: "choice"
+                options: ["auto", "silent", "performance", "autoswitch"]
+                default: "auto"
+                condition: "enabled == true"
         
+      # 3.2 Input Shaper
       - id: "3.2"
         name: "Input Shaper"
         klipper_section: "[input_shaper]"
-        
+        description: "Resonance compensation"
+        sections:
+          - id: "3.2.1"
+            name: "Shaper Configuration"
+            parameters:
+              - name: "enabled"
+                type: "bool"
+                default: true
+              - name: "shaper_type_x"
+                type: "choice"
+                options: ["mzv", "ei", "2hump_ei", "3hump_ei", "zv", "zvd"]
+                default: "mzv"
+                description: "Run SHAPER_CALIBRATE to find optimal"
+              - name: "shaper_freq_x"
+                type: "float"
+                default: 0
+                description: "Set to 0, calibrate with accelerometer"
+              - name: "shaper_type_y"
+                type: "choice"
+                options: ["mzv", "ei", "2hump_ei", "3hump_ei", "zv", "zvd"]
+                default: "mzv"
+              - name: "shaper_freq_y"
+                type: "float"
+                default: 0
+              - name: "damping_ratio_x"
+                type: "float"
+                default: 0.1
+              - name: "damping_ratio_y"
+                type: "float"
+                default: 0.1
+                
+          - id: "3.2.2"
+            name: "ADXL345 Accelerometer"
+            klipper_section: "[adxl345]"
+            parameters:
+              - name: "enabled"
+                type: "bool"
+                default: false
+              - name: "location"
+                type: "choice"
+                options: ["rpi", "toolboard", "mainboard"]
+                default: "rpi"
+                condition: "enabled == true"
+              - name: "cs_pin_rpi"
+                type: "text"
+                default: "rpi:None"
+                condition: "location == 'rpi'"
+              - name: "cs_pin_toolboard"
+                type: "select"
+                source: "toolboard.spi_ports"
+                condition: "location == 'toolboard'"
+              - name: "spi_bus"
+                type: "text"
+                condition: "enabled == true"
+              - name: "axes_map"
+                type: "text"
+                default: "x,y,z"
+                description: "Axis mapping (may need adjustment)"
+                
+          - id: "3.2.3"
+            name: "Resonance Tester"
+            klipper_section: "[resonance_tester]"
+            condition: "3.2.2.enabled == true"
+            parameters:
+              - name: "accel_chip"
+                type: "text"
+                default: "adxl345"
+              - name: "probe_points"
+                type: "text"
+                default: "bed_center"
+                description: "X,Y,Z point for testing (default: bed center)"
+              - name: "accel_per_hz"
+                type: "int"
+                default: 75
+              - name: "hz_per_sec"
+                type: "int"
+                default: 1
+                
+      # 3.3 Pressure Advance
+      - id: "3.3"
+        name: "Pressure Advance"
+        description: "Configured per-extruder in section 2.6"
+        parameters:
+          - name: "pressure_advance"
+            type: "float"
+            default: 0
+            description: "Set based on extruder type, tune with PA test"
+          - name: "smooth_time"
+            type: "float"
+            default: 0.040
+            range: [0.01, 0.2]
+            
+      # 3.4 Idle Timeout
+      - id: "3.4"
+        name: "Idle Timeout"
+        klipper_section: "[idle_timeout]"
+        parameters:
+          - name: "timeout"
+            type: "int"
+            default: 600
+            description: "Seconds before heaters turn off"
+          - name: "gcode"
+            type: "text"
+            default: "TURN_OFF_HEATERS"
+            
+      # 3.5 Virtual SD Card
+      - id: "3.5"
+        name: "Virtual SD Card"
+        klipper_section: "[virtual_sdcard]"
+        parameters:
+          - name: "path"
+            type: "text"
+            default: "~/printer_data/gcodes"
+          - name: "on_error_gcode"
+            type: "text"
+            default: "CANCEL_PRINT"
+            
+      # 3.6 Macros
       - id: "3.6"
         name: "Macros"
         generates:
           - "macros.cfg"
           - "macros-helpers.cfg"
-          
+        sections:
+          - id: "3.6.1"
+            name: "START_PRINT Macro"
+            parameters:
+              - name: "preheat_extruder_temp"
+                type: "int"
+                default: 150
+                description: "Pre-heat temp while homing/leveling"
+              - name: "home_before_print"
+                type: "bool"
+                default: true
+              - name: "z_tilt_before_print"
+                type: "bool"
+                default: true
+                condition: "2.11.1.leveling_type in ['z_tilt', 'qgl']"
+              - name: "bed_mesh_before_print"
+                type: "bool"
+                default: true
+              - name: "purge_line"
+                type: "bool"
+                default: true
+              - name: "purge_line_length"
+                type: "int"
+                default: 50
+                condition: "purge_line == true"
+                
+          - id: "3.6.2"
+            name: "END_PRINT Macro"
+            parameters:
+              - name: "retract_length"
+                type: "float"
+                default: 10
+              - name: "park_x"
+                type: "int"
+                default: 10
+              - name: "park_y"
+                type: "int"
+                default: 350
+              - name: "park_z_hop"
+                type: "int"
+                default: 20
+              - name: "disable_motors"
+                type: "bool"
+                default: true
+              - name: "turn_off_heaters"
+                type: "bool"
+                default: true
+              - name: "turn_off_fans"
+                type: "bool"
+                default: true
+                
+          - id: "3.6.3"
+            name: "PAUSE/RESUME Macros"
+            parameters:
+              - name: "pause_park_x"
+                type: "int"
+                default: 10
+              - name: "pause_park_y"
+                type: "int"
+                default: 10
+              - name: "pause_z_hop"
+                type: "int"
+                default: 10
+              - name: "resume_prime"
+                type: "float"
+                default: 1.0
+                description: "Extrusion length when resuming"
+                
+          - id: "3.6.4"
+            name: "Slicer G-code"
+            description: "Generate slicer start/end code snippets"
+            parameters:
+              - name: "slicer"
+                type: "choice"
+                options:
+                  - value: "orcaslicer"
+                    label: "OrcaSlicer / BambuStudio"
+                  - value: "prusaslicer"
+                    label: "PrusaSlicer / SuperSlicer"
+                  - value: "cura"
+                    label: "Cura"
+                  - value: "simplify3d"
+                    label: "Simplify3D"
+              - name: "generate_snippets"
+                type: "bool"
+                default: true
+                description: "Show slicer code to copy after generation"
+                
+      # 3.7 Save Variables
+      - id: "3.7"
+        name: "Save Variables"
+        klipper_section: "[save_variables]"
+        parameters:
+          - name: "enabled"
+            type: "bool"
+            default: true
+          - name: "filename"
+            type: "text"
+            default: "~/printer_data/config/variables.cfg"
+            
+      # 3.8 Respond
+      - id: "3.8"
+        name: "Console Messages"
+        klipper_section: "[respond]"
+        parameters:
+          - name: "enabled"
+            type: "bool"
+            default: true
+          - name: "default_type"
+            type: "choice"
+            options: ["echo", "command", "error"]
+            default: "echo"
+          - name: "default_prefix"
+            type: "text"
+            default: "echo: "
+            
+      # 3.9 Exclude Object
       - id: "3.9"
         name: "Exclude Object"
         klipper_section: "[exclude_object]"
-        default_enabled: true
-        
+        description: "Cancel individual objects during print"
+        parameters:
+          - name: "enabled"
+            type: "bool"
+            default: true
+            description: "Requires slicer support (label objects)"
+            
+      # 3.10 Arc Support
       - id: "3.10"
         name: "Arc Support"
         klipper_section: "[gcode_arcs]"
-        default_enabled: true
+        description: "G2/G3 arc commands"
+        parameters:
+          - name: "enabled"
+            type: "bool"
+            default: true
+          - name: "resolution"
+            type: "float"
+            default: 0.1
+            description: "Arc segment length in mm"
+            
+      # 3.11 Pause Resume
+      - id: "3.11"
+        name: "Pause Resume"
+        klipper_section: "[pause_resume]"
+        parameters:
+          - name: "recover_velocity"
+            type: "int"
+            default: 50
+            description: "Velocity when returning to print position"
+            
+      # 3.12 KAMP (Adaptive Meshing)
+      - id: "3.12"
+        name: "KAMP - Adaptive Meshing"
+        plugin_required: "Klipper-Adaptive-Meshing-Purging"
+        description: "Mesh only the print area"
+        parameters:
+          - name: "enabled"
+            type: "bool"
+            default: false
+          - name: "mesh_margin"
+            type: "int"
+            default: 5
+            condition: "enabled == true"
+          - name: "fuzz_amount"
+            type: "int"
+            default: 0
+            condition: "enabled == true"
+          - name: "adaptive_purge"
+            type: "bool"
+            default: true
+            condition: "enabled == true"
 
 # Motor presets for current selection
 motor_presets:
