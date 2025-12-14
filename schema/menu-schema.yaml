@@ -483,13 +483,20 @@ categories:
               - name: "position_max"
                 type: "int"
                 default: "bed_size_z"
+                required: true
               - name: "homing_speed"
                 type: "int"
                 default: 10
               - name: "homing_retract_dist"
                 type: "float"
                 default: 0
-                description: "0 for probe, 5 for physical"
+                condition: "endstop_type == 'probe'"
+                description: "0 for probe-based homing"
+              - name: "homing_retract_dist"
+                type: "float"
+                default: 5
+                condition: "endstop_type in ['physical_mainboard', 'physical_toolboard']"
+                description: "5 for physical endstop"
                 
           - id: "2.5.3"
             name: "TMC Driver Z"
@@ -618,6 +625,7 @@ categories:
               - name: "heater_location"
                 type: "choice"
                 options: ["mainboard", "toolboard"]
+                required: true  # No default - user must choose (DIY Flexibility Principle)
               - name: "heater_port_mainboard"
                 type: "select"
                 source: "board.heater_ports"
@@ -633,6 +641,7 @@ categories:
               - name: "sensor_location"
                 type: "choice"
                 options: ["mainboard", "toolboard"]
+                required: true  # No default - user must choose (DIY Flexibility Principle)
               - name: "sensor_type"
                 type: "choice"
                 options:
