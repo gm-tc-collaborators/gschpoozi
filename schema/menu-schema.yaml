@@ -1267,13 +1267,431 @@ categories:
                 type: "float"
                 default: 0
 
-      # TODO: Sections 2.12-2.16 - See docs/diagrams/wizard-menu-structure.md for full spec
-      # 2.12 Temperature Sensors → [temperature_sensor]
-      # 2.13 LEDs             → [neopixel], [led], [output_pin]
-      # 2.14 Filament Sensors → [filament_switch_sensor], [filament_motion_sensor]
-      # 2.15 Display          → [display]
-      # 2.16 Advanced         → [servo], [gcode_button], [output_pin], [force_move]
-      # Implementation: Add these sections as wizard features are developed
+      # 2.12 Temperature Sensors
+      - id: "2.12"
+        name: "Temperature Sensors"
+        sections:
+          - id: "2.12.1"
+            name: "MCU Temperature"
+            klipper_section: "[temperature_sensor mcu_temp]"
+            required: false
+            parameters:
+              - name: "enabled"
+                type: "bool"
+                default: true
+              - name: "sensor_type"
+                type: "text"
+                default: "temperature_mcu"
+                readonly: true
+              - name: "sensor_mcu"
+                type: "choice"
+                options: ["mcu", "toolboard", "rpi"]
+                default: "mcu"
+                
+          - id: "2.12.2"
+            name: "Chamber Temperature"
+            klipper_section: "[temperature_sensor chamber]"
+            required: false
+            parameters:
+              - name: "enabled"
+                type: "bool"
+                default: false
+              - name: "sensor_type"
+                type: "choice"
+                options:
+                  - "Generic 3950"
+                  - "NTC 100K beta 3950"
+                  - "ATC Semitec 104GT-2"
+                  - "DS18B20"
+                condition: "enabled == true"
+              - name: "sensor_location"
+                type: "choice"
+                options: ["mainboard", "rpi"]
+                condition: "enabled == true"
+              - name: "sensor_pin_mainboard"
+                type: "select"
+                source: "board.thermistor_ports"
+                condition: "sensor_location == 'mainboard'"
+              - name: "sensor_pin_rpi"
+                type: "text"
+                default: "gpio4"
+                condition: "sensor_location == 'rpi' and sensor_type == 'DS18B20'"
+                
+          - id: "2.12.3"
+            name: "Additional Sensors"
+            type: "list"
+            klipper_section: "[temperature_sensor {name}]"
+            required: false
+            parameters:
+              - name: "name"
+                type: "text"
+                required: true
+              - name: "sensor_type"
+                type: "choice"
+                options:
+                  - "temperature_mcu"
+                  - "Generic 3950"
+                  - "NTC 100K beta 3950"
+                  - "PT1000"
+                  - "DS18B20"
+                  - "BME280"
+                  - "AHT10"
+              - name: "sensor_pin"
+                type: "text"
+                condition: "sensor_type not in ['temperature_mcu', 'BME280', 'AHT10']"
+              - name: "i2c_address"
+                type: "text"
+                condition: "sensor_type in ['BME280', 'AHT10']"
+
+      # 2.13 LEDs
+      - id: "2.13"
+        name: "LEDs"
+        sections:
+          - id: "2.13.1"
+            name: "Toolhead LEDs"
+            klipper_section: "[neopixel toolhead_leds]"
+            required: false
+            parameters:
+              - name: "enabled"
+                type: "bool"
+                default: false
+              - name: "location"
+                type: "choice"
+                options: ["mainboard", "toolboard", "rpi"]
+                condition: "enabled == true"
+              - name: "pin_mainboard"
+                type: "select"
+                source: "board.gpio_ports"
+                condition: "location == 'mainboard'"
+              - name: "pin_toolboard"
+                type: "select"
+                source: "toolboard.gpio_ports"
+                condition: "location == 'toolboard'"
+              - name: "pin_rpi"
+                type: "text"
+                default: "gpio18"
+                condition: "location == 'rpi'"
+              - name: "chain_count"
+                type: "int"
+                default: 3
+                condition: "enabled == true"
+              - name: "color_order"
+                type: "choice"
+                options: ["GRB", "RGB", "GRBW", "RGBW"]
+                default: "GRB"
+              - name: "initial_RED"
+                type: "float"
+                default: 0.0
+              - name: "initial_GREEN"
+                type: "float"
+                default: 0.0
+              - name: "initial_BLUE"
+                type: "float"
+                default: 0.0
+              - name: "initial_WHITE"
+                type: "float"
+                default: 0.0
+                condition: "color_order in ['GRBW', 'RGBW']"
+                
+          - id: "2.13.2"
+            name: "Case Light"
+            required: false
+            parameters:
+              - name: "enabled"
+                type: "bool"
+                default: false
+              - name: "type"
+                type: "choice"
+                options:
+                  - value: "neopixel"
+                    label: "Neopixel/WS2812"
+                    klipper_section: "[neopixel case_light]"
+                  - value: "pwm"
+                    label: "PWM LED strip"
+                    klipper_section: "[output_pin case_light]"
+                  - value: "onoff"
+                    label: "On/Off LED"
+                    klipper_section: "[output_pin case_light]"
+                condition: "enabled == true"
+              - name: "pin"
+                type: "select"
+                source: "board.gpio_ports"
+                condition: "enabled == true"
+              - name: "chain_count"
+                type: "int"
+                default: 10
+                condition: "type == 'neopixel'"
+              - name: "color_order"
+                type: "choice"
+                options: ["GRB", "RGB", "GRBW", "RGBW"]
+                default: "GRB"
+                condition: "type == 'neopixel'"
+                
+          - id: "2.13.3"
+            name: "LED Effects Plugin"
+            plugin_required: "led_effect"
+            required: false
+            parameters:
+              - name: "enabled"
+                type: "bool"
+                default: false
+                description: "Enable LED_Effect plugin for animations"
+
+      # 2.14 Filament Sensors
+      - id: "2.14"
+        name: "Filament Sensors"
+        sections:
+          - id: "2.14.1"
+            name: "Runout Sensor"
+            klipper_section: "[filament_switch_sensor runout_sensor]"
+            required: false
+            parameters:
+              - name: "enabled"
+                type: "bool"
+                default: false
+              - name: "location"
+                type: "choice"
+                options: ["mainboard", "toolboard"]
+                condition: "enabled == true"
+              - name: "switch_pin_mainboard"
+                type: "select"
+                source: "board.endstop_ports"
+                condition: "location == 'mainboard'"
+              - name: "switch_pin_toolboard"
+                type: "select"
+                source: "toolboard.endstop_ports"
+                condition: "location == 'toolboard'"
+              - name: "pin_config"
+                type: "choice"
+                options: ["nc_gnd", "no_gnd", "nc_vcc", "no_vcc"]
+                labels: ["NC to GND (^pin)", "NO to GND (^!pin)", "NC to VCC (!pin)", "NO to VCC (pin)"]
+                default: "nc_gnd"
+                condition: "enabled == true"
+              - name: "pause_on_runout"
+                type: "bool"
+                default: true
+              - name: "runout_gcode"
+                type: "text"
+                default: "M600"
+              - name: "insert_gcode"
+                type: "text"
+                default: ""
+                
+          - id: "2.14.2"
+            name: "Motion Sensor"
+            klipper_section: "[filament_motion_sensor motion_sensor]"
+            required: false
+            description: "Detects filament movement (BTT SFS, etc.)"
+            parameters:
+              - name: "enabled"
+                type: "bool"
+                default: false
+              - name: "location"
+                type: "choice"
+                options: ["mainboard", "toolboard"]
+                condition: "enabled == true"
+              - name: "switch_pin_mainboard"
+                type: "select"
+                source: "board.endstop_ports"
+                condition: "location == 'mainboard'"
+              - name: "switch_pin_toolboard"
+                type: "select"
+                source: "toolboard.endstop_ports"
+                condition: "location == 'toolboard'"
+              - name: "detection_length"
+                type: "float"
+                default: 7.0
+                description: "mm of filament movement before trigger"
+              - name: "extruder"
+                type: "text"
+                default: "extruder"
+              - name: "pause_on_runout"
+                type: "bool"
+                default: true
+
+      # 2.15 Display
+      - id: "2.15"
+        name: "Display"
+        sections:
+          - id: "2.15.1"
+            name: "Display Type"
+            klipper_section: "[display]"
+            required: false
+            parameters:
+              - name: "enabled"
+                type: "bool"
+                default: false
+              - name: "lcd_type"
+                type: "choice"
+                options:
+                  - value: "none"
+                    label: "No display"
+                  - value: "uc1701"
+                    label: "UC1701 (Mini12864)"
+                  - value: "st7920"
+                    label: "ST7920 (RepRapDiscount)"
+                  - value: "hd44780"
+                    label: "HD44780 (20x4 LCD)"
+                  - value: "ssd1306"
+                    label: "SSD1306 OLED"
+                  - value: "sh1106"
+                    label: "SH1106 OLED"
+                condition: "enabled == true"
+                
+          - id: "2.15.2"
+            name: "Display Pins"
+            condition: "2.15.1.lcd_type != 'none' and 2.15.1.enabled == true"
+            parameters:
+              - name: "cs_pin"
+                type: "text"
+                description: "SPI chip select"
+              - name: "a0_pin"
+                type: "text"
+                description: "Data/Command pin"
+              - name: "rst_pin"
+                type: "text"
+                description: "Reset pin (optional)"
+              - name: "encoder_pins"
+                type: "text"
+                description: "Encoder A, B pins (e.g., ^PA1, ^PA2)"
+              - name: "click_pin"
+                type: "text"
+                description: "Encoder click pin"
+              - name: "contrast"
+                type: "int"
+                default: 63
+                range: [0, 63]
+                
+          - id: "2.15.3"
+            name: "Display Menu"
+            condition: "2.15.1.enabled == true"
+            parameters:
+              - name: "menu_timeout"
+                type: "int"
+                default: 40
+              - name: "menu_root"
+                type: "text"
+                default: "__main"
+
+      # 2.16 Advanced Hardware
+      - id: "2.16"
+        name: "Advanced Hardware"
+        sections:
+          - id: "2.16.1"
+            name: "Servo"
+            klipper_section: "[servo {name}]"
+            type: "list"
+            required: false
+            description: "For Klicky dock, filament cutter, etc."
+            parameters:
+              - name: "name"
+                type: "text"
+                required: true
+              - name: "pin"
+                type: "select"
+                source: "board.pwm_ports"
+              - name: "initial_angle"
+                type: "int"
+                default: 0
+                range: [0, 180]
+              - name: "maximum_servo_angle"
+                type: "int"
+                default: 180
+              - name: "minimum_pulse_width"
+                type: "float"
+                default: 0.001
+              - name: "maximum_pulse_width"
+                type: "float"
+                default: 0.002
+                
+          - id: "2.16.2"
+            name: "G-Code Buttons"
+            klipper_section: "[gcode_button {name}]"
+            type: "list"
+            required: false
+            parameters:
+              - name: "name"
+                type: "text"
+                required: true
+              - name: "pin"
+                type: "text"
+                required: true
+              - name: "pin_config"
+                type: "choice"
+                options: ["nc_gnd", "no_gnd"]
+                default: "nc_gnd"
+              - name: "press_gcode"
+                type: "text"
+              - name: "release_gcode"
+                type: "text"
+                
+          - id: "2.16.3"
+            name: "Output Pins"
+            klipper_section: "[output_pin {name}]"
+            type: "list"
+            required: false
+            description: "Generic GPIO outputs"
+            parameters:
+              - name: "name"
+                type: "text"
+                required: true
+              - name: "pin"
+                type: "select"
+                source: "board.gpio_ports"
+              - name: "pwm"
+                type: "bool"
+                default: false
+              - name: "value"
+                type: "float"
+                default: 0
+              - name: "shutdown_value"
+                type: "float"
+                default: 0
+              - name: "cycle_time"
+                type: "float"
+                default: 0.01
+                condition: "pwm == true"
+                
+          - id: "2.16.4"
+            name: "Force Move"
+            klipper_section: "[force_move]"
+            required: false
+            parameters:
+              - name: "enable_force_move"
+                type: "bool"
+                default: true
+                description: "Allows SET_KINEMATIC_POSITION for recovery"
+                
+          - id: "2.16.5"
+            name: "Firmware Retraction"
+            klipper_section: "[firmware_retraction]"
+            required: false
+            parameters:
+              - name: "enabled"
+                type: "bool"
+                default: false
+              - name: "retract_length"
+                type: "float"
+                default: 0.5
+              - name: "retract_speed"
+                type: "int"
+                default: 35
+              - name: "unretract_extra_length"
+                type: "float"
+                default: 0
+              - name: "unretract_speed"
+                type: "int"
+                default: 35
+                
+          - id: "2.16.6"
+            name: "Skew Correction"
+            klipper_section: "[skew_correction]"
+            required: false
+            parameters:
+              - name: "enabled"
+                type: "bool"
+                default: false
+                description: "Enable after calibrating with SKEW_PROFILE"
 
   - id: "3"
     name: "Tuning & Optimization"
