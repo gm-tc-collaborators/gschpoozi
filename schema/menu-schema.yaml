@@ -524,7 +524,7 @@ categories:
               - name: "location"
                 type: "choice"
                 options: ["mainboard", "toolboard"]
-                default: "toolboard"
+                required: true  # No default - user must choose (DIY Flexibility Principle)
               - name: "motor_port_mainboard"
                 type: "select"
                 source: "board.motor_ports"
