@@ -687,12 +687,587 @@ categories:
                 type: "float"
                 default: 1.0
 
-      # TODO: Sections 2.7-2.16 - See docs/diagrams/wizard-menu-structure.md for full spec
-      # 2.7  Heated Bed       → [heater_bed], [verify_heater]
-      # 2.8  Fans             → [fan], [heater_fan], [controller_fan], [fan_generic]
-      # 2.9  Probe            → [probe], [bltouch], [beacon], etc.
-      # 2.10 Homing           → [safe_z_home], [homing_override]
-      # 2.11 Bed Leveling     → [bed_mesh], [z_tilt], [quad_gantry_level]
+      # 2.7 Heated Bed
+      - id: "2.7"
+        name: "Heated Bed"
+        sections:
+          - id: "2.7.1"
+            name: "Heater Configuration"
+            klipper_section: "[heater_bed]"
+            required: true
+            parameters:
+              - name: "heater_pin"
+                type: "select"
+                source: "board.heater_ports"
+                required: true
+                description: "PWM output for SSR/MOSFET"
+              - name: "max_power"
+                type: "float"
+                default: 1.0
+                range: [0.1, 1.0]
+                description: "Reduce for cheap SSRs that can't handle full PWM"
+              - name: "pwm_cycle_time"
+                type: "float"
+                default: 0.0166
+                description: "Usually doesn't need changes (60Hz default)"
+                
+          - id: "2.7.2"
+            name: "Thermistor"
+            required: true
+            parameters:
+              - name: "sensor_type"
+                type: "choice"
+                options:
+                  - "Generic 3950"
+                  - "NTC 100K beta 3950"
+                  - "PT1000"
+                  - "ATC Semitec 104GT-2"
+                  - "EPCOS 100K B57560G104F"
+                  - "Honeywell 100K 135-104LAG-J01"
+                required: true
+              - name: "sensor_port"
+                type: "select"
+                source: "board.thermistor_ports"
+                required: true
+              - name: "pullup_resistor"
+                type: "choice_custom"
+                options: [4700, 2200, 10000]
+                allow_custom: true
+                description: "Standard values, or custom for offset correction"
+                
+          - id: "2.7.3"
+            name: "Temperature Settings"
+            required: true
+            parameters:
+              - name: "min_temp"
+                type: "int"
+                default: 0
+              - name: "max_temp"
+                type: "int"
+                default: 120
+                description: "Typical max for heated beds"
+              - name: "control"
+                type: "choice"
+                options: ["pid", "watermark"]
+                default: "pid"
+                
+          - id: "2.7.4"
+            name: "PID Values"
+            description: "Set to 0 initially - run PID_CALIBRATE HEATER=heater_bed TARGET=60"
+            parameters:
+              - name: "pid_Kp"
+                type: "float"
+                default: 0
+              - name: "pid_Ki"
+                type: "float"
+                default: 0
+              - name: "pid_Kd"
+                type: "float"
+                default: 0
+                
+          - id: "2.7.5"
+            name: "Bed Surface"
+            type: "informational"
+            description: "Used for macro hints and slicer recommendations"
+            parameters:
+              - name: "surface_type"
+                type: "choice"
+                options:
+                  - value: "pei_textured"
+                    label: "PEI Textured"
+                  - value: "pei_smooth"
+                    label: "PEI Smooth"
+                  - value: "glass"
+                    label: "Glass"
+                  - value: "fr4"
+                    label: "FR4/G10"
+                  - value: "garolite"
+                    label: "Garolite"
+                  - value: "buildtak"
+                    label: "BuildTak"
+                  - value: "other"
+                    label: "Other"
+
+      # 2.8 Fans
+      - id: "2.8"
+        name: "Fans"
+        sections:
+          - id: "2.8.1"
+            name: "Part Cooling Fan"
+            klipper_section: "[fan]"
+            required: true
+            parameters:
+              - name: "location"
+                type: "choice"
+                options: ["mainboard", "toolboard"]
+                required: true
+              - name: "pin_mainboard"
+                type: "select"
+                source: "board.fan_ports"
+                condition: "location == 'mainboard'"
+              - name: "pin_toolboard"
+                type: "select"
+                source: "toolboard.fan_ports"
+                condition: "location == 'toolboard'"
+              - name: "max_power"
+                type: "float"
+                default: 1.0
+                range: [0.1, 1.0]
+              - name: "kick_start_time"
+                type: "float"
+                default: 0.5
+              - name: "off_below"
+                type: "float"
+                default: 0.1
+                description: "Minimum PWM for fan to spin"
+              - name: "cycle_time"
+                type: "float"
+                default: 0.010
+                
+          - id: "2.8.2"
+            name: "Hotend Fan"
+            klipper_section: "[heater_fan hotend_fan]"
+            required: true
+            description: "Always-on when hotend is hot"
+            parameters:
+              - name: "location"
+                type: "choice"
+                options: ["mainboard", "toolboard"]
+                required: true
+              - name: "pin_mainboard"
+                type: "select"
+                source: "board.fan_ports"
+                condition: "location == 'mainboard'"
+              - name: "pin_toolboard"
+                type: "select"
+                source: "toolboard.fan_ports"
+                condition: "location == 'toolboard'"
+              - name: "heater"
+                type: "text"
+                default: "extruder"
+              - name: "heater_temp"
+                type: "int"
+                default: 50
+                description: "Temperature to turn on fan"
+              - name: "fan_speed"
+                type: "float"
+                default: 1.0
+                range: [0.1, 1.0]
+                
+          - id: "2.8.3"
+            name: "Controller Fan"
+            klipper_section: "[controller_fan controller_fan]"
+            required: false
+            description: "Electronics cooling"
+            parameters:
+              - name: "enabled"
+                type: "bool"
+                default: true
+              - name: "pin"
+                type: "select"
+                source: "board.fan_ports"
+                condition: "enabled == true"
+              - name: "kick_start_time"
+                type: "float"
+                default: 0.5
+              - name: "stepper"
+                type: "text"
+                default: "stepper_x"
+                description: "Stepper to monitor for activity"
+              - name: "idle_timeout"
+                type: "int"
+                default: 60
+              - name: "idle_speed"
+                type: "float"
+                default: 0.5
+                description: "Speed when idle but not off"
+                
+          - id: "2.8.4"
+            name: "Exhaust Fan"
+            klipper_section: "[fan_generic exhaust_fan]"
+            required: false
+            description: "Chamber exhaust / nevermore"
+            parameters:
+              - name: "enabled"
+                type: "bool"
+                default: false
+              - name: "pin"
+                type: "select"
+                source: "board.fan_ports"
+                condition: "enabled == true"
+              - name: "max_power"
+                type: "float"
+                default: 1.0
+                
+          - id: "2.8.5"
+            name: "Additional Fans"
+            type: "list"
+            klipper_section: "[fan_generic {name}]"
+            required: false
+            parameters:
+              - name: "name"
+                type: "text"
+                required: true
+              - name: "pin"
+                type: "select"
+                source: "board.fan_ports"
+              - name: "max_power"
+                type: "float"
+                default: 1.0
+
+      # 2.9 Probe
+      - id: "2.9"
+        name: "Probe"
+        sections:
+          - id: "2.9.1"
+            name: "Probe Type"
+            required: true
+            parameters:
+              - name: "probe_type"
+                type: "choice"
+                options:
+                  - value: "none"
+                    label: "No Probe"
+                  - value: "bltouch"
+                    label: "BLTouch / 3DTouch"
+                    klipper_section: "[bltouch]"
+                  - value: "inductive"
+                    label: "Inductive Probe (PINDA, SuperPINDA)"
+                    klipper_section: "[probe]"
+                  - value: "klicky"
+                    label: "Klicky / Euclid (dockable)"
+                    klipper_section: "[probe]"
+                  - value: "tap"
+                    label: "Voron Tap"
+                    klipper_section: "[probe]"
+                  - value: "beacon"
+                    label: "Beacon (eddy current)"
+                    plugin_required: "beacon"
+                  - value: "cartographer"
+                    label: "Cartographer (eddy current)"
+                    plugin_required: "cartographer"
+                  - value: "btt_eddy"
+                    label: "BTT Eddy"
+                    klipper_section: "[probe_eddy_current]"
+                required: true
+                
+          - id: "2.9.2"
+            name: "Probe Connection"
+            condition: "2.9.1.probe_type not in ['none', 'beacon', 'cartographer']"
+            parameters:
+              - name: "location"
+                type: "choice"
+                options: ["mainboard", "toolboard"]
+                required: true
+              - name: "probe_pin_mainboard"
+                type: "select"
+                source: "board.probe_ports"
+                condition: "location == 'mainboard'"
+              - name: "probe_pin_toolboard"
+                type: "select"
+                source: "toolboard.probe_ports"
+                condition: "location == 'toolboard'"
+              - name: "pin_config"
+                type: "choice"
+                options: ["nc_gnd", "no_gnd", "nc_vcc", "no_vcc"]
+                labels: ["NC to GND (^pin)", "NO to GND (^!pin)", "NC to VCC (!pin)", "NO to VCC (pin)"]
+                default: "nc_gnd"
+                
+          - id: "2.9.3"
+            name: "BLTouch Settings"
+            klipper_section: "[bltouch]"
+            condition: "2.9.1.probe_type == 'bltouch'"
+            parameters:
+              - name: "sensor_pin"
+                type: "text"
+                description: "Probe signal pin"
+              - name: "control_pin"
+                type: "text"
+                description: "Servo control pin"
+              - name: "x_offset"
+                type: "float"
+                default: 0
+                required: true
+              - name: "y_offset"
+                type: "float"
+                default: 0
+                required: true
+              - name: "speed"
+                type: "float"
+                default: 5.0
+              - name: "samples"
+                type: "int"
+                default: 3
+              - name: "sample_retract_dist"
+                type: "float"
+                default: 3.0
+                
+          - id: "2.9.4"
+            name: "Standard Probe Settings"
+            klipper_section: "[probe]"
+            condition: "2.9.1.probe_type in ['inductive', 'klicky', 'tap']"
+            parameters:
+              - name: "x_offset"
+                type: "float"
+                default: 0
+                required: true
+              - name: "y_offset"
+                type: "float"
+                default: 0
+                required: true
+              - name: "z_offset"
+                type: "float"
+                default: 0
+                description: "Set to 0, calibrate with PROBE_CALIBRATE"
+              - name: "speed"
+                type: "float"
+                default: 5.0
+              - name: "samples"
+                type: "int"
+                default: 3
+              - name: "sample_retract_dist"
+                type: "float"
+                default: 2.0
+                condition: "2.9.1.probe_type != 'tap'"
+              - name: "sample_retract_dist"
+                type: "float"
+                default: 0
+                condition: "2.9.1.probe_type == 'tap'"
+              - name: "samples_result"
+                type: "choice"
+                options: ["median", "average"]
+                default: "median"
+              - name: "samples_tolerance"
+                type: "float"
+                default: 0.006
+              - name: "samples_tolerance_retries"
+                type: "int"
+                default: 3
+                
+          - id: "2.9.5"
+            name: "Beacon Settings"
+            condition: "2.9.1.probe_type == 'beacon'"
+            plugin_required: "beacon"
+            parameters:
+              - name: "serial"
+                type: "text"
+                auto_detect: true
+                description: "/dev/serial/by-id/usb-Beacon_..."
+              - name: "x_offset"
+                type: "float"
+                default: 0
+              - name: "y_offset"
+                type: "float"
+                default: 0
+              - name: "mesh_main_direction"
+                type: "choice"
+                options: ["x", "y"]
+                default: "x"
+              - name: "mesh_runs"
+                type: "int"
+                default: 2
+              - name: "contact_max_hotend_temperature"
+                type: "int"
+                default: 180
+                description: "Max temp for contact probing"
+                
+          - id: "2.9.6"
+            name: "Cartographer Settings"
+            condition: "2.9.1.probe_type == 'cartographer'"
+            plugin_required: "cartographer"
+            parameters:
+              - name: "serial"
+                type: "text"
+                auto_detect: true
+              - name: "x_offset"
+                type: "float"
+                default: 0
+              - name: "y_offset"
+                type: "float"
+                default: 0
+              - name: "backlash_comp"
+                type: "float"
+                default: 0.5
+
+      # 2.10 Homing
+      - id: "2.10"
+        name: "Homing"
+        sections:
+          - id: "2.10.1"
+            name: "Homing Configuration"
+            parameters:
+              - name: "homing_method"
+                type: "choice"
+                options:
+                  - value: "safe_z_home"
+                    label: "Safe Z Home (standard)"
+                    condition: "2.9.1.probe_type not in ['beacon', 'cartographer']"
+                  - value: "homing_override"
+                    label: "Homing Override (sensorless, custom)"
+                  - value: "beacon_contact"
+                    label: "Beacon Contact"
+                    condition: "2.9.1.probe_type == 'beacon'"
+                  - value: "cartographer_touch"
+                    label: "Cartographer Touch"
+                    condition: "2.9.1.probe_type == 'cartographer'"
+                required: true
+                
+          - id: "2.10.2"
+            name: "Safe Z Home"
+            klipper_section: "[safe_z_home]"
+            condition: "2.10.1.homing_method == 'safe_z_home'"
+            parameters:
+              - name: "home_xy_position"
+                type: "text"
+                default: "bed_center"
+                description: "X,Y position for Z homing (default: bed center)"
+              - name: "speed"
+                type: "int"
+                default: 100
+              - name: "z_hop"
+                type: "int"
+                default: 10
+              - name: "z_hop_speed"
+                type: "int"
+                default: 15
+                
+          - id: "2.10.3"
+            name: "Sensorless Homing"
+            condition: "2.3.1.endstop_type == 'sensorless' or 2.4.1.endstop_type == 'sensorless'"
+            description: "TMC StallGuard configuration"
+            parameters:
+              - name: "sensorless_current_x"
+                type: "float"
+                description: "Run current during X homing (typically lower than normal)"
+              - name: "sensorless_current_y"
+                type: "float"
+                description: "Run current during Y homing"
+              - name: "homing_retract_x"
+                type: "int"
+                default: 10
+              - name: "homing_retract_y"
+                type: "int"
+                default: 10
+              - name: "use_sensorless_macros"
+                type: "bool"
+                default: true
+                description: "Generate _HOME_X, _HOME_Y macros"
+
+      # 2.11 Bed Leveling
+      - id: "2.11"
+        name: "Bed Leveling"
+        sections:
+          - id: "2.11.1"
+            name: "Leveling Type"
+            parameters:
+              - name: "leveling_type"
+                type: "choice"
+                options:
+                  - value: "none"
+                    label: "None (manual only)"
+                  - value: "z_tilt"
+                    label: "Z Tilt Adjust (2-3 motors)"
+                    condition: "2.5.1.z_motor_count >= 2 and 2.5.1.z_motor_count <= 3"
+                  - value: "qgl"
+                    label: "Quad Gantry Level (4 motors)"
+                    condition: "2.5.1.z_motor_count == 4"
+                  - value: "bed_tilt"
+                    label: "Bed Tilt (tilting bed)"
+                    condition: "2.5.1.z_motion_type == 'bed'"
+                required: true
+                
+          - id: "2.11.2"
+            name: "Z Tilt"
+            klipper_section: "[z_tilt]"
+            condition: "2.11.1.leveling_type == 'z_tilt'"
+            parameters:
+              - name: "z_positions"
+                type: "text"
+                description: "Motor positions (auto-generated from Z motor count)"
+              - name: "points"
+                type: "text"
+                description: "Probe points for each motor"
+              - name: "speed"
+                type: "int"
+                default: 200
+              - name: "horizontal_move_z"
+                type: "int"
+                default: 10
+              - name: "retries"
+                type: "int"
+                default: 5
+              - name: "retry_tolerance"
+                type: "float"
+                default: 0.0075
+                
+          - id: "2.11.3"
+            name: "Quad Gantry Level"
+            klipper_section: "[quad_gantry_level]"
+            condition: "2.11.1.leveling_type == 'qgl'"
+            parameters:
+              - name: "gantry_corners"
+                type: "text"
+                description: "Gantry corner positions"
+              - name: "points"
+                type: "text"
+                description: "Probe points (4 corners)"
+              - name: "speed"
+                type: "int"
+                default: 200
+              - name: "horizontal_move_z"
+                type: "int"
+                default: 10
+              - name: "retries"
+                type: "int"
+                default: 5
+              - name: "retry_tolerance"
+                type: "float"
+                default: 0.0075
+              - name: "max_adjust"
+                type: "int"
+                default: 10
+                
+          - id: "2.11.4"
+            name: "Bed Mesh"
+            klipper_section: "[bed_mesh]"
+            required: true
+            description: "Mesh boundaries even if not used - sets limits for when mesh is generated"
+            parameters:
+              - name: "enabled"
+                type: "bool"
+                default: true
+              - name: "speed"
+                type: "int"
+                default: 200
+              - name: "horizontal_move_z"
+                type: "int"
+                default: 5
+              - name: "mesh_min"
+                type: "text"
+                default: "auto"
+                description: "Auto-calculated from probe offset + margin"
+              - name: "mesh_max"
+                type: "text"
+                default: "auto"
+                description: "Auto-calculated from bed size - probe offset - margin"
+              - name: "probe_count"
+                type: "text"
+                default: "5,5"
+              - name: "algorithm"
+                type: "choice"
+                options: ["bicubic", "lagrange"]
+                default: "bicubic"
+              - name: "fade_start"
+                type: "float"
+                default: 0.6
+              - name: "fade_end"
+                type: "float"
+                default: 10.0
+              - name: "fade_target"
+                type: "float"
+                default: 0
+
+      # TODO: Sections 2.12-2.16 - See docs/diagrams/wizard-menu-structure.md for full spec
       # 2.12 Temperature Sensors → [temperature_sensor]
       # 2.13 LEDs             → [neopixel], [led], [output_pin]
       # 2.14 Filament Sensors → [filament_switch_sensor], [filament_motion_sensor]
