@@ -4,7 +4,14 @@ Complete specification for the gschpoozi configuration wizard.
 Each menu item maps directly to Klipper config sections with detailed parameters.
 
 **Version:** 2.0 (Refactor)  
-**Status:** Approved - Ready for Implementation
+**Status:** Specification Complete - Schema Implementation In Progress
+
+> **Note:** This document contains the complete specification. The YAML schema file 
+> (`schema/menu-schema.yaml`) is being implemented incrementally and currently covers:
+> - ✅ Category 1: Klipper Setup
+> - ✅ 2.1-2.6: MCU, Printer Settings, X/Y/Z Axes, Extruder
+> - ⏳ 2.7-2.16: Heated Bed through Advanced Hardware (schema pending)
+> - ⏳ Category 3: Tuning (partial schema)
 
 ---
 
