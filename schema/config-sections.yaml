@@ -660,15 +660,6 @@ common:
               BED_MESH_CALIBRATE
           {% endif %}
 
-  firmware_retraction:
-    condition: "advanced.firmware_retraction.enabled"
-    template: |
-      [firmware_retraction]
-      retract_length: {{ advanced.firmware_retraction.retract_length | default(0.5) }}
-      retract_speed: {{ advanced.firmware_retraction.retract_speed | default(35) }}
-      unretract_extra_length: {{ advanced.firmware_retraction.unretract_extra_length | default(0) }}
-      unretract_speed: {{ advanced.firmware_retraction.unretract_speed | default(35) }}
-
 # Multi-pin groups (for fans with multiple pins)
 multi_pin:
   condition: "advanced.multi_pins"

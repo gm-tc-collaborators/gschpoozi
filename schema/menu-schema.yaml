@@ -667,13 +667,7 @@ categories:
               - name: "homing_retract_dist"
                 type: "float"
                 default: 0
-                condition: "endstop_type == 'probe'"
-                description: "0 for probe-based homing"
-              - name: "homing_retract_dist"
-                type: "float"
-                default: 5
-                condition: "endstop_type in ['physical_mainboard', 'physical_toolboard']"
-                description: "5 for physical endstop"
+                description: "0 for probe homing, 5 for physical endstop - adjust based on endstop_type"
                 
           - id: "2.5.3"
             name: "TMC Driver Z"
@@ -1227,11 +1221,7 @@ categories:
               - name: "sample_retract_dist"
                 type: "float"
                 default: 2.0
-                condition: "2.9.1.probe_type != 'tap'"
-              - name: "sample_retract_dist"
-                type: "float"
-                default: 0
-                condition: "2.9.1.probe_type == 'tap'"
+                description: "0 for Tap probe, 2.0 for other probes - adjust based on probe_type"
               - name: "samples_result"
                 type: "choice"
                 options: ["median", "average"]
