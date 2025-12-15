@@ -108,8 +108,8 @@ class GschpooziWizard:
                     ("G", "Generate Config       (Create printer.cfg)"),
                     ("Q", "Quit"),
                 ],
-                height=18,
-                width=70,
+                height=24,
+                width=90,
             )
 
             if choice is None or choice == "Q":
@@ -299,7 +299,8 @@ class GschpooziWizard:
                 "Work through these sections to configure your hardware.",
                 menu_items,
                 title="2. Hardware Setup",
-                height=22,
+                height=30,
+                width=90,
             )
 
             if choice is None or choice == "B":
@@ -418,8 +419,9 @@ class GschpooziWizard:
             f"Select your main control board ({len(boards)-1} boards available):",
             [(b, d, b == current) for b, d in boards],
             title="Main Board Selection",
-            height=20,
-            list_height=12,
+            height=35,
+            width=90,
+            list_height=25,
         )
 
         if board is None:
