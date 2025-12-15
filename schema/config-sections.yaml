@@ -391,7 +391,7 @@ fan_generic:
     shutdown_speed: {{ fan.shutdown_speed | default(0) }}
     kick_start_time: {{ fan.kick_start_time | default(0.1) }}
     off_below: {{ fan.off_below | default(0.1) }}
-    
+
     {% endfor %}
 
 # -----------------------------------------------------------------------------
@@ -647,7 +647,7 @@ common:
       gcode:
           {% set cfg = printer["gcode_macro _MACRO_CONFIG"] %}
           {% set MODE = params.MODE|default("adaptive")|lower %}
-          
+
           {% if MODE == "none" %}
               M117 Skipping mesh
           {% elif MODE == "saved" %}
@@ -677,7 +677,7 @@ multi_pin:
     {% for pin_group in advanced.multi_pins %}
     [multi_pin {{ pin_group.name }}]
     pins: {{ pin_group.pins }}
-    
+
     {% endfor %}
 
 # -----------------------------------------------------------------------------
