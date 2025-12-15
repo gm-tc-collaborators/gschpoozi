@@ -113,7 +113,7 @@ class GschpooziWizard:
         """Get available ports from currently selected board.
 
         Args:
-            port_type: "heater_ports", "thermistor_ports", "fan_ports", 
+            port_type: "heater_ports", "thermistor_ports", "fan_ports",
                        "motor_ports", "endstop_ports"
             board_type: "boards" or "toolboards"
             default_port: Port ID to mark as default selection
@@ -159,22 +159,23 @@ class GschpooziWizard:
     def _copy_stepper_settings(self, from_axis: str, to_axis: str) -> None:
         """Copy common stepper settings from one axis to another.
 
-        Copies driver and mechanical settings that are typically identical
-        between X/Y axes in CoreXY printers.
+        Inheritance rules per schema:
+        - Y from X: Copies all driver and mechanical settings (CoreXY same motors)
+        - X1 from X: Only copies driver settings (templates use defaults for mechanical)
+        - Y1 from Y: Only copies driver settings (templates use defaults for mechanical)
 
         Args:
             from_axis: Source axis (e.g., "x", "y")
             to_axis: Target axis (e.g., "y", "x1", "y1")
         """
-        settings_to_copy = [
+        is_secondary = to_axis in ("x1", "y1")
+
+        # Driver settings (always copied)
+        driver_settings = [
             "driver_type",
             "driver_protocol",
             "run_current",
             "sense_resistor",
-            "belt_pitch",
-            "pulley_teeth",
-            "microsteps",
-            "full_steps_per_rotation",
             "interpolate",
             # TMC5160-specific settings
             "driver_tbl",
@@ -182,6 +183,22 @@ class GschpooziWizard:
             "driver_diss2g",
             "driver_diss2vs",
         ]
+
+        # Mechanical settings (only copied for primary axes like Y from X)
+        mechanical_settings = [
+            "belt_pitch",
+            "pulley_teeth",
+            "microsteps",
+            "full_steps_per_rotation",
+        ]
+
+        # For secondary axes (X1, Y1), templates handle mechanical inheritance via defaults
+        # So we only copy driver settings
+        if is_secondary:
+            settings_to_copy = driver_settings
+        else:
+            # For primary axes (Y from X), copy everything
+            settings_to_copy = driver_settings + mechanical_settings
 
         from_key = f"stepper_{from_axis}"
         to_key = f"stepper_{to_axis}"
@@ -815,7 +832,7 @@ class GschpooziWizard:
 
     def _stepper_axis(self, axis: str) -> None:
         """Configure X, Y, X1, or Y1 axis stepper with smart inheritance.
-        
+
         Inheritance logic:
         - X: Full configuration (reference axis)
         - Y: Can inherit from X (most CoreXY use same motors)
@@ -825,7 +842,7 @@ class GschpooziWizard:
         axis_upper = axis.upper()
         state_key = f"stepper_{axis}"
         is_secondary = axis in ("x1", "y1")
-        
+
         # Determine inheritance source
         # x1 inherits from x, y1 inherits from y, y can inherit from x
         if axis == "x1":
@@ -850,7 +867,7 @@ class GschpooziWizard:
                 source_current = self.state.get(f"stepper_{inherit_from}.run_current", 1.0)
                 source_belt = self.state.get(f"stepper_{inherit_from}.belt_pitch", 2)
                 source_pulley = self.state.get(f"stepper_{inherit_from}.pulley_teeth", 20)
-                
+
                 if is_secondary:
                     prompt = (
                         f"Use same motor/driver settings as {inherit_from.upper()}?\n\n"
@@ -874,7 +891,7 @@ class GschpooziWizard:
                         f"  • Direction pin\n"
                         f"  • Endstop settings"
                     )
-                
+
                 use_inherited = self.ui.yesno(prompt, title=f"Stepper {axis_upper} - Inheritance")
 
         # Motor port selection
@@ -907,7 +924,7 @@ class GschpooziWizard:
         # If inheriting, copy settings and only ask for axis-specific things
         if use_inherited:
             self._copy_stepper_settings(inherit_from, axis)
-            
+
             # For primary axes (Y), still need endstop config
             if not is_secondary:
                 endstop_type = self.ui.radiolist(
@@ -918,6 +935,41 @@ class GschpooziWizard:
                     ],
                     title=f"Stepper {axis_upper} - Endstop"
                 )
+                if endstop_type is None:
+                    return
+
+                # Physical endstop port and config
+                endstop_port = None
+                endstop_config = None
+                if endstop_type == "physical":
+                    endstop_ports = self._get_board_ports("endstop_ports", "boards")
+                    if endstop_ports:
+                        endstop_port = self.ui.radiolist(
+                            f"Select endstop port for {axis_upper} axis:",
+                            [(p, l, d) for p, l, d in endstop_ports],
+                            title=f"Stepper {axis_upper} - Endstop Port"
+                        )
+                    else:
+                        endstop_port = self.ui.inputbox(
+                            f"Enter endstop port for {axis_upper} axis:",
+                            default="",
+                            title=f"Stepper {axis_upper} - Endstop Port"
+                        )
+                    if endstop_port is None:
+                        return
+
+                    endstop_config = self.ui.radiolist(
+                        f"Endstop switch configuration for {axis_upper}:",
+                        [
+                            ("nc_gnd", "NC to GND (^pin) - recommended", True),
+                            ("no_gnd", "NO to GND (^!pin)", False),
+                            ("nc_vcc", "NC to VCC (!pin)", False),
+                            ("no_vcc", "NO to VCC (pin)", False),
+                        ],
+                        title=f"Stepper {axis_upper} - Endstop Config"
+                    )
+                    if endstop_config is None:
+                        return
 
                 bed_size = self.state.get(f"printer.bed_size_{axis}", 350)
                 position_max = self.ui.inputbox(
@@ -925,16 +977,59 @@ class GschpooziWizard:
                     default=str(bed_size),
                     title=f"Stepper {axis_upper} - Position"
                 )
+                if position_max is None:
+                    return
 
                 position_endstop = self.ui.inputbox(
                     f"Position endstop for {axis_upper} (0 for min, {position_max} for max):",
                     default=position_max,
                     title=f"Stepper {axis_upper} - Endstop Position"
                 )
+                if position_endstop is None:
+                    return
+
+                # Homing settings
+                homing_speed = self.ui.inputbox(
+                    f"Homing speed for {axis_upper} (mm/s):",
+                    default="50",
+                    title=f"Stepper {axis_upper} - Homing Speed"
+                )
+                if homing_speed is None:
+                    return
+
+                default_retract = "0" if endstop_type == "sensorless" else "5"
+                homing_retract_dist = self.ui.inputbox(
+                    f"Homing retract distance for {axis_upper} (mm):",
+                    default=default_retract,
+                    title=f"Stepper {axis_upper} - Homing Retract"
+                )
+                if homing_retract_dist is None:
+                    return
+
+                second_homing_speed = None
+                if self.ui.yesno(
+                    f"Use second (slower) homing speed for {axis_upper}?",
+                    title=f"Stepper {axis_upper} - Second Homing Speed"
+                ):
+                    second_homing_speed = self.ui.inputbox(
+                        f"Second homing speed for {axis_upper} (mm/s):",
+                        default="10",
+                        title=f"Stepper {axis_upper} - Second Homing Speed"
+                    )
 
                 self.state.set(f"{state_key}.endstop_type", endstop_type or "physical")
+                if endstop_port:
+                    self.state.set(f"{state_key}.endstop_port", endstop_port)
+                if endstop_config:
+                    self.state.set(f"{state_key}.endstop_config", endstop_config)
                 self.state.set(f"{state_key}.position_max", int(position_max or bed_size))
                 self.state.set(f"{state_key}.position_endstop", int(position_endstop or position_max or bed_size))
+                if homing_speed:
+                    self.state.set(f"{state_key}.homing_speed", int(homing_speed or 50))
+                if homing_retract_dist:
+                    self.state.set(f"{state_key}.homing_retract_dist", float(homing_retract_dist or (0 if endstop_type == "sensorless" else 5)))
+                if second_homing_speed:
+                    self.state.set(f"{state_key}.second_homing_speed", int(second_homing_speed))
 
             # Save axis-specific settings
             self.state.set(f"{state_key}.motor_port", motor_port)
@@ -944,7 +1039,7 @@ class GschpooziWizard:
             # Summary
             inherited_driver = self.state.get(f"{state_key}.driver_type")
             inherited_current = self.state.get(f"{state_key}.run_current")
-            
+
             if is_secondary:
                 self.ui.msgbox(
                     f"Stepper {axis_upper} configured!\n\n"
@@ -966,7 +1061,7 @@ class GschpooziWizard:
             return
 
         # === FULL CONFIGURATION (no inheritance) ===
-        
+
         # Belt configuration
         current_belt = self.state.get(f"{state_key}.belt_pitch", 2)
         belt_pitch = self.ui.radiolist(
@@ -1060,8 +1155,13 @@ class GschpooziWizard:
 
         # Endstop configuration (only for primary steppers)
         endstop_type = None
+        endstop_port = None
+        endstop_config = None
         position_max = None
         position_endstop = None
+        homing_speed = None
+        homing_retract_dist = None
+        second_homing_speed = None
 
         if not is_secondary:
             current_endstop = self.state.get(f"{state_key}.endstop_type", "physical")
@@ -1073,6 +1173,44 @@ class GschpooziWizard:
                 ],
                 title=f"Stepper {axis_upper} - Endstop"
             )
+            if endstop_type is None:
+                return
+
+            # Physical endstop port and config
+            if endstop_type == "physical":
+                # Endstop port selection from board templates
+                endstop_ports = self._get_board_ports("endstop_ports", "boards")
+                if endstop_ports:
+                    current_port = self.state.get(f"{state_key}.endstop_port", "")
+                    endstop_port = self.ui.radiolist(
+                        f"Select endstop port for {axis_upper} axis:",
+                        [(p, l, p == current_port or d) for p, l, d in endstop_ports],
+                        title=f"Stepper {axis_upper} - Endstop Port"
+                    )
+                else:
+                    endstop_port = self.ui.inputbox(
+                        f"Enter endstop port for {axis_upper} axis:",
+                        default="",
+                        title=f"Stepper {axis_upper} - Endstop Port"
+                    )
+                if endstop_port is None:
+                    return
+
+                # Endstop pin configuration (modifiers)
+                current_config = self.state.get(f"{state_key}.endstop_config", "nc_gnd")
+                endstop_config = self.ui.radiolist(
+                    f"Endstop switch configuration for {axis_upper}:\n\n"
+                    "(NC = Normally Closed, NO = Normally Open)",
+                    [
+                        ("nc_gnd", "NC to GND (^pin) - recommended", current_config == "nc_gnd"),
+                        ("no_gnd", "NO to GND (^!pin)", current_config == "no_gnd"),
+                        ("nc_vcc", "NC to VCC (!pin)", current_config == "nc_vcc"),
+                        ("no_vcc", "NO to VCC (pin)", current_config == "no_vcc"),
+                    ],
+                    title=f"Stepper {axis_upper} - Endstop Config"
+                )
+                if endstop_config is None:
+                    return
 
             bed_size = self.state.get(f"printer.bed_size_{axis}", 350)
             current_max = self.state.get(f"{state_key}.position_max", bed_size)
@@ -1081,6 +1219,8 @@ class GschpooziWizard:
                 default=str(current_max),
                 title=f"Stepper {axis_upper} - Position"
             )
+            if position_max is None:
+                return
 
             current_endstop_pos = self.state.get(f"{state_key}.position_endstop", position_max)
             position_endstop = self.ui.inputbox(
@@ -1088,6 +1228,43 @@ class GschpooziWizard:
                 default=str(current_endstop_pos),
                 title=f"Stepper {axis_upper} - Endstop Position"
             )
+            if position_endstop is None:
+                return
+
+            # Homing settings
+            current_homing_speed = self.state.get(f"{state_key}.homing_speed", 50)
+            homing_speed = self.ui.inputbox(
+                f"Homing speed for {axis_upper} (mm/s):\n\n"
+                "(Default: 50-80 for X/Y)",
+                default=str(current_homing_speed),
+                title=f"Stepper {axis_upper} - Homing Speed"
+            )
+            if homing_speed is None:
+                return
+
+            current_retract = self.state.get(f"{state_key}.homing_retract_dist", 5.0)
+            default_retract = "0" if endstop_type == "sensorless" else "5"
+            homing_retract_dist = self.ui.inputbox(
+                f"Homing retract distance for {axis_upper} (mm):\n\n"
+                f"(0 for sensorless, 5 for physical - default: {default_retract})",
+                default=str(current_retract),
+                title=f"Stepper {axis_upper} - Homing Retract"
+            )
+            if homing_retract_dist is None:
+                return
+
+            # Optional second homing speed
+            if self.ui.yesno(
+                f"Use second (slower) homing speed for {axis_upper}?",
+                title=f"Stepper {axis_upper} - Second Homing Speed"
+            ):
+                current_second = self.state.get(f"{state_key}.second_homing_speed", 10)
+                second_homing_speed = self.ui.inputbox(
+                    f"Second homing speed for {axis_upper} (mm/s):\n\n"
+                    "(Default: 10-20)",
+                    default=str(current_second),
+                    title=f"Stepper {axis_upper} - Second Homing Speed"
+                )
 
         # Save all settings
         self.state.set(f"{state_key}.motor_port", motor_port)
@@ -1105,8 +1282,19 @@ class GschpooziWizard:
 
         if not is_secondary:
             self.state.set(f"{state_key}.endstop_type", endstop_type or "physical")
+            if endstop_type == "physical" and endstop_port:
+                self.state.set(f"{state_key}.endstop_port", endstop_port)
+            if endstop_type == "physical" and endstop_config:
+                self.state.set(f"{state_key}.endstop_config", endstop_config)
+            bed_size = self.state.get(f"printer.bed_size_{axis}", 350)
             self.state.set(f"{state_key}.position_max", int(position_max or bed_size))
             self.state.set(f"{state_key}.position_endstop", int(position_endstop or position_max or bed_size))
+            if homing_speed:
+                self.state.set(f"{state_key}.homing_speed", int(homing_speed or 50))
+            if homing_retract_dist:
+                self.state.set(f"{state_key}.homing_retract_dist", float(homing_retract_dist or (0 if endstop_type == "sensorless" else 5)))
+            if second_homing_speed:
+                self.state.set(f"{state_key}.second_homing_speed", int(second_homing_speed))
 
         self.state.save()
 
@@ -1216,49 +1404,34 @@ class GschpooziWizard:
         )
 
     def _extruder_setup(self) -> None:
-        """Configure extruder motor and hotend."""
-        # Get current values for pre-selection
+        """Configure extruder motor and hotend per schema 2.6."""
+        # Get current values for pre-selection (using correct state keys)
         current_type = self.state.get("extruder.extruder_type", "")
-        current_motor_loc = self.state.get("extruder.motor_location", "")
-        current_sensor_type = self.state.get("hotend.sensor_type", "")
-        current_sensor_loc = self.state.get("hotend.sensor_location", "")
-        current_heater_loc = self.state.get("hotend.heater_location", "")
-        current_max_temp = self.state.get("hotend.max_temp", 300)
+        current_location = self.state.get("extruder.location", "")
+        current_dir_inv = self.state.get("extruder.dir_pin_inverted", False)
+        current_microsteps = self.state.get("extruder.microsteps", 16)
+        current_steps = self.state.get("extruder.full_steps_per_rotation", 200)
+        current_nozzle = self.state.get("extruder.nozzle_diameter", 0.4)
+        current_filament = self.state.get("extruder.filament_diameter", 1.75)
+        current_drive = self.state.get("extruder.drive_type", "direct")
+        current_sensor_type = self.state.get("extruder.sensor_type", "")
+        current_sensor_loc = self.state.get("extruder.sensor_location", "")
+        current_heater_loc = self.state.get("extruder.heater_location", "")
+        current_max_temp = self.state.get("extruder.max_temp", 300)
+        current_min_temp = self.state.get("extruder.min_temp", 0)
+        current_max_power = self.state.get("extruder.max_power", 1.0)
 
         # Check if toolboard is configured
         has_toolboard = self.state.get("mcu.toolboard.enabled", False) or \
                         self.state.get("mcu.toolboard.connection_type")
 
-        # === EXTRUDER MOTOR SECTION ===
-        extruder_types = [
-            ("sherpa_mini", "Sherpa Mini"),
-            ("orbiter_v2", "Orbiter v2.0/v2.5"),
-            ("smart_orbiter_v3", "Smart Orbiter v3"),
-            ("clockwork2", "Clockwork 2"),
-            ("galileo2", "Galileo 2"),
-            ("lgx_lite", "LGX Lite"),
-            ("bmg", "BMG"),
-            ("vz_hextrudort_10t", "VZ-Hextrudort 10T"),
-            ("custom", "Custom"),
-        ]
-
-        extruder_type = self.ui.radiolist(
-            "Select your extruder type:\n\n"
-            "(This sets rotation_distance and gear_ratio)",
-            [(k, v, k == current_type or (not current_type and k == "sherpa_mini")) 
-             for k, v in extruder_types],
-            title="Extruder Motor - Type"
-        )
-        if extruder_type is None:
-            return
-
-        # Motor location
+        # === 2.6.1: Motor Location ===
         if has_toolboard:
             motor_location = self.ui.radiolist(
                 "Where is the extruder MOTOR connected?",
                 [
-                    ("mainboard", "Mainboard", current_motor_loc == "mainboard"),
-                    ("toolboard", "Toolboard", current_motor_loc == "toolboard" or not current_motor_loc),
+                    ("mainboard", "Mainboard", current_location == "mainboard"),
+                    ("toolboard", "Toolboard", current_location == "toolboard" or not current_location),
                 ],
                 title="Extruder Motor - Location"
             )
@@ -1268,11 +1441,13 @@ class GschpooziWizard:
             return
 
         # Motor port selection
-        motor_port = None
         board_type = "toolboards" if motor_location == "toolboard" else "boards"
         motor_ports = self._get_board_ports("motor_ports", board_type)
         if motor_ports:
-            current_port = self.state.get(f"extruder.motor_port_{motor_location}", "")
+            # Check both possible keys for current value
+            current_port = self.state.get(f"extruder.motor_port_{motor_location}", "") or \
+                          self.state.get("extruder.motor_port_mainboard", "") or \
+                          self.state.get("extruder.motor_port_toolboard", "")
             motor_port = self.ui.radiolist(
                 f"Select motor port on {motor_location}:",
                 [(p, l, p == current_port or d) for p, l, d in motor_ports],
@@ -1287,16 +1462,87 @@ class GschpooziWizard:
         if motor_port is None:
             return
 
-        # === HOTEND SECTION ===
-        self.ui.msgbox(
-            "Now configuring the HOTEND:\n\n"
-            "• Heater port selection\n"
-            "• Thermistor type, port & pullup\n"
-            "• Max temperature",
-            title="Hotend Configuration"
+        # === 2.6.2: Extruder Type ===
+        extruder_types = [
+            ("sherpa_mini", "Sherpa Mini"),
+            ("orbiter_v2", "Orbiter v2.0/v2.5"),
+            ("smart_orbiter_v3", "Smart Orbiter v3"),
+            ("clockwork2", "Clockwork 2"),
+            ("galileo2", "Galileo 2"),
+            ("lgx_lite", "LGX Lite"),
+            ("bmg", "BMG"),
+            ("vz_hextrudort_8t", "VZ-Hextrudort 8T"),
+            ("vz_hextrudort_10t", "VZ-Hextrudort 10T"),
+            ("custom", "Custom"),
+        ]
+
+        extruder_type = self.ui.radiolist(
+            "Select your extruder type:\n\n"
+            "(This sets rotation_distance and gear_ratio)",
+            [(k, v, k == current_type or (not current_type and k == "sherpa_mini"))
+             for k, v in extruder_types],
+            title="Extruder Motor - Type"
+        )
+        if extruder_type is None:
+            return
+
+        # === 2.6.3: Extruder Config ===
+        # Motor configuration
+        dir_pin_inverted = self.ui.yesno(
+            "Invert extruder direction pin?",
+            title="Extruder Motor - Direction",
+            default_no=not current_dir_inv
         )
 
-        # Heater location
+        microsteps = self.ui.radiolist(
+            "Extruder microsteps:",
+            [
+                ("16", "16", current_microsteps == 16),
+                ("32", "32", current_microsteps == 32),
+            ],
+            title="Extruder Motor - Microsteps"
+        )
+        if microsteps is None:
+            return
+
+        full_steps = self.ui.radiolist(
+            "Motor step angle:",
+            [
+                ("200", "1.8° (200 steps - most common)", current_steps == 200),
+                ("400", "0.9° (400 steps - high precision)", current_steps == 400),
+            ],
+            title="Extruder Motor - Step Angle"
+        )
+        if full_steps is None:
+            return
+
+        # Nozzle and filament
+        nozzle_diameter = self.ui.radiolist(
+            "Nozzle diameter (mm):",
+            [
+                ("0.4", "0.4mm (most common)", current_nozzle == 0.4),
+                ("0.5", "0.5mm", current_nozzle == 0.5),
+                ("0.6", "0.6mm", current_nozzle == 0.6),
+                ("0.8", "0.8mm", current_nozzle == 0.8),
+                ("1.0", "1.0mm", current_nozzle == 1.0),
+            ],
+            title="Extruder - Nozzle Diameter"
+        )
+        if nozzle_diameter is None:
+            return
+
+        filament_diameter = self.ui.radiolist(
+            "Filament diameter (mm):",
+            [
+                ("1.75", "1.75mm (most common)", current_filament == 1.75),
+                ("2.85", "2.85mm (3mm)", current_filament == 2.85),
+            ],
+            title="Extruder - Filament Diameter"
+        )
+        if filament_diameter is None:
+            return
+
+        # Hotend heater configuration
         if has_toolboard:
             heater_location = self.ui.radiolist(
                 "Where is the hotend HEATER connected?",
@@ -1312,13 +1558,15 @@ class GschpooziWizard:
             return
 
         # Heater port selection
-        heater_port = None
         board_type = "toolboards" if heater_location == "toolboard" else "boards"
         heater_ports = self._get_board_ports("heater_ports", board_type)
         if heater_ports:
-            current_port = self.state.get(f"hotend.heater_port_{heater_location}", "")
+            # Check both possible keys for current value
+            current_port = self.state.get(f"extruder.heater_port_{heater_location}", "") or \
+                          self.state.get("extruder.heater_port_mainboard", "") or \
+                          self.state.get("extruder.heater_port_toolboard", "")
             # Filter to show hotend heaters, not bed heater
-            hotend_ports = [(p, l, p == current_port or (d and "Bed" not in l)) 
+            hotend_ports = [(p, l, p == current_port or (d and "Bed" not in l))
                            for p, l, d in heater_ports if "Bed" not in l]
             if hotend_ports:
                 heater_port = self.ui.radiolist(
@@ -1341,7 +1589,16 @@ class GschpooziWizard:
         if heater_port is None:
             return
 
-        # Thermistor location
+        max_power = self.ui.inputbox(
+            "Heater max power (0.1-1.0):\n\n"
+            "(Usually 1.0, reduce for cheap SSRs)",
+            default=str(current_max_power),
+            title="Hotend - Max Power"
+        )
+        if max_power is None:
+            return
+
+        # Thermistor configuration
         if has_toolboard:
             sensor_location = self.ui.radiolist(
                 "Where is the thermistor connected?",
@@ -1357,13 +1614,15 @@ class GschpooziWizard:
             return
 
         # Thermistor port selection
-        sensor_port = None
         board_type = "toolboards" if sensor_location == "toolboard" else "boards"
         sensor_ports = self._get_board_ports("thermistor_ports", board_type)
         if sensor_ports:
-            current_port = self.state.get(f"hotend.sensor_port_{sensor_location}", "")
+            # Check both possible keys for current value
+            current_port = self.state.get(f"extruder.sensor_port_{sensor_location}", "") or \
+                          self.state.get("extruder.sensor_port_mainboard", "") or \
+                          self.state.get("extruder.sensor_port_toolboard", "")
             # Filter to show hotend thermistors, not bed
-            hotend_sensors = [(p, l, p == current_port or (d and "Bed" not in l)) 
+            hotend_sensors = [(p, l, p == current_port or (d and "Bed" not in l))
                              for p, l, d in sensor_ports if "Bed" not in l]
             if hotend_sensors:
                 sensor_port = self.ui.radiolist(
@@ -1393,11 +1652,11 @@ class GschpooziWizard:
             ("ATC Semitec 104NT-4-R025H42G", "ATC Semitec 104NT-4 (Rapido, Dragon UHF)"),
             ("PT1000", "PT1000 (high temp)"),
             ("SliceEngineering 450", "SliceEngineering 450°C"),
-            ("PT100 INA826", "PT100 with INA826 amp"),
+            ("NTC 100K beta 3950", "NTC 100K beta 3950"),
         ]
         sensor_type = self.ui.radiolist(
             "Hotend thermistor/sensor type:",
-            [(k, v, k == current_sensor_type or (not current_sensor_type and k == "Generic 3950")) 
+            [(k, v, k == current_sensor_type or (not current_sensor_type and k == "Generic 3950"))
              for k, v in sensor_types],
             title="Hotend - Thermistor Type"
         )
@@ -1406,8 +1665,8 @@ class GschpooziWizard:
 
         # Pullup resistor (only for NTC thermistors)
         pullup_resistor = None
-        if sensor_type not in ["PT1000", "PT100 INA826"]:
-            current_pullup = self.state.get("hotend.pullup_resistor", 4700)
+        if sensor_type not in ["PT1000"]:
+            current_pullup = self.state.get("extruder.pullup_resistor", 4700)
             pullup_resistor = self.ui.radiolist(
                 "Thermistor pullup resistor value:\n\n"
                 "(Check your board - most use 4.7kΩ, some toolboards use 2.2kΩ)",
@@ -1428,7 +1687,15 @@ class GschpooziWizard:
             if pullup_resistor:
                 pullup_resistor = int(pullup_resistor)
 
-        # Max temp
+        # Temperature settings
+        min_temp = self.ui.inputbox(
+            "Minimum hotend temperature (°C):",
+            default=str(current_min_temp),
+            title="Hotend - Min Temp"
+        )
+        if min_temp is None:
+            return
+
         max_temp = self.ui.inputbox(
             "Maximum hotend temperature (°C):",
             default=str(current_max_temp),
@@ -1437,20 +1704,100 @@ class GschpooziWizard:
         if max_temp is None:
             return
 
-        # Save extruder motor settings
+        # Extrusion settings
+        drive_type = self.ui.radiolist(
+            "Extruder drive type:",
+            [
+                ("direct", "Direct Drive", current_drive == "direct"),
+                ("bowden", "Bowden", current_drive == "bowden"),
+            ],
+            title="Extruder - Drive Type"
+        )
+        if drive_type is None:
+            return
+
+        # Set defaults based on drive type
+        default_extrude_dist = 500 if drive_type == "bowden" else 150
+        current_extrude_dist = self.state.get("extruder.max_extrude_only_distance", default_extrude_dist)
+        max_extrude_only_distance = self.ui.inputbox(
+            "Max extrude only distance (mm):\n\n"
+            f"(Default: {default_extrude_dist}mm for {drive_type})",
+            default=str(current_extrude_dist),
+            title="Extruder - Max Extrude Distance"
+        )
+        if max_extrude_only_distance is None:
+            return
+
+        max_extrude_cross_section = self.ui.inputbox(
+            "Max extrude cross section (mm²):",
+            default="5.0",
+            title="Extruder - Max Cross Section"
+        )
+        if max_extrude_cross_section is None:
+            return
+
+        min_extrude_temp = self.ui.inputbox(
+            "Minimum extrude temperature (°C):",
+            default="170",
+            title="Extruder - Min Extrude Temp"
+        )
+        if min_extrude_temp is None:
+            return
+
+        instantaneous_corner_velocity = self.ui.inputbox(
+            "Instantaneous corner velocity (mm/s):",
+            default="1.0",
+            title="Extruder - Corner Velocity"
+        )
+        if instantaneous_corner_velocity is None:
+            return
+
+        # Save all settings with correct state keys (extruder.* for everything)
+        # State keys must match config-sections.yaml template expectations
         self.state.set("extruder.extruder_type", extruder_type)
-        self.state.set("extruder.motor_location", motor_location)
-        self.state.set(f"extruder.motor_port_{motor_location}", motor_port)
-        
-        # Save hotend settings (separate from extruder motor)
-        self.state.set("hotend.heater_location", heater_location)
-        self.state.set(f"hotend.heater_port_{heater_location}", heater_port)
-        self.state.set("hotend.sensor_type", sensor_type)
-        self.state.set("hotend.sensor_location", sensor_location)
-        self.state.set(f"hotend.sensor_port_{sensor_location}", sensor_port)
+        self.state.set("extruder.location", motor_location)
+        # Save motor port to specific key based on location (template expects motor_port_mainboard or motor_port_toolboard)
+        if motor_location == "toolboard":
+            self.state.set("extruder.motor_port_toolboard", motor_port)
+            self.state.delete("extruder.motor_port_mainboard")  # Clear other key
+        else:
+            self.state.set("extruder.motor_port_mainboard", motor_port)
+            self.state.delete("extruder.motor_port_toolboard")  # Clear other key
+
+        self.state.set("extruder.dir_pin_inverted", dir_pin_inverted)
+        self.state.set("extruder.microsteps", int(microsteps or 16))
+        self.state.set("extruder.full_steps_per_rotation", int(full_steps or 200))
+        self.state.set("extruder.nozzle_diameter", float(nozzle_diameter or 0.4))
+        self.state.set("extruder.filament_diameter", float(filament_diameter or 1.75))
+        self.state.set("extruder.heater_location", heater_location)
+        # Save heater port to specific key based on location (template expects heater_port_mainboard or heater_port_toolboard)
+        if heater_location == "toolboard":
+            self.state.set("extruder.heater_port_toolboard", heater_port)
+            self.state.delete("extruder.heater_port_mainboard")  # Clear other key
+        else:
+            self.state.set("extruder.heater_port_mainboard", heater_port)
+            self.state.delete("extruder.heater_port_toolboard")  # Clear other key
+
+        self.state.set("extruder.max_power", float(max_power or 1.0))
+        self.state.set("extruder.sensor_location", sensor_location)
+        # Save sensor port to specific key based on location (template expects sensor_port_mainboard or sensor_port_toolboard)
+        if sensor_location == "toolboard":
+            self.state.set("extruder.sensor_port_toolboard", sensor_port)
+            self.state.delete("extruder.sensor_port_mainboard")  # Clear other key
+        else:
+            self.state.set("extruder.sensor_port_mainboard", sensor_port)
+            self.state.delete("extruder.sensor_port_toolboard")  # Clear other key
+
+        self.state.set("extruder.sensor_type", sensor_type)
         if pullup_resistor:
-            self.state.set("hotend.pullup_resistor", pullup_resistor)
-        self.state.set("hotend.max_temp", int(max_temp or 300))
+            self.state.set("extruder.pullup_resistor", pullup_resistor)
+        self.state.set("extruder.min_temp", int(min_temp or 0))
+        self.state.set("extruder.max_temp", int(max_temp or 300))
+        self.state.set("extruder.drive_type", drive_type or "direct")
+        self.state.set("extruder.max_extrude_only_distance", int(max_extrude_only_distance or default_extrude_dist))
+        self.state.set("extruder.max_extrude_cross_section", float(max_extrude_cross_section or 5.0))
+        self.state.set("extruder.min_extrude_temp", int(min_extrude_temp or 170))
+        self.state.set("extruder.instantaneous_corner_velocity", float(instantaneous_corner_velocity or 1.0))
         self.state.save()
 
         pullup_text = f"\n  Pullup: {pullup_resistor}Ω" if pullup_resistor else ""
@@ -1458,59 +1805,85 @@ class GschpooziWizard:
             f"Extruder & Hotend configured!\n\n"
             f"EXTRUDER MOTOR:\n"
             f"  Type: {extruder_type}\n"
-            f"  Location: {motor_location} ({motor_port})\n\n"
+            f"  Location: {motor_location} ({motor_port})\n"
+            f"  Microsteps: {microsteps}\n"
+            f"  Step angle: {full_steps} steps\n\n"
             f"HOTEND:\n"
             f"  Heater: {heater_location} ({heater_port})\n"
             f"  Thermistor: {sensor_type}\n"
             f"  Sensor port: {sensor_location} ({sensor_port}){pullup_text}\n"
-            f"  Max temp: {max_temp}°C",
+            f"  Temp range: {min_temp}°C - {max_temp}°C\n"
+            f"  Drive: {drive_type}\n"
+            f"  Nozzle: {nozzle_diameter}mm",
             title="Configuration Saved"
         )
 
     def _heater_bed_setup(self) -> None:
-        """Configure heated bed."""
+        """Configure heated bed per schema 2.7."""
         # Get current values
+        current_heater_pin = self.state.get("heater_bed.heater_pin", "")
+        current_max_power = self.state.get("heater_bed.max_power", 1.0)
+        current_pwm_cycle = self.state.get("heater_bed.pwm_cycle_time", 0.0166)
         current_sensor_type = self.state.get("heater_bed.sensor_type", "Generic 3950")
+        current_sensor_port = self.state.get("heater_bed.sensor_port", "")
+        current_min_temp = self.state.get("heater_bed.min_temp", 0)
         current_max_temp = self.state.get("heater_bed.max_temp", 120)
+        current_control = self.state.get("heater_bed.control", "pid")
+        current_surface = self.state.get("heater_bed.surface_type", "")
 
-        # Heater port selection (bed heater is always on mainboard)
-        heater_port = None
+        # === 2.7.1: Heater Configuration ===
+        # Heater pin selection (bed heater is always on mainboard)
         heater_ports = self._get_board_ports("heater_ports", "boards")
         if heater_ports:
-            current_port = self.state.get("heater_bed.heater_port", "")
             # Filter to show bed heater
-            bed_ports = [(p, l, p == current_port or "Bed" in l) 
+            bed_ports = [(p, l, p == current_heater_pin or "Bed" in l or p == "HB")
                         for p, l, d in heater_ports if "Bed" in l or p == "HB"]
             if bed_ports:
-                heater_port = self.ui.radiolist(
-                    "Select heated bed heater port:",
+                heater_pin = self.ui.radiolist(
+                    "Select heated bed heater pin:",
                     bed_ports,
-                    title="Heated Bed - Heater Port"
+                    title="Heated Bed - Heater Pin"
                 )
             else:
                 # No specific bed port found, show all heater ports
-                heater_port = self.ui.radiolist(
-                    "Select heated bed heater port:",
-                    [(p, l, p == current_port or d) for p, l, d in heater_ports],
-                    title="Heated Bed - Heater Port"
+                heater_pin = self.ui.radiolist(
+                    "Select heated bed heater pin:",
+                    [(p, l, p == current_heater_pin or d) for p, l, d in heater_ports],
+                    title="Heated Bed - Heater Pin"
                 )
-        
-        if not heater_port:
-            heater_port = self.ui.inputbox(
-                "Enter heated bed heater port:",
-                default="HB",
-                title="Heated Bed - Heater Port"
+        else:
+            heater_pin = self.ui.inputbox(
+                "Enter heated bed heater pin:",
+                default=current_heater_pin or "HB",
+                title="Heated Bed - Heater Pin"
             )
-        if heater_port is None:
+        if heater_pin is None:
             return
 
+        max_power = self.ui.inputbox(
+            "Heater max power (0.1-1.0):\n\n"
+            "(Usually 1.0, reduce for cheap SSRs that can't handle full PWM)",
+            default=str(current_max_power),
+            title="Heated Bed - Max Power"
+        )
+        if max_power is None:
+            return
+
+        pwm_cycle_time = self.ui.inputbox(
+            "PWM cycle time (seconds):\n\n"
+            "(Usually 0.0166 for 60Hz, rarely needs changes)",
+            default=str(current_pwm_cycle),
+            title="Heated Bed - PWM Cycle Time"
+        )
+        if pwm_cycle_time is None:
+            return
+
+        # === 2.7.2: Thermistor ===
         # Thermistor port selection (bed thermistor is always on mainboard)
-        sensor_port = None
         sensor_ports = self._get_board_ports("thermistor_ports", "boards")
         if sensor_ports:
-            current_port = self.state.get("heater_bed.sensor_port", "")
             # Filter to show bed thermistor
-            bed_sensors = [(p, l, p == current_port or "Bed" in l) 
+            bed_sensors = [(p, l, p == current_sensor_port or "Bed" in l or p == "TB")
                           for p, l, d in sensor_ports if "Bed" in l or p == "TB"]
             if bed_sensors:
                 sensor_port = self.ui.radiolist(
@@ -1522,14 +1895,13 @@ class GschpooziWizard:
                 # No specific bed port found, show all thermistor ports
                 sensor_port = self.ui.radiolist(
                     "Select bed thermistor port:",
-                    [(p, l, p == current_port or d) for p, l, d in sensor_ports],
+                    [(p, l, p == current_sensor_port or d) for p, l, d in sensor_ports],
                     title="Heated Bed - Thermistor Port"
                 )
-        
-        if not sensor_port:
+        else:
             sensor_port = self.ui.inputbox(
                 "Enter bed thermistor port:",
-                default="TB",
+                default=current_sensor_port or "TB",
                 title="Heated Bed - Thermistor Port"
             )
         if sensor_port is None:
@@ -1576,31 +1948,89 @@ class GschpooziWizard:
             if pullup_resistor:
                 pullup_resistor = int(pullup_resistor)
 
-        # Max temp
+        # === 2.7.3: Temperature Settings ===
+        min_temp = self.ui.inputbox(
+            "Minimum bed temperature (°C):",
+            default=str(current_min_temp),
+            title="Heated Bed - Min Temp"
+        )
+        if min_temp is None:
+            return
+
         max_temp = self.ui.inputbox(
-            "Maximum bed temperature (°C):",
+            "Maximum bed temperature (°C):\n\n"
+            "(Typical max for heated beds is 120°C)",
             default=str(current_max_temp),
             title="Heated Bed - Max Temp"
         )
         if max_temp is None:
             return
 
-        # Save
-        self.state.set("heater_bed.heater_port", heater_port)
+        control = self.ui.radiolist(
+            "Temperature control method:",
+            [
+                ("pid", "PID (most common)", current_control == "pid"),
+                ("watermark", "Watermark (simple on/off)", current_control == "watermark"),
+            ],
+            title="Heated Bed - Control Method"
+        )
+        if control is None:
+            return
+
+        # === 2.7.4: PID Values ===
+        self.ui.msgbox(
+            "PID values will be set to 0 initially.\n\n"
+            "After first boot, run:\n"
+            "PID_CALIBRATE HEATER=heater_bed TARGET=60\n\n"
+            "Then SAVE_CONFIG to store the values.",
+            title="Heated Bed - PID Calibration"
+        )
+
+        # === 2.7.5: Bed Surface ===
+        surface_type = self.ui.radiolist(
+            "Bed surface type:\n\n"
+            "(Used for macro hints and slicer recommendations)",
+            [
+                ("pei_textured", "PEI Textured", current_surface == "pei_textured"),
+                ("pei_smooth", "PEI Smooth", current_surface == "pei_smooth"),
+                ("glass", "Glass", current_surface == "glass"),
+                ("fr4", "FR4/G10", current_surface == "fr4"),
+                ("garolite", "Garolite", current_surface == "garolite"),
+                ("buildtak", "BuildTak", current_surface == "buildtak"),
+                ("other", "Other", current_surface == "other" or not current_surface),
+            ],
+            title="Heated Bed - Surface Type"
+        )
+        if surface_type is None:
+            return
+
+        # Save all settings
+        self.state.set("heater_bed.heater_pin", heater_pin)  # Changed from heater_port
+        self.state.set("heater_bed.max_power", float(max_power or 1.0))
+        self.state.set("heater_bed.pwm_cycle_time", float(pwm_cycle_time or 0.0166))
         self.state.set("heater_bed.sensor_port", sensor_port)
         self.state.set("heater_bed.sensor_type", sensor_type or "Generic 3950")
         if pullup_resistor:
             self.state.set("heater_bed.pullup_resistor", pullup_resistor)
+        self.state.set("heater_bed.min_temp", int(min_temp or 0))
         self.state.set("heater_bed.max_temp", int(max_temp or 120))
+        self.state.set("heater_bed.control", control or "pid")
+        self.state.set("heater_bed.pid_Kp", 0.0)
+        self.state.set("heater_bed.pid_Ki", 0.0)
+        self.state.set("heater_bed.pid_Kd", 0.0)
+        self.state.set("heater_bed.surface_type", surface_type)
         self.state.save()
 
         pullup_text = f"\nPullup: {pullup_resistor}Ω" if pullup_resistor else ""
         self.ui.msgbox(
             f"Heated bed configured!\n\n"
-            f"Heater port: {heater_port}\n"
+            f"Heater pin: {heater_pin}\n"
+            f"Max power: {max_power}\n"
             f"Thermistor port: {sensor_port}\n"
             f"Thermistor type: {sensor_type}{pullup_text}\n"
-            f"Max temp: {max_temp}°C\n\n"
+            f"Temp range: {min_temp}°C - {max_temp}°C\n"
+            f"Control: {control}\n"
+            f"Surface: {surface_type}\n\n"
             "Remember to run PID_CALIBRATE HEATER=heater_bed TARGET=60",
             title="Configuration Saved"
         )
@@ -1623,27 +2053,69 @@ class GschpooziWizard:
         else:
             part_location = "mainboard"
 
-        # Part cooling fan port selection
-        part_port = None
+        # Part cooling fan pin selection
         board_type = "toolboards" if part_location == "toolboard" else "boards"
         fan_ports = self._get_board_ports("fan_ports", board_type)
+        # Check both possible keys for current value
+        current_pin = self.state.get(f"fans.part_cooling.pin_{part_location}", "") or \
+                      self.state.get("fans.part_cooling.pin_mainboard", "") or \
+                      self.state.get("fans.part_cooling.pin_toolboard", "")
         if fan_ports:
-            current_port = self.state.get(f"fans.part_cooling.port_{part_location}", "")
             # Try to find "Part Cooling" or "FAN0" as default
-            part_cooling_ports = [(p, l, p == current_port or "Part" in l or p == "FAN0") 
+            part_cooling_ports = [(p, l, p == current_pin or "Part" in l or p == "FAN0")
                                   for p, l, d in fan_ports]
-            part_port = self.ui.radiolist(
-                f"Select part cooling fan port on {part_location}:",
+            part_pin = self.ui.radiolist(
+                f"Select part cooling fan pin on {part_location}:",
                 part_cooling_ports,
-                title="Fans - Part Cooling Port"
+                title="Fans - Part Cooling Pin"
             )
-        if not part_port:
-            part_port = self.ui.inputbox(
-                f"Enter part cooling fan port on {part_location}:",
-                default="FAN0",
-                title="Fans - Part Cooling Port"
+        else:
+            part_pin = self.ui.inputbox(
+                f"Enter part cooling fan pin on {part_location}:",
+                default=current_pin or "FAN0",
+                title="Fans - Part Cooling Pin"
             )
-        if part_port is None:
+        if part_pin is None:
+            return
+
+        # Part cooling fan parameters
+        current_max_power = self.state.get("fans.part_cooling.max_power", 1.0)
+        max_power = self.ui.inputbox(
+            "Part cooling fan max power (0.1-1.0):",
+            default=str(current_max_power),
+            title="Fans - Part Cooling Max Power"
+        )
+        if max_power is None:
+            return
+
+        current_kick_start = self.state.get("fans.part_cooling.kick_start_time", 0.5)
+        kick_start_time = self.ui.inputbox(
+            "Kick start time (seconds):\n\n"
+            "(Time to run at full speed to start fan)",
+            default=str(current_kick_start),
+            title="Fans - Part Cooling Kick Start"
+        )
+        if kick_start_time is None:
+            return
+
+        current_off_below = self.state.get("fans.part_cooling.off_below", 0.1)
+        off_below = self.ui.inputbox(
+            "Off below (PWM):\n\n"
+            "(Minimum PWM for fan to spin, usually 0.1)",
+            default=str(current_off_below),
+            title="Fans - Part Cooling Off Below"
+        )
+        if off_below is None:
+            return
+
+        current_cycle = self.state.get("fans.part_cooling.cycle_time", 0.010)
+        cycle_time = self.ui.inputbox(
+            "Cycle time (seconds):\n\n"
+            "(PWM cycle time, usually 0.010)",
+            default=str(current_cycle),
+            title="Fans - Part Cooling Cycle Time"
+        )
+        if cycle_time is None:
             return
 
         # === HOTEND FAN ===
@@ -1659,28 +2131,65 @@ class GschpooziWizard:
         else:
             hotend_location = "mainboard"
 
-        # Hotend fan port selection
-        hotend_port = None
+        # Hotend fan pin selection
         board_type = "toolboards" if hotend_location == "toolboard" else "boards"
         fan_ports = self._get_board_ports("fan_ports", board_type)
+        # Check both possible keys for current value
+        current_pin = self.state.get(f"fans.hotend.pin_{hotend_location}", "") or \
+                      self.state.get("fans.hotend.pin_mainboard", "") or \
+                      self.state.get("fans.hotend.pin_toolboard", "")
         if fan_ports:
-            current_port = self.state.get(f"fans.hotend.port_{hotend_location}", "")
-            # Try to find "Hotend" or "FAN1" as default, exclude already used port
-            hotend_fan_ports = [(p, l, p == current_port or "Hotend" in l or p == "FAN1") 
-                               for p, l, d in fan_ports if p != part_port or hotend_location != part_location]
+            # Try to find "Hotend" or "FAN1" as default, exclude already used pin
+            hotend_fan_ports = [(p, l, p == current_pin or "Hotend" in l or p == "FAN1")
+                               for p, l, d in fan_ports if p != part_pin or hotend_location != part_location]
             if hotend_fan_ports:
-                hotend_port = self.ui.radiolist(
-                    f"Select hotend fan port on {hotend_location}:",
+                hotend_pin = self.ui.radiolist(
+                    f"Select hotend fan pin on {hotend_location}:",
                     hotend_fan_ports,
-                    title="Fans - Hotend Port"
+                    title="Fans - Hotend Pin"
                 )
-        if not hotend_port:
-            hotend_port = self.ui.inputbox(
-                f"Enter hotend fan port on {hotend_location}:",
-                default="FAN1",
-                title="Fans - Hotend Port"
+            else:
+                hotend_pin = self.ui.inputbox(
+                    f"Enter hotend fan pin on {hotend_location}:",
+                    default=current_pin or "FAN1",
+                    title="Fans - Hotend Pin"
+                )
+        else:
+            hotend_pin = self.ui.inputbox(
+                f"Enter hotend fan pin on {hotend_location}:",
+                default=current_pin or "FAN1",
+                title="Fans - Hotend Pin"
             )
-        if hotend_port is None:
+        if hotend_pin is None:
+            return
+
+        # Hotend fan parameters
+        current_heater = self.state.get("fans.hotend.heater", "extruder")
+        heater = self.ui.inputbox(
+            "Heater to monitor:\n\n"
+            "(Usually 'extruder')",
+            default=current_heater,
+            title="Fans - Hotend Heater"
+        )
+        if heater is None:
+            return
+
+        current_heater_temp = self.state.get("fans.hotend.heater_temp", 50)
+        heater_temp = self.ui.inputbox(
+            "Temperature to turn on fan (°C):",
+            default=str(current_heater_temp),
+            title="Fans - Hotend Heater Temp"
+        )
+        if heater_temp is None:
+            return
+
+        current_fan_speed = self.state.get("fans.hotend.fan_speed", 1.0)
+        fan_speed = self.ui.inputbox(
+            "Fan speed (0.1-1.0):",
+            default=str(current_fan_speed),
+            title="Fans - Hotend Fan Speed"
+        )
+        if fan_speed is None:
             return
 
         # === CONTROLLER FAN ===
@@ -1689,32 +2198,74 @@ class GschpooziWizard:
             title="Fans - Controller"
         )
 
-        controller_port = None
+        controller_pin = None
         if has_controller_fan:
             # Controller fan is always on mainboard
             fan_ports = self._get_board_ports("fan_ports", "boards")
+            current_pin = self.state.get("fans.controller.pin", "")
             if fan_ports:
-                current_port = self.state.get("fans.controller.port", "")
-                # Exclude already used ports
-                used_ports = []
+                # Exclude already used pins
+                used_pins = []
                 if part_location == "mainboard":
-                    used_ports.append(part_port)
+                    used_pins.append(part_pin)
                 if hotend_location == "mainboard":
-                    used_ports.append(hotend_port)
-                controller_ports = [(p, l, p == current_port or p == "FAN2") 
-                                   for p, l, d in fan_ports if p not in used_ports]
+                    used_pins.append(hotend_pin)
+                controller_ports = [(p, l, p == current_pin or p == "FAN2")
+                                   for p, l, d in fan_ports if p not in used_pins]
                 if controller_ports:
-                    controller_port = self.ui.radiolist(
-                        "Select controller fan port on mainboard:",
+                    controller_pin = self.ui.radiolist(
+                        "Select controller fan pin on mainboard:",
                         controller_ports,
-                        title="Fans - Controller Port"
+                        title="Fans - Controller Pin"
                     )
-            if not controller_port:
-                controller_port = self.ui.inputbox(
-                    "Enter controller fan port on mainboard:",
-                    default="FAN2",
-                    title="Fans - Controller Port"
+            if not controller_pin:
+                controller_pin = self.ui.inputbox(
+                    "Enter controller fan pin on mainboard:",
+                    default=current_pin or "FAN2",
+                    title="Fans - Controller Pin"
                 )
+            if controller_pin is None:
+                return
+
+            # Controller fan parameters
+            current_kick_start = self.state.get("fans.controller.kick_start_time", 0.5)
+            controller_kick_start = self.ui.inputbox(
+                "Controller fan kick start time (seconds):",
+                default=str(current_kick_start),
+                title="Fans - Controller Kick Start"
+            )
+            if controller_kick_start is None:
+                return
+
+            current_stepper = self.state.get("fans.controller.stepper", "stepper_x")
+            stepper = self.ui.inputbox(
+                "Stepper to monitor for activity:\n\n"
+                "(Usually 'stepper_x')",
+                default=current_stepper,
+                title="Fans - Controller Stepper"
+            )
+            if stepper is None:
+                return
+
+            current_idle_timeout = self.state.get("fans.controller.idle_timeout", 60)
+            idle_timeout = self.ui.inputbox(
+                "Idle timeout (seconds):\n\n"
+                "(Time before fan turns off after stepper stops)",
+                default=str(current_idle_timeout),
+                title="Fans - Controller Idle Timeout"
+            )
+            if idle_timeout is None:
+                return
+
+            current_idle_speed = self.state.get("fans.controller.idle_speed", 0.5)
+            idle_speed = self.ui.inputbox(
+                "Idle speed (0.0-1.0):\n\n"
+                "(Speed when idle but not off)",
+                default=str(current_idle_speed),
+                title="Fans - Controller Idle Speed"
+            )
+            if idle_speed is None:
+                return
 
         # === ADDITIONAL FANS ===
         additional_fans = []
@@ -1814,14 +2365,47 @@ class GschpooziWizard:
                     "pins": fan["pins"]
                 })
 
-        # Save
+        # Save part cooling fan
+        # State keys must match config-sections.yaml template expectations
         self.state.set("fans.part_cooling.location", part_location)
-        self.state.set(f"fans.part_cooling.port_{part_location}", part_port)
+        if part_location == "toolboard":
+            self.state.set("fans.part_cooling.pin_toolboard", part_pin)
+            self.state.delete("fans.part_cooling.pin_mainboard")  # Clear other key
+        else:
+            self.state.set("fans.part_cooling.pin_mainboard", part_pin)
+            self.state.delete("fans.part_cooling.pin_toolboard")  # Clear other key
+        self.state.set("fans.part_cooling.max_power", float(max_power or 1.0))
+        self.state.set("fans.part_cooling.kick_start_time", float(kick_start_time or 0.5))
+        self.state.set("fans.part_cooling.off_below", float(off_below or 0.1))
+        self.state.set("fans.part_cooling.cycle_time", float(cycle_time or 0.010))
+
+        # Save hotend fan
+        # State keys must match config-sections.yaml template expectations
         self.state.set("fans.hotend.location", hotend_location)
-        self.state.set(f"fans.hotend.port_{hotend_location}", hotend_port)
+        if hotend_location == "toolboard":
+            self.state.set("fans.hotend.pin_toolboard", hotend_pin)
+            self.state.delete("fans.hotend.pin_mainboard")  # Clear other key
+        else:
+            self.state.set("fans.hotend.pin_mainboard", hotend_pin)
+            self.state.delete("fans.hotend.pin_toolboard")  # Clear other key
+        self.state.set("fans.hotend.heater", heater or "extruder")
+        self.state.set("fans.hotend.heater_temp", int(heater_temp or 50))
+        self.state.set("fans.hotend.fan_speed", float(fan_speed or 1.0))
+
+        # Save controller fan
         self.state.set("fans.controller.enabled", has_controller_fan)
-        if controller_port:
-            self.state.set("fans.controller.port", controller_port)
+        if has_controller_fan and controller_pin:
+            self.state.set("fans.controller.pin", controller_pin)  # Changed from port
+            self.state.set("fans.controller.kick_start_time", float(controller_kick_start or 0.5))
+            self.state.set("fans.controller.stepper", stepper or "stepper_x")
+            self.state.set("fans.controller.idle_timeout", int(idle_timeout or 60))
+            self.state.set("fans.controller.idle_speed", float(idle_speed or 0.5))
+        else:
+            self.state.delete("fans.controller.pin")
+            self.state.delete("fans.controller.kick_start_time")
+            self.state.delete("fans.controller.stepper")
+            self.state.delete("fans.controller.idle_timeout")
+            self.state.delete("fans.controller.idle_speed")
 
         if additional_fans:
             self.state.set("fans.additional_fans", additional_fans)
@@ -1831,9 +2415,9 @@ class GschpooziWizard:
         self.state.save()
 
         summary = (
-            f"Part cooling: {part_location} ({part_port})\n"
-            f"Hotend: {hotend_location} ({hotend_port})\n"
-            f"Controller fan: {'Yes (' + controller_port + ')' if has_controller_fan and controller_port else 'No'}"
+            f"Part cooling: {part_location} ({part_pin})\n"
+            f"Hotend: {hotend_location} ({hotend_pin})\n"
+            f"Controller fan: {'Yes (' + controller_pin + ')' if has_controller_fan and controller_pin else 'No'}"
         )
         if additional_fans:
             summary += f"\nAdditional: {', '.join(f['name'] for f in additional_fans)}"
