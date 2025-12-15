@@ -14,11 +14,11 @@ categories:
       - id: "1.1"
         name: "Klipper"
         type: "verification"
-        
+
       - id: "1.2"
         name: "Moonraker"
         type: "verification"
-        
+
       - id: "1.3"
         name: "Web Interface"
         type: "choice"
@@ -27,7 +27,7 @@ categories:
             name: "Mainsail"
           - id: "1.3.2"
             name: "Fluidd"
-            
+
       - id: "1.4"
         name: "Optional Services"
         type: "multi-select"
@@ -72,7 +72,7 @@ categories:
                 type: "choice"
                 options: ["command", "arduino", "cheetah"]
                 default: "command"
-                
+
           - id: "2.1.2"
             name: "Toolhead Board"
             required: false
@@ -102,7 +102,7 @@ categories:
                 options: [1000000, 500000, 250000]
                 default: 1000000
                 condition: "connection_type == 'CAN'"
-                
+
           - id: "2.1.2a"
             name: "CAN Bus Setup"
             type: "sub-wizard"
@@ -123,7 +123,7 @@ categories:
                 type: "choice"
                 options: [1000000, 500000, 250000]
                 default: 1000000
-                
+
           - id: "2.1.3"
             name: "Host MCU"
             required: false
@@ -133,7 +133,7 @@ categories:
                 type: "bool"
                 default: false
                 description: "Enable for ADXL345, GPIO, etc."
-                
+
           - id: "2.1.4"
             name: "Additional MCUs"
             required: false
@@ -284,7 +284,7 @@ categories:
               - name: "second_homing_speed"
                 type: "int"
                 default: 10
-                
+
           - id: "2.3.2"
             name: "TMC Driver X"
             klipper_section: "[tmc2209 stepper_x]"
@@ -468,7 +468,7 @@ categories:
               - name: "second_homing_speed"
                 type: "int"
                 default: 10
-            
+
           - id: "2.4.2"
             name: "TMC Driver Y"
             klipper_section: "[tmc2209 stepper_y]"
@@ -593,7 +593,7 @@ categories:
                 options: ["gantry", "bed"]
                 labels: ["Gantry moves (bed fixed)", "Bed moves (gantry fixed)"]
                 condition: "z_motor_count == 2"
-                
+
           - id: "2.5.2"
             name: "Stepper Z"
             klipper_section: "[stepper_z]"
@@ -668,7 +668,7 @@ categories:
                 type: "float"
                 default: 0
                 description: "0 for probe homing, 5 for physical endstop - adjust based on endstop_type"
-                
+
           - id: "2.5.3"
             name: "TMC Driver Z"
             klipper_section: "[tmc2209 stepper_z]"
@@ -711,7 +711,7 @@ categories:
                 type: "select"
                 source: "toolboard.motor_ports"
                 condition: "location == 'toolboard'"
-                
+
           - id: "2.6.2"
             name: "Extruder Type"
             required: true
@@ -768,7 +768,7 @@ categories:
                   - value: "custom"
                     label: "Custom"
                 required: true
-                
+
           - id: "2.6.3"
             name: "Extruder Config"
             klipper_section: "[extruder]"
@@ -881,7 +881,7 @@ categories:
                 type: "float"
                 default: 0.0166
                 description: "Usually doesn't need changes (60Hz default)"
-                
+
           - id: "2.7.2"
             name: "Thermistor"
             required: true
@@ -905,7 +905,7 @@ categories:
                 options: [4700, 2200, 10000]
                 allow_custom: true
                 description: "Standard values, or custom for offset correction"
-                
+
           - id: "2.7.3"
             name: "Temperature Settings"
             required: true
@@ -921,7 +921,7 @@ categories:
                 type: "choice"
                 options: ["pid", "watermark"]
                 default: "pid"
-                
+
           - id: "2.7.4"
             name: "PID Values"
             description: "Set to 0 initially - run PID_CALIBRATE HEATER=heater_bed TARGET=60"
@@ -935,7 +935,7 @@ categories:
               - name: "pid_Kd"
                 type: "float"
                 default: 0
-                
+
           - id: "2.7.5"
             name: "Bed Surface"
             type: "informational"
@@ -994,7 +994,7 @@ categories:
               - name: "cycle_time"
                 type: "float"
                 default: 0.010
-                
+
           - id: "2.8.2"
             name: "Hotend Fan"
             klipper_section: "[heater_fan hotend_fan]"
@@ -1024,7 +1024,7 @@ categories:
                 type: "float"
                 default: 1.0
                 range: [0.1, 1.0]
-                
+
           - id: "2.8.3"
             name: "Controller Fan"
             klipper_section: "[controller_fan controller_fan]"
@@ -1052,7 +1052,7 @@ categories:
                 type: "float"
                 default: 0.5
                 description: "Speed when idle but not off"
-                
+
           - id: "2.8.4"
             name: "Exhaust Fan"
             klipper_section: "[fan_generic exhaust_fan]"
@@ -1069,7 +1069,7 @@ categories:
               - name: "max_power"
                 type: "float"
                 default: 1.0
-                
+
           - id: "2.8.5"
             name: "Additional Fans"
             type: "list"
@@ -1143,7 +1143,7 @@ categories:
                     label: "BTT Eddy"
                     klipper_section: "[probe_eddy_current]"
                 required: true
-                
+
           - id: "2.9.2"
             name: "Probe Connection"
             condition: "2.9.1.probe_type not in ['none', 'beacon', 'cartographer']"
@@ -1165,7 +1165,7 @@ categories:
                 options: ["nc_gnd", "no_gnd", "nc_vcc", "no_vcc"]
                 labels: ["NC to GND (^pin)", "NO to GND (^!pin)", "NC to VCC (!pin)", "NO to VCC (pin)"]
                 default: "nc_gnd"
-                
+
           - id: "2.9.3"
             name: "BLTouch Settings"
             klipper_section: "[bltouch]"
@@ -1194,7 +1194,7 @@ categories:
               - name: "sample_retract_dist"
                 type: "float"
                 default: 3.0
-                
+
           - id: "2.9.4"
             name: "Standard Probe Settings"
             klipper_section: "[probe]"
@@ -1232,7 +1232,7 @@ categories:
               - name: "samples_tolerance_retries"
                 type: "int"
                 default: 3
-                
+
           - id: "2.9.5"
             name: "Beacon Settings"
             klipper_section: "[beacon]"
@@ -1290,7 +1290,7 @@ categories:
                 options: ["rapid_scan", "scan"]
                 default: "rapid_scan"
                 description: "Mesh calibration method"
-                
+
           - id: "2.9.6"
             name: "Cartographer Settings"
             klipper_section: "[scanner]"
@@ -1380,7 +1380,7 @@ categories:
                     label: "Cartographer Touch"
                     condition: "2.9.1.probe_type == 'cartographer'"
                 required: true
-                
+
           - id: "2.10.2"
             name: "Safe Z Home"
             klipper_section: "[safe_z_home]"
@@ -1399,7 +1399,7 @@ categories:
               - name: "z_hop_speed"
                 type: "int"
                 default: 15
-                
+
           - id: "2.10.3"
             name: "Sensorless Homing"
             condition: "2.3.1.endstop_type == 'sensorless' or 2.4.1.endstop_type == 'sensorless'"
@@ -1444,7 +1444,7 @@ categories:
                     label: "Bed Tilt (tilting bed)"
                     condition: "2.5.1.z_motion_type == 'bed'"
                 required: true
-                
+
           - id: "2.11.2"
             name: "Z Tilt"
             klipper_section: "[z_tilt]"
@@ -1468,7 +1468,7 @@ categories:
               - name: "retry_tolerance"
                 type: "float"
                 default: 0.0075
-                
+
           - id: "2.11.3"
             name: "Quad Gantry Level"
             klipper_section: "[quad_gantry_level]"
@@ -1495,7 +1495,7 @@ categories:
               - name: "max_adjust"
                 type: "int"
                 default: 10
-                
+
           - id: "2.11.4"
             name: "Bed Mesh"
             klipper_section: "[bed_mesh]"
@@ -1556,7 +1556,7 @@ categories:
                 type: "choice"
                 options: ["mcu", "toolboard", "rpi"]
                 default: "mcu"
-                
+
           - id: "2.12.2"
             name: "Chamber Temperature"
             klipper_section: "[temperature_sensor chamber]"
@@ -1585,7 +1585,7 @@ categories:
                 type: "text"
                 default: "gpio4"
                 condition: "sensor_location == 'rpi' and sensor_type == 'DS18B20'"
-                
+
           - id: "2.12.3"
             name: "Additional Sensors"
             type: "list"
@@ -1661,7 +1661,7 @@ categories:
                 type: "float"
                 default: 0.0
                 condition: "color_order in ['GRBW', 'RGBW']"
-                
+
           - id: "2.13.2"
             name: "Case Light"
             required: false
@@ -1695,7 +1695,7 @@ categories:
                 options: ["GRB", "RGB", "GRBW", "RGBW"]
                 default: "GRB"
                 condition: "type == 'neopixel'"
-                
+
           - id: "2.13.3"
             name: "LED Effects Plugin"
             plugin_required: "led_effect"
@@ -1745,7 +1745,7 @@ categories:
               - name: "insert_gcode"
                 type: "text"
                 default: ""
-                
+
           - id: "2.14.2"
             name: "Motion Sensor"
             klipper_section: "[filament_motion_sensor motion_sensor]"
@@ -1806,7 +1806,7 @@ categories:
                   - value: "sh1106"
                     label: "SH1106 OLED"
                 condition: "enabled == true"
-                
+
           - id: "2.15.2"
             name: "Display Pins"
             condition: "2.15.1.lcd_type != 'none' and 2.15.1.enabled == true"
@@ -1830,7 +1830,7 @@ categories:
                 type: "int"
                 default: 63
                 range: [0, 63]
-                
+
           - id: "2.15.3"
             name: "Display Menu"
             condition: "2.15.1.enabled == true"
@@ -1872,7 +1872,7 @@ categories:
               - name: "maximum_pulse_width"
                 type: "float"
                 default: 0.002
-                
+
           - id: "2.16.2"
             name: "G-Code Buttons"
             klipper_section: "[gcode_button {name}]"
@@ -1893,7 +1893,7 @@ categories:
                 type: "text"
               - name: "release_gcode"
                 type: "text"
-                
+
           - id: "2.16.3"
             name: "Output Pins"
             klipper_section: "[output_pin {name}]"
@@ -1920,7 +1920,7 @@ categories:
                 type: "float"
                 default: 0.01
                 condition: "pwm == true"
-                
+
           - id: "2.16.4"
             name: "Force Move"
             klipper_section: "[force_move]"
@@ -1930,7 +1930,7 @@ categories:
                 type: "bool"
                 default: true
                 description: "Allows SET_KINEMATIC_POSITION for recovery"
-                
+
           - id: "2.16.5"
             name: "Firmware Retraction"
             klipper_section: "[firmware_retraction]"
@@ -1951,7 +1951,7 @@ categories:
               - name: "unretract_speed"
                 type: "int"
                 default: 35
-                
+
           - id: "2.16.6"
             name: "Skew Correction"
             klipper_section: "[skew_correction]"
@@ -2023,7 +2023,7 @@ categories:
                 options: ["auto", "silent", "performance", "autoswitch"]
                 default: "auto"
                 condition: "enabled == true"
-        
+
       # 3.2 Input Shaper
       - id: "3.2"
         name: "Input Shaper"
@@ -2058,7 +2058,7 @@ categories:
               - name: "damping_ratio_y"
                 type: "float"
                 default: 0.1
-                
+
           - id: "3.2.2"
             name: "ADXL345 Accelerometer"
             klipper_section: "[adxl345]"
@@ -2086,7 +2086,7 @@ categories:
                 type: "text"
                 default: "x,y,z"
                 description: "Axis mapping (may need adjustment)"
-                
+
           - id: "3.2.3"
             name: "Resonance Tester"
             klipper_section: "[resonance_tester]"
@@ -2105,7 +2105,7 @@ categories:
               - name: "hz_per_sec"
                 type: "int"
                 default: 1
-                
+
       # 3.3 Pressure Advance
       - id: "3.3"
         name: "Pressure Advance"
@@ -2119,7 +2119,7 @@ categories:
             type: "float"
             default: 0.040
             range: [0.01, 0.2]
-            
+
       # 3.4 Idle Timeout
       - id: "3.4"
         name: "Idle Timeout"
@@ -2132,7 +2132,7 @@ categories:
           - name: "gcode"
             type: "text"
             default: "TURN_OFF_HEATERS"
-            
+
       # 3.5 Virtual SD Card
       - id: "3.5"
         name: "Virtual SD Card"
@@ -2144,7 +2144,7 @@ categories:
           - name: "on_error_gcode"
             type: "text"
             default: "CANCEL_PRINT"
-            
+
       # 3.6 Macros
       - id: "3.6"
         name: "Macros"
@@ -2176,7 +2176,7 @@ categories:
                 type: "int"
                 default: 50
                 condition: "purge_line == true"
-                
+
           - id: "3.6.2"
             name: "END_PRINT Macro"
             parameters:
@@ -2201,7 +2201,7 @@ categories:
               - name: "turn_off_fans"
                 type: "bool"
                 default: true
-                
+
           - id: "3.6.3"
             name: "PAUSE/RESUME Macros"
             parameters:
@@ -2218,7 +2218,7 @@ categories:
                 type: "float"
                 default: 1.0
                 description: "Extrusion length when resuming"
-                
+
           - id: "3.6.4"
             name: "Slicer G-code"
             description: "Generate slicer start/end code snippets"
@@ -2238,7 +2238,7 @@ categories:
                 type: "bool"
                 default: true
                 description: "Show slicer code to copy after generation"
-                
+
       # 3.7 Save Variables
       - id: "3.7"
         name: "Save Variables"
@@ -2250,7 +2250,7 @@ categories:
           - name: "filename"
             type: "text"
             default: "~/printer_data/config/variables.cfg"
-            
+
       # 3.8 Respond
       - id: "3.8"
         name: "Console Messages"
@@ -2266,7 +2266,7 @@ categories:
           - name: "default_prefix"
             type: "text"
             default: "echo: "
-            
+
       # 3.9 Exclude Object
       - id: "3.9"
         name: "Exclude Object"
@@ -2277,7 +2277,7 @@ categories:
             type: "bool"
             default: true
             description: "Requires slicer support (label objects)"
-            
+
       # 3.10 Arc Support
       - id: "3.10"
         name: "Arc Support"
@@ -2291,7 +2291,7 @@ categories:
             type: "float"
             default: 0.1
             description: "Arc segment length in mm"
-            
+
       # 3.11 Pause Resume
       - id: "3.11"
         name: "Pause Resume"
@@ -2301,7 +2301,7 @@ categories:
             type: "int"
             default: 50
             description: "Velocity when returning to print position"
-            
+
       # 3.12 KAMP (Adaptive Meshing)
       - id: "3.12"
         name: "KAMP - Adaptive Meshing"
