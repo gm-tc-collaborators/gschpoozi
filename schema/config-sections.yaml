@@ -672,6 +672,87 @@ multi_pin:
     {% endfor %}
 
 # -----------------------------------------------------------------------------
+# Temperature Sensors
+# -----------------------------------------------------------------------------
+temperature_sensor:
+  condition: "temperature_sensors"
+  type: "list"
+  template: |
+    {% for sensor in temperature_sensors %}
+    {% if sensor.type == 'temperature_mcu' %}
+    [temperature_sensor {{ sensor.name }}]
+    sensor_type: temperature_mcu
+    sensor_mcu: {{ sensor.mcu | default('mcu') }}
+    {% elif sensor.type == 'temperature_host' %}
+    [temperature_sensor {{ sensor.name }}]
+    sensor_type: temperature_host
+    {% elif sensor.type == 'temperature_sensor' %}
+    [temperature_sensor {{ sensor.name }}]
+    sensor_type: {{ sensor.sensor_type }}
+    sensor_pin: {{ sensor.sensor_pin }}
+    {% endif %}
+
+    {% endfor %}
+
+# -----------------------------------------------------------------------------
+# LEDs
+# -----------------------------------------------------------------------------
+neopixel:
+  condition: "leds"
+  type: "list"
+  template: |
+    {% for led in leds %}
+    [neopixel {{ led.name }}]
+    {% if led.location == 'toolboard' %}
+    pin: toolboard:{{ led.pin }}
+    {% else %}
+    pin: {{ led.pin }}
+    {% endif %}
+    chain_count: {{ led.chain_count | default(1) }}
+    color_order: {{ led.color_order | default('GRB') }}
+    initial_RED: 0.2
+    initial_GREEN: 0.2
+    initial_BLUE: 0.2
+
+    {% endfor %}
+
+# -----------------------------------------------------------------------------
+# Filament Sensors
+# -----------------------------------------------------------------------------
+filament_switch_sensor:
+  condition: "filament_sensors"
+  type: "list"
+  template: |
+    {% for sensor in filament_sensors %}
+    {% if sensor.type == 'switch' %}
+    [filament_switch_sensor {{ sensor.name }}]
+    {% if sensor.location == 'toolboard' %}
+    switch_pin: ^toolboard:{{ sensor.pin }}
+    {% else %}
+    switch_pin: ^{{ sensor.pin }}
+    {% endif %}
+    pause_on_runout: {{ sensor.pause_on_runout | default(true) | lower }}
+    runout_gcode:
+        M117 Filament runout detected!
+        PAUSE
+    {% elif sensor.type == 'motion' %}
+    [filament_motion_sensor {{ sensor.name }}]
+    {% if sensor.location == 'toolboard' %}
+    switch_pin: ^toolboard:{{ sensor.pin }}
+    {% else %}
+    switch_pin: ^{{ sensor.pin }}
+    {% endif %}
+    detection_length: {{ sensor.detection_length | default(7.0) }}
+    extruder: extruder
+    pause_on_runout: {{ sensor.pause_on_runout | default(true) | lower }}
+    runout_gcode:
+        M117 Filament runout detected!
+        PAUSE
+    {% endif %}
+
+    {% endfor %}
+
+# -----------------------------------------------------------------------------
 # Pin Configuration Mappings
 # -----------------------------------------------------------------------------
 pin_config:

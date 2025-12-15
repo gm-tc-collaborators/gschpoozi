@@ -205,28 +205,45 @@ class GschpooziWizard:
     def hardware_setup_menu(self) -> None:
         """Hardware configuration menu."""
         while True:
+            # Build menu items dynamically based on config
+            awd_enabled = self.state.get("printer.awd_enabled", False)
+            
+            menu_items = [
+                ("2.1", "MCU Configuration     (Boards & connections)"),
+                ("2.2", "Printer Settings      (Kinematics & limits)"),
+                ("2.3", "X Axis                (Stepper & driver)"),
+            ]
+            
+            # Show AWD X1 option if AWD enabled
+            if awd_enabled:
+                menu_items.append(("2.3.1", "X1 Axis (AWD)        (Secondary X stepper)"))
+            
+            menu_items.append(("2.4", "Y Axis                (Stepper & driver)"))
+            
+            # Show AWD Y1 option if AWD enabled
+            if awd_enabled:
+                menu_items.append(("2.4.1", "Y1 Axis (AWD)        (Secondary Y stepper)"))
+            
+            menu_items.extend([
+                ("2.5", "Z Axis                (Stepper(s) & driver(s))"),
+                ("2.6", "Extruder              (Motor & hotend)"),
+                ("2.7", "Heated Bed            (Heater & thermistor)"),
+                ("2.8", "Fans                  (Part cooling, hotend, etc.)"),
+                ("2.9", "Probe                 (BLTouch, Beacon, etc.)"),
+                ("2.10", "Homing               (Safe Z home, sensorless)"),
+                ("2.11", "Bed Leveling         (Mesh, Z tilt, QGL)"),
+                ("2.12", "Temperature Sensors  (MCU, chamber, etc.)"),
+                ("2.13", "LEDs                 (Neopixel, case light)"),
+                ("2.14", "Filament Sensors     (Runout detection)"),
+                ("2.15", "Display              (LCD, OLED)"),
+                ("2.16", "Advanced             (Servo, buttons, etc.)"),
+                ("B", "Back to Main Menu"),
+            ])
+            
             choice = self.ui.menu(
                 "Hardware Setup - Configure Your Printer\n\n"
                 "Work through these sections to configure your hardware.",
-                [
-                    ("2.1", "MCU Configuration     (Boards & connections)"),
-                    ("2.2", "Printer Settings      (Kinematics & limits)"),
-                    ("2.3", "X Axis                (Stepper & driver)"),
-                    ("2.4", "Y Axis                (Stepper & driver)"),
-                    ("2.5", "Z Axis                (Stepper(s) & driver(s))"),
-                    ("2.6", "Extruder              (Motor & hotend)"),
-                    ("2.7", "Heated Bed            (Heater & thermistor)"),
-                    ("2.8", "Fans                  (Part cooling, hotend, etc.)"),
-                    ("2.9", "Probe                 (BLTouch, Beacon, etc.)"),
-                    ("2.10", "Homing               (Safe Z home, sensorless)"),
-                    ("2.11", "Bed Leveling         (Mesh, Z tilt, QGL)"),
-                    ("2.12", "Temperature Sensors  (MCU, chamber, etc.)"),
-                    ("2.13", "LEDs                 (Neopixel, case light)"),
-                    ("2.14", "Filament Sensors     (Runout detection)"),
-                    ("2.15", "Display              (LCD, OLED)"),
-                    ("2.16", "Advanced             (Servo, buttons, etc.)"),
-                    ("B", "Back to Main Menu"),
-                ],
+                menu_items,
                 title="2. Hardware Setup",
                 height=22,
             )
@@ -239,8 +256,12 @@ class GschpooziWizard:
                 self._printer_settings()
             elif choice == "2.3":
                 self._stepper_axis("x")
+            elif choice == "2.3.1":
+                self._stepper_axis("x1")
             elif choice == "2.4":
                 self._stepper_axis("y")
+            elif choice == "2.4.1":
+                self._stepper_axis("y1")
             elif choice == "2.5":
                 self._stepper_z()
             elif choice == "2.6":
@@ -255,8 +276,14 @@ class GschpooziWizard:
                 self._homing_setup()
             elif choice == "2.11":
                 self._bed_leveling_setup()
+            elif choice == "2.12":
+                self._temperature_sensors_setup()
+            elif choice == "2.13":
+                self._leds_setup()
+            elif choice == "2.14":
+                self._filament_sensors_setup()
             else:
-                # Placeholder for remaining sections (2.12-2.16)
+                # Placeholder for remaining sections (2.15-2.16)
                 self.ui.msgbox(
                     f"Section {choice} coming soon!\n\n"
                     "Optional hardware - implement as needed.",
@@ -475,6 +502,18 @@ class GschpooziWizard:
         if kinematics is None:
             return
         
+        # AWD (All Wheel Drive) - only for CoreXY
+        awd_enabled = False
+        if kinematics == "corexy":
+            awd_enabled = self.ui.yesno(
+                "Do you have AWD (All Wheel Drive)?\n\n"
+                "AWD uses 4 motors for X/Y motion:\n"
+                "• stepper_x and stepper_x1 for X axis\n"
+                "• stepper_y and stepper_y1 for Y axis\n\n"
+                "Common on VzBot, some Voron mods, etc.",
+                title="AWD Configuration"
+            )
+        
         # Bed size
         bed_x = self.ui.inputbox("Bed X size (mm):", default="350")
         if bed_x is None:
@@ -494,6 +533,7 @@ class GschpooziWizard:
         
         # Save
         self.state.set("printer.kinematics", kinematics)
+        self.state.set("printer.awd_enabled", awd_enabled)
         self.state.set("printer.bed_size_x", int(bed_x))
         self.state.set("printer.bed_size_y", int(bed_y))
         self.state.set("printer.bed_size_z", int(bed_z))
@@ -501,9 +541,11 @@ class GschpooziWizard:
         self.state.set("printer.max_accel", int(max_accel or 3000))
         self.state.save()
         
+        awd_text = "AWD: Enabled\n" if awd_enabled else ""
         self.ui.msgbox(
             f"Printer settings saved!\n\n"
             f"Kinematics: {kinematics}\n"
+            f"{awd_text}"
             f"Bed: {bed_x}x{bed_y}x{bed_z}mm\n"
             f"Max velocity: {max_velocity}mm/s\n"
             f"Max accel: {max_accel}mm/s²",
@@ -511,89 +553,153 @@ class GschpooziWizard:
         )
     
     def _stepper_axis(self, axis: str) -> None:
-        """Configure X or Y axis stepper."""
+        """Configure X, Y, X1, or Y1 axis stepper."""
         axis_upper = axis.upper()
         state_key = f"stepper_{axis}"
+        is_secondary = axis in ("x1", "y1")
+        primary_axis = axis[0] if is_secondary else axis  # x1 -> x, y1 -> y
         
-        # Motor port (simplified - would come from board template)
+        # Determine default motor port
+        port_defaults = {"x": "MOTOR_0", "y": "MOTOR_1", "x1": "MOTOR_2", "y1": "MOTOR_3"}
+        default_port = port_defaults.get(axis, "MOTOR_0")
+        
+        # Motor port
         motor_port = self.ui.inputbox(
-            f"Motor port for {axis_upper} axis (e.g., MOTOR0, MOTOR1):",
-            default=f"MOTOR{'0' if axis == 'x' else '1'}",
+            f"Motor port for {axis_upper} axis (e.g., MOTOR_0, MOTOR_1):",
+            default=default_port,
             title=f"Stepper {axis_upper} - Motor Port"
         )
         if motor_port is None:
             return
         
-        # Belt configuration
-        belt_pitch = self.ui.radiolist(
-            f"Belt pitch for {axis_upper} axis:",
+        # For secondary AWD steppers, copy belt settings from primary
+        if is_secondary:
+            belt_pitch = self.state.get(f"stepper_{primary_axis}.belt_pitch", 2)
+            pulley_teeth = self.state.get(f"stepper_{primary_axis}.pulley_teeth", 20)
+        else:
+            # Belt configuration
+            belt_pitch = self.ui.radiolist(
+                f"Belt pitch for {axis_upper} axis:",
+                [
+                    ("2", "2mm GT2 (most common)", True),
+                    ("3", "3mm HTD3M", False),
+                ],
+                title=f"Stepper {axis_upper} - Belt"
+            )
+            
+            pulley_teeth = self.ui.radiolist(
+                f"Pulley teeth for {axis_upper} axis:",
+                [
+                    ("16", "16 tooth", False),
+                    ("20", "20 tooth (most common)", True),
+                    ("24", "24 tooth", False),
+                ],
+                title=f"Stepper {axis_upper} - Pulley"
+            )
+        
+        # Endstop - only for primary steppers
+        endstop_type = None
+        position_max = None
+        position_endstop = None
+        
+        if not is_secondary:
+            endstop_type = self.ui.radiolist(
+                f"Endstop type for {axis_upper} axis:",
+                [
+                    ("physical", "Physical switch", True),
+                    ("sensorless", "Sensorless (StallGuard)", False),
+                ],
+                title=f"Stepper {axis_upper} - Endstop"
+            )
+            
+            # Position
+            bed_size = self.state.get(f"printer.bed_size_{axis}", 350)
+            position_max = self.ui.inputbox(
+                f"Position max for {axis_upper} (mm):",
+                default=str(bed_size),
+                title=f"Stepper {axis_upper} - Position"
+            )
+            
+            position_endstop = self.ui.inputbox(
+                f"Position endstop for {axis_upper} (0 for min, {position_max} for max):",
+                default=position_max,
+                title=f"Stepper {axis_upper} - Endstop Position"
+            )
+        
+        # TMC Driver Type
+        driver_type = self.ui.radiolist(
+            f"TMC driver type for {axis_upper}:",
             [
-                ("2", "2mm GT2 (most common)", True),
-                ("3", "3mm HTD3M", False),
+                ("TMC2209", "TMC2209 (UART)", True),
+                ("TMC5160", "TMC5160 (SPI)", False),
+                ("TMC2130", "TMC2130 (SPI)", False),
             ],
-            title=f"Stepper {axis_upper} - Belt"
+            title=f"Stepper {axis_upper} - Driver Type"
         )
         
-        pulley_teeth = self.ui.radiolist(
-            f"Pulley teeth for {axis_upper} axis:",
-            [
-                ("16", "16 tooth", False),
-                ("20", "20 tooth (most common)", True),
-                ("24", "24 tooth", False),
-            ],
-            title=f"Stepper {axis_upper} - Pulley"
-        )
+        # Determine protocol from driver type
+        spi_drivers = ["TMC5160", "TMC2130", "TMC2660"]
+        driver_protocol = "spi" if driver_type in spi_drivers else "uart"
         
-        # Endstop
-        endstop_type = self.ui.radiolist(
-            f"Endstop type for {axis_upper} axis:",
-            [
-                ("physical", "Physical switch", True),
-                ("sensorless", "Sensorless (StallGuard)", False),
-            ],
-            title=f"Stepper {axis_upper} - Endstop"
-        )
-        
-        # Position
-        bed_size = self.state.get(f"printer.bed_size_{axis}", 350)
-        position_max = self.ui.inputbox(
-            f"Position max for {axis_upper} (mm):",
-            default=str(bed_size),
-            title=f"Stepper {axis_upper} - Position"
-        )
-        
-        position_endstop = self.ui.inputbox(
-            f"Position endstop for {axis_upper} (0 for min, {position_max} for max):",
-            default=position_max,
-            title=f"Stepper {axis_upper} - Endstop Position"
-        )
-        
-        # TMC Driver
+        # Run current
+        default_current = "1.7" if driver_type == "TMC5160" else "1.0"
         run_current = self.ui.inputbox(
             f"TMC run current for {axis_upper} (A):",
-            default="1.0",
+            default=default_current,
             title=f"Stepper {axis_upper} - Driver"
         )
+        
+        # SPI-specific settings
+        sense_resistor = None
+        if driver_protocol == "spi":
+            sense_resistor = self.ui.radiolist(
+                f"Sense resistor for {axis_upper}:",
+                [
+                    ("0.075", "0.075Ω (standard TMC5160)", True),
+                    ("0.033", "0.033Ω (high current)", False),
+                    ("0.110", "0.110Ω (low current)", False),
+                ],
+                title=f"Stepper {axis_upper} - Sense Resistor"
+            )
         
         # Save
         self.state.set(f"{state_key}.motor_port", motor_port)
         self.state.set(f"{state_key}.belt_pitch", int(belt_pitch or 2))
         self.state.set(f"{state_key}.pulley_teeth", int(pulley_teeth or 20))
-        self.state.set(f"{state_key}.endstop_type", endstop_type or "physical")
-        self.state.set(f"{state_key}.position_max", int(position_max or bed_size))
-        self.state.set(f"{state_key}.position_endstop", int(position_endstop or position_max or bed_size))
+        self.state.set(f"{state_key}.driver_type", driver_type or "TMC2209")
+        self.state.set(f"{state_key}.driver_protocol", driver_protocol)
         self.state.set(f"{state_key}.run_current", float(run_current or 1.0))
+        
+        if sense_resistor:
+            self.state.set(f"{state_key}.sense_resistor", float(sense_resistor))
+        
+        if not is_secondary:
+            bed_size = self.state.get(f"printer.bed_size_{axis}", 350)
+            self.state.set(f"{state_key}.endstop_type", endstop_type or "physical")
+            self.state.set(f"{state_key}.position_max", int(position_max or bed_size))
+            self.state.set(f"{state_key}.position_endstop", int(position_endstop or position_max or bed_size))
+        
         self.state.save()
         
-        self.ui.msgbox(
-            f"Stepper {axis_upper} configured!\n\n"
-            f"Motor: {motor_port}\n"
-            f"Belt: {belt_pitch}mm × {pulley_teeth}T\n"
-            f"Endstop: {endstop_type}\n"
-            f"Position: 0 to {position_max}mm\n"
-            f"Current: {run_current}A",
-            title="Configuration Saved"
-        )
+        if is_secondary:
+            self.ui.msgbox(
+                f"Stepper {axis_upper} (AWD) configured!\n\n"
+                f"Motor: {motor_port}\n"
+                f"Driver: {driver_type}\n"
+                f"Current: {run_current}A",
+                title="Configuration Saved"
+            )
+        else:
+            self.ui.msgbox(
+                f"Stepper {axis_upper} configured!\n\n"
+                f"Motor: {motor_port}\n"
+                f"Belt: {belt_pitch}mm × {pulley_teeth}T\n"
+                f"Driver: {driver_type}\n"
+                f"Endstop: {endstop_type}\n"
+                f"Position: 0 to {position_max}mm\n"
+                f"Current: {run_current}A",
+                title="Configuration Saved"
+            )
     
     def _stepper_z(self) -> None:
         """Configure Z axis stepper(s)."""
@@ -784,7 +890,7 @@ class GschpooziWizard:
     
     def _fans_setup(self) -> None:
         """Configure fans."""
-        has_toolboard = self.state.get("mcu.toolboard.enabled", False)
+        has_toolboard = self.state.get("mcu.toolboard.connection_type")
         
         # Part cooling fan location
         if has_toolboard:
@@ -818,17 +924,92 @@ class GschpooziWizard:
             title="Fans - Controller"
         )
         
+        # Additional fans (fan_generic)
+        additional_fans = []
+        if self.ui.yesno(
+            "Do you have additional fans?\n\n"
+            "Examples:\n"
+            "• Exhaust fan\n"
+            "• RSCS (Remote Side Cooling)\n"
+            "• Nevermore/chamber filter\n"
+            "• Bed fans",
+            title="Additional Fans"
+        ):
+            while True:
+                fan_name = self.ui.inputbox(
+                    "Fan name (e.g., Exhaust_fan, RSCS):\n\n"
+                    "(Leave empty to finish)",
+                    default="",
+                    title="Add Fan"
+                )
+                
+                if not fan_name:
+                    break
+                
+                # Multi-pin support
+                is_multi_pin = self.ui.yesno(
+                    f"Does '{fan_name}' use multiple pins?\n\n"
+                    "(e.g., two fans running together as one)",
+                    title=f"{fan_name} - Multi-Pin"
+                )
+                
+                fan_config = {"name": fan_name}
+                
+                if is_multi_pin:
+                    pins = self.ui.inputbox(
+                        f"Enter pins for '{fan_name}' (comma-separated):\n\n"
+                        "Example: PA15, PB11",
+                        default="",
+                        title=f"{fan_name} - Pins"
+                    )
+                    fan_config["pin_type"] = "multi_pin"
+                    fan_config["pins"] = pins
+                    fan_config["multi_pin_name"] = fan_name
+                else:
+                    pin = self.ui.inputbox(
+                        f"Pin for '{fan_name}':",
+                        default="",
+                        title=f"{fan_name} - Pin"
+                    )
+                    fan_config["pin_type"] = "single"
+                    fan_config["pin"] = pin
+                
+                additional_fans.append(fan_config)
+                
+                if not self.ui.yesno("Add another fan?", title="More Fans"):
+                    break
+        
+        # Multi-pin groups (for hotend cooling with multiple fans, etc.)
+        multi_pins = []
+        for fan in additional_fans:
+            if fan.get("pin_type") == "multi_pin":
+                multi_pins.append({
+                    "name": fan["multi_pin_name"],
+                    "pins": fan["pins"]
+                })
+        
         # Save
         self.state.set("fans.part_cooling.location", part_location)
         self.state.set("fans.hotend.location", hotend_location)
         self.state.set("fans.controller.enabled", has_controller_fan)
+        
+        if additional_fans:
+            self.state.set("fans.additional_fans", additional_fans)
+        if multi_pins:
+            self.state.set("advanced.multi_pins", multi_pins)
+        
         self.state.save()
         
-        self.ui.msgbox(
-            f"Fans configured!\n\n"
+        summary = (
             f"Part cooling: {part_location}\n"
             f"Hotend: {hotend_location}\n"
-            f"Controller fan: {'Yes' if has_controller_fan else 'No'}",
+            f"Controller fan: {'Yes' if has_controller_fan else 'No'}"
+        )
+        if additional_fans:
+            summary += f"\nAdditional: {', '.join(f['name'] for f in additional_fans)}"
+        
+        self.ui.msgbox(
+            f"Fans configured!\n\n{summary}",
             title="Configuration Saved"
         )
     
@@ -842,6 +1023,7 @@ class GschpooziWizard:
             ("inductive", "Inductive (PINDA)"),
             ("beacon", "Beacon (eddy current)"),
             ("cartographer", "Cartographer"),
+            ("btt_eddy", "BTT Eddy"),
         ]
         
         probe_type = self.ui.radiolist(
@@ -855,6 +1037,9 @@ class GschpooziWizard:
             self.state.save()
             return
         
+        # Eddy current probes have their own serial connection
+        eddy_probes = ["beacon", "cartographer", "btt_eddy"]
+        
         # Offsets (for non-Tap probes)
         if probe_type != "tap":
             x_offset = self.ui.inputbox(
@@ -864,39 +1049,167 @@ class GschpooziWizard:
             )
             y_offset = self.ui.inputbox(
                 "Probe Y offset from nozzle (mm):",
-                default="0",
+                default="0" if probe_type not in eddy_probes else "25",
                 title="Probe - Y Offset"
             )
         else:
             x_offset = "0"
             y_offset = "0"
         
-        # Location for non-eddy probes
-        has_toolboard = self.state.get("mcu.toolboard.enabled", False)
-        if probe_type not in ["beacon", "cartographer"] and has_toolboard:
-            location = self.ui.radiolist(
-                "Probe connected to:",
+        # Eddy probe specific settings
+        serial = None
+        homing_mode = None
+        contact_max_temp = None
+        mesh_main_direction = None
+        mesh_runs = None
+        
+        if probe_type in eddy_probes:
+            # Serial detection
+            self.ui.infobox("Scanning for probe serial...", title="Detecting")
+            import time
+            time.sleep(1)
+            
+            # Try to find serial device
+            serial_dir = Path("/dev/serial/by-id")
+            serial_devices = []
+            if serial_dir.exists():
+                probe_patterns = {
+                    "beacon": "Beacon",
+                    "cartographer": "Cartographer",
+                    "btt_eddy": "BTT"
+                }
+                pattern = probe_patterns.get(probe_type, "")
+                serial_devices = [str(d) for d in serial_dir.iterdir() 
+                                  if pattern.lower() in d.name.lower()]
+            
+            if serial_devices:
+                device_items = [(d, Path(d).name, i == 0) 
+                                for i, d in enumerate(serial_devices)]
+                device_items.append(("manual", "Enter manually", False))
+                
+                serial = self.ui.radiolist(
+                    f"Select {probe_type} serial device:",
+                    device_items,
+                    title="Probe - Serial"
+                )
+                
+                if serial == "manual":
+                    serial = self.ui.inputbox(
+                        "Enter serial path:",
+                        default="/dev/serial/by-id/usb-"
+                    )
+            else:
+                serial = self.ui.inputbox(
+                    f"Enter {probe_type} serial path:\n\n"
+                    "(No devices auto-detected)",
+                    default="/dev/serial/by-id/usb-"
+                )
+            
+            # Homing mode selection
+            if probe_type == "beacon":
+                homing_mode = self.ui.radiolist(
+                    "Beacon homing mode:",
+                    [
+                        ("contact", "Contact (nozzle touches bed)", True),
+                        ("proximity", "Proximity (non-contact)", False),
+                    ],
+                    title="Beacon - Homing Mode"
+                )
+                
+                if homing_mode == "contact":
+                    contact_max_temp = self.ui.inputbox(
+                        "Max hotend temp for contact probing (°C):\n\n"
+                        "(Prevents damage from hot nozzle contact)",
+                        default="180",
+                        title="Beacon - Contact Temp"
+                    )
+            
+            elif probe_type == "cartographer":
+                homing_mode = self.ui.radiolist(
+                    "Cartographer homing mode:",
+                    [
+                        ("touch", "Touch (contact homing)", True),
+                        ("scan", "Scan (proximity homing)", False),
+                    ],
+                    title="Cartographer - Homing Mode"
+                )
+            
+            elif probe_type == "btt_eddy":
+                homing_mode = self.ui.radiolist(
+                    "BTT Eddy mesh method:",
+                    [
+                        ("rapid_scan", "Rapid Scan (fast)", True),
+                        ("scan", "Standard Scan", False),
+                    ],
+                    title="BTT Eddy - Mesh Method"
+                )
+            
+            # Mesh settings for eddy probes
+            mesh_main_direction = self.ui.radiolist(
+                "Mesh scan direction:",
                 [
-                    ("mainboard", "Mainboard", False),
-                    ("toolboard", "Toolboard", True),
+                    ("x", "X direction", False),
+                    ("y", "Y direction", True),
                 ],
-                title="Probe - Connection"
+                title="Probe - Mesh Direction"
             )
-        else:
-            location = "toolboard" if has_toolboard else "mainboard"
+            
+            mesh_runs = self.ui.radiolist(
+                "Mesh scan passes:",
+                [
+                    ("1", "1 pass (faster)", True),
+                    ("2", "2 passes (more accurate)", False),
+                ],
+                title="Probe - Mesh Runs"
+            )
+        
+        # Location for non-eddy probes
+        has_toolboard = self.state.get("mcu.toolboard.connection_type")
+        location = None
+        if probe_type not in eddy_probes:
+            if has_toolboard:
+                location = self.ui.radiolist(
+                    "Probe connected to:",
+                    [
+                        ("mainboard", "Mainboard", False),
+                        ("toolboard", "Toolboard", True),
+                    ],
+                    title="Probe - Connection"
+                )
+            else:
+                location = "mainboard"
         
         # Save
         self.state.set("probe.probe_type", probe_type)
         self.state.set("probe.x_offset", float(x_offset or 0))
         self.state.set("probe.y_offset", float(y_offset or 0))
-        self.state.set("probe.location", location)
+        
+        if serial:
+            self.state.set("probe.serial", serial)
+        if homing_mode:
+            self.state.set("probe.homing_mode", homing_mode)
+        if contact_max_temp:
+            self.state.set("probe.contact_max_hotend_temperature", int(contact_max_temp))
+        if mesh_main_direction:
+            self.state.set("probe.mesh_main_direction", mesh_main_direction)
+        if mesh_runs:
+            self.state.set("probe.mesh_runs", int(mesh_runs))
+        if location:
+            self.state.set("probe.location", location)
+        
         self.state.save()
         
+        # Build summary
+        summary = f"Type: {probe_type}\nOffset: X={x_offset}, Y={y_offset}"
+        if serial:
+            summary += f"\nSerial: {Path(serial).name if '/' in serial else serial}"
+        if homing_mode:
+            summary += f"\nHoming: {homing_mode}"
+        if probe_type in eddy_probes:
+            summary += f"\nMesh: {mesh_main_direction} direction, {mesh_runs} run(s)"
+        
         self.ui.msgbox(
-            f"Probe configured!\n\n"
-            f"Type: {probe_type}\n"
-            f"Offset: X={x_offset}, Y={y_offset}\n"
-            f"Location: {location}\n\n"
+            f"Probe configured!\n\n{summary}\n\n"
             "Remember to run PROBE_CALIBRATE for Z offset",
             title="Configuration Saved"
         )
@@ -995,6 +1308,262 @@ class GschpooziWizard:
             f"Type: {leveling_type}\n"
             f"Mesh: {'Enabled' if enable_mesh else 'Disabled'}\n"
             f"Probe count: {probe_count}",
+            title="Configuration Saved"
+        )
+    
+    def _temperature_sensors_setup(self) -> None:
+        """Configure temperature sensors."""
+        sensors = []
+        
+        # MCU temperature sensor (always available)
+        if self.ui.yesno(
+            "Add MCU temperature sensor?\n\n"
+            "Shows mainboard MCU temperature in Klipper.",
+            title="Temperature Sensors"
+        ):
+            sensors.append({
+                "name": "mcu_temp",
+                "type": "temperature_mcu",
+                "mcu": "mcu"
+            })
+        
+        # Host (Raspberry Pi) temperature
+        if self.ui.yesno(
+            "Add host (Raspberry Pi) temperature sensor?",
+            title="Temperature Sensors"
+        ):
+            sensors.append({
+                "name": "host_temp",
+                "type": "temperature_host"
+            })
+        
+        # Chamber temperature sensor
+        if self.ui.yesno(
+            "Do you have a chamber temperature sensor?",
+            title="Temperature Sensors"
+        ):
+            sensor_type = self.ui.radiolist(
+                "Chamber sensor type:",
+                [
+                    ("Generic 3950", "Generic 3950 (NTC)", True),
+                    ("ATC Semitec 104GT-2", "ATC Semitec 104GT-2", False),
+                    ("PT1000", "PT1000", False),
+                ],
+                title="Chamber Sensor Type"
+            )
+            
+            sensor_pin = self.ui.inputbox(
+                "Chamber sensor pin (e.g., PF5):",
+                default="",
+                title="Chamber Sensor Pin"
+            )
+            
+            if sensor_pin:
+                sensors.append({
+                    "name": "chamber",
+                    "type": "temperature_sensor",
+                    "sensor_type": sensor_type,
+                    "sensor_pin": sensor_pin
+                })
+        
+        # Additional sensors
+        while self.ui.yesno(
+            "Add another temperature sensor?",
+            title="More Sensors",
+            default_no=True
+        ):
+            name = self.ui.inputbox(
+                "Sensor name:",
+                default="",
+                title="Sensor Name"
+            )
+            if not name:
+                break
+            
+            sensor_type = self.ui.radiolist(
+                f"Sensor type for '{name}':",
+                [
+                    ("Generic 3950", "Generic 3950 (NTC)", True),
+                    ("ATC Semitec 104GT-2", "ATC Semitec 104GT-2", False),
+                    ("PT1000", "PT1000", False),
+                    ("DS18B20", "DS18B20 (1-wire)", False),
+                ],
+                title="Sensor Type"
+            )
+            
+            sensor_pin = self.ui.inputbox(
+                f"Pin for '{name}':",
+                default="",
+                title="Sensor Pin"
+            )
+            
+            if sensor_pin:
+                sensors.append({
+                    "name": name,
+                    "type": "temperature_sensor",
+                    "sensor_type": sensor_type,
+                    "sensor_pin": sensor_pin
+                })
+        
+        # Save
+        self.state.set("temperature_sensors", sensors)
+        self.state.save()
+        
+        sensor_names = [s["name"] for s in sensors]
+        self.ui.msgbox(
+            f"Temperature sensors configured!\n\n"
+            f"Sensors: {', '.join(sensor_names) if sensor_names else 'None'}",
+            title="Configuration Saved"
+        )
+    
+    def _leds_setup(self) -> None:
+        """Configure LED strips."""
+        leds = []
+        
+        if not self.ui.yesno(
+            "Do you have LED strips (Neopixel/WS2812)?",
+            title="LED Configuration"
+        ):
+            self.state.set("leds", [])
+            self.state.save()
+            return
+        
+        has_toolboard = self.state.get("mcu.toolboard.connection_type")
+        
+        while True:
+            led_name = self.ui.inputbox(
+                "LED strip name (e.g., status_led, chamber_led):\n\n"
+                "(Leave empty to finish)",
+                default="status_led" if not leds else "",
+                title="Add LED"
+            )
+            
+            if not led_name:
+                break
+            
+            # Location
+            if has_toolboard:
+                location = self.ui.radiolist(
+                    f"'{led_name}' connected to:",
+                    [
+                        ("mainboard", "Mainboard", False),
+                        ("toolboard", "Toolboard", True),
+                    ],
+                    title=f"{led_name} - Location"
+                )
+            else:
+                location = "mainboard"
+            
+            # Pin
+            pin = self.ui.inputbox(
+                f"Pin for '{led_name}':",
+                default="PB0" if location == "mainboard" else "PB8",
+                title=f"{led_name} - Pin"
+            )
+            
+            # LED count
+            chain_count = self.ui.inputbox(
+                f"Number of LEDs in '{led_name}' chain:",
+                default="1",
+                title=f"{led_name} - Count"
+            )
+            
+            # Color order
+            color_order = self.ui.radiolist(
+                f"Color order for '{led_name}':",
+                [
+                    ("GRB", "GRB (most common)", True),
+                    ("RGB", "RGB", False),
+                    ("GRBW", "GRBW (RGBW with green first)", False),
+                    ("RGBW", "RGBW", False),
+                ],
+                title=f"{led_name} - Color Order"
+            )
+            
+            leds.append({
+                "name": led_name,
+                "location": location,
+                "pin": pin,
+                "chain_count": int(chain_count or 1),
+                "color_order": color_order
+            })
+            
+            if not self.ui.yesno("Add another LED strip?", title="More LEDs"):
+                break
+        
+        # Save
+        self.state.set("leds", leds)
+        self.state.save()
+        
+        led_names = [l["name"] for l in leds]
+        self.ui.msgbox(
+            f"LEDs configured!\n\n"
+            f"Strips: {', '.join(led_names) if led_names else 'None'}",
+            title="Configuration Saved"
+        )
+    
+    def _filament_sensors_setup(self) -> None:
+        """Configure filament sensors."""
+        sensors = []
+        
+        if not self.ui.yesno(
+            "Do you have a filament runout sensor?",
+            title="Filament Sensor"
+        ):
+            self.state.set("filament_sensors", [])
+            self.state.save()
+            return
+        
+        has_toolboard = self.state.get("mcu.toolboard.connection_type")
+        
+        # Sensor type
+        sensor_type = self.ui.radiolist(
+            "Filament sensor type:",
+            [
+                ("switch", "Simple switch (runout only)", True),
+                ("motion", "Motion sensor (detects movement)", False),
+                ("encoder", "Encoder (measures filament)", False),
+            ],
+            title="Sensor Type"
+        )
+        
+        # Location
+        if has_toolboard:
+            location = self.ui.radiolist(
+                "Sensor connected to:",
+                [
+                    ("mainboard", "Mainboard", False),
+                    ("toolboard", "Toolboard", True),
+                ],
+                title="Sensor Location"
+            )
+        else:
+            location = "mainboard"
+        
+        # Pin
+        pin = self.ui.inputbox(
+            "Sensor pin:",
+            default="PG11" if location == "mainboard" else "PB6",
+            title="Sensor Pin"
+        )
+        
+        sensors.append({
+            "name": "filament_sensor",
+            "type": sensor_type,
+            "location": location,
+            "pin": pin,
+            "pause_on_runout": True
+        })
+        
+        # Save
+        self.state.set("filament_sensors", sensors)
+        self.state.save()
+        
+        self.ui.msgbox(
+            f"Filament sensor configured!\n\n"
+            f"Type: {sensor_type}\n"
+            f"Location: {location}\n"
+            f"Pin: {pin}",
             title="Configuration Saved"
         )
     

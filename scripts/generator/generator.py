@@ -6,6 +6,7 @@ Orchestrates loading state, rendering templates, and writing config files.
 
 import os
 import sys
+import json
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from datetime import datetime
@@ -23,14 +24,11 @@ class ConfigGenerator:
     # Output file structure
     OUTPUT_FILES = {
         "printer.cfg": "Main configuration (includes only)",
-        "gschpoozi/mcu.cfg": "MCU definitions",
-        "gschpoozi/steppers.cfg": "Stepper motors and drivers",
-        "gschpoozi/extruder.cfg": "Extruder and hotend",
-        "gschpoozi/bed.cfg": "Heated bed",
-        "gschpoozi/fans.cfg": "Fan configuration",
+        "gschpoozi/hardware.cfg": "MCU, steppers, extruder, bed, fans",
         "gschpoozi/probe.cfg": "Probe and homing",
         "gschpoozi/leveling.cfg": "Bed leveling",
         "gschpoozi/macros.cfg": "G-code macros",
+        "gschpoozi/macros-config.cfg": "Macro configuration variables",
         "gschpoozi/tuning.cfg": "Tuning and optional features",
     }
     
@@ -38,35 +36,50 @@ class ConfigGenerator:
         self,
         state: WizardState = None,
         output_dir: Path = None,
-        renderer: TemplateRenderer = None
+        renderer: TemplateRenderer = None,
+        templates_dir: Path = None
     ):
         self.state = state or get_state()
         self.output_dir = output_dir or Path.home() / "printer_data" / "config"
         self.renderer = renderer or TemplateRenderer()
+        self.templates_dir = templates_dir or self._find_templates_dir()
         
         # Section to file mapping
         self.file_mapping = {
-            'mcu.main': 'gschpoozi/mcu.cfg',
-            'mcu.toolboard': 'gschpoozi/mcu.cfg',
-            'mcu.host': 'gschpoozi/mcu.cfg',
-            'printer': 'gschpoozi/mcu.cfg',
-            'stepper_x': 'gschpoozi/steppers.cfg',
-            'tmc_stepper_x': 'gschpoozi/steppers.cfg',
-            'stepper_y': 'gschpoozi/steppers.cfg',
-            'tmc_stepper_y': 'gschpoozi/steppers.cfg',
-            'stepper_z': 'gschpoozi/steppers.cfg',
-            'tmc_stepper_z': 'gschpoozi/steppers.cfg',
-            'extruder': 'gschpoozi/extruder.cfg',
-            'heater_bed': 'gschpoozi/bed.cfg',
-            'fan': 'gschpoozi/fans.cfg',
-            'heater_fan': 'gschpoozi/fans.cfg',
-            'controller_fan': 'gschpoozi/fans.cfg',
+            'mcu.main': 'gschpoozi/hardware.cfg',
+            'mcu.toolboard': 'gschpoozi/hardware.cfg',
+            'mcu.host': 'gschpoozi/hardware.cfg',
+            'printer': 'gschpoozi/hardware.cfg',
+            'stepper_x': 'gschpoozi/hardware.cfg',
+            'tmc_stepper_x': 'gschpoozi/hardware.cfg',
+            'stepper_x1': 'gschpoozi/hardware.cfg',
+            'tmc_stepper_x1': 'gschpoozi/hardware.cfg',
+            'stepper_y': 'gschpoozi/hardware.cfg',
+            'tmc_stepper_y': 'gschpoozi/hardware.cfg',
+            'stepper_y1': 'gschpoozi/hardware.cfg',
+            'tmc_stepper_y1': 'gschpoozi/hardware.cfg',
+            'stepper_z': 'gschpoozi/hardware.cfg',
+            'tmc_stepper_z': 'gschpoozi/hardware.cfg',
+            'extruder': 'gschpoozi/hardware.cfg',
+            'tmc_extruder': 'gschpoozi/hardware.cfg',
+            'heater_bed': 'gschpoozi/hardware.cfg',
+            'fan': 'gschpoozi/hardware.cfg',
+            'heater_fan': 'gschpoozi/hardware.cfg',
+            'controller_fan': 'gschpoozi/hardware.cfg',
+            'multi_pin': 'gschpoozi/hardware.cfg',
+            'fan_generic': 'gschpoozi/hardware.cfg',
             'probe': 'gschpoozi/probe.cfg',
             'bltouch': 'gschpoozi/probe.cfg',
+            'beacon': 'gschpoozi/probe.cfg',
+            'cartographer': 'gschpoozi/probe.cfg',
+            'btt_eddy': 'gschpoozi/probe.cfg',
             'safe_z_home': 'gschpoozi/probe.cfg',
             'bed_mesh': 'gschpoozi/leveling.cfg',
             'z_tilt': 'gschpoozi/leveling.cfg',
             'quad_gantry_level': 'gschpoozi/leveling.cfg',
+            'temperature_sensor': 'gschpoozi/hardware.cfg',
+            'neopixel': 'gschpoozi/hardware.cfg',
+            'filament_switch_sensor': 'gschpoozi/hardware.cfg',
             'common.virtual_sdcard': 'gschpoozi/tuning.cfg',
             'common.idle_timeout': 'gschpoozi/tuning.cfg',
             'common.pause_resume': 'gschpoozi/tuning.cfg',
@@ -76,47 +89,150 @@ class ConfigGenerator:
             'common.save_variables': 'gschpoozi/tuning.cfg',
             'common.force_move': 'gschpoozi/tuning.cfg',
             'common.firmware_retraction': 'gschpoozi/tuning.cfg',
+            'common.macro_config': 'gschpoozi/macros-config.cfg',
+            'common.bed_mesh_macro': 'gschpoozi/macros.cfg',
         }
+    
+    def _find_templates_dir(self) -> Path:
+        """Find the templates directory."""
+        module_dir = Path(__file__).parent
+        candidates = [
+            module_dir.parent.parent / "templates",
+            module_dir.parent / "templates",
+            Path.home() / "gschpoozi" / "templates",
+        ]
+        for path in candidates:
+            if path.exists():
+                return path
+        return candidates[0]  # Return first as default
     
     def get_context(self) -> Dict[str, Any]:
         """Get context for template rendering from wizard state."""
         context = self.state.export_for_generator()
         
-        # Add board pin definitions (would come from board templates)
-        # This is a placeholder - actual implementation would load from templates/boards/
-        context['board'] = self._get_board_context()
-        context['toolboard'] = self._get_toolboard_context()
+        # Load board pin definitions from JSON files
+        context['board'] = self._load_board_definition(
+            self.state.get('mcu.main.board_type', 'other')
+        )
+        context['toolboard'] = self._load_toolboard_definition(
+            self.state.get('mcu.toolboard.board_type', None)
+        )
         context['extruder_presets'] = self._get_extruder_presets()
         
         return context
     
-    def _get_board_context(self) -> Dict[str, Any]:
-        """Get main board pin definitions."""
-        # Placeholder - would load from templates/boards/{board_type}.yaml
-        board_type = self.state.get('mcu.main.board_type', 'other')
+    def _load_board_definition(self, board_type: str) -> Dict[str, Any]:
+        """Load main board pin definitions from JSON file."""
+        if not board_type or board_type == 'other':
+            return self._get_manual_board_context()
         
-        # Return a generic structure for now
-        return {
-            'pins': {},  # Would be populated from board template
-            'motor_ports': ['MOTOR0', 'MOTOR1', 'MOTOR2', 'MOTOR3', 'MOTOR4', 'MOTOR5'],
-            'endstop_ports': ['ENDSTOP_X', 'ENDSTOP_Y', 'ENDSTOP_Z'],
-            'fan_ports': ['FAN0', 'FAN1', 'FAN2', 'FAN3'],
-            'heater_ports': ['HE0', 'HE1', 'HE2', 'HB'],
-            'thermistor_ports': ['T0', 'T1', 'T2', 'TB'],
-        }
+        board_file = self.templates_dir / "boards" / f"{board_type}.json"
+        if board_file.exists():
+            try:
+                with open(board_file) as f:
+                    board_data = json.load(f)
+                return self._transform_board_data(board_data)
+            except (json.JSONDecodeError, IOError):
+                pass
+        
+        return self._get_manual_board_context()
     
-    def _get_toolboard_context(self) -> Dict[str, Any]:
-        """Get toolboard pin definitions."""
-        if not self.state.get('mcu.toolboard.enabled'):
+    def _load_toolboard_definition(self, board_type: str) -> Dict[str, Any]:
+        """Load toolboard pin definitions from JSON file."""
+        if not board_type or not self.state.get('mcu.toolboard.connection_type'):
             return {}
         
+        board_file = self.templates_dir / "toolboards" / f"{board_type}.json"
+        if board_file.exists():
+            try:
+                with open(board_file) as f:
+                    board_data = json.load(f)
+                return self._transform_board_data(board_data)
+            except (json.JSONDecodeError, IOError):
+                pass
+        
+        return self._get_manual_toolboard_context()
+    
+    def _transform_board_data(self, board_data: Dict) -> Dict[str, Any]:
+        """Transform board JSON data to template-friendly format."""
+        pins = {}
+        
+        # Transform motor ports
+        for port_name, port_data in board_data.get('motor_ports', {}).items():
+            pins[port_name] = {
+                'step': port_data.get('step_pin'),
+                'dir': port_data.get('dir_pin'),
+                'enable': port_data.get('enable_pin'),
+                'uart': port_data.get('uart_pin'),
+                'cs': port_data.get('cs_pin'),
+                'diag': port_data.get('diag_pin'),
+            }
+        
+        # Transform heater ports
+        for port_name, port_data in board_data.get('heater_ports', {}).items():
+            pins[port_name] = {'signal': port_data.get('pin')}
+        
+        # Transform fan ports
+        for port_name, port_data in board_data.get('fan_ports', {}).items():
+            pins[port_name] = {'signal': port_data.get('pin')}
+        
+        # Transform thermistor ports
+        for port_name, port_data in board_data.get('thermistor_ports', {}).items():
+            pins[port_name] = {'signal': port_data.get('pin')}
+        
+        # Transform endstop ports
+        for port_name, port_data in board_data.get('endstop_ports', {}).items():
+            pins[port_name] = {'signal': port_data.get('pin')}
+        
+        # Get SPI config
+        spi_config = {}
+        for spi_name, spi_data in board_data.get('spi_config', {}).items():
+            spi_config = {
+                'miso': spi_data.get('miso_pin'),
+                'mosi': spi_data.get('mosi_pin'),
+                'sclk': spi_data.get('sck_pin'),
+            }
+            break  # Use first SPI config
+        
         return {
+            'id': board_data.get('id'),
+            'name': board_data.get('name'),
+            'pins': pins,
+            'spi': spi_config,
+            'motor_ports': list(board_data.get('motor_ports', {}).keys()),
+            'heater_ports': list(board_data.get('heater_ports', {}).keys()),
+            'fan_ports': list(board_data.get('fan_ports', {}).keys()),
+            'thermistor_ports': list(board_data.get('thermistor_ports', {}).keys()),
+            'endstop_ports': list(board_data.get('endstop_ports', {}).keys()),
+            'defaults': board_data.get('default_assignments', {}),
+        }
+    
+    def _get_manual_board_context(self) -> Dict[str, Any]:
+        """Get fallback context for manual pin entry boards."""
+        return {
+            'id': 'manual',
+            'name': 'Manual Configuration',
             'pins': {},
-            'motor_ports': ['MOTOR'],
-            'fan_ports': ['FAN0', 'FAN1'],
-            'heater_ports': ['HE'],
-            'thermistor_ports': ['T0'],
-            'endstop_ports': ['ENDSTOP'],
+            'spi': {},
+            'motor_ports': [],
+            'heater_ports': [],
+            'fan_ports': [],
+            'thermistor_ports': [],
+            'endstop_ports': [],
+            'defaults': {},
+        }
+    
+    def _get_manual_toolboard_context(self) -> Dict[str, Any]:
+        """Get fallback context for manual toolboard pin entry."""
+        return {
+            'id': 'manual',
+            'name': 'Manual Configuration',
+            'pins': {},
+            'motor_ports': [],
+            'fan_ports': [],
+            'heater_ports': [],
+            'thermistor_ports': [],
+            'endstop_ports': [],
         }
     
     def _get_extruder_presets(self) -> Dict[str, Any]:

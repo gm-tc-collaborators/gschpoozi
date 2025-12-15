@@ -139,23 +139,42 @@ class TemplateRenderer:
             ('mcu', 'toolboard'),
             ('mcu', 'host'),
             ('printer', None),
+            # X/Y steppers (including AWD)
             ('stepper_x', None),
             ('tmc_stepper_x', None),
+            ('stepper_x1', None),
+            ('tmc_stepper_x1', None),
             ('stepper_y', None),
             ('tmc_stepper_y', None),
+            ('stepper_y1', None),
+            ('tmc_stepper_y1', None),
+            # Z stepper
             ('stepper_z', None),
             ('tmc_stepper_z', None),
+            # Extruder
             ('extruder', None),
             ('heater_bed', None),
+            # Fans
+            ('multi_pin', None),
             ('fan', None),
             ('heater_fan', None),
             ('controller_fan', None),
+            ('fan_generic', None),
+            # Probes (standard and eddy)
             ('probe', None),
             ('bltouch', None),
+            ('beacon', None),
+            ('cartographer', None),
+            ('btt_eddy', None),
+            # Homing and leveling
             ('safe_z_home', None),
             ('bed_mesh', None),
             ('z_tilt', None),
             ('quad_gantry_level', None),
+            # Temperature sensors, LEDs, filament sensors
+            ('temperature_sensor', None),
+            ('neopixel', None),
+            ('filament_switch_sensor', None),
         ]
         
         for section_name, subsection in section_order:
