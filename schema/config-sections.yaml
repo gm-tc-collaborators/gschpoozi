@@ -659,6 +659,9 @@ common:
               # Standard probes
               BED_MESH_CALIBRATE
           {% endif %}
+
+  firmware_retraction:
+    condition: "advanced.firmware_retraction.enabled"
     template: |
       [firmware_retraction]
       retract_length: {{ advanced.firmware_retraction.retract_length | default(0.5) }}
