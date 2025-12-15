@@ -613,21 +613,20 @@ common:
   macro_config:
     template: |
       [gcode_macro _MACRO_CONFIG]
-      description: Configuration variables for macros
-      # Printer info
+      description: Configuration variables for START_PRINT and END_PRINT macros
+      # Printer Dimensions (from wizard)
       variable_bed_size_x: {{ printer.bed_size_x }}
       variable_bed_size_y: {{ printer.bed_size_y }}
       variable_bed_size_z: {{ printer.bed_size_z }}
       variable_bed_center_x: {{ (printer.bed_size_x / 2) | int }}
       variable_bed_center_y: {{ (printer.bed_size_y / 2) | int }}
-      # Probe info for mesh method selection
+      # Probe and Leveling
       variable_probe_type: "{{ probe.probe_type | default('none') }}"
       {% if probe.probe_type in ['beacon', 'cartographer', 'btt_eddy'] %}
       variable_eddy_mesh_method: "{{ probe.eddy_mesh_method | default('rapid_scan') }}"
       {% else %}
       variable_eddy_mesh_method: "none"
       {% endif %}
-      # Leveling
       {% if bed_leveling.leveling_type == 'qgl' %}
       variable_leveling_method: "quad_gantry_level"
       {% elif bed_leveling.leveling_type == 'z_tilt' %}
@@ -636,6 +635,46 @@ common:
       variable_leveling_method: "none"
       {% endif %}
       variable_leveling_enabled: {{ bed_leveling.leveling_type != 'none' | lower }}
+      variable_z_calibration_enabled: {{ bed_leveling.z_calibration_enabled | default(true) | lower }}
+      variable_always_home_z: {{ bed_leveling.always_home_z | default(false) | lower }}
+      # Heat Soak
+      variable_heat_soak_time: {{ macros.heat_soak_time | default(0) }}
+      # Chamber Heating
+      variable_chamber_temp_default: {{ macros.chamber_temp_default | default(0) }}
+      # Bed Mesh
+      variable_bed_mesh_mode: "{{ macros.bed_mesh_mode | default('adaptive') }}"
+      # Nozzle Cleaning (Brush)
+      variable_brush_enabled: {{ macros.brush_enabled | default(false) | lower }}
+      variable_brush_x: {{ macros.brush_x | default(50.0) }}
+      variable_brush_y: {{ macros.brush_y | default(317.0) }}
+      variable_brush_z: {{ macros.brush_z | default(1.0) }}
+      variable_brush_width: {{ macros.brush_width | default(30.0) }}
+      variable_wipe_count: {{ macros.wipe_count | default(3) }}
+      # Purge Settings
+      variable_purge_style: "{{ macros.purge_style | default('adaptive') }}"
+      variable_purge_amount: {{ macros.purge_amount | default(30.0) }}
+      variable_purge_x: {{ macros.purge_x | default(5) }}
+      variable_purge_y: {{ macros.purge_y | default(5) }}
+      # Bucket (for blob/voron purge)
+      variable_bucket_x: {{ macros.bucket_x | default((printer.bed_size_x / 2) | int) }}
+      variable_bucket_y: {{ macros.bucket_y | default(printer.bed_size_y - 5) }}
+      variable_bucket_z: {{ macros.bucket_z | default(5.0) }}
+      # LED Status
+      variable_led_enabled: {{ macros.led_enabled | default(false) | lower }}
+      variable_led_name: "{{ macros.led_name | default('status_led') }}"
+      # Park Position (END_PRINT)
+      variable_park_position: "{{ macros.park_position | default('front') }}"
+      variable_park_z_hop: {{ macros.park_z_hop | default(10.0) }}
+      variable_park_z_max: {{ macros.park_z_max | default(50.0) }}
+      # Cooldown (END_PRINT)
+      variable_turn_off_bed: {{ macros.turn_off_bed | default(true) | lower }}
+      variable_turn_off_extruder: {{ macros.turn_off_extruder | default(true) | lower }}
+      variable_turn_off_fans: {{ macros.turn_off_fans | default(false) | lower }}
+      variable_fan_off_delay: {{ macros.fan_off_delay | default(0) }}
+      variable_motor_off_delay: {{ macros.motor_off_delay | default(300) }}
+      # Retract (END_PRINT)
+      variable_end_retract_length: {{ macros.end_retract_length | default(10.0) }}
+      variable_end_retract_speed: {{ macros.end_retract_speed | default(30.0) }}
       gcode:
           # Configuration only - no gcode
 
