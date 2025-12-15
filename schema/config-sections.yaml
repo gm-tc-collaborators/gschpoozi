@@ -67,7 +67,7 @@ stepper_x:
     microsteps: {{ stepper_x.microsteps | default(32) }}
     full_steps_per_rotation: {{ stepper_x.full_steps_per_rotation | default(200) }}
     {% if stepper_x.endstop_type == 'sensorless' %}
-    endstop_pin: tmc2209_stepper_x:virtual_endstop
+    endstop_pin: {{ stepper_x.driver_type | lower }}_stepper_x:virtual_endstop
     {% else %}
     endstop_pin: {{ pin_config[stepper_x.endstop_config] }}{{ board.pins[stepper_x.endstop_port].signal }}
     {% endif %}
@@ -90,7 +90,7 @@ stepper_y:
     microsteps: {{ stepper_y.microsteps | default(32) }}
     full_steps_per_rotation: {{ stepper_y.full_steps_per_rotation | default(200) }}
     {% if stepper_y.endstop_type == 'sensorless' %}
-    endstop_pin: tmc2209_stepper_y:virtual_endstop
+    endstop_pin: {{ stepper_y.driver_type | lower }}_stepper_y:virtual_endstop
     {% else %}
     endstop_pin: {{ pin_config[stepper_y.endstop_config] }}{{ board.pins[stepper_y.endstop_port].signal }}
     {% endif %}
