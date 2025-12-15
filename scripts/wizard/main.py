@@ -19,16 +19,16 @@ from wizard.state import get_state, WizardState
 
 class GschpooziWizard:
     """Main wizard controller."""
-    
+
     VERSION = "2.0.0"
-    
+
     def __init__(self):
         self.ui = WizardUI(
             title="gschpoozi",
             backtitle=f"gschpoozi v{self.VERSION} - Klipper Configuration Wizard"
         )
         self.state = get_state()
-    
+
     def run(self) -> int:
         """Run the wizard. Returns exit code."""
         try:
@@ -39,12 +39,12 @@ class GschpooziWizard:
         except Exception as e:
             self.ui.msgbox(f"Error: {e}", title="Error")
             return 1
-    
+
     def main_menu(self) -> None:
         """Display the main menu."""
         while True:
             status = self._get_status_text()
-            
+
             choice = self.ui.menu(
                 f"Welcome to gschpoozi!\n\n{status}\n\nSelect a category:",
                 [
@@ -57,7 +57,7 @@ class GschpooziWizard:
                 height=18,
                 width=70,
             )
-            
+
             if choice is None or choice == "Q":
                 if self.ui.yesno("Are you sure you want to exit?", default_no=True):
                     break
@@ -69,14 +69,14 @@ class GschpooziWizard:
                 self.tuning_menu()
             elif choice == "G":
                 self.generate_config()
-    
+
     def _get_status_text(self) -> str:
         """Get status text showing configuration progress."""
         completion = self.state.get_completion_status()
-        
+
         done = sum(1 for v in completion.values() if v)
         total = len(completion)
-        
+
         if done == 0:
             return "Status: Not started"
         elif done == total:
@@ -84,11 +84,11 @@ class GschpooziWizard:
         else:
             items = [k for k, v in completion.items() if v]
             return f"Status: {done}/{total} sections configured ({', '.join(items)})"
-    
+
     # -------------------------------------------------------------------------
     # Category 1: Klipper Setup
     # -------------------------------------------------------------------------
-    
+
     def klipper_setup_menu(self) -> None:
         """Klipper installation and verification menu."""
         while True:
@@ -104,7 +104,7 @@ class GschpooziWizard:
                 ],
                 title="1. Klipper Setup",
             )
-            
+
             if choice is None or choice == "B":
                 break
             elif choice == "1.1":
@@ -115,25 +115,25 @@ class GschpooziWizard:
                 self._web_interface_menu()
             elif choice == "1.4":
                 self._optional_services_menu()
-    
+
     def _check_klipper(self) -> None:
         """Check Klipper installation status."""
         # TODO: Actually check Klipper status
         klipper_path = Path.home() / "klipper"
         klippy_env = Path.home() / "klippy-env"
-        
+
         status_lines = []
-        
+
         if klipper_path.exists():
             status_lines.append("✓ Klipper directory found")
         else:
             status_lines.append("✗ Klipper directory NOT found")
-        
+
         if klippy_env.exists():
             status_lines.append("✓ Klippy virtual environment found")
         else:
             status_lines.append("✗ Klippy virtual environment NOT found")
-        
+
         # Check service
         import subprocess
         result = subprocess.run(
@@ -144,23 +144,23 @@ class GschpooziWizard:
             status_lines.append("✓ Klipper service is running")
         else:
             status_lines.append("✗ Klipper service is NOT running")
-        
+
         self.ui.msgbox(
             "Klipper Installation Status:\n\n" + "\n".join(status_lines),
             title="Klipper Check"
         )
-    
+
     def _check_moonraker(self) -> None:
         """Check Moonraker installation status."""
         moonraker_path = Path.home() / "moonraker"
-        
+
         status_lines = []
-        
+
         if moonraker_path.exists():
             status_lines.append("✓ Moonraker directory found")
         else:
             status_lines.append("✗ Moonraker directory NOT found")
-        
+
         # Check service
         import subprocess
         result = subprocess.run(
@@ -171,12 +171,12 @@ class GschpooziWizard:
             status_lines.append("✓ Moonraker service is running")
         else:
             status_lines.append("✗ Moonraker service is NOT running")
-        
+
         self.ui.msgbox(
             "Moonraker Installation Status:\n\n" + "\n".join(status_lines),
             title="Moonraker Check"
         )
-    
+
     def _web_interface_menu(self) -> None:
         """Web interface selection."""
         self.ui.msgbox(
@@ -185,7 +185,7 @@ class GschpooziWizard:
             "(Coming soon - use KIAUH for now)",
             title="1.3 Web Interface"
         )
-    
+
     def _optional_services_menu(self) -> None:
         """Optional services menu."""
         self.ui.msgbox(
@@ -197,33 +197,33 @@ class GschpooziWizard:
             "(Coming soon - use KIAUH for now)",
             title="1.4 Optional Services"
         )
-    
+
     # -------------------------------------------------------------------------
     # Category 2: Hardware Setup
     # -------------------------------------------------------------------------
-    
+
     def hardware_setup_menu(self) -> None:
         """Hardware configuration menu."""
         while True:
             # Build menu items dynamically based on config
             awd_enabled = self.state.get("printer.awd_enabled", False)
-            
+
             menu_items = [
                 ("2.1", "MCU Configuration     (Boards & connections)"),
                 ("2.2", "Printer Settings      (Kinematics & limits)"),
                 ("2.3", "X Axis                (Stepper & driver)"),
             ]
-            
+
             # Show AWD X1 option if AWD enabled
             if awd_enabled:
                 menu_items.append(("2.3.1", "X1 Axis (AWD)        (Secondary X stepper)"))
-            
+
             menu_items.append(("2.4", "Y Axis                (Stepper & driver)"))
-            
+
             # Show AWD Y1 option if AWD enabled
             if awd_enabled:
                 menu_items.append(("2.4.1", "Y1 Axis (AWD)        (Secondary Y stepper)"))
-            
+
             menu_items.extend([
                 ("2.5", "Z Axis                (Stepper(s) & driver(s))"),
                 ("2.6", "Extruder              (Motor & hotend)"),
@@ -239,7 +239,7 @@ class GschpooziWizard:
                 ("2.16", "Advanced             (Servo, buttons, etc.)"),
                 ("B", "Back to Main Menu"),
             ])
-            
+
             choice = self.ui.menu(
                 "Hardware Setup - Configure Your Printer\n\n"
                 "Work through these sections to configure your hardware.",
@@ -247,7 +247,7 @@ class GschpooziWizard:
                 title="2. Hardware Setup",
                 height=22,
             )
-            
+
             if choice is None or choice == "B":
                 break
             elif choice == "2.1":
@@ -289,7 +289,7 @@ class GschpooziWizard:
                     "Optional hardware - implement as needed.",
                     title=f"Section {choice}"
                 )
-    
+
     def _mcu_setup(self) -> None:
         """MCU configuration wizard."""
         while True:
@@ -305,7 +305,7 @@ class GschpooziWizard:
                 ],
                 title="2.1 MCU Configuration",
             )
-            
+
             if choice is None or choice == "B":
                 break
             elif choice == "2.1.1":
@@ -316,7 +316,7 @@ class GschpooziWizard:
                 self._configure_host_mcu()
             else:
                 self.ui.msgbox("Coming soon!", title=choice)
-    
+
     def _configure_main_board(self) -> None:
         """Configure main board."""
         # Board selection (placeholder - would load from templates)
@@ -328,25 +328,25 @@ class GschpooziWizard:
             ("fysetc-spider", "Fysetc Spider"),
             ("other", "Other / Manual"),
         ]
-        
+
         current = self.state.get("mcu.main.board_type", "")
-        
+
         board = self.ui.radiolist(
             "Select your main control board:",
             [(b, d, b == current) for b, d in boards],
             title="Main Board Selection",
         )
-        
+
         if board is None:
             return
-        
+
         # Serial detection (placeholder)
         self.ui.infobox("Scanning for connected MCUs...", title="Detecting")
-        
+
         import subprocess
         import time
         time.sleep(1)  # Simulated scan
-        
+
         # Try to find serial devices
         serial_path = ""
         serial_dir = Path("/dev/serial/by-id")
@@ -356,13 +356,13 @@ class GschpooziWizard:
                 # Show selection
                 device_items = [(str(d), d.name) for d in devices]
                 device_items.append(("manual", "Enter manually"))
-                
+
                 selected = self.ui.radiolist(
                     "Select the serial device for your main board:",
                     [(d, n, False) for d, n in device_items],
                     title="Serial Device",
                 )
-                
+
                 if selected == "manual":
                     serial_path = self.ui.inputbox(
                         "Enter the serial path:",
@@ -375,21 +375,21 @@ class GschpooziWizard:
                 "No devices found. Enter serial path manually:",
                 default="/dev/serial/by-id/usb-Klipper_"
             )
-        
+
         if serial_path:
             # Save configuration
             self.state.set("mcu.main.board_type", board)
             self.state.set("mcu.main.serial", serial_path)
             self.state.set("mcu.main.connection_type", "USB")
             self.state.save()
-            
+
             self.ui.msgbox(
                 f"Main board configured!\n\n"
                 f"Board: {board}\n"
                 f"Serial: {serial_path}",
                 title="Success"
             )
-    
+
     def _configure_toolboard(self) -> None:
         """Configure toolhead board."""
         if not self.ui.yesno(
@@ -400,7 +400,7 @@ class GschpooziWizard:
             self.state.delete("mcu.toolboard")
             self.state.save()
             return
-        
+
         # Connection type
         conn_type = self.ui.radiolist(
             "How is your toolhead board connected?",
@@ -410,10 +410,10 @@ class GschpooziWizard:
             ],
             title="Connection Type",
         )
-        
+
         if conn_type is None:
             return
-        
+
         if conn_type == "CAN":
             self.ui.msgbox(
                 "CAN Bus Setup\n\n"
@@ -424,7 +424,7 @@ class GschpooziWizard:
                 "Reference: canbus.esoterical.online",
                 title="CAN Bus Info"
             )
-            
+
             # Bitrate selection
             bitrate = self.ui.radiolist(
                 "Select CAN bus bitrate:",
@@ -435,19 +435,19 @@ class GschpooziWizard:
                 ],
                 title="CAN Bitrate"
             )
-            
+
             uuid = self.ui.inputbox(
                 "Enter toolboard CAN UUID:\n\n"
                 "(Run: ~/klippy-env/bin/python ~/klipper/scripts/canbus_query.py can0)",
                 default=""
             )
-            
+
             if uuid:
                 self.state.set("mcu.toolboard.connection_type", "CAN")
                 self.state.set("mcu.toolboard.canbus_uuid", uuid)
                 self.state.set("mcu.toolboard.canbus_bitrate", int(bitrate or 1000000))
                 self.state.save()
-                
+
                 self.ui.msgbox(f"Toolboard configured!\n\nUUID: {uuid}", title="Success")
         else:
             # USB toolboard
@@ -455,14 +455,14 @@ class GschpooziWizard:
                 "Enter toolboard serial path:",
                 default="/dev/serial/by-id/usb-Klipper_"
             )
-            
+
             if serial:
                 self.state.set("mcu.toolboard.connection_type", "USB")
                 self.state.set("mcu.toolboard.serial", serial)
                 self.state.save()
-                
+
                 self.ui.msgbox(f"Toolboard configured!\n\nSerial: {serial}", title="Success")
-    
+
     def _configure_host_mcu(self) -> None:
         """Configure host MCU (Raspberry Pi)."""
         enabled = self.ui.yesno(
@@ -473,10 +473,10 @@ class GschpooziWizard:
             "• Neopixel on Pi GPIO",
             title="Host MCU"
         )
-        
+
         self.state.set("mcu.host.enabled", enabled)
         self.state.save()
-        
+
         if enabled:
             self.ui.msgbox(
                 "Host MCU enabled!\n\n"
@@ -484,7 +484,7 @@ class GschpooziWizard:
                 "Serial: /tmp/klipper_host_mcu",
                 title="Host MCU"
             )
-    
+
     def _printer_settings(self) -> None:
         """Configure printer settings."""
         # Kinematics
@@ -498,10 +498,10 @@ class GschpooziWizard:
             ],
             title="Kinematics"
         )
-        
+
         if kinematics is None:
             return
-        
+
         # AWD (All Wheel Drive) - only for CoreXY
         awd_enabled = False
         if kinematics == "corexy":
@@ -513,24 +513,24 @@ class GschpooziWizard:
                 "Common on VzBot, some Voron mods, etc.",
                 title="AWD Configuration"
             )
-        
+
         # Bed size
         bed_x = self.ui.inputbox("Bed X size (mm):", default="350")
         if bed_x is None:
             return
-        
+
         bed_y = self.ui.inputbox("Bed Y size (mm):", default="350")
         if bed_y is None:
             return
-        
+
         bed_z = self.ui.inputbox("Z height (mm):", default="350")
         if bed_z is None:
             return
-        
+
         # Velocity limits
         max_velocity = self.ui.inputbox("Max velocity (mm/s):", default="300")
         max_accel = self.ui.inputbox("Max acceleration (mm/s²):", default="3000")
-        
+
         # Save
         self.state.set("printer.kinematics", kinematics)
         self.state.set("printer.awd_enabled", awd_enabled)
@@ -540,7 +540,7 @@ class GschpooziWizard:
         self.state.set("printer.max_velocity", int(max_velocity or 300))
         self.state.set("printer.max_accel", int(max_accel or 3000))
         self.state.save()
-        
+
         awd_text = "AWD: Enabled\n" if awd_enabled else ""
         self.ui.msgbox(
             f"Printer settings saved!\n\n"
@@ -551,18 +551,18 @@ class GschpooziWizard:
             f"Max accel: {max_accel}mm/s²",
             title="Settings Saved"
         )
-    
+
     def _stepper_axis(self, axis: str) -> None:
         """Configure X, Y, X1, or Y1 axis stepper."""
         axis_upper = axis.upper()
         state_key = f"stepper_{axis}"
         is_secondary = axis in ("x1", "y1")
         primary_axis = axis[0] if is_secondary else axis  # x1 -> x, y1 -> y
-        
+
         # Determine default motor port
         port_defaults = {"x": "MOTOR_0", "y": "MOTOR_1", "x1": "MOTOR_2", "y1": "MOTOR_3"}
         default_port = port_defaults.get(axis, "MOTOR_0")
-        
+
         # Motor port
         motor_port = self.ui.inputbox(
             f"Motor port for {axis_upper} axis (e.g., MOTOR_0, MOTOR_1):",
@@ -571,7 +571,7 @@ class GschpooziWizard:
         )
         if motor_port is None:
             return
-        
+
         # For secondary AWD steppers, copy belt settings from primary
         if is_secondary:
             belt_pitch = self.state.get(f"stepper_{primary_axis}.belt_pitch", 2)
@@ -586,7 +586,7 @@ class GschpooziWizard:
                 ],
                 title=f"Stepper {axis_upper} - Belt"
             )
-            
+
             pulley_teeth = self.ui.radiolist(
                 f"Pulley teeth for {axis_upper} axis:",
                 [
@@ -596,12 +596,12 @@ class GschpooziWizard:
                 ],
                 title=f"Stepper {axis_upper} - Pulley"
             )
-        
+
         # Endstop - only for primary steppers
         endstop_type = None
         position_max = None
         position_endstop = None
-        
+
         if not is_secondary:
             endstop_type = self.ui.radiolist(
                 f"Endstop type for {axis_upper} axis:",
@@ -611,7 +611,7 @@ class GschpooziWizard:
                 ],
                 title=f"Stepper {axis_upper} - Endstop"
             )
-            
+
             # Position
             bed_size = self.state.get(f"printer.bed_size_{axis}", 350)
             position_max = self.ui.inputbox(
@@ -619,13 +619,13 @@ class GschpooziWizard:
                 default=str(bed_size),
                 title=f"Stepper {axis_upper} - Position"
             )
-            
+
             position_endstop = self.ui.inputbox(
                 f"Position endstop for {axis_upper} (0 for min, {position_max} for max):",
                 default=position_max,
                 title=f"Stepper {axis_upper} - Endstop Position"
             )
-        
+
         # TMC Driver Type
         driver_type = self.ui.radiolist(
             f"TMC driver type for {axis_upper}:",
@@ -636,11 +636,11 @@ class GschpooziWizard:
             ],
             title=f"Stepper {axis_upper} - Driver Type"
         )
-        
+
         # Determine protocol from driver type
         spi_drivers = ["TMC5160", "TMC2130", "TMC2660"]
         driver_protocol = "spi" if driver_type in spi_drivers else "uart"
-        
+
         # Run current
         default_current = "1.7" if driver_type == "TMC5160" else "1.0"
         run_current = self.ui.inputbox(
@@ -648,7 +648,7 @@ class GschpooziWizard:
             default=default_current,
             title=f"Stepper {axis_upper} - Driver"
         )
-        
+
         # SPI-specific settings
         sense_resistor = None
         if driver_protocol == "spi":
@@ -661,7 +661,7 @@ class GschpooziWizard:
                 ],
                 title=f"Stepper {axis_upper} - Sense Resistor"
             )
-        
+
         # Save
         self.state.set(f"{state_key}.motor_port", motor_port)
         self.state.set(f"{state_key}.belt_pitch", int(belt_pitch or 2))
@@ -669,18 +669,18 @@ class GschpooziWizard:
         self.state.set(f"{state_key}.driver_type", driver_type or "TMC2209")
         self.state.set(f"{state_key}.driver_protocol", driver_protocol)
         self.state.set(f"{state_key}.run_current", float(run_current or 1.0))
-        
+
         if sense_resistor:
             self.state.set(f"{state_key}.sense_resistor", float(sense_resistor))
-        
+
         if not is_secondary:
             bed_size = self.state.get(f"printer.bed_size_{axis}", 350)
             self.state.set(f"{state_key}.endstop_type", endstop_type or "physical")
             self.state.set(f"{state_key}.position_max", int(position_max or bed_size))
             self.state.set(f"{state_key}.position_endstop", int(position_endstop or position_max or bed_size))
-        
+
         self.state.save()
-        
+
         if is_secondary:
             self.ui.msgbox(
                 f"Stepper {axis_upper} (AWD) configured!\n\n"
@@ -700,7 +700,7 @@ class GschpooziWizard:
                 f"Current: {run_current}A",
                 title="Configuration Saved"
             )
-    
+
     def _stepper_z(self) -> None:
         """Configure Z axis stepper(s)."""
         # Number of Z motors
@@ -714,7 +714,7 @@ class GschpooziWizard:
             ],
             title="Z Axis - Motor Count"
         )
-        
+
         # Drive type
         drive_type = self.ui.radiolist(
             "Z drive type:",
@@ -724,7 +724,7 @@ class GschpooziWizard:
             ],
             title="Z Axis - Drive"
         )
-        
+
         if drive_type == "leadscrew":
             pitch = self.ui.radiolist(
                 "Leadscrew pitch:",
@@ -737,7 +737,7 @@ class GschpooziWizard:
             )
         else:
             pitch = "2"  # Belt driven uses belt pitch
-        
+
         # Endstop
         endstop_type = self.ui.radiolist(
             "Z endstop type:",
@@ -748,7 +748,7 @@ class GschpooziWizard:
             ],
             title="Z Axis - Endstop"
         )
-        
+
         # Position
         bed_z = self.state.get("printer.bed_size_z", 350)
         position_max = self.ui.inputbox(
@@ -756,14 +756,14 @@ class GschpooziWizard:
             default=str(bed_z),
             title="Z Axis - Position"
         )
-        
+
         # Current
         run_current = self.ui.inputbox(
             "TMC run current for Z (A):",
             default="0.8",
             title="Z Axis - Driver"
         )
-        
+
         # Save
         self.state.set("stepper_z.z_motor_count", int(z_count or 4))
         self.state.set("stepper_z.drive_type", drive_type or "leadscrew")
@@ -772,7 +772,7 @@ class GschpooziWizard:
         self.state.set("stepper_z.position_max", int(position_max or bed_z))
         self.state.set("stepper_z.run_current", float(run_current or 0.8))
         self.state.save()
-        
+
         self.ui.msgbox(
             f"Z Axis configured!\n\n"
             f"Motors: {z_count}\n"
@@ -782,7 +782,7 @@ class GschpooziWizard:
             f"Current: {run_current}A",
             title="Configuration Saved"
         )
-    
+
     def _extruder_setup(self) -> None:
         """Configure extruder."""
         # Extruder type
@@ -797,13 +797,13 @@ class GschpooziWizard:
             ("vz_hextrudort_10t", "VZ-Hextrudort 10T"),
             ("custom", "Custom"),
         ]
-        
+
         extruder_type = self.ui.radiolist(
             "Select your extruder type:",
             [(k, v, False) for k, v in extruder_types],
             title="Extruder - Type"
         )
-        
+
         # Location
         has_toolboard = self.state.get("mcu.toolboard.enabled", False)
         if has_toolboard:
@@ -817,7 +817,7 @@ class GschpooziWizard:
             )
         else:
             location = "mainboard"
-        
+
         # Thermistor
         sensor_type = self.ui.radiolist(
             "Hotend thermistor type:",
@@ -829,14 +829,14 @@ class GschpooziWizard:
             ],
             title="Extruder - Thermistor"
         )
-        
+
         # Max temp
         max_temp = self.ui.inputbox(
             "Maximum hotend temperature (°C):",
             default="300",
             title="Extruder - Max Temp"
         )
-        
+
         # Save
         self.state.set("extruder.extruder_type", extruder_type or "clockwork2")
         self.state.set("extruder.location", location)
@@ -845,7 +845,7 @@ class GschpooziWizard:
         self.state.set("extruder.sensor_type", sensor_type or "Generic 3950")
         self.state.set("extruder.max_temp", int(max_temp or 300))
         self.state.save()
-        
+
         self.ui.msgbox(
             f"Extruder configured!\n\n"
             f"Type: {extruder_type}\n"
@@ -854,7 +854,7 @@ class GschpooziWizard:
             f"Max temp: {max_temp}°C",
             title="Configuration Saved"
         )
-    
+
     def _heater_bed_setup(self) -> None:
         """Configure heated bed."""
         # Thermistor
@@ -867,19 +867,19 @@ class GschpooziWizard:
             ],
             title="Heated Bed - Thermistor"
         )
-        
+
         # Max temp
         max_temp = self.ui.inputbox(
             "Maximum bed temperature (°C):",
             default="120",
             title="Heated Bed - Max Temp"
         )
-        
+
         # Save
         self.state.set("heater_bed.sensor_type", sensor_type or "Generic 3950")
         self.state.set("heater_bed.max_temp", int(max_temp or 120))
         self.state.save()
-        
+
         self.ui.msgbox(
             f"Heated bed configured!\n\n"
             f"Thermistor: {sensor_type}\n"
@@ -887,11 +887,11 @@ class GschpooziWizard:
             "Remember to run PID_CALIBRATE HEATER=heater_bed TARGET=60",
             title="Configuration Saved"
         )
-    
+
     def _fans_setup(self) -> None:
         """Configure fans."""
         has_toolboard = self.state.get("mcu.toolboard.connection_type")
-        
+
         # Part cooling fan location
         if has_toolboard:
             part_location = self.ui.radiolist(
@@ -904,7 +904,7 @@ class GschpooziWizard:
             )
         else:
             part_location = "mainboard"
-        
+
         # Hotend fan location
         if has_toolboard:
             hotend_location = self.ui.radiolist(
@@ -917,13 +917,13 @@ class GschpooziWizard:
             )
         else:
             hotend_location = "mainboard"
-        
+
         # Controller fan
         has_controller_fan = self.ui.yesno(
             "Do you have an electronics cooling fan?",
             title="Fans - Controller"
         )
-        
+
         # Additional fans (fan_generic)
         additional_fans = []
         if self.ui.yesno(
@@ -942,19 +942,19 @@ class GschpooziWizard:
                     default="",
                     title="Add Fan"
                 )
-                
+
                 if not fan_name:
                     break
-                
+
                 # Multi-pin support
                 is_multi_pin = self.ui.yesno(
                     f"Does '{fan_name}' use multiple pins?\n\n"
                     "(e.g., two fans running together as one)",
                     title=f"{fan_name} - Multi-Pin"
                 )
-                
+
                 fan_config = {"name": fan_name}
-                
+
                 if is_multi_pin:
                     pins = self.ui.inputbox(
                         f"Enter pins for '{fan_name}' (comma-separated):\n\n"
@@ -973,12 +973,12 @@ class GschpooziWizard:
                     )
                     fan_config["pin_type"] = "single"
                     fan_config["pin"] = pin
-                
+
                 additional_fans.append(fan_config)
-                
+
                 if not self.ui.yesno("Add another fan?", title="More Fans"):
                     break
-        
+
         # Multi-pin groups (for hotend cooling with multiple fans, etc.)
         multi_pins = []
         for fan in additional_fans:
@@ -987,19 +987,19 @@ class GschpooziWizard:
                     "name": fan["multi_pin_name"],
                     "pins": fan["pins"]
                 })
-        
+
         # Save
         self.state.set("fans.part_cooling.location", part_location)
         self.state.set("fans.hotend.location", hotend_location)
         self.state.set("fans.controller.enabled", has_controller_fan)
-        
+
         if additional_fans:
             self.state.set("fans.additional_fans", additional_fans)
         if multi_pins:
             self.state.set("advanced.multi_pins", multi_pins)
-        
+
         self.state.save()
-        
+
         summary = (
             f"Part cooling: {part_location}\n"
             f"Hotend: {hotend_location}\n"
@@ -1007,12 +1007,12 @@ class GschpooziWizard:
         )
         if additional_fans:
             summary += f"\nAdditional: {', '.join(f['name'] for f in additional_fans)}"
-        
+
         self.ui.msgbox(
             f"Fans configured!\n\n{summary}",
             title="Configuration Saved"
         )
-    
+
     def _probe_setup(self) -> None:
         """Configure probe."""
         probe_types = [
@@ -1025,21 +1025,21 @@ class GschpooziWizard:
             ("cartographer", "Cartographer"),
             ("btt_eddy", "BTT Eddy"),
         ]
-        
+
         probe_type = self.ui.radiolist(
             "Select your probe type:",
             [(k, v, k == "tap") for k, v in probe_types],
             title="Probe - Type"
         )
-        
+
         if probe_type == "none":
             self.state.delete("probe")
             self.state.save()
             return
-        
+
         # Eddy current probes have their own serial connection
         eddy_probes = ["beacon", "cartographer", "btt_eddy"]
-        
+
         # Offsets (for non-Tap probes)
         if probe_type != "tap":
             x_offset = self.ui.inputbox(
@@ -1055,20 +1055,20 @@ class GschpooziWizard:
         else:
             x_offset = "0"
             y_offset = "0"
-        
+
         # Eddy probe specific settings
         serial = None
         homing_mode = None
         contact_max_temp = None
         mesh_main_direction = None
         mesh_runs = None
-        
+
         if probe_type in eddy_probes:
             # Serial detection
             self.ui.infobox("Scanning for probe serial...", title="Detecting")
             import time
             time.sleep(1)
-            
+
             # Try to find serial device
             serial_dir = Path("/dev/serial/by-id")
             serial_devices = []
@@ -1079,20 +1079,20 @@ class GschpooziWizard:
                     "btt_eddy": "BTT"
                 }
                 pattern = probe_patterns.get(probe_type, "")
-                serial_devices = [str(d) for d in serial_dir.iterdir() 
+                serial_devices = [str(d) for d in serial_dir.iterdir()
                                   if pattern.lower() in d.name.lower()]
-            
+
             if serial_devices:
-                device_items = [(d, Path(d).name, i == 0) 
+                device_items = [(d, Path(d).name, i == 0)
                                 for i, d in enumerate(serial_devices)]
                 device_items.append(("manual", "Enter manually", False))
-                
+
                 serial = self.ui.radiolist(
                     f"Select {probe_type} serial device:",
                     device_items,
                     title="Probe - Serial"
                 )
-                
+
                 if serial == "manual":
                     serial = self.ui.inputbox(
                         "Enter serial path:",
@@ -1104,7 +1104,7 @@ class GschpooziWizard:
                     "(No devices auto-detected)",
                     default="/dev/serial/by-id/usb-"
                 )
-            
+
             # Homing mode selection
             if probe_type == "beacon":
                 homing_mode = self.ui.radiolist(
@@ -1115,7 +1115,7 @@ class GschpooziWizard:
                     ],
                     title="Beacon - Homing Mode"
                 )
-                
+
                 if homing_mode == "contact":
                     contact_max_temp = self.ui.inputbox(
                         "Max hotend temp for contact probing (°C):\n\n"
@@ -1123,7 +1123,7 @@ class GschpooziWizard:
                         default="180",
                         title="Beacon - Contact Temp"
                     )
-            
+
             elif probe_type == "cartographer":
                 homing_mode = self.ui.radiolist(
                     "Cartographer homing mode:",
@@ -1133,7 +1133,7 @@ class GschpooziWizard:
                     ],
                     title="Cartographer - Homing Mode"
                 )
-            
+
             elif probe_type == "btt_eddy":
                 homing_mode = self.ui.radiolist(
                     "BTT Eddy mesh method:",
@@ -1143,7 +1143,7 @@ class GschpooziWizard:
                     ],
                     title="BTT Eddy - Mesh Method"
                 )
-            
+
             # Mesh settings for eddy probes
             mesh_main_direction = self.ui.radiolist(
                 "Mesh scan direction:",
@@ -1153,7 +1153,7 @@ class GschpooziWizard:
                 ],
                 title="Probe - Mesh Direction"
             )
-            
+
             mesh_runs = self.ui.radiolist(
                 "Mesh scan passes:",
                 [
@@ -1162,7 +1162,7 @@ class GschpooziWizard:
                 ],
                 title="Probe - Mesh Runs"
             )
-        
+
         # Location for non-eddy probes
         has_toolboard = self.state.get("mcu.toolboard.connection_type")
         location = None
@@ -1178,12 +1178,12 @@ class GschpooziWizard:
                 )
             else:
                 location = "mainboard"
-        
+
         # Save
         self.state.set("probe.probe_type", probe_type)
         self.state.set("probe.x_offset", float(x_offset or 0))
         self.state.set("probe.y_offset", float(y_offset or 0))
-        
+
         if serial:
             self.state.set("probe.serial", serial)
         if homing_mode:
@@ -1196,9 +1196,9 @@ class GschpooziWizard:
             self.state.set("probe.mesh_runs", int(mesh_runs))
         if location:
             self.state.set("probe.location", location)
-        
+
         self.state.save()
-        
+
         # Build summary
         summary = f"Type: {probe_type}\nOffset: X={x_offset}, Y={y_offset}"
         if serial:
@@ -1207,17 +1207,17 @@ class GschpooziWizard:
             summary += f"\nHoming: {homing_mode}"
         if probe_type in eddy_probes:
             summary += f"\nMesh: {mesh_main_direction} direction, {mesh_runs} run(s)"
-        
+
         self.ui.msgbox(
             f"Probe configured!\n\n{summary}\n\n"
             "Remember to run PROBE_CALIBRATE for Z offset",
             title="Configuration Saved"
         )
-    
+
     def _homing_setup(self) -> None:
         """Configure homing."""
         probe_type = self.state.get("probe.probe_type", "none")
-        
+
         # Homing method based on probe
         if probe_type in ["beacon", "cartographer"]:
             methods = [
@@ -1229,36 +1229,36 @@ class GschpooziWizard:
                 ("safe_z_home", "Safe Z Home (standard)", True),
                 ("homing_override", "Homing Override (sensorless)", False),
             ]
-        
+
         method = self.ui.radiolist(
             "Z homing method:",
             methods,
             title="Homing - Method"
         )
-        
+
         # Z hop
         z_hop = self.ui.inputbox(
             "Z hop height for homing (mm):",
             default="10",
             title="Homing - Z Hop"
         )
-        
+
         # Save
         self.state.set("homing.homing_method", method or "safe_z_home")
         self.state.set("homing.z_hop", int(z_hop or 10))
         self.state.save()
-        
+
         self.ui.msgbox(
             f"Homing configured!\n\n"
             f"Method: {method}\n"
             f"Z hop: {z_hop}mm",
             title="Configuration Saved"
         )
-    
+
     def _bed_leveling_setup(self) -> None:
         """Configure bed leveling."""
         z_count = self.state.get("stepper_z.z_motor_count", 1)
-        
+
         # Leveling type based on Z motor count
         if z_count == 4:
             leveling_options = [
@@ -1274,20 +1274,20 @@ class GschpooziWizard:
             leveling_options = [
                 ("none", "None (single Z)", True),
             ]
-        
+
         leveling_type = self.ui.radiolist(
             "Bed leveling type:",
             leveling_options,
             title="Bed Leveling - Type"
         )
-        
+
         # Bed mesh
         enable_mesh = self.ui.yesno(
             "Enable bed mesh?",
             title="Bed Leveling - Mesh",
             default_no=False
         )
-        
+
         if enable_mesh:
             probe_count = self.ui.inputbox(
                 "Mesh probe count (e.g., 5,5):",
@@ -1296,13 +1296,13 @@ class GschpooziWizard:
             )
         else:
             probe_count = "5,5"
-        
+
         # Save
         self.state.set("bed_leveling.leveling_type", leveling_type or "none")
         self.state.set("bed_leveling.bed_mesh.enabled", enable_mesh)
         self.state.set("bed_leveling.bed_mesh.probe_count", probe_count)
         self.state.save()
-        
+
         self.ui.msgbox(
             f"Bed leveling configured!\n\n"
             f"Type: {leveling_type}\n"
@@ -1310,11 +1310,11 @@ class GschpooziWizard:
             f"Probe count: {probe_count}",
             title="Configuration Saved"
         )
-    
+
     def _temperature_sensors_setup(self) -> None:
         """Configure temperature sensors."""
         sensors = []
-        
+
         # MCU temperature sensor (always available)
         if self.ui.yesno(
             "Add MCU temperature sensor?\n\n"
@@ -1326,7 +1326,7 @@ class GschpooziWizard:
                 "type": "temperature_mcu",
                 "mcu": "mcu"
             })
-        
+
         # Host (Raspberry Pi) temperature
         if self.ui.yesno(
             "Add host (Raspberry Pi) temperature sensor?",
@@ -1336,7 +1336,7 @@ class GschpooziWizard:
                 "name": "host_temp",
                 "type": "temperature_host"
             })
-        
+
         # Chamber temperature sensor
         if self.ui.yesno(
             "Do you have a chamber temperature sensor?",
@@ -1351,13 +1351,13 @@ class GschpooziWizard:
                 ],
                 title="Chamber Sensor Type"
             )
-            
+
             sensor_pin = self.ui.inputbox(
                 "Chamber sensor pin (e.g., PF5):",
                 default="",
                 title="Chamber Sensor Pin"
             )
-            
+
             if sensor_pin:
                 sensors.append({
                     "name": "chamber",
@@ -1365,7 +1365,7 @@ class GschpooziWizard:
                     "sensor_type": sensor_type,
                     "sensor_pin": sensor_pin
                 })
-        
+
         # Additional sensors
         while self.ui.yesno(
             "Add another temperature sensor?",
@@ -1379,7 +1379,7 @@ class GschpooziWizard:
             )
             if not name:
                 break
-            
+
             sensor_type = self.ui.radiolist(
                 f"Sensor type for '{name}':",
                 [
@@ -1390,13 +1390,13 @@ class GschpooziWizard:
                 ],
                 title="Sensor Type"
             )
-            
+
             sensor_pin = self.ui.inputbox(
                 f"Pin for '{name}':",
                 default="",
                 title="Sensor Pin"
             )
-            
+
             if sensor_pin:
                 sensors.append({
                     "name": name,
@@ -1404,22 +1404,22 @@ class GschpooziWizard:
                     "sensor_type": sensor_type,
                     "sensor_pin": sensor_pin
                 })
-        
+
         # Save
         self.state.set("temperature_sensors", sensors)
         self.state.save()
-        
+
         sensor_names = [s["name"] for s in sensors]
         self.ui.msgbox(
             f"Temperature sensors configured!\n\n"
             f"Sensors: {', '.join(sensor_names) if sensor_names else 'None'}",
             title="Configuration Saved"
         )
-    
+
     def _leds_setup(self) -> None:
         """Configure LED strips."""
         leds = []
-        
+
         if not self.ui.yesno(
             "Do you have LED strips (Neopixel/WS2812)?",
             title="LED Configuration"
@@ -1427,9 +1427,9 @@ class GschpooziWizard:
             self.state.set("leds", [])
             self.state.save()
             return
-        
+
         has_toolboard = self.state.get("mcu.toolboard.connection_type")
-        
+
         while True:
             led_name = self.ui.inputbox(
                 "LED strip name (e.g., status_led, chamber_led):\n\n"
@@ -1437,10 +1437,10 @@ class GschpooziWizard:
                 default="status_led" if not leds else "",
                 title="Add LED"
             )
-            
+
             if not led_name:
                 break
-            
+
             # Location
             if has_toolboard:
                 location = self.ui.radiolist(
@@ -1453,21 +1453,21 @@ class GschpooziWizard:
                 )
             else:
                 location = "mainboard"
-            
+
             # Pin
             pin = self.ui.inputbox(
                 f"Pin for '{led_name}':",
                 default="PB0" if location == "mainboard" else "PB8",
                 title=f"{led_name} - Pin"
             )
-            
+
             # LED count
             chain_count = self.ui.inputbox(
                 f"Number of LEDs in '{led_name}' chain:",
                 default="1",
                 title=f"{led_name} - Count"
             )
-            
+
             # Color order
             color_order = self.ui.radiolist(
                 f"Color order for '{led_name}':",
@@ -1479,7 +1479,7 @@ class GschpooziWizard:
                 ],
                 title=f"{led_name} - Color Order"
             )
-            
+
             leds.append({
                 "name": led_name,
                 "location": location,
@@ -1487,25 +1487,25 @@ class GschpooziWizard:
                 "chain_count": int(chain_count or 1),
                 "color_order": color_order
             })
-            
+
             if not self.ui.yesno("Add another LED strip?", title="More LEDs"):
                 break
-        
+
         # Save
         self.state.set("leds", leds)
         self.state.save()
-        
+
         led_names = [l["name"] for l in leds]
         self.ui.msgbox(
             f"LEDs configured!\n\n"
             f"Strips: {', '.join(led_names) if led_names else 'None'}",
             title="Configuration Saved"
         )
-    
+
     def _filament_sensors_setup(self) -> None:
         """Configure filament sensors."""
         sensors = []
-        
+
         if not self.ui.yesno(
             "Do you have a filament runout sensor?",
             title="Filament Sensor"
@@ -1513,9 +1513,9 @@ class GschpooziWizard:
             self.state.set("filament_sensors", [])
             self.state.save()
             return
-        
+
         has_toolboard = self.state.get("mcu.toolboard.connection_type")
-        
+
         # Sensor type
         sensor_type = self.ui.radiolist(
             "Filament sensor type:",
@@ -1526,7 +1526,7 @@ class GschpooziWizard:
             ],
             title="Sensor Type"
         )
-        
+
         # Location
         if has_toolboard:
             location = self.ui.radiolist(
@@ -1539,14 +1539,14 @@ class GschpooziWizard:
             )
         else:
             location = "mainboard"
-        
+
         # Pin
         pin = self.ui.inputbox(
             "Sensor pin:",
             default="PG11" if location == "mainboard" else "PB6",
             title="Sensor Pin"
         )
-        
+
         sensors.append({
             "name": "filament_sensor",
             "type": sensor_type,
@@ -1554,11 +1554,11 @@ class GschpooziWizard:
             "pin": pin,
             "pause_on_runout": True
         })
-        
+
         # Save
         self.state.set("filament_sensors", sensors)
         self.state.save()
-        
+
         self.ui.msgbox(
             f"Filament sensor configured!\n\n"
             f"Type: {sensor_type}\n"
@@ -1566,11 +1566,11 @@ class GschpooziWizard:
             f"Pin: {pin}",
             title="Configuration Saved"
         )
-    
+
     # -------------------------------------------------------------------------
     # Category 3: Tuning
     # -------------------------------------------------------------------------
-    
+
     def tuning_menu(self) -> None:
         """Tuning and optimization menu."""
         while True:
@@ -1587,7 +1587,7 @@ class GschpooziWizard:
                 ],
                 title="3. Tuning & Optimization",
             )
-            
+
             if choice is None or choice == "B":
                 break
             else:
@@ -1595,15 +1595,15 @@ class GschpooziWizard:
                     f"Section {choice} coming soon!",
                     title=f"Section {choice}"
                 )
-    
+
     # -------------------------------------------------------------------------
     # Generate Config
     # -------------------------------------------------------------------------
-    
+
     def generate_config(self) -> None:
         """Generate printer configuration files."""
         completion = self.state.get_completion_status()
-        
+
         if not completion.get("mcu"):
             self.ui.msgbox(
                 "Cannot generate config!\n\n"
@@ -1611,7 +1611,7 @@ class GschpooziWizard:
                 title="Missing Configuration"
             )
             return
-        
+
         if not self.ui.yesno(
             "Generate configuration files?\n\n"
             "This will create:\n"
@@ -1623,20 +1623,20 @@ class GschpooziWizard:
             title="Generate Config"
         ):
             return
-        
+
         self.ui.infobox("Generating configuration...", title="Please wait")
-        
+
         try:
             from generator import ConfigGenerator
-            
+
             generator = ConfigGenerator(state=self.state)
             files = generator.generate()
             written = generator.write_files(files)
-            
+
             file_list = "\n".join(f"• {p.name}" for p in written[:8])
             if len(written) > 8:
                 file_list += f"\n  ... and {len(written) - 8} more"
-            
+
             self.ui.msgbox(
                 f"Configuration generated!\n\n"
                 f"Created {len(written)} files:\n{file_list}\n\n"
