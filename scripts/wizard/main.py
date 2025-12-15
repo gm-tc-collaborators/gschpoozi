@@ -479,6 +479,69 @@ class GschpooziWizard:
                     parts.append("Ctrl")
                 fans_status = ", ".join(parts)
 
+            # Probe
+            probe_type = self.state.get("probe.probe_type", "")
+            probe_status = None
+            if probe_type and probe_type != "none":
+                # Format probe type nicely: capitalize and replace underscores
+                probe_status = probe_type.replace("_", " ").title()
+
+            # Homing
+            homing_method = self.state.get("homing.homing_method", "")
+            homing_status = None
+            if homing_method:
+                # Format homing method nicely: capitalize and replace underscores
+                homing_status = homing_method.replace("_", " ").title()
+
+            # Bed Leveling
+            leveling_type = self.state.get("bed_leveling.leveling_type", "")
+            mesh_enabled = self.state.get("bed_leveling.bed_mesh.enabled", False)
+            leveling_status = None
+            if leveling_type and leveling_type != "none":
+                # Format leveling type nicely
+                formatted_type = leveling_type.replace("_", " ").upper() if leveling_type == "qgl" else leveling_type.replace("_", " ").title()
+                leveling_status = formatted_type
+                if mesh_enabled:
+                    leveling_status += " + Mesh"
+
+            # Temperature Sensors
+            temp_sensor_count = 0
+            if self.state.get("temperature_sensors.mcu_main.enabled", False):
+                temp_sensor_count += 1
+            if self.state.get("temperature_sensors.host.enabled", False):
+                temp_sensor_count += 1
+            if self.state.get("temperature_sensors.toolboard.enabled", False):
+                temp_sensor_count += 1
+            if self.state.get("temperature_sensors.chamber.enabled", False):
+                temp_sensor_count += 1
+            # Count custom sensors (excluding built-in ones)
+            custom_sensors = self.state.get("temperature_sensors", [])
+            if isinstance(custom_sensors, list):
+                built_in_names = {"mcu_temp", "host_temp", "toolboard_temp", "chamber"}
+                custom_count = sum(1 for s in custom_sensors if isinstance(s, dict) and s.get("name") not in built_in_names)
+                temp_sensor_count += custom_count
+            temp_sensors_status = None
+            if temp_sensor_count > 0:
+                temp_sensors_status = f"{temp_sensor_count} sensor{'s' if temp_sensor_count != 1 else ''}"
+
+            # LEDs
+            leds = self.state.get("leds", [])
+            if not isinstance(leds, list):
+                leds = []
+            leds_count = len(leds)
+            leds_status = None
+            if leds_count > 0:
+                leds_status = f"{leds_count} LED{'s' if leds_count != 1 else ''}"
+
+            # Filament Sensors
+            filament_sensors = self.state.get("filament_sensors", [])
+            if not isinstance(filament_sensors, list):
+                filament_sensors = []
+            filament_count = len(filament_sensors)
+            filament_sensors_status = None
+            if filament_count > 0:
+                filament_sensors_status = f"{filament_count} sensor{'s' if filament_count != 1 else ''}"
+
             menu_items = [
                 ("2.1", self._format_menu_item("MCU Configuration", mcu_status) if mcu_status else "MCU Configuration     (Boards & connections)"),
                 ("2.2", self._format_menu_item("Printer Settings", printer_status) if printer_status else "Printer Settings      (Kinematics & limits)"),
@@ -500,12 +563,12 @@ class GschpooziWizard:
                 ("2.6", self._format_menu_item("Extruder", extruder_status) if extruder_status else "Extruder              (Motor & hotend)"),
                 ("2.7", self._format_menu_item("Heated Bed", bed_status) if bed_status else "Heated Bed            (Heater & thermistor)"),
                 ("2.8", self._format_menu_item("Fans", fans_status) if fans_status else "Fans                  (Part cooling, hotend, etc.)"),
-                ("2.9", "Probe                 (BLTouch, Beacon, etc.)"),
-                ("2.10", "Homing               (Safe Z home, sensorless)"),
-                ("2.11", "Bed Leveling         (Mesh, Z tilt, QGL)"),
-                ("2.12", "Temperature Sensors  (MCU, chamber, etc.)"),
-                ("2.13", "LEDs                 (Neopixel, case light)"),
-                ("2.14", "Filament Sensors     (Runout detection)"),
+                ("2.9", self._format_menu_item("Probe", probe_status) if probe_status else "Probe                 (BLTouch, Beacon, etc.)"),
+                ("2.10", self._format_menu_item("Homing", homing_status) if homing_status else "Homing               (Safe Z home, sensorless)"),
+                ("2.11", self._format_menu_item("Bed Leveling", leveling_status) if leveling_status else "Bed Leveling         (Mesh, Z tilt, QGL)"),
+                ("2.12", self._format_menu_item("Temperature Sensors", temp_sensors_status) if temp_sensors_status else "Temperature Sensors  (MCU, chamber, etc.)"),
+                ("2.13", self._format_menu_item("LEDs", leds_status) if leds_status else "LEDs                 (Neopixel, case light)"),
+                ("2.14", self._format_menu_item("Filament Sensors", filament_sensors_status) if filament_sensors_status else "Filament Sensors     (Runout detection)"),
                 ("2.15", "Display              (LCD, OLED)"),
                 ("2.16", "Advanced             (Servo, buttons, etc.)"),
                 ("B", "Back to Main Menu"),
@@ -677,6 +740,9 @@ class GschpooziWizard:
         if board is None:
             return
 
+        # Load saved serial path
+        current_serial = self.state.get("mcu.main.serial", "")
+
         # Serial detection (placeholder)
         self.ui.infobox("Scanning for connected MCUs...", title="Detecting")
 
@@ -712,14 +778,14 @@ class GschpooziWizard:
                 if selected == "manual":
                     serial_path = self.ui.inputbox(
                         "Enter the serial path:",
-                        default="/dev/serial/by-id/usb-Klipper_"
+                        default=current_serial or "/dev/serial/by-id/usb-Klipper_"
                     )
                 elif selected and selected in serial_map:
                     serial_path = serial_map[selected]
         else:
             serial_path = self.ui.inputbox(
                 "No devices found. Enter serial path manually:",
-                default="/dev/serial/by-id/usb-Klipper_"
+                default=current_serial or "/dev/serial/by-id/usb-Klipper_"
             )
 
         if serial_path:
@@ -1660,7 +1726,7 @@ class GschpooziWizard:
         else:
             motor_port = self.ui.inputbox(
                 f"Enter motor port on {motor_location}:",
-                default="EXTRUDER" if motor_location == "toolboard" else "MOTOR_5",
+                default=current_port or ("EXTRUDER" if motor_location == "toolboard" else "MOTOR_5"),
                 title="Extruder Motor - Port"
             )
         if motor_port is None:
@@ -1781,13 +1847,13 @@ class GschpooziWizard:
             else:
                 heater_port = self.ui.inputbox(
                     f"Enter heater port on {heater_location}:",
-                    default="HE" if heater_location == "toolboard" else "HE0",
+                    default=current_port or ("HE" if heater_location == "toolboard" else "HE0"),
                     title="Hotend - Heater Port"
                 )
         else:
             heater_port = self.ui.inputbox(
                 f"Enter heater port on {heater_location}:",
-                default="HE" if heater_location == "toolboard" else "HE0",
+                default=current_port or ("HE" if heater_location == "toolboard" else "HE0"),
                 title="Hotend - Heater Port"
             )
         if heater_port is None:
@@ -1837,13 +1903,13 @@ class GschpooziWizard:
             else:
                 sensor_port = self.ui.inputbox(
                     f"Enter thermistor port on {sensor_location}:",
-                    default="TH0" if sensor_location == "toolboard" else "T0",
+                    default=current_port or ("TH0" if sensor_location == "toolboard" else "T0"),
                     title="Hotend - Thermistor Port"
                 )
         else:
             sensor_port = self.ui.inputbox(
                 f"Enter thermistor port on {sensor_location}:",
-                default="TH0" if sensor_location == "toolboard" else "T0",
+                default=current_port or ("TH0" if sensor_location == "toolboard" else "T0"),
                 title="Hotend - Thermistor Port"
             )
         if sensor_port is None:
