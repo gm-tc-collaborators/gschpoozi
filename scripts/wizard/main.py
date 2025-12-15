@@ -438,16 +438,22 @@ class GschpooziWizard:
         if serial_dir.exists():
             devices = list(serial_dir.iterdir())
             if devices:
-                # Show selection with formatted names
-                device_items = [
-                    (str(d), self._format_serial_name(str(d)))
-                    for d in devices
-                ]
-                device_items.append(("manual", "Enter manually"))
+                # Build mapping: short_name -> full_path
+                serial_map = {}
+                device_items = []
+                for i, d in enumerate(devices):
+                    short_name = self._format_serial_name(str(d))
+                    # Use index prefix to ensure uniqueness
+                    tag = f"{i+1}. {short_name}"
+                    serial_map[tag] = str(d)
+                    device_items.append((tag, "", False))
+                
+                device_items.append(("manual", "Enter path manually", False))
 
                 selected = self.ui.radiolist(
-                    "Select the serial device for your main board:",
-                    [(d, n, False) for d, n in device_items],
+                    "Select the serial device for your main board:\n\n"
+                    "(Full paths will be saved to config)",
+                    device_items,
                     title="Main Board - Serial",
                 )
 
@@ -456,8 +462,8 @@ class GschpooziWizard:
                         "Enter the serial path:",
                         default="/dev/serial/by-id/usb-Klipper_"
                     )
-                elif selected:
-                    serial_path = selected
+                elif selected and selected in serial_map:
+                    serial_path = serial_map[selected]
         else:
             serial_path = self.ui.inputbox(
                 "No devices found. Enter serial path manually:",
@@ -1171,23 +1177,33 @@ class GschpooziWizard:
                                   if pattern.lower() in d.name.lower()]
 
             if serial_devices:
-                device_items = [
-                    (d, self._format_serial_name(d), i == 0)
-                    for i, d in enumerate(serial_devices)
-                ]
+                # Build mapping: short_name -> full_path
+                serial_map = {}
+                device_items = []
+                for i, d in enumerate(serial_devices):
+                    short_name = self._format_serial_name(d)
+                    tag = f"{i+1}. {short_name}"
+                    serial_map[tag] = d
+                    device_items.append((tag, "", i == 0))
+                
                 device_items.append(("manual", "Enter manually", False))
 
-                serial = self.ui.radiolist(
+                selected = self.ui.radiolist(
                     f"Select {probe_type} serial device:",
                     device_items,
                     title="Probe - Serial"
                 )
-
-                if serial == "manual":
+                
+                # Map selection back to full path
+                if selected and selected in serial_map:
+                    serial = serial_map[selected]
+                elif selected == "manual":
                     serial = self.ui.inputbox(
                         "Enter serial path:",
                         default="/dev/serial/by-id/usb-"
                     )
+                else:
+                    serial = None
             else:
                 serial = self.ui.inputbox(
                     f"Enter {probe_type} serial path:\n\n"
