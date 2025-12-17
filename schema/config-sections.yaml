@@ -674,9 +674,9 @@ common:
       {% else %}
       variable_leveling_method: "none"
       {% endif %}
-      variable_leveling_enabled: {{ bed_leveling.leveling_type != 'none' | lower }}
-      variable_z_calibration_enabled: {{ bed_leveling.z_calibration_enabled | default(true) | lower }}
-      variable_always_home_z: {{ bed_leveling.always_home_z | default(false) | lower }}
+      variable_leveling_enabled: {{ (bed_leveling.leveling_type | default('none') | lower) != 'none' }}
+      variable_z_calibration_enabled: {{ (bed_leveling.z_calibration_enabled | default(true) | string | lower) }}
+      variable_always_home_z: {{ (bed_leveling.always_home_z | default(false) | string | lower) }}
       # Heat Soak
       variable_heat_soak_time: {{ macros.heat_soak_time | default(0) }}
       # Chamber Heating
