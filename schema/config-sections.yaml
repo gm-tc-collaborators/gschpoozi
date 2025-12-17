@@ -383,6 +383,24 @@ heater_fan:
     heater_temp: {{ fans.hotend.heater_temp | default(50) }}
     fan_speed: {{ fans.hotend.fan_speed | default(1.0) }}
 
+    # Additional heater-controlled fans (Radiator, hotend_pump, etc.)
+    {% if fans.additional_fans %}
+    {% for fan in fans.additional_fans %}
+    {% if fan.control_mode | default('manual') == 'heater' %}
+    [heater_fan {{ fan.name }}]
+    {% if fan.pin_type == 'multi_pin' %}
+    pin: multi_pin:{{ fan.multi_pin_name }}
+    {% else %}
+    pin: {{ board.pins[fan.pin].signal }}
+    {% endif %}
+    heater: {{ fan.heater | default('extruder') }}
+    heater_temp: {{ fan.heater_temp | default(50) }}
+    fan_speed: {{ fan.fan_speed | default(1.0) }}
+
+    {% endif %}
+    {% endfor %}
+    {% endif %}
+
 controller_fan:
   condition: "fans.controller.enabled"
   template: |
@@ -399,6 +417,7 @@ fan_generic:
   type: "list"
   template: |
     {% for fan in fans.additional_fans %}
+    {% if fan.control_mode | default('manual') != 'heater' %}
     [fan_generic {{ fan.name }}]
     {% if fan.pin_type == 'multi_pin' %}
     pin: multi_pin:{{ fan.multi_pin_name }}
@@ -410,6 +429,7 @@ fan_generic:
     kick_start_time: {{ fan.kick_start_time | default(0.1) }}
     off_below: {{ fan.off_below | default(0.1) }}
 
+    {% endif %}
     {% endfor %}
 
 # -----------------------------------------------------------------------------

@@ -3158,6 +3158,21 @@ class GschpooziWizard:
             if not fan_name:
                 return None
 
+            # Control mode:
+            # - manual: [fan_generic] (no control method required)
+            # - heater: [heater_fan <name>] controlled by a heater object
+            current_control = (fan.get("control_mode") if isinstance(fan, dict) else None) or "manual"
+            control_mode = self.ui.radiolist(
+                f"Control mode for '{fan_name}':",
+                [
+                    ("manual", "Manual (fan_generic)", current_control == "manual"),
+                    ("heater", "Heater controlled (heater_fan)", current_control == "heater"),
+                ],
+                title=f"{fan_name} - Control Mode",
+            )
+            if control_mode is None:
+                return None
+
             # Multi-pin support
             current_is_multi = fan.get("pin_type") == "multi_pin" if fan else None
             is_multi_pin = self.ui.yesno(
@@ -3168,6 +3183,7 @@ class GschpooziWizard:
             )
 
             fan_config = {"name": fan_name}
+            fan_config["control_mode"] = control_mode
 
             if is_multi_pin:
                 # For multi-pin, need to select multiple ports
@@ -3225,7 +3241,8 @@ class GschpooziWizard:
                     )
                     if port:
                         fan_config["pin_type"] = "single"
-                        fan_config["port"] = port
+                        # Generator schema expects "pin" (not "port")
+                        fan_config["pin"] = port
                 else:
                     pin = self.ui.inputbox(
                         f"Pin for '{fan_name}':",
@@ -3234,6 +3251,32 @@ class GschpooziWizard:
                     )
                     fan_config["pin_type"] = "single"
                     fan_config["pin"] = pin
+
+            # Heater control settings (only if control_mode == 'heater')
+            if control_mode == "heater":
+                current_heater = (fan.get("heater") if isinstance(fan, dict) else None) or self.state.get("fans.hotend.heater", "extruder")
+                heater = self._pick_heater_name(current_value=current_heater, title=f"{fan_name} - Heater")
+                if heater is None or not str(heater).strip():
+                    return None
+                current_heater_temp = (fan.get("heater_temp") if isinstance(fan, dict) else None) or 50
+                heater_temp = self.ui.inputbox(
+                    f"Temperature to turn on '{fan_name}' (°C):",
+                    default=str(current_heater_temp),
+                    title=f"{fan_name} - Heater Temp",
+                )
+                if heater_temp is None:
+                    return None
+                current_fan_speed = (fan.get("fan_speed") if isinstance(fan, dict) else None) or 1.0
+                fan_speed = self.ui.inputbox(
+                    f"Fan speed for '{fan_name}' (0.1-1.0):",
+                    default=str(current_fan_speed),
+                    title=f"{fan_name} - Fan Speed",
+                )
+                if fan_speed is None:
+                    return None
+                fan_config["heater"] = heater
+                fan_config["heater_temp"] = float(heater_temp or 50)
+                fan_config["fan_speed"] = float(fan_speed or 1.0)
 
             return fan_config
 
