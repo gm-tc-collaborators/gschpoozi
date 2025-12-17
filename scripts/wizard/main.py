@@ -4676,6 +4676,13 @@ class GschpooziWizard:
         while True:
             multi_pins = self.state.get("advanced.multi_pins", [])
             multi_pin_status = f"{len(multi_pins)} group(s)" if isinstance(multi_pins, list) and multi_pins else None
+            additional_fans = self.state.get("fans.additional_fans", [])
+            has_multi_pin_fans = False
+            if isinstance(additional_fans, list):
+                has_multi_pin_fans = any(
+                    isinstance(f, dict) and f.get("pin_type") == "multi_pin"
+                    for f in additional_fans
+                )
             fm_enabled = self.state.get("advanced.force_move.enable_force_move", False)
             fr_enabled = self.state.get("advanced.firmware_retraction.enabled", False)
             inc_mainsail = self.state.get("includes.mainsail.enabled")
@@ -4694,7 +4701,7 @@ class GschpooziWizard:
                 "Optional Klipper features.\n\n"
                 "Only items that are already supported by the generator are exposed here.",
                 [
-                    ("MP", self._format_menu_item("Multi-pin groups", multi_pin_status) if multi_pin_status else "Multi-pin groups      ([multi_pin])"),
+                    ("MP", "Multi-pin groups      (managed in Fans)" if has_multi_pin_fans else (self._format_menu_item("Multi-pin groups", multi_pin_status) if multi_pin_status else "Multi-pin groups      ([multi_pin])")),
                     ("FM", self._format_menu_item("Force move", "Enabled" if fm_enabled else None) if fm_enabled else "Force move            ([force_move])"),
                     ("FR", self._format_menu_item("Firmware retraction", "Enabled" if fr_enabled else None) if fr_enabled else "Firmware retraction   ([firmware_retraction])"),
                     ("INC", self._format_menu_item("printer.cfg includes", inc_status) if inc_status else "printer.cfg includes  (mainsail/timelapse)"),
@@ -4708,6 +4715,22 @@ class GschpooziWizard:
             if choice is None or choice == "B":
                 return
             if choice == "MP":
+                # Avoid confusing duplicate configuration:
+                # If multi-pin groups come from Fans -> Additional Fans, don't allow editing them here.
+                if has_multi_pin_fans:
+                    go_fans = self.ui.yesno(
+                        "Multi-pin groups for fans are configured in:\n\n"
+                        "Hardware Setup -> Fans -> Additional Fans\n\n"
+                        "This avoids defining the same multi-pin group twice.\n\n"
+                        "Open Fans setup now?",
+                        title="Multi-pin groups",
+                        default_no=False,
+                        height=16,
+                        width=90,
+                    )
+                    if go_fans:
+                        self._fans_setup()
+                    continue
                 self._advanced_multi_pin_setup()
             elif choice == "FM":
                 self._advanced_force_move_setup()
@@ -4757,6 +4780,23 @@ class GschpooziWizard:
 
     def _advanced_multi_pin_setup(self) -> None:
         """Manage multi-pin groups (advanced.multi_pins)."""
+        # If the user is already defining multi-pin fans via Fans -> Additional Fans,
+        # those groups are derived from that flow and should not be edited here.
+        additional_fans = self.state.get("fans.additional_fans", [])
+        if isinstance(additional_fans, list) and any(
+            isinstance(f, dict) and f.get("pin_type") == "multi_pin"
+            for f in additional_fans
+        ):
+            self.ui.msgbox(
+                "Multi-pin fan groups are managed via:\n\n"
+                "Hardware Setup -> Fans -> Additional Fans\n\n"
+                "Edit them there to avoid duplicate/conflicting [multi_pin] definitions.",
+                title="Multi-pin groups",
+                height=14,
+                width=90,
+            )
+            return
+
         groups = self.state.get("advanced.multi_pins", [])
         if not isinstance(groups, list):
             groups = []
