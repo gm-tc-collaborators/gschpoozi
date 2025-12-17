@@ -115,6 +115,20 @@ class WizardUI:
         Returns:
             Selected tag or None if cancelled
         """
+        # whiptail radiolist behaves poorly if multiple entries are pre-selected (ON).
+        # Enforce at most one ON item (keep the first one).
+        if items:
+            first_on = None
+            for i, (_, _, selected) in enumerate(items):
+                if selected:
+                    first_on = i
+                    break
+            if first_on is not None:
+                items = [
+                    (tag, desc, (idx == first_on))
+                    for idx, (tag, desc, _sel) in enumerate(items)
+                ]
+
         # Use generous defaults - modern terminals are large!
         if height == 0:
             height = min(len(items) + 15, 50)
