@@ -65,11 +65,19 @@ class WizardState:
             if isinstance(fans, dict):
                 additional = fans.get("additional_fans")
                 if isinstance(additional, list):
+                    cleaned = []
                     for fan in additional:
                         if not isinstance(fan, dict):
                             continue
+                        # If pins is explicitly null, drop it
                         if fan.get("pins") is None:
                             fan.pop("pins", None)
+                        # If this is a multi_pin fan but pins are missing/empty, drop the entry entirely
+                        # (it would crash the wizard and fail generator validation anyway).
+                        if fan.get("pin_type") == "multi_pin" and not fan.get("pins"):
+                            continue
+                        cleaned.append(fan)
+                    fans["additional_fans"] = cleaned
     
     def save(self) -> None:
         """Save state to disk."""

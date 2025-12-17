@@ -3077,13 +3077,24 @@ class GschpooziWizard:
                         additional_fans.pop(idx)
 
         # Multi-pin groups (for hotend cooling with multiple fans, etc.)
+        # Be defensive: older/broken state may contain multi_pin entries without "pins".
         multi_pins = []
+        cleaned_additional_fans = []
         for fan in additional_fans:
+            if not isinstance(fan, dict):
+                continue
+            if not fan.get("name"):
+                continue
             if fan.get("pin_type") == "multi_pin":
-                multi_pins.append({
-                    "name": fan["multi_pin_name"],
-                    "pins": fan["pins"]
-                })
+                pins = fan.get("pins")
+                mp_name = fan.get("multi_pin_name") or fan.get("name")
+                if not pins:
+                    # Skip invalid entry (prevents KeyError 'pins')
+                    continue
+                cleaned_additional_fans.append(fan)
+                multi_pins.append({"name": mp_name, "pins": pins})
+            else:
+                cleaned_additional_fans.append(fan)
 
         # Save part cooling fan
         # State keys must match config-sections.yaml template expectations
@@ -3098,6 +3109,8 @@ class GschpooziWizard:
         self.state.set("fans.part_cooling.kick_start_time", float(kick_start_time or 0.5))
         self.state.set("fans.part_cooling.off_below", float(off_below or 0.1))
         self.state.set("fans.part_cooling.cycle_time", float(cycle_time or 0.010))
+        # Save progress even if user later cancels out
+        self.state.save()
 
         # Save hotend fan
         # State keys must match config-sections.yaml template expectations
@@ -3111,6 +3124,8 @@ class GschpooziWizard:
         self.state.set("fans.hotend.heater", heater or "extruder")
         self.state.set("fans.hotend.heater_temp", int(heater_temp or 50))
         self.state.set("fans.hotend.fan_speed", float(fan_speed or 1.0))
+        # Save progress even if user later cancels out
+        self.state.save()
 
         # Save controller fan
         self.state.set("fans.controller.enabled", has_controller_fan)
@@ -3126,11 +3141,17 @@ class GschpooziWizard:
             self.state.delete("fans.controller.stepper")
             self.state.delete("fans.controller.idle_timeout")
             self.state.delete("fans.controller.idle_speed")
+        # Save progress even if user later cancels out
+        self.state.save()
 
-        if additional_fans:
-            self.state.set("fans.additional_fans", additional_fans)
+        if cleaned_additional_fans:
+            self.state.set("fans.additional_fans", cleaned_additional_fans)
+        else:
+            self.state.delete("fans.additional_fans")
         if multi_pins:
             self.state.set("advanced.multi_pins", multi_pins)
+        else:
+            self.state.delete("advanced.multi_pins")
 
         self.state.save()
 
@@ -3139,8 +3160,8 @@ class GschpooziWizard:
             f"Hotend: {hotend_location} ({hotend_pin})\n"
             f"Controller fan: {'Yes (' + controller_pin + ')' if has_controller_fan and controller_pin else 'No'}"
         )
-        if additional_fans:
-            summary += f"\nAdditional: {', '.join(f['name'] for f in additional_fans)}"
+        if cleaned_additional_fans:
+            summary += f"\nAdditional: {', '.join(f.get('name', 'Unknown') for f in cleaned_additional_fans)}"
 
         self.ui.msgbox(
             f"Fans configured!\n\n{summary}",
