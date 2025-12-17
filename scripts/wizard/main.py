@@ -3283,24 +3283,40 @@ class GschpooziWizard:
                 fan_config["multi_pin_name"] = fan_name
             else:
                 # Single pin fan - select from available ports
-                current_port = fan.get("port", "") if fan else None
                 current_pin = fan.get("pin", "") if fan else None
-                fan_ports = self._get_board_ports("fan_ports", "toolboards" if location == "toolboard" else "boards")
-                if fan_ports:
+                board_type = "toolboards" if location == "toolboard" else "boards"
+
+                # Offer a picker of *valid* port IDs (what the generator expects),
+                # not raw MCU pins. This avoids templates failing on board.pins[fan.pin].
+                pick_items = []
+                for group_key, group_label in (("fan_ports", "Fan"), ("heater_ports", "Heater"), ("misc_ports", "Misc")):
+                    ports = self._get_board_ports(group_key, board_type)
+                    if not ports:
+                        continue
+                    for port_id, label, _default in ports:
+                        pick_items.append((port_id, f"[{group_label}] {label}", port_id == current_pin))
+
+                if pick_items:
                     port = self.ui.radiolist(
-                        f"Select fan port for '{fan_name}':",
-                        [(p, l, p == current_port or d) for p, l, d in fan_ports],
-                        title=f"{fan_name} - Port"
+                        f"Select port for '{fan_name}':\n\n"
+                        "Tip: If your fan is wired to a heater output, pick an HE* port.\n"
+                        "This stores the port ID (e.g. FAN2 / HE2), not the raw MCU pin.",
+                        pick_items,
+                        title=f"{fan_name} - Port",
+                        height=24,
+                        width=140,
+                        list_height=min(18, max(8, len(pick_items))),
                     )
                     if port:
                         fan_config["pin_type"] = "single"
-                        # Generator schema expects "pin" (not "port")
                         fan_config["pin"] = port
                 else:
+                    # Fallback: if the board template doesn't provide ports, accept a port ID manually.
                     pin = self.ui.inputbox(
-                        f"Pin for '{fan_name}':",
+                        f"Port for '{fan_name}':\n\n"
+                        "Enter a board port ID like FAN2 or HE2 (not raw pins like PB10).",
                         default=current_pin or "",
-                        title=f"{fan_name} - Pin"
+                        title=f"{fan_name} - Port"
                     )
                     fan_config["pin_type"] = "single"
                     fan_config["pin"] = pin

@@ -282,6 +282,16 @@ class ConfigGenerator:
         for port_name, port_data in board_data.get('endstop_ports', {}).items():
             pins[port_name] = {'signal': port_data.get('pin')}
 
+        # Transform misc ports (optional)
+        # Many boards expose useful general purpose pins (e.g. PS_ON, LEDs, etc).
+        # Some misc ports are headers with nested pin maps (EXP1/EXP2) - skip those.
+        for port_name, port_data in board_data.get('misc_ports', {}).items():
+            if not isinstance(port_data, dict):
+                continue
+            pin = port_data.get('pin')
+            if pin:
+                pins[port_name] = {'signal': pin}
+
         # Get SPI config
         # Boards can represent SPI in two formats:
         # 1) Direct TMC pins (Mellow style): spi_config.tmc_mosi/tmc_miso/tmc_sck
@@ -481,11 +491,33 @@ class ConfigGenerator:
         # Additional fans: multi_pin must have pins
         add_fans = (cfg.get("fans") or {}).get("additional_fans") if isinstance(cfg.get("fans"), dict) else None
         if isinstance(add_fans, list):
+            board_pins = cfg.get("board", {}).get("pins", {}) if isinstance(cfg.get("board"), dict) else {}
+            tool_pins = cfg.get("toolboard", {}).get("pins", {}) if isinstance(cfg.get("toolboard"), dict) else {}
             for i, fan in enumerate(add_fans):
                 if not isinstance(fan, dict):
                     continue
                 if fan.get("pin_type") == "multi_pin" and not fan.get("pins"):
                     errors.append(f"Missing required setting: fans.additional_fans[{i}].pins")
+                if fan.get("pin_type") != "multi_pin":
+                    # Single-pin additional fans must reference a known port ID (e.g. FAN0/HE2),
+                    # not a raw MCU pin name like PB10. Templates resolve board.pins[fan.pin].signal.
+                    if not fan.get("pin"):
+                        errors.append(f"Missing required setting: fans.additional_fans[{i}].pin")
+                        continue
+                    loc = fan.get("location") or "mainboard"
+                    pin_key = fan.get("pin")
+                    if loc == "toolboard":
+                        if not isinstance(tool_pins, dict) or pin_key not in tool_pins:
+                            errors.append(
+                                f"Invalid setting: fans.additional_fans[{i}].pin='{pin_key}' (not found in toolboard port map). "
+                                "Select a toolboard port (fan/heater/misc) in the wizard."
+                            )
+                    else:
+                        if not isinstance(board_pins, dict) or pin_key not in board_pins:
+                            errors.append(
+                                f"Invalid setting: fans.additional_fans[{i}].pin='{pin_key}' (not found in mainboard port map). "
+                                "Select a mainboard port (fan/heater/misc) in the wizard."
+                            )
 
         if errors:
             raise ValueError("Wizard state is incomplete:\n" + "\n".join(f"- {e}" for e in errors))
