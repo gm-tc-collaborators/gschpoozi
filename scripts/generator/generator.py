@@ -26,9 +26,11 @@ class ConfigGenerator:
         "printer.cfg": "Main configuration (includes only)",
         "gschpoozi/hardware.cfg": "MCU, steppers, extruder, bed, fans",
         "gschpoozi/probe.cfg": "Probe and homing",
+        "gschpoozi/homing.cfg": "Homing (safe_z_home, overrides)",
         "gschpoozi/leveling.cfg": "Bed leveling",
         "gschpoozi/macros.cfg": "G-code macros",
         "gschpoozi/macros-config.cfg": "Macro configuration variables",
+        "gschpoozi/calibration.cfg": "Calibration and stepper identification macros",
         "gschpoozi/tuning.cfg": "Tuning and optional features",
     }
 
@@ -73,7 +75,7 @@ class ConfigGenerator:
             'beacon': 'gschpoozi/probe.cfg',
             'cartographer': 'gschpoozi/probe.cfg',
             'btt_eddy': 'gschpoozi/probe.cfg',
-            'safe_z_home': 'gschpoozi/probe.cfg',
+            'safe_z_home': 'gschpoozi/homing.cfg',
             'bed_mesh': 'gschpoozi/leveling.cfg',
             'z_tilt': 'gschpoozi/leveling.cfg',
             'quad_gantry_level': 'gschpoozi/leveling.cfg',
@@ -91,6 +93,7 @@ class ConfigGenerator:
             'common.firmware_retraction': 'gschpoozi/tuning.cfg',
             'common.macro_config': 'gschpoozi/macros-config.cfg',
             'common.bed_mesh_macro': 'gschpoozi/macros.cfg',
+            'common.calibration': 'gschpoozi/calibration.cfg',
         }
 
     def _find_templates_dir(self) -> Path:
@@ -110,6 +113,29 @@ class ConfigGenerator:
         """Get context for template rendering from wizard state."""
         context = self.state.export_for_generator()
 
+        # Ensure optional top-level keys exist to avoid Jinja undefined errors
+        # (Templates use these widely with defaults.)
+        if not isinstance(context.get("macros"), dict):
+            context["macros"] = {}
+        if not isinstance(context.get("tuning"), dict):
+            context["tuning"] = {}
+        # Ensure nested tuning dicts exist for dot-access patterns used in templates
+        for k in ("virtual_sdcard", "idle_timeout", "pause_resume", "arc_support", "respond", "save_variables", "exclude_object"):
+            if not isinstance(context["tuning"].get(k), dict):
+                context["tuning"][k] = {}
+        if not isinstance(context.get("advanced"), dict):
+            context["advanced"] = {}
+        # Ensure nested advanced dicts exist for dot-access patterns used in templates
+        for k in ("force_move", "firmware_retraction"):
+            if not isinstance(context["advanced"].get(k), dict):
+                context["advanced"][k] = {}
+        if not isinstance(context.get("bed_leveling"), dict):
+            context["bed_leveling"] = {}
+        if not isinstance(context.get("homing"), dict):
+            context["homing"] = {}
+        if not isinstance(context.get("probe"), dict):
+            context["probe"] = {}
+
         # Load board pin definitions from JSON files
         context['board'] = self._load_board_definition(
             self.state.get('mcu.main.board_type', 'other')
@@ -118,6 +144,78 @@ class ConfigGenerator:
             self.state.get('mcu.toolboard.board_type', None)
         )
         context['extruder_presets'] = self._get_extruder_presets()
+
+        # Apply board defaults for missing pin/port selections (best-effort).
+        # This helps generate a usable config when the wizard state doesn't explicitly store
+        # ports that can be derived from the selected board's default assignments.
+        try:
+            board_defaults = context.get("board", {}).get("defaults", {}) if isinstance(context.get("board"), dict) else {}
+            if not isinstance(board_defaults, dict):
+                board_defaults = {}
+
+            # Ensure nested dicts exist
+            for k in ("stepper_z", "heater_bed", "fans", "stepper_x", "stepper_y"):
+                if not isinstance(context.get(k), dict):
+                    context[k] = {}
+            if not isinstance(context["fans"].get("part_cooling"), dict):
+                context["fans"]["part_cooling"] = {}
+            if not isinstance(context["fans"].get("hotend"), dict):
+                context["fans"]["hotend"] = {}
+            if not isinstance(context["fans"].get("controller"), dict):
+                context["fans"]["controller"] = {}
+
+            # Z motor port default
+            if not context["stepper_z"].get("motor_port") and board_defaults.get("stepper_z"):
+                context["stepper_z"]["motor_port"] = board_defaults.get("stepper_z")
+
+            # Bed heater + thermistor defaults
+            if not context["heater_bed"].get("heater_pin") and board_defaults.get("heater_bed"):
+                context["heater_bed"]["heater_pin"] = board_defaults.get("heater_bed")
+            if not context["heater_bed"].get("sensor_port") and board_defaults.get("thermistor_bed"):
+                context["heater_bed"]["sensor_port"] = board_defaults.get("thermistor_bed")
+
+            # Part cooling fan default
+            part_loc = (context["fans"]["part_cooling"].get("location") or "mainboard")
+            if part_loc == "mainboard" and not context["fans"]["part_cooling"].get("pin_mainboard") and board_defaults.get("fan_part_cooling"):
+                context["fans"]["part_cooling"]["pin_mainboard"] = board_defaults.get("fan_part_cooling")
+            if part_loc == "toolboard" and not context["fans"]["part_cooling"].get("pin_toolboard") and board_defaults.get("fan_part_cooling"):
+                context["fans"]["part_cooling"]["pin_toolboard"] = board_defaults.get("fan_part_cooling")
+
+            # Hotend fan default
+            hotend_loc = (context["fans"]["hotend"].get("location") or "mainboard")
+            if hotend_loc == "mainboard" and not context["fans"]["hotend"].get("pin_mainboard") and board_defaults.get("fan_hotend"):
+                context["fans"]["hotend"]["pin_mainboard"] = board_defaults.get("fan_hotend")
+            if hotend_loc == "toolboard" and not context["fans"]["hotend"].get("pin_toolboard") and board_defaults.get("fan_hotend"):
+                context["fans"]["hotend"]["pin_toolboard"] = board_defaults.get("fan_hotend")
+
+            # Controller fan default
+            if context["fans"]["controller"].get("enabled") and not context["fans"]["controller"].get("pin") and board_defaults.get("fan_controller"):
+                context["fans"]["controller"]["pin"] = board_defaults.get("fan_controller")
+
+            # Y endstop default (common on boards)
+            if (
+                context["stepper_y"].get("endstop_type") == "physical"
+                and not context["stepper_y"].get("endstop_port")
+                and board_defaults.get("endstop_y")
+            ):
+                context["stepper_y"]["endstop_port"] = board_defaults.get("endstop_y")
+                context["stepper_y"].setdefault("endstop_config", "nc_gnd")
+
+            # If a toolboard exists with X_STOP and stepper_x physical endstop config is missing,
+            # default to toolboard X_STOP (common for Orbitool/Nitehawk-style setups).
+            toolboard_pins = context.get("toolboard", {}).get("pins", {}) if isinstance(context.get("toolboard"), dict) else {}
+            if (
+                context["stepper_x"].get("endstop_type") == "physical"
+                and not context["stepper_x"].get("endstop_port")
+                and not context["stepper_x"].get("endstop_port_toolboard")
+                and isinstance(toolboard_pins, dict)
+                and "X_STOP" in toolboard_pins
+            ):
+                context["stepper_x"]["endstop_port_toolboard"] = "X_STOP"
+                context["stepper_x"].setdefault("endstop_config", "nc_gnd")
+        except Exception:
+            # Best-effort defaults only; never block generation here.
+            pass
 
         return context
 
@@ -185,14 +283,29 @@ class ConfigGenerator:
             pins[port_name] = {'signal': port_data.get('pin')}
 
         # Get SPI config
+        # Boards can represent SPI in two formats:
+        # 1) Direct TMC pins (Mellow style): spi_config.tmc_mosi/tmc_miso/tmc_sck
+        # 2) Named buses (BTT style): spi_config.<bus_name>.{mosi_pin,miso_pin,sck_pin}
         spi_config = {}
-        for spi_name, spi_data in board_data.get('spi_config', {}).items():
-            spi_config = {
-                'miso': spi_data.get('miso_pin'),
-                'mosi': spi_data.get('mosi_pin'),
-                'sclk': spi_data.get('sck_pin'),
-            }
-            break  # Use first SPI config
+        raw_spi = board_data.get('spi_config', {})
+        if isinstance(raw_spi, dict) and raw_spi:
+            # Format 1: direct pins
+            if 'tmc_mosi' in raw_spi or 'tmc_miso' in raw_spi or 'tmc_sck' in raw_spi:
+                spi_config = {
+                    'miso': raw_spi.get('tmc_miso'),
+                    'mosi': raw_spi.get('tmc_mosi'),
+                    'sclk': raw_spi.get('tmc_sck'),
+                }
+            else:
+                # Format 2: first named bus dict
+                for _spi_name, spi_data in raw_spi.items():
+                    if isinstance(spi_data, dict):
+                        spi_config = {
+                            'miso': spi_data.get('miso_pin'),
+                            'mosi': spi_data.get('mosi_pin'),
+                            'sclk': spi_data.get('sck_pin'),
+                        }
+                        break  # Use first SPI config dict
 
         return {
             'id': board_data.get('id'),
@@ -300,6 +413,20 @@ class ConfigGenerator:
         context = self.get_context()
         rendered = self.renderer.render_all(context)
 
+        # Validation: fail fast on render errors (these are always broken configs)
+        render_errors = []
+        for section_key, content in rendered.items():
+            if isinstance(content, str) and "# Render error:" in content:
+                # Capture first line for readability
+                first = next((ln for ln in content.splitlines() if "Render error" in ln), "").strip()
+                render_errors.append(f"{section_key}: {first}")
+        if render_errors:
+            raise ValueError(
+                "Template render errors detected (cannot generate valid config):\n"
+                + "\n".join(f"- {e}" for e in render_errors[:50])
+                + ("\n- ... (more)" if len(render_errors) > 50 else "")
+            )
+
         # Group by output file
         files: Dict[str, List[str]] = {}
 
@@ -318,6 +445,21 @@ class ConfigGenerator:
             header = self._generate_header(file_path)
             content = header + "\n".join(sections)
             result[file_path] = content
+
+        # Ensure expected output files exist even if empty (printer.cfg includes them).
+        expected_cfgs = [
+            "gschpoozi/hardware.cfg",
+            "gschpoozi/probe.cfg",
+            "gschpoozi/homing.cfg",
+            "gschpoozi/leveling.cfg",
+            "gschpoozi/macros-config.cfg",
+            "gschpoozi/macros.cfg",
+            "gschpoozi/calibration.cfg",
+            "gschpoozi/tuning.cfg",
+        ]
+        for p in expected_cfgs:
+            if p not in result:
+                result[p] = self._generate_header(p)
 
         # Generate main printer.cfg with includes
         result['printer.cfg'] = self._generate_printer_cfg()
@@ -350,14 +492,13 @@ class ConfigGenerator:
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         includes = [
-            "gschpoozi/mcu.cfg",
-            "gschpoozi/steppers.cfg",
-            "gschpoozi/extruder.cfg",
-            "gschpoozi/bed.cfg",
-            "gschpoozi/fans.cfg",
+            "gschpoozi/hardware.cfg",
             "gschpoozi/probe.cfg",
+            "gschpoozi/homing.cfg",
             "gschpoozi/leveling.cfg",
+            "gschpoozi/macros-config.cfg",
             "gschpoozi/macros.cfg",
+            "gschpoozi/calibration.cfg",
             "gschpoozi/tuning.cfg",
             "user-overrides.cfg",
         ]
@@ -378,7 +519,58 @@ class ConfigGenerator:
 
         lines.append("")
 
-        return "\n".join(lines)
+        generated_block = "\n".join(lines).rstrip() + "\n"
+
+        # Preserve existing content:
+        # - Keep any user includes/settings in the pre-SAVE_CONFIG area (e.g. mainsail.cfg)
+        # - Replace any existing gschpoozi includes with the new include block
+        # - Preserve the SAVE_CONFIG block verbatim if present
+        try:
+            existing_path = self.output_dir / "printer.cfg"
+            if not existing_path.exists():
+                return generated_block
+
+            existing = existing_path.read_text(encoding="utf-8", errors="ignore").splitlines()
+            marker = "#*# <---------------------- SAVE_CONFIG ---------------------->"
+            save_idx = None
+            for i, ln in enumerate(existing):
+                if ln.strip() == marker:
+                    save_idx = i
+                    break
+
+            pre = existing if save_idx is None else existing[:save_idx]
+            save_block = [] if save_idx is None else existing[save_idx:]
+
+            # Remove old generator include lines from pre-block; keep everything else.
+            kept_pre: list[str] = []
+            for ln in pre:
+                s = ln.strip()
+                if s.startswith("[include gschpoozi/") and s.endswith("]"):
+                    continue
+                if s == "[include user-overrides.cfg]":
+                    continue
+                kept_pre.append(ln)
+
+            # If pre already had a gschpoozi include position, we want our new block after existing
+            # non-gschpoozi include lines. We'll simply append the generated include block after
+            # the kept preamble and add a blank line separator if needed.
+            merged: list[str] = []
+            merged.extend(kept_pre)
+            if merged and merged[-1].strip() != "":
+                merged.append("")
+            merged.extend(generated_block.splitlines())
+
+            # Ensure exactly one blank line before SAVE_CONFIG block
+            if save_block:
+                while merged and merged[-1].strip() == "":
+                    merged.pop()
+                merged.append("")
+                merged.append("")
+                merged.extend(save_block)
+
+            return "\n".join(merged).rstrip() + "\n"
+        except Exception:
+            return generated_block
 
     def _generate_user_overrides(self) -> str:
         """Generate initial user-overrides.cfg."""

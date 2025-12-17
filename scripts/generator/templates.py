@@ -4,6 +4,7 @@ templates.py - Jinja2 template loading and rendering
 Handles loading config-sections.yaml and rendering templates.
 """
 
+import ast
 import yaml
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -61,13 +62,101 @@ class TemplateRenderer:
         if not condition:
             return True
 
+        def _get_path(obj: Any, path: list[str]) -> Any:
+            cur = obj
+            for part in path:
+                if isinstance(cur, dict):
+                    cur = cur.get(part)
+                else:
+                    # Support attribute access on objects if any appear in context
+                    cur = getattr(cur, part, None)
+            return cur
+
+        def _eval(node: ast.AST) -> Any:
+            # Constants
+            if isinstance(node, ast.Constant):
+                return node.value
+
+            # Names (top-level dict keys)
+            if isinstance(node, ast.Name):
+                return context.get(node.id)
+
+            # Attribute chain, e.g. probe.probe_type
+            if isinstance(node, ast.Attribute):
+                parts: list[str] = []
+                cur: ast.AST = node
+                while isinstance(cur, ast.Attribute):
+                    parts.append(cur.attr)
+                    cur = cur.value
+                parts.reverse()
+                base = _eval(cur)
+                return _get_path(base, parts)
+
+            # Boolean ops
+            if isinstance(node, ast.BoolOp):
+                if isinstance(node.op, ast.And):
+                    return all(bool(_eval(v)) for v in node.values)
+                if isinstance(node.op, ast.Or):
+                    return any(bool(_eval(v)) for v in node.values)
+                raise ValueError("Unsupported boolean operator")
+
+            # Unary ops
+            if isinstance(node, ast.UnaryOp):
+                if isinstance(node.op, ast.Not):
+                    return not bool(_eval(node.operand))
+                raise ValueError("Unsupported unary operator")
+
+            # Compare ops
+            if isinstance(node, ast.Compare):
+                left = _eval(node.left)
+                for op, comp in zip(node.ops, node.comparators):
+                    right = _eval(comp)
+                    if isinstance(op, ast.In):
+                        ok = left in right if right is not None else False
+                    elif isinstance(op, ast.NotIn):
+                        ok = left not in right if right is not None else True
+                    elif isinstance(op, ast.Eq):
+                        ok = left == right
+                    elif isinstance(op, ast.NotEq):
+                        ok = left != right
+                    elif isinstance(op, ast.Lt):
+                        ok = left < right
+                    elif isinstance(op, ast.LtE):
+                        ok = left <= right
+                    elif isinstance(op, ast.Gt):
+                        ok = left > right
+                    elif isinstance(op, ast.GtE):
+                        ok = left >= right
+                    elif isinstance(op, ast.Is):
+                        ok = left is right
+                    elif isinstance(op, ast.IsNot):
+                        ok = left is not right
+                    else:
+                        raise ValueError("Unsupported comparison operator")
+                    if not ok:
+                        return False
+                    left = right
+                return True
+
+            # Lists / tuples / sets in conditions
+            if isinstance(node, ast.List):
+                return [_eval(e) for e in node.elts]
+            if isinstance(node, ast.Tuple):
+                return tuple(_eval(e) for e in node.elts)
+            if isinstance(node, ast.Set):
+                return set(_eval(e) for e in node.elts)
+
+            # Parentheses are implicit in AST; no special handling needed
+
+            raise ValueError(f"Unsupported expression: {node.__class__.__name__}")
+
         try:
-            # Simple evaluation - convert dot notation to dict access
-            # This is a simplified evaluator, not a full expression parser
-            return eval(condition, {"__builtins__": {}}, context)
+            tree = ast.parse(condition, mode="eval")
+            value = _eval(tree.body)
+            return bool(value)
         except Exception:
-            # If condition evaluation fails, default to True
-            return True
+            # Fail safe: if we can't evaluate a condition, do NOT render the section
+            return False
 
     def render_template(
         self,
@@ -121,6 +210,9 @@ class TemplateRenderer:
         template_str = section.get('template')
         if not template_str:
             return None
+        # Some templates (e.g., gcode macros) contain Klipper's own Jinja and must be emitted verbatim.
+        if section.get("render") == "raw":
+            return (template_str.rstrip() + "\n")
 
         return self.render_template(template_str, context)
 
@@ -192,7 +284,10 @@ class TemplateRenderer:
 
             template_str = section.get('template')
             if template_str:
-                result = self.render_template(template_str, context)
+                if section.get("render") == "raw":
+                    result = template_str.rstrip() + "\n"
+                else:
+                    result = self.render_template(template_str, context)
                 if result:
                     results[f"common.{name}"] = result
 
