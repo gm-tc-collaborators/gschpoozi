@@ -108,6 +108,161 @@ class GschpooziWizard:
 
         return {}
 
+    def _load_hardware_template(self, filename: str) -> dict:
+        """Load a JSON template from templates/hardware/ (e.g. displays.json)."""
+        try:
+            hw_dir = REPO_ROOT / "templates" / "hardware"
+            path = hw_dir / filename
+            if not path.exists():
+                return {}
+            with open(path) as f:
+                data = json.load(f)
+            return data if isinstance(data, dict) else {}
+        except Exception:
+            return {}
+
+    def _has_passwordless_sudo(self) -> bool:
+        """Return True if sudo can run non-interactively (no password prompt)."""
+        try:
+            import subprocess
+            result = subprocess.run(["sudo", "-n", "true"], capture_output=True, text=True)
+            return result.returncode == 0
+        except Exception:
+            return False
+
+    def _run_shell(self, command: str) -> tuple[bool, str]:
+        """Run a shell command and return (ok, combined_output)."""
+        try:
+            import subprocess
+            result = subprocess.run(
+                command,
+                shell=True,
+                capture_output=True,
+                text=True,
+            )
+            out = ""
+            if result.stdout:
+                out += result.stdout
+            if result.stderr:
+                out += ("\n" if out else "") + result.stderr
+            return result.returncode == 0, out.strip()
+        except Exception as e:
+            return False, str(e)
+
+    def _backup_file(self, path: Path) -> None:
+        """Create a timestamped backup of a file if it exists."""
+        try:
+            if not path.exists():
+                return
+            from datetime import datetime
+            ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+            backup = path.with_suffix(path.suffix + f".bak.{ts}")
+            backup.write_text(path.read_text(), encoding="utf-8")
+        except Exception:
+            # Best-effort; do not block wizard
+            return
+
+    def _ensure_moonraker_update_manager_entry(self, name: str, entry: dict) -> bool:
+        """
+        Ensure a [update_manager <name>] entry exists in moonraker.conf.
+        Returns True if present/added, False if cannot write.
+        """
+        conf = Path.home() / "printer_data" / "config" / "moonraker.conf"
+        try:
+            conf.parent.mkdir(parents=True, exist_ok=True)
+            if conf.exists():
+                content = conf.read_text(encoding="utf-8", errors="ignore")
+            else:
+                content = ""
+
+            header = f"[update_manager {name}]"
+            if header in content:
+                return True
+
+            # Backup then append
+            if conf.exists():
+                self._backup_file(conf)
+
+            lines = ["", header]
+            # Preserve ordering similar to Moonraker docs
+            for key in ("type", "path", "origin", "primary_branch", "virtualenv", "requirements", "system_dependencies", "managed_services"):
+                if key in entry and entry[key] is not None and entry[key] != "":
+                    lines.append(f"{key}: {entry[key]}")
+            conf.write_text(content + "\n".join(lines) + "\n", encoding="utf-8")
+            return True
+        except Exception:
+            return False
+
+    def _write_klipperscreen_conf(self, host: str, port: int) -> tuple[bool, str]:
+        """Write/update ~/KlipperScreen/KlipperScreen.conf with [printer default]."""
+        conf_path = Path.home() / "KlipperScreen" / "KlipperScreen.conf"
+        try:
+            conf_path.parent.mkdir(parents=True, exist_ok=True)
+            if conf_path.exists():
+                self._backup_file(conf_path)
+                original = conf_path.read_text(encoding="utf-8", errors="ignore").splitlines()
+            else:
+                original = []
+
+            section_header = "[printer default]"
+            in_section = False
+            seen_section = False
+            wrote_host = False
+            wrote_port = False
+            out_lines: list[str] = []
+
+            def _maybe_append_missing():
+                nonlocal wrote_host, wrote_port
+                if not wrote_host:
+                    out_lines.append(f"moonraker_host: {host}")
+                    wrote_host = True
+                if not wrote_port:
+                    out_lines.append(f"moonraker_port: {int(port)}")
+                    wrote_port = True
+
+            for line in original:
+                stripped = line.strip()
+                if stripped.startswith("[") and stripped.endswith("]"):
+                    # Leaving previous section
+                    if in_section:
+                        _maybe_append_missing()
+                        in_section = False
+                    # Entering new section
+                    if stripped.lower() == section_header.lower():
+                        in_section = True
+                        seen_section = True
+                        out_lines.append(section_header)
+                        continue
+
+                if in_section:
+                    key = stripped.split(":", 1)[0].strip().lower() if ":" in stripped else ""
+                    if key == "moonraker_host":
+                        out_lines.append(f"moonraker_host: {host}")
+                        wrote_host = True
+                        continue
+                    if key == "moonraker_port":
+                        out_lines.append(f"moonraker_port: {int(port)}")
+                        wrote_port = True
+                        continue
+
+                out_lines.append(line)
+
+            if in_section:
+                _maybe_append_missing()
+                in_section = False
+
+            if not seen_section:
+                if out_lines and out_lines[-1].strip() != "":
+                    out_lines.append("")
+                out_lines.append(section_header)
+                out_lines.append(f"moonraker_host: {host}")
+                out_lines.append(f"moonraker_port: {int(port)}")
+
+            conf_path.write_text("\n".join(out_lines).rstrip() + "\n", encoding="utf-8")
+            return True, str(conf_path)
+        except Exception as e:
+            return False, str(e)
+
     def _get_board_ports(self, port_type: str, board_type: str = "boards",
                          default_port: str = None) -> list:
         """Get available ports from currently selected board.
@@ -662,6 +817,50 @@ class GschpooziWizard:
             if filament_count > 0:
                 filament_sensors_status = f"{filament_count} sensor{'s' if filament_count != 1 else ''}"
 
+            # Display (KlipperScreen first)
+            display_status = None
+            ks_enabled = self.state.get("display.klipperscreen.enabled", False)
+            try:
+                ks_installed = (Path.home() / "KlipperScreen").exists()
+            except Exception:
+                ks_installed = False
+            ks_running = False
+            if ks_installed:
+                try:
+                    import subprocess
+                    # Try common service names
+                    for svc in ("KlipperScreen", "klipperscreen"):
+                        result = subprocess.run(
+                            ["systemctl", "is-active", svc],
+                            capture_output=True,
+                            text=True,
+                        )
+                        if result.stdout.strip() == "active":
+                            ks_running = True
+                            break
+                except Exception:
+                    ks_running = False
+
+            if ks_running:
+                display_status = "KlipperScreen (running)"
+            elif ks_installed:
+                display_status = "KlipperScreen (installed)"
+            elif ks_enabled:
+                display_status = "KlipperScreen (enabled)"
+
+            # Advanced
+            advanced_status = None
+            adv_parts = []
+            multi_pins = self.state.get("advanced.multi_pins", [])
+            if isinstance(multi_pins, list) and len(multi_pins) > 0:
+                adv_parts.append("Multi-pin")
+            if self.state.get("advanced.force_move.enable_force_move", False):
+                adv_parts.append("ForceMove")
+            if self.state.get("advanced.firmware_retraction.enabled", False):
+                adv_parts.append("FWRetract")
+            if adv_parts:
+                advanced_status = ", ".join(adv_parts)
+
             menu_items = [
                 ("2.1", self._format_menu_item("MCU Configuration", mcu_status) if mcu_status else "MCU Configuration     (Boards & connections)"),
                 ("2.2", self._format_menu_item("Printer Settings", printer_status) if printer_status else "Printer Settings      (Kinematics & limits)"),
@@ -689,8 +888,8 @@ class GschpooziWizard:
                 ("2.12", self._format_menu_item("Temperature Sensors", temp_sensors_status) if temp_sensors_status else "Temperature Sensors  (MCU, chamber, etc.)"),
                 ("2.13", self._format_menu_item("LEDs", leds_status) if leds_status else "LEDs                 (Neopixel, case light)"),
                 ("2.14", self._format_menu_item("Filament Sensors", filament_sensors_status) if filament_sensors_status else "Filament Sensors     (Runout detection)"),
-                ("2.15", "Display              (LCD, OLED)"),
-                ("2.16", "Advanced             (Servo, buttons, etc.)"),
+                ("2.15", self._format_menu_item("Display", display_status) if display_status else "Display              (LCD, OLED, KlipperScreen)"),
+                ("2.16", self._format_menu_item("Advanced", advanced_status) if advanced_status else "Advanced             (Servo, buttons, etc.)"),
                 ("B", "Back to Main Menu"),
             ])
 
@@ -737,6 +936,10 @@ class GschpooziWizard:
                 self._leds_setup()
             elif choice == "2.14":
                 self._filament_sensors_setup()
+            elif choice == "2.15":
+                self._display_setup()
+            elif choice == "2.16":
+                self._advanced_setup()
             else:
                 # Placeholder for remaining sections (2.15-2.16)
                 self.ui.msgbox(
@@ -3983,6 +4186,302 @@ class GschpooziWizard:
             f"Filament sensor configured!\n\n"
             f"Sensors: {', '.join(sensor_names) if sensor_names else 'None'}",
             title="Configuration Saved"
+        )
+
+    def _display_setup(self) -> None:
+        """Configure display options (KlipperScreen first)."""
+        while True:
+            choice = self.ui.menu(
+                "Display Configuration\n\n"
+                "Configure display hardware and UI.\n\n"
+                "KlipperScreen runs on the host (Pi/CB1) and connects to Moonraker.",
+                [
+                    ("KS", "KlipperScreen         (Touch UI on host)"),
+                    ("LCD", "LCD/OLED              (Direct display via Klipper) - Coming soon"),
+                    ("B", "Back"),
+                ],
+                title="2.15 Display",
+            )
+            if choice is None or choice == "B":
+                return
+            if choice == "KS":
+                self._klipperscreen_setup()
+            else:
+                self.ui.msgbox("Coming soon!", title="Display")
+
+    def _klipperscreen_setup(self) -> None:
+        """KlipperScreen management (install/update/remove + config)."""
+        displays = self._load_hardware_template("displays.json")
+        ks_meta = displays.get("klipperscreen", {}) if isinstance(displays, dict) else {}
+        install_cmd = (ks_meta.get("installation", {}) or {}).get("command", "")
+        update_mgr = (ks_meta.get("moonraker_update_manager", {}) or {}).get("update_manager KlipperScreen", {})
+
+        ks_dir = Path.home() / "KlipperScreen"
+        conf_path = ks_dir / "KlipperScreen.conf"
+
+        # Detect service state
+        def _service_state() -> tuple[bool, bool, str]:
+            installed = ks_dir.exists()
+            running = False
+            svc_name = "KlipperScreen"
+            if installed:
+                try:
+                    import subprocess
+                    for svc in ("KlipperScreen", "klipperscreen"):
+                        result = subprocess.run(
+                            ["systemctl", "is-active", svc],
+                            capture_output=True,
+                            text=True,
+                        )
+                        if result.stdout.strip() == "active":
+                            running = True
+                            svc_name = svc
+                            break
+                except Exception:
+                    running = False
+            return installed, running, svc_name
+
+        while True:
+            installed, running, svc_name = _service_state()
+            enabled = self.state.get("display.klipperscreen.enabled", False)
+            host = self.state.get("display.klipperscreen.moonraker_host", "127.0.0.1")
+            port = int(self.state.get("display.klipperscreen.moonraker_port", 7125))
+
+            status = []
+            status.append(f"Installed: {'Yes' if installed else 'No'}")
+            status.append(f"Service: {'Running' if running else ('Stopped' if installed else 'N/A')}")
+            status.append(f"Config: {str(conf_path) if installed else str(conf_path)}")
+            status.append(f"Moonraker: {host}:{port}")
+            status.append(f"Wizard enabled: {'Yes' if enabled else 'No'}")
+
+            choice = self.ui.menu(
+                "KlipperScreen\n\n"
+                + "\n".join(status)
+                + "\n\nSelect an action:",
+                [
+                    ("ENABLE", "Enable/Disable (wizard state)"),
+                    ("CONF", "Configure Moonraker connection (KlipperScreen.conf)"),
+                    ("UM", "Ensure Moonraker update_manager entry"),
+                    ("INSTALL", "Install KlipperScreen"),
+                    ("UPDATE", "Update KlipperScreen (git pull + restart)"),
+                    ("REMOVE", "Remove KlipperScreen"),
+                    ("B", "Back"),
+                ],
+                title="KlipperScreen",
+                height=22,
+                width=120,
+                menu_height=10,
+            )
+
+            if choice is None or choice == "B":
+                return
+
+            if choice == "ENABLE":
+                new_enabled = self.ui.yesno(
+                    "Enable KlipperScreen in wizard?\n\n"
+                    "This does not install it, but marks it as desired and enables status display.",
+                    title="KlipperScreen - Enable",
+                    default_no=enabled,
+                )
+                self.state.set("display.klipperscreen.enabled", bool(new_enabled))
+                self.state.save()
+                continue
+
+    def _advanced_setup(self) -> None:
+        """Configure advanced features (generator-backed)."""
+        while True:
+            multi_pins = self.state.get("advanced.multi_pins", [])
+            multi_pin_status = f"{len(multi_pins)} group(s)" if isinstance(multi_pins, list) and multi_pins else None
+            fm_enabled = self.state.get("advanced.force_move.enable_force_move", False)
+            fr_enabled = self.state.get("advanced.firmware_retraction.enabled", False)
+
+            choice = self.ui.menu(
+                "Advanced Configuration\n\n"
+                "Optional Klipper features.\n\n"
+                "Only items that are already supported by the generator are exposed here.",
+                [
+                    ("MP", self._format_menu_item("Multi-pin groups", multi_pin_status) if multi_pin_status else "Multi-pin groups      ([multi_pin])"),
+                    ("FM", self._format_menu_item("Force move", "Enabled" if fm_enabled else None) if fm_enabled else "Force move            ([force_move])"),
+                    ("FR", self._format_menu_item("Firmware retraction", "Enabled" if fr_enabled else None) if fr_enabled else "Firmware retraction   ([firmware_retraction])"),
+                    ("B", "Back"),
+                ],
+                title="2.16 Advanced",
+                height=20,
+                width=120,
+                menu_height=10,
+            )
+            if choice is None or choice == "B":
+                return
+            if choice == "MP":
+                self._advanced_multi_pin_setup()
+            elif choice == "FM":
+                self._advanced_force_move_setup()
+            elif choice == "FR":
+                self._advanced_firmware_retraction_setup()
+
+    def _advanced_multi_pin_setup(self) -> None:
+        """Manage multi-pin groups (advanced.multi_pins)."""
+        groups = self.state.get("advanced.multi_pins", [])
+        if not isinstance(groups, list):
+            groups = []
+
+        def _edit_group(group=None):
+            current_name = group.get("name", "") if isinstance(group, dict) else ""
+            current_pins = group.get("pins", "") if isinstance(group, dict) else ""
+
+            name = self.ui.inputbox(
+                "Multi-pin group name:\n\nExample: part_fans, exhaust_pair",
+                default=current_name or "",
+                title="Multi-pin - Name",
+            )
+            if name is None or not name.strip():
+                return None
+
+            pins = self.ui.inputbox(
+                "Pins (comma-separated):\n\nExample: PA1, PA2\n\n"
+                "Use Klipper pin syntax (you can include toolboard: prefix if needed).",
+                default=current_pins or "",
+                title="Multi-pin - Pins",
+                height=12,
+                width=90,
+            )
+            if pins is None or not pins.strip():
+                return None
+
+            return {"name": name.strip(), "pins": pins.strip()}
+
+        while True:
+            menu_items = [("ADD", "Add new multi-pin group")]
+            for i, g in enumerate(groups):
+                if isinstance(g, dict):
+                    menu_items.append((f"EDIT_{i}", f"Edit: {g.get('name', 'Unnamed')}"))
+            for i, g in enumerate(groups):
+                if isinstance(g, dict):
+                    menu_items.append((f"DELETE_{i}", f"Delete: {g.get('name', 'Unnamed')}"))
+            menu_items.append(("DONE", "Done"))
+
+            choice = self.ui.menu(
+                "Multi-pin groups\n\n"
+                "These create [multi_pin <name>] sections for sharing pins.\n"
+                "Useful for fans that need multiple outputs.\n\n"
+                f"Currently configured: {len([g for g in groups if isinstance(g, dict)])}",
+                menu_items,
+                title="Multi-pin groups",
+                height=22,
+                width=120,
+                menu_height=12,
+            )
+            if choice is None or choice == "DONE":
+                break
+            if choice == "ADD":
+                new_g = _edit_group()
+                if new_g:
+                    groups.append(new_g)
+            elif choice.startswith("EDIT_"):
+                idx = int(choice.split("_", 1)[1])
+                if 0 <= idx < len(groups) and isinstance(groups[idx], dict):
+                    edited = _edit_group(groups[idx])
+                    if edited:
+                        groups[idx] = edited
+            elif choice.startswith("DELETE_"):
+                idx = int(choice.split("_", 1)[1])
+                if 0 <= idx < len(groups) and isinstance(groups[idx], dict):
+                    if self.ui.yesno(f"Delete multi-pin group '{groups[idx].get('name', 'Unnamed')}'?", title="Confirm Delete", default_no=True):
+                        groups.pop(idx)
+
+        # Save
+        # If empty, clear key to avoid stale config
+        cleaned = [g for g in groups if isinstance(g, dict) and g.get("name") and g.get("pins")]
+        if cleaned:
+            self.state.set("advanced.multi_pins", cleaned)
+        else:
+            self.state.delete("advanced.multi_pins")
+        self.state.save()
+
+        self.ui.msgbox(
+            f"Multi-pin groups saved!\n\nCount: {len(cleaned)}",
+            title="Configuration Saved",
+        )
+
+    def _advanced_force_move_setup(self) -> None:
+        """Configure [force_move]."""
+        current = self.state.get("advanced.force_move.enable_force_move", False)
+        enabled = self.ui.yesno(
+            "Enable [force_move]?\n\n"
+            "This allows moving steppers without homing.\n"
+            "Use with care.",
+            title="Force move",
+            default_no=not current,
+            height=12,
+            width=80,
+        )
+        self.state.set("advanced.force_move.enable_force_move", bool(enabled))
+        self.state.save()
+        self.ui.msgbox(
+            f"Force move: {'Enabled' if enabled else 'Disabled'}",
+            title="Configuration Saved",
+        )
+
+    def _advanced_firmware_retraction_setup(self) -> None:
+        """Configure [firmware_retraction]."""
+        current_enabled = self.state.get("advanced.firmware_retraction.enabled", False)
+        enabled = self.ui.yesno(
+            "Enable firmware retraction?\n\n"
+            "This adds [firmware_retraction] so slicers can use G10/G11.\n"
+            "You can still use normal retractions if disabled.",
+            title="Firmware retraction",
+            default_no=not current_enabled,
+            height=13,
+            width=90,
+        )
+        self.state.set("advanced.firmware_retraction.enabled", bool(enabled))
+        if not enabled:
+            self.state.save()
+            self.ui.msgbox("Firmware retraction disabled.", title="Saved")
+            return
+
+        retract_length = self.ui.inputbox(
+            "Retract length (mm):",
+            default=str(self.state.get("advanced.firmware_retraction.retract_length", 0.5)),
+            title="Firmware retraction - Retract length",
+        )
+        if retract_length is None:
+            return
+        retract_speed = self.ui.inputbox(
+            "Retract speed (mm/s):",
+            default=str(self.state.get("advanced.firmware_retraction.retract_speed", 35)),
+            title="Firmware retraction - Retract speed",
+        )
+        if retract_speed is None:
+            return
+        unretract_extra_length = self.ui.inputbox(
+            "Unretract extra length (mm):",
+            default=str(self.state.get("advanced.firmware_retraction.unretract_extra_length", 0.0)),
+            title="Firmware retraction - Unretract extra",
+        )
+        if unretract_extra_length is None:
+            return
+        unretract_speed = self.ui.inputbox(
+            "Unretract speed (mm/s):",
+            default=str(self.state.get("advanced.firmware_retraction.unretract_speed", 35)),
+            title="Firmware retraction - Unretract speed",
+        )
+        if unretract_speed is None:
+            return
+
+        try:
+            self.state.set("advanced.firmware_retraction.retract_length", float(retract_length))
+            self.state.set("advanced.firmware_retraction.retract_speed", float(retract_speed))
+            self.state.set("advanced.firmware_retraction.unretract_extra_length", float(unretract_extra_length))
+            self.state.set("advanced.firmware_retraction.unretract_speed", float(unretract_speed))
+            self.state.save()
+        except ValueError:
+            self.ui.msgbox("Invalid number entered. Please try again.", title="Error")
+            return
+
+        self.ui.msgbox(
+            "Firmware retraction saved!",
+            title="Configuration Saved",
         )
 
     # -------------------------------------------------------------------------
