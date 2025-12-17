@@ -646,9 +646,20 @@ class ConfigGenerator:
         # - Replace any existing gschpoozi includes with the new include block
         # - Preserve the SAVE_CONFIG block verbatim if present
         try:
+            # Primary: preserve from an existing printer.cfg in the OUTPUT directory (live generation).
             existing_path = self.output_dir / "printer.cfg"
+            # Preview generation writes to a separate output dir; in that case preserve from the
+            # wizard state dir (typically ~/printer_data/config/printer.cfg) instead.
             if not existing_path.exists():
-                return generated_block
+                state_dir = getattr(self.state, "state_dir", None)
+                if state_dir:
+                    alt = Path(state_dir) / "printer.cfg"
+                    if alt.exists():
+                        existing_path = alt
+                    else:
+                        return generated_block
+                else:
+                    return generated_block
 
             existing = existing_path.read_text(encoding="utf-8", errors="ignore").splitlines()
             marker = "#*# <---------------------- SAVE_CONFIG ---------------------->"
