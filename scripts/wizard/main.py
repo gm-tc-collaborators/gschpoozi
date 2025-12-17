@@ -1714,6 +1714,10 @@ class GschpooziWizard:
         if motor_port is None:
             return
 
+        # Persist early so later cancels don't wipe already-selected values.
+        self.state.set(f"{state_key}.motor_port", motor_port)
+        self.state.save()
+
         # Direction pin inversion (always ask - this differs per motor)
         current_inverted = self.state.get(f"{state_key}.dir_pin_inverted", False)
         dir_inverted = self.ui.yesno(
@@ -1723,9 +1727,15 @@ class GschpooziWizard:
             default_no=not current_inverted
         )
 
+        # Persist early so later cancels don't wipe already-selected values.
+        self.state.set(f"{state_key}.dir_pin_inverted", dir_inverted)
+        self.state.save()
+
         # If inheriting, copy settings and only ask for axis-specific things
         if use_inherited:
             self._copy_stepper_settings(inherit_from, axis)
+            # Persist copied settings immediately so cancelling later prompts doesn't lose them.
+            self.state.save()
 
             # For primary axes (Y), still need endstop config
             if not is_secondary:
@@ -1885,6 +1895,10 @@ class GschpooziWizard:
             ],
             title=f"Stepper {axis_upper} - Belt"
         )
+        if belt_pitch is None:
+            return
+        self.state.set(f"{state_key}.belt_pitch", int(belt_pitch))
+        self.state.save()
 
         current_pulley = self.state.get(f"{state_key}.pulley_teeth", 20)
         pulley_teeth = self.ui.radiolist(
@@ -1898,6 +1912,10 @@ class GschpooziWizard:
             ],
             title=f"Stepper {axis_upper} - Pulley"
         )
+        if pulley_teeth is None:
+            return
+        self.state.set(f"{state_key}.pulley_teeth", int(pulley_teeth))
+        self.state.save()
 
         # Microsteps
         # Default to 16 for X/Y motion steppers unless explicitly set (common on many builds)
@@ -1912,6 +1930,10 @@ class GschpooziWizard:
             ],
             title=f"Stepper {axis_upper} - Microsteps"
         )
+        if microsteps is None:
+            return
+        self.state.set(f"{state_key}.microsteps", int(microsteps))
+        self.state.save()
 
         # Full steps per rotation (motor type)
         current_steps = self.state.get(f"{state_key}.full_steps_per_rotation", 200)
@@ -1923,6 +1945,10 @@ class GschpooziWizard:
             ],
             title=f"Stepper {axis_upper} - Motor Type"
         )
+        if full_steps is None:
+            return
+        self.state.set(f"{state_key}.full_steps_per_rotation", int(full_steps))
+        self.state.save()
 
         # TMC Driver Type
         current_driver = self.state.get(f"{state_key}.driver_type", "TMC2209")
@@ -1936,6 +1962,11 @@ class GschpooziWizard:
             ],
             title=f"Stepper {axis_upper} - Driver Type"
         )
+        if driver_type is None:
+            return
+        self.state.set(f"{state_key}.driver_type", driver_type)
+        self.state.set(f"{state_key}.driver_protocol", "spi" if driver_type in ["TMC5160", "TMC2130", "TMC2660"] else "uart")
+        self.state.save()
 
         # Determine protocol from driver type
         spi_drivers = ["TMC5160", "TMC2130", "TMC2660"]
@@ -1951,6 +1982,14 @@ class GschpooziWizard:
             default=default_current,
             title=f"Stepper {axis_upper} - Run Current"
         )
+        if run_current is None:
+            return
+        try:
+            self.state.set(f"{state_key}.run_current", float(run_current))
+            self.state.save()
+        except ValueError:
+            # Keep previous value if user input isn't parseable; final validation will catch if needed.
+            pass
 
         # SPI-specific settings
         sense_resistor = None
@@ -1967,6 +2006,10 @@ class GschpooziWizard:
                 ],
                 title=f"Stepper {axis_upper} - Sense Resistor"
             )
+            if sense_resistor is None:
+                return
+            self.state.set(f"{state_key}.sense_resistor", float(sense_resistor))
+            self.state.save()
 
         # Endstop configuration (only for primary steppers)
         endstop_type = None
