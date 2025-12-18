@@ -713,7 +713,9 @@ common:
       # Park Position (END_PRINT)
       variable_park_position: "{{ macros.park_position | default('front') }}"
       variable_park_z_hop: {{ macros.park_z_hop | default(10.0) }}
-      variable_park_z_max: {{ macros.park_z_max | default(50.0) }}
+      # Default park_z_max should scale with printer Z travel.
+      # Use (bed_size_z - 5) as a sane cap (also consistent with z_max - 5 safety margin in the macro).
+      variable_park_z_max: {{ (macros.park_z_max | default(printer.bed_size_z - 5)) | float }}
       # Cooldown (END_PRINT)
       variable_turn_off_bed: {{ macros.turn_off_bed | default(true) | lower }}
       variable_turn_off_extruder: {{ macros.turn_off_extruder | default(true) | lower }}
