@@ -696,6 +696,65 @@ class GschpooziWizard:
             if value is not None:
                 self.state.set(f"{to_key}.{setting}", value)
 
+    def _endstop_config_to_flags(self, endstop_config: str | None) -> tuple[bool, bool]:
+        """Convert legacy endstop_config string -> (pullup, invert).
+
+        Legacy values:
+        - nc_gnd: pullup True, invert False   (^pin)
+        - no_gnd: pullup True, invert True    (^!pin)
+        - nc_vcc: pullup False, invert True   (!pin)
+        - no_vcc: pullup False, invert False  (pin)
+        """
+        cfg = (endstop_config or "nc_gnd").strip().lower()
+        mapping: dict[str, tuple[bool, bool]] = {
+            "nc_gnd": (True, False),
+            "no_gnd": (True, True),
+            "nc_vcc": (False, True),
+            "no_vcc": (False, False),
+        }
+        return mapping.get(cfg, (True, False))
+
+    def _flags_to_endstop_config(self, *, pullup: bool, invert: bool) -> str:
+        """Convert (pullup, invert) -> legacy endstop_config string."""
+        if pullup and not invert:
+            return "nc_gnd"
+        if pullup and invert:
+            return "no_gnd"
+        if (not pullup) and invert:
+            return "nc_vcc"
+        return "no_vcc"
+
+    def _prompt_endstop_wiring(self, *, axis_upper: str, state_key: str) -> str | None:
+        """Prompt for endstop wiring using two toggles (pullup + invert).
+
+        Returns legacy endstop_config string for backwards compatibility with templates.
+        """
+        current_cfg = self.state.get(f"{state_key}.endstop_config", "nc_gnd")
+        current_pullup, current_invert = self._endstop_config_to_flags(current_cfg)
+
+        pullup = self.ui.yesno(
+            f"Enable pullup resistor for {axis_upper} endstop?\n\n"
+            "Recommended for typical mechanical endstops.\n"
+            "(This controls the '^' pin modifier)",
+            title=f"Stepper {axis_upper} - Endstop Wiring",
+            default_no=not current_pullup,
+        )
+        # Always allow cancel
+        if pullup is None:
+            return None
+
+        invert = self.ui.yesno(
+            f"Invert {axis_upper} endstop signal?\n\n"
+            "Enable this if your endstop reads TRIGGERED when not pressed.\n"
+            "(This controls the '!' pin modifier)",
+            title=f"Stepper {axis_upper} - Endstop Wiring",
+            default_no=not current_invert,
+        )
+        if invert is None:
+            return None
+
+        return self._flags_to_endstop_config(pullup=pullup, invert=invert)
+
     def run(self) -> int:
         """Run the wizard. Returns exit code."""
         try:
@@ -2015,17 +2074,7 @@ class GschpooziWizard:
                         self.state.delete(f"{state_key}.endstop_port_toolboard")
                     self.state.save()
 
-                    current_endstop_config = self.state.get(f"{state_key}.endstop_config", "nc_gnd")
-                    endstop_config = self.ui.radiolist(
-                        f"Endstop switch configuration for {axis_upper}:",
-                        [
-                            ("nc_gnd", "NC to GND (^pin) - recommended", current_endstop_config == "nc_gnd"),
-                            ("no_gnd", "NO to GND (^!pin)", current_endstop_config == "no_gnd"),
-                            ("nc_vcc", "NC to VCC (!pin)", current_endstop_config == "nc_vcc"),
-                            ("no_vcc", "NO to VCC (pin)", current_endstop_config == "no_vcc"),
-                        ],
-                        title=f"Stepper {axis_upper} - Endstop Config"
-                    )
+                    endstop_config = self._prompt_endstop_wiring(axis_upper=axis_upper, state_key=state_key)
                     if endstop_config is None:
                         return
 
@@ -2457,18 +2506,7 @@ class GschpooziWizard:
                 self.state.save()
 
                 # Endstop pin configuration (modifiers)
-                current_config = self.state.get(f"{state_key}.endstop_config", "nc_gnd")
-                endstop_config = self.ui.radiolist(
-                    f"Endstop switch configuration for {axis_upper}:\n\n"
-                    "(NC = Normally Closed, NO = Normally Open)",
-                    [
-                        ("nc_gnd", "NC to GND (^pin) - recommended", current_config == "nc_gnd"),
-                        ("no_gnd", "NO to GND (^!pin)", current_config == "no_gnd"),
-                        ("nc_vcc", "NC to VCC (!pin)", current_config == "nc_vcc"),
-                        ("no_vcc", "NO to VCC (pin)", current_config == "no_vcc"),
-                    ],
-                    title=f"Stepper {axis_upper} - Endstop Config"
-                )
+                endstop_config = self._prompt_endstop_wiring(axis_upper=axis_upper, state_key=state_key)
                 if endstop_config is None:
                     return
 
