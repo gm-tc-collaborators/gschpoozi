@@ -565,9 +565,9 @@ bed_mesh:
     {% else %}
     mesh_max: {{ bed_leveling.bed_mesh.mesh_max }}
     {% endif %}
-    {% if bed_leveling.bed_mesh.probe_count is defined and bed_leveling.bed_mesh.probe_count %}
-    probe_count: {{ bed_leveling.bed_mesh.probe_count }}
-    {% endif %}
+    # Klipper requires probe_count when [bed_mesh] is present.
+    # Always emit it with a safe default if state is missing/incomplete.
+    probe_count: {{ bed_leveling.bed_mesh.probe_count | default('5,5') }}
     algorithm: {{ bed_leveling.bed_mesh.algorithm | default('bicubic') }}
     fade_start: {{ bed_leveling.bed_mesh.fade_start | default(0.6) }}
     fade_end: {{ bed_leveling.bed_mesh.fade_end | default(10.0) }}
