@@ -35,6 +35,63 @@ class GschpooziWizard:
         )
         self.state = get_state()
 
+    def _wizard_log_path(self) -> Path:
+        # Keep logs next to the state file so users can find it easily.
+        return Path.home() / "printer_data" / "config" / ".gschpoozi_wizard.log"
+
+    def _log_wizard(self, message: str) -> None:
+        """Best-effort logging for diagnosing whiptail / control-flow issues."""
+        try:
+            from datetime import datetime
+            ts = datetime.now().isoformat(timespec="seconds")
+            path = self._wizard_log_path()
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with open(path, "a", encoding="utf-8") as f:
+                f.write(f"{ts} {message}\n")
+        except Exception:
+            # Logging must never break the wizard.
+            pass
+
+    def _inputbox_debug(
+        self,
+        text: str,
+        *,
+        default: str = "",
+        title: str | None = None,
+        height: int = 8,
+        width: int = 60,
+        debug_key: str = "",
+    ) -> str | None:
+        """
+        Inputbox that distinguishes Cancel vs. other whiptail failures and logs details.
+
+        Returns:
+            - str on OK
+            - None on Cancel/Esc or whiptail failure
+        """
+        # Prefer going through the UI runner so we can capture the whiptail return code.
+        try:
+            args = [
+                "--title",
+                title or getattr(self.ui, "title", "gschpoozi"),
+                "--inputbox",
+                text,
+                str(height),
+                str(width),
+                default,
+            ]
+            rc, out = self.ui._run(args)  # type: ignore[attr-defined]
+        except Exception as e:
+            self._log_wizard(f"inputbox:{debug_key} exception={type(e).__name__}:{e}")
+            return None
+
+        if rc == 0:
+            return out
+
+        # rc is non-zero: Cancel/Esc or a whiptail failure. We can't assume user error.
+        self._log_wizard(f"inputbox:{debug_key} rc={rc} out={out!r}")
+        return None
+
     def _run_tty_command(self, cmd: list[str]) -> int:
         """
         Run an interactive command on /dev/tty.
@@ -2089,12 +2146,19 @@ class GschpooziWizard:
 
                 bed_size = self.state.get(f"printer.bed_size_{axis}", 350)
                 current_position_max = self.state.get(f"{state_key}.position_max", bed_size)
-                position_max = self.ui.inputbox(
+                position_max = self._inputbox_debug(
                     f"Position max for {axis_upper} (mm):",
                     default=str(current_position_max),
-                    title=f"Stepper {axis_upper} - Position"
+                    title=f"Stepper {axis_upper} - Position",
+                    debug_key=f"{state_key}.position_max(inherit)",
                 )
                 if position_max is None:
+                    self.ui.msgbox(
+                        f"Didn't receive a value for position_max.\n\n"
+                        f"This can happen if you pressed Cancel/Esc or if whiptail failed.\n\n"
+                        f"A debug log may be available at:\n{self._wizard_log_path()}",
+                        title="Wizard Input Cancelled / Failed",
+                    )
                     return
                 # Persist immediately.
                 try:
@@ -2105,12 +2169,19 @@ class GschpooziWizard:
                     pass
 
                 current_position_endstop = self.state.get(f"{state_key}.position_endstop", position_max)
-                position_endstop = self.ui.inputbox(
+                position_endstop = self._inputbox_debug(
                     f"Position endstop for {axis_upper} (0 for min, {position_max} for max):",
                     default=str(current_position_endstop),
-                    title=f"Stepper {axis_upper} - Endstop Position"
+                    title=f"Stepper {axis_upper} - Endstop Position",
+                    debug_key=f"{state_key}.position_endstop(inherit)",
                 )
                 if position_endstop is None:
+                    self.ui.msgbox(
+                        f"Didn't receive a value for position_endstop.\n\n"
+                        f"This can happen if you pressed Cancel/Esc or if whiptail failed.\n\n"
+                        f"A debug log may be available at:\n{self._wizard_log_path()}",
+                        title="Wizard Input Cancelled / Failed",
+                    )
                     return
                 # Persist immediately.
                 try:
@@ -2138,6 +2209,12 @@ class GschpooziWizard:
                     title=f"Stepper {axis_upper} - Position Min"
                 )
                 if position_min is None:
+                    self.ui.msgbox(
+                        f"Didn't receive a value for position_min.\n\n"
+                        f"This can happen if you pressed Cancel/Esc or if whiptail failed.\n\n"
+                        f"A debug log may be available at:\n{self._wizard_log_path()}",
+                        title="Wizard Input Cancelled / Failed",
+                    )
                     return
                 # Persist immediately.
                 try:
@@ -2527,12 +2604,19 @@ class GschpooziWizard:
 
             bed_size = self.state.get(f"printer.bed_size_{axis}", 350)
             current_max = self.state.get(f"{state_key}.position_max", bed_size)
-            position_max = self.ui.inputbox(
+            position_max = self._inputbox_debug(
                 f"Position max for {axis_upper} (mm):",
                 default=str(current_max),
-                title=f"Stepper {axis_upper} - Position"
+                title=f"Stepper {axis_upper} - Position",
+                debug_key=f"{state_key}.position_max(full)",
             )
             if position_max is None:
+                self.ui.msgbox(
+                    f"Didn't receive a value for position_max.\n\n"
+                    f"This can happen if you pressed Cancel/Esc or if whiptail failed.\n\n"
+                    f"A debug log may be available at:\n{self._wizard_log_path()}",
+                    title="Wizard Input Cancelled / Failed",
+                )
                 return
             # Persist immediately.
             try:
@@ -2542,12 +2626,19 @@ class GschpooziWizard:
                 pass
 
             current_endstop_pos = self.state.get(f"{state_key}.position_endstop", position_max)
-            position_endstop = self.ui.inputbox(
+            position_endstop = self._inputbox_debug(
                 f"Position endstop for {axis_upper} (0 for min, {position_max} for max):",
                 default=str(current_endstop_pos),
-                title=f"Stepper {axis_upper} - Endstop Position"
+                title=f"Stepper {axis_upper} - Endstop Position",
+                debug_key=f"{state_key}.position_endstop(full)",
             )
             if position_endstop is None:
+                self.ui.msgbox(
+                    f"Didn't receive a value for position_endstop.\n\n"
+                    f"This can happen if you pressed Cancel/Esc or if whiptail failed.\n\n"
+                    f"A debug log may be available at:\n{self._wizard_log_path()}",
+                    title="Wizard Input Cancelled / Failed",
+                )
                 return
             # Persist immediately.
             try:
@@ -2566,14 +2657,21 @@ class GschpooziWizard:
             if current_min is None:
                 current_min = int(parsed_endstop) if parsed_endstop < 0 else 0
 
-            position_min = self.ui.inputbox(
+            position_min = self._inputbox_debug(
                 f"Position min for {axis_upper} (mm):\n\n"
                 f"Must be <= position_endstop ({position_endstop}).\n"
                 "Use negative values if you have a wipe/purge zone beyond the bed.",
                 default=str(current_min),
-                title=f"Stepper {axis_upper} - Position Min"
+                title=f"Stepper {axis_upper} - Position Min",
+                debug_key=f"{state_key}.position_min(full)",
             )
             if position_min is None:
+                self.ui.msgbox(
+                    f"Didn't receive a value for position_min.\n\n"
+                    f"This can happen if you pressed Cancel/Esc or if whiptail failed.\n\n"
+                    f"A debug log may be available at:\n{self._wizard_log_path()}",
+                    title="Wizard Input Cancelled / Failed",
+                )
                 return
             # Persist immediately.
             try:
