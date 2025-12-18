@@ -70,7 +70,8 @@ stepper_x:
     endstop_pin: {{ stepper_x.driver_type | lower }}_stepper_x:virtual_endstop
     {% else %}
     {% if stepper_x.endstop_port_toolboard is defined and stepper_x.endstop_port_toolboard %}
-    endstop_pin: toolboard:{{ pin_config[stepper_x.endstop_config] }}{{ toolboard.pins[stepper_x.endstop_port_toolboard].signal }}
+    # Klipper pin modifiers must come before the optional MCU prefix (e.g. ^toolboard:PB0, not toolboard:^PB0)
+    endstop_pin: {{ pin_config[stepper_x.endstop_config] }}toolboard:{{ toolboard.pins[stepper_x.endstop_port_toolboard].signal }}
     {% else %}
     endstop_pin: {{ pin_config[stepper_x.endstop_config] }}{{ board.pins[stepper_x.endstop_port].signal }}
     {% endif %}
@@ -102,7 +103,8 @@ stepper_y:
     endstop_pin: {{ stepper_y.driver_type | lower }}_stepper_y:virtual_endstop
     {% else %}
     {% if stepper_y.endstop_port_toolboard is defined and stepper_y.endstop_port_toolboard %}
-    endstop_pin: toolboard:{{ pin_config[stepper_y.endstop_config] }}{{ toolboard.pins[stepper_y.endstop_port_toolboard].signal }}
+    # Klipper pin modifiers must come before the optional MCU prefix (e.g. ^toolboard:PB0, not toolboard:^PB0)
+    endstop_pin: {{ pin_config[stepper_y.endstop_config] }}toolboard:{{ toolboard.pins[stepper_y.endstop_port_toolboard].signal }}
     {% else %}
     endstop_pin: {{ pin_config[stepper_y.endstop_config] }}{{ board.pins[stepper_y.endstop_port].signal }}
     {% endif %}
@@ -139,7 +141,8 @@ stepper_z:
     {% elif stepper_z.endstop_type == 'physical_mainboard' %}
     endstop_pin: {{ pin_config[stepper_z.switch_config] }}{{ board.pins[stepper_z.endstop_port].signal }}
     {% elif stepper_z.endstop_type == 'physical_toolboard' %}
-    endstop_pin: toolboard:{{ pin_config[stepper_z.switch_config] }}{{ toolboard.pins[stepper_z.toolboard_endstop_port].signal }}
+    # Klipper pin modifiers must come before the optional MCU prefix (e.g. ^toolboard:PB0, not toolboard:^PB0)
+    endstop_pin: {{ pin_config[stepper_z.switch_config] }}toolboard:{{ toolboard.pins[stepper_z.toolboard_endstop_port].signal }}
     {% endif %}
     position_min: {{ stepper_z.position_min | default(-5) }}
     position_max: {{ stepper_z.position_max | default(printer.bed_size_z) }}
