@@ -1944,8 +1944,43 @@ class GschpooziWizard:
                 endstop_port = None
                 endstop_config = None
                 if endstop_type == "physical":
-                    current_endstop_port = self.state.get(f"{state_key}.endstop_port", "")
-                    endstop_ports = self._get_board_ports("endstop_ports", "boards")
+                    # Allow selecting endstop on mainboard vs toolboard when a toolboard exists.
+                    has_toolboard = bool(self.state.get("mcu.toolboard.connection_type"))
+                    current_endstop_src = self.state.get(f"{state_key}.endstop_source", "")
+                    if not current_endstop_src:
+                        # Infer from existing stored ports so the UI reflects prior choices.
+                        if self.state.get(f"{state_key}.endstop_port_toolboard"):
+                            current_endstop_src = "toolboard"
+                        elif self.state.get(f"{state_key}.endstop_port"):
+                            current_endstop_src = "mainboard"
+                        else:
+                            current_endstop_src = "mainboard"
+
+                    if has_toolboard:
+                        endstop_source = self.ui.radiolist(
+                            f"Where is the {axis_upper} endstop connected?",
+                            [
+                                ("mainboard", "Mainboard", current_endstop_src == "mainboard"),
+                                ("toolboard", "Toolboard", current_endstop_src == "toolboard"),
+                            ],
+                            title=f"Stepper {axis_upper} - Endstop Location",
+                        )
+                        if endstop_source is None:
+                            return
+                    else:
+                        endstop_source = "mainboard"
+
+                    # Persist location immediately so it doesn't get lost on later cancels.
+                    self.state.set(f"{state_key}.endstop_source", endstop_source)
+                    self.state.save()
+
+                    board_type = "toolboards" if endstop_source == "toolboard" else "boards"
+                    if endstop_source == "toolboard":
+                        current_endstop_port = self.state.get(f"{state_key}.endstop_port_toolboard", "")
+                    else:
+                        current_endstop_port = self.state.get(f"{state_key}.endstop_port", "")
+
+                    endstop_ports = self._get_board_ports("endstop_ports", board_type)
                     if endstop_ports:
                         endstop_port = self.ui.radiolist(
                             f"Select endstop port for {axis_upper} axis:",
@@ -1968,6 +2003,15 @@ class GschpooziWizard:
                     if endstop_port is None:
                         return
 
+                    # Persist chosen endstop port immediately and clear the other side to avoid ambiguity.
+                    if endstop_source == "toolboard":
+                        self.state.set(f"{state_key}.endstop_port_toolboard", endstop_port)
+                        self.state.delete(f"{state_key}.endstop_port")
+                    else:
+                        self.state.set(f"{state_key}.endstop_port", endstop_port)
+                        self.state.delete(f"{state_key}.endstop_port_toolboard")
+                    self.state.save()
+
                     current_endstop_config = self.state.get(f"{state_key}.endstop_config", "nc_gnd")
                     endstop_config = self.ui.radiolist(
                         f"Endstop switch configuration for {axis_upper}:",
@@ -1981,6 +2025,10 @@ class GschpooziWizard:
                     )
                     if endstop_config is None:
                         return
+
+                    # Persist config immediately so it is reflected when re-entering the menu.
+                    self.state.set(f"{state_key}.endstop_config", endstop_config)
+                    self.state.save()
 
                 bed_size = self.state.get(f"printer.bed_size_{axis}", 350)
                 current_position_max = self.state.get(f"{state_key}.position_max", bed_size)
@@ -2256,6 +2304,14 @@ class GschpooziWizard:
                 # If a toolboard exists, allow selecting endstop from mainboard or toolboard.
                 has_toolboard = bool(self.state.get("mcu.toolboard.connection_type"))
                 current_endstop_src = self.state.get(f"{state_key}.endstop_source", "")
+                if not current_endstop_src:
+                    # Infer from existing stored ports so the UI reflects prior choices.
+                    if self.state.get(f"{state_key}.endstop_port_toolboard"):
+                        current_endstop_src = "toolboard"
+                    elif self.state.get(f"{state_key}.endstop_port"):
+                        current_endstop_src = "mainboard"
+                    else:
+                        current_endstop_src = "mainboard"
                 if has_toolboard:
                     endstop_source = self.ui.radiolist(
                         f"Where is the {axis_upper} endstop connected?",
@@ -2269,6 +2325,10 @@ class GschpooziWizard:
                         return
                 else:
                     endstop_source = "mainboard"
+
+                # Persist location immediately so it doesn't get lost on later cancels.
+                self.state.set(f"{state_key}.endstop_source", endstop_source)
+                self.state.save()
 
                 # Endstop port selection from board templates
                 board_type = "toolboards" if endstop_source == "toolboard" else "boards"
@@ -2299,6 +2359,15 @@ class GschpooziWizard:
                 if endstop_port is None:
                     return
 
+                # Persist chosen endstop port immediately and clear the other side to avoid ambiguity.
+                if endstop_source == "toolboard":
+                    self.state.set(f"{state_key}.endstop_port_toolboard", endstop_port)
+                    self.state.delete(f"{state_key}.endstop_port")
+                else:
+                    self.state.set(f"{state_key}.endstop_port", endstop_port)
+                    self.state.delete(f"{state_key}.endstop_port_toolboard")
+                self.state.save()
+
                 # Endstop pin configuration (modifiers)
                 current_config = self.state.get(f"{state_key}.endstop_config", "nc_gnd")
                 endstop_config = self.ui.radiolist(
@@ -2314,6 +2383,10 @@ class GschpooziWizard:
                 )
                 if endstop_config is None:
                     return
+
+                # Persist config immediately so it is reflected when re-entering the menu.
+                self.state.set(f"{state_key}.endstop_config", endstop_config)
+                self.state.save()
 
             bed_size = self.state.get(f"printer.bed_size_{axis}", 350)
             current_max = self.state.get(f"{state_key}.position_max", bed_size)
