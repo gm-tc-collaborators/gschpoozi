@@ -341,9 +341,9 @@ extruder:
     {% endif %}
     max_power: {{ extruder.max_power | default(1.0) }}
     {% if extruder.sensor_location == 'toolboard' %}
-    sensor_pin: toolboard:{{ toolboard.pins[extruder.sensor_port_toolboard].signal }}
+    sensor_pin: {{ "^" if extruder.sensor_pullup | default(false) else "" }}toolboard:{{ toolboard.pins[extruder.sensor_port_toolboard].signal }}
     {% else %}
-    sensor_pin: {{ board.pins[extruder.sensor_port_mainboard].signal }}
+    sensor_pin: {{ "^" if extruder.sensor_pullup | default(false) else "" }}{{ board.pins[extruder.sensor_port_mainboard].signal }}
     {% endif %}
     sensor_type: {{ extruder.sensor_type }}
     {% if extruder.pullup_resistor %}

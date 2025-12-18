@@ -3262,6 +3262,19 @@ class GschpooziWizard:
         if sensor_port is None:
             return
 
+        # Sensor pin pullup (^ modifier) - many toolboards need this
+        current_sensor_pullup = self.state.get("extruder.sensor_pullup", False)
+        sensor_pullup = self.ui.yesno(
+            "Enable internal pullup on thermistor pin?\n\n"
+            "Most toolboards (Nitehawk, EBB, SHT36, etc.) need this enabled.\n"
+            "If you get 'ADC out of range' errors or temperature reads ~350°C,\n"
+            "you likely need this ON.\n\n"
+            "Mainboards usually have hardware pullups and don't need this.",
+            title="Hotend - Sensor Pin Pullup",
+            default_no=not current_sensor_pullup
+        )
+        # yesno returns True for Yes, False for No (cancel returns False too, but that's acceptable here)
+
         # Thermistor type
         sensor_types = [
             ("Generic 3950", "Generic 3950 (most common)"),
@@ -3411,6 +3424,7 @@ class GschpooziWizard:
             self.state.delete("extruder.sensor_port_toolboard")  # Clear other key
 
         self.state.set("extruder.sensor_type", sensor_type)
+        self.state.set("extruder.sensor_pullup", sensor_pullup)
         if pullup_resistor:
             self.state.set("extruder.pullup_resistor", pullup_resistor)
         self.state.set("extruder.min_temp", int(min_temp or 0))
@@ -3422,7 +3436,8 @@ class GschpooziWizard:
         self.state.set("extruder.instantaneous_corner_velocity", float(instantaneous_corner_velocity or 1.0))
         self.state.save()
 
-        pullup_text = f"\n  Pullup: {pullup_resistor}Ω" if pullup_resistor else ""
+        pullup_text = f"\n  Pullup resistor: {pullup_resistor}Ω" if pullup_resistor else ""
+        pin_pullup_text = " (^ pullup)" if sensor_pullup else ""
         self.ui.msgbox(
             f"Extruder & Hotend configured!\n\n"
             f"EXTRUDER MOTOR:\n"
@@ -3433,7 +3448,7 @@ class GschpooziWizard:
             f"HOTEND:\n"
             f"  Heater: {heater_location} ({heater_port})\n"
             f"  Thermistor: {sensor_type}\n"
-            f"  Sensor port: {sensor_location} ({sensor_port}){pullup_text}\n"
+            f"  Sensor port: {sensor_location} ({sensor_port}){pin_pullup_text}{pullup_text}\n"
             f"  Temp range: {min_temp}°C - {max_temp}°C\n"
             f"  Drive: {drive_type}\n"
             f"  Nozzle: {nozzle_diameter}mm",
