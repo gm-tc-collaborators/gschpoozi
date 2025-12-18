@@ -78,8 +78,14 @@ stepper_x:
     {% endif %}
     position_endstop: {{ stepper_x.position_endstop }}
     # Klipper requires position_endstop to be between position_min and position_max.
-    # Default position_min to position_endstop when missing to avoid invalid configs (e.g. negative endstop positions).
-    position_min: {{ stepper_x.position_min | default(stepper_x.position_endstop | default(0)) }}
+    # When position_min is missing, only default it to position_endstop if the endstop is negative
+    # (common for wipe zones). Otherwise default to 0 to avoid unintentionally shrinking travel.
+    {% if stepper_x.position_min is defined %}
+    position_min: {{ stepper_x.position_min }}
+    {% else %}
+    {% set _xe = (stepper_x.position_endstop | default(0) | float) %}
+    position_min: {{ _xe if _xe < 0 else 0 }}
+    {% endif %}
     position_max: {{ stepper_x.position_max | default(printer.bed_size_x) }}
     homing_speed: {{ stepper_x.homing_speed | default(50) }}
     {% if stepper_x.endstop_type != 'sensorless' %}
@@ -113,8 +119,14 @@ stepper_y:
     {% endif %}
     position_endstop: {{ stepper_y.position_endstop }}
     # Klipper requires position_endstop to be between position_min and position_max.
-    # Default position_min to position_endstop when missing to avoid invalid configs (e.g. negative endstop positions).
-    position_min: {{ stepper_y.position_min | default(stepper_y.position_endstop | default(0)) }}
+    # When position_min is missing, only default it to position_endstop if the endstop is negative
+    # (common for wipe zones). Otherwise default to 0 to avoid unintentionally shrinking travel.
+    {% if stepper_y.position_min is defined %}
+    position_min: {{ stepper_y.position_min }}
+    {% else %}
+    {% set _ye = (stepper_y.position_endstop | default(0) | float) %}
+    position_min: {{ _ye if _ye < 0 else 0 }}
+    {% endif %}
     position_max: {{ stepper_y.position_max | default(printer.bed_size_y) }}
     homing_speed: {{ stepper_y.homing_speed | default(50) }}
     {% if stepper_y.endstop_type != 'sensorless' %}
