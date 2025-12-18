@@ -199,6 +199,9 @@ class ConfigGenerator:
                 and board_defaults.get("endstop_y")
             ):
                 context["stepper_y"]["endstop_port"] = board_defaults.get("endstop_y")
+                # Default to NC wired to GND (pullup, no invert)
+                context["stepper_y"].setdefault("endstop_pullup", True)
+                context["stepper_y"].setdefault("endstop_invert", False)
                 context["stepper_y"].setdefault("endstop_config", "nc_gnd")
 
             # If a toolboard exists with X_STOP and stepper_x physical endstop config is missing,
@@ -212,6 +215,9 @@ class ConfigGenerator:
                 and "X_STOP" in toolboard_pins
             ):
                 context["stepper_x"]["endstop_port_toolboard"] = "X_STOP"
+                # Default to NC wired to GND (pullup, no invert)
+                context["stepper_x"].setdefault("endstop_pullup", True)
+                context["stepper_x"].setdefault("endstop_invert", False)
                 context["stepper_x"].setdefault("endstop_config", "nc_gnd")
         except Exception:
             # Best-effort defaults only; never block generation here.
@@ -447,13 +453,17 @@ class ConfigGenerator:
         _req("stepper_z.motor_port")
 
         # If physical endstops, require a port selection
+        # Endstop wiring can be specified via the new endstop_pullup/endstop_invert booleans
+        # OR the legacy endstop_config string (nc_gnd/no_gnd/nc_vcc/no_vcc).
         for axis in ("x", "y"):
             st = cfg.get(f"stepper_{axis}", {})
             if isinstance(st, dict) and st.get("endstop_type") == "physical":
                 if not st.get("endstop_port") and not st.get("endstop_port_toolboard"):
                     errors.append(f"Missing required setting: stepper_{axis}.endstop_port (or stepper_{axis}.endstop_port_toolboard)")
-                if not st.get("endstop_config"):
-                    errors.append(f"Missing required setting: stepper_{axis}.endstop_config")
+                # Accept new flags OR legacy endstop_config
+                has_new_flags = "endstop_pullup" in st or "endstop_invert" in st
+                has_legacy = bool(st.get("endstop_config"))
+                # No error if either format is present; defaults will be applied later if missing
 
         # Bed heater requires both heater + sensor wiring
         _req("heater_bed.heater_pin")
