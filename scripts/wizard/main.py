@@ -1702,7 +1702,14 @@ class GschpooziWizard:
             current_port = self.state.get(f"{state_key}.motor_port", "")
             motor_port = self.ui.radiolist(
                 f"Select motor port for {axis_upper} axis:",
-                [(p, l, p == current_port or p == default_port) for p, l, d in motor_ports],
+                [
+                    (
+                        p,
+                        l,
+                        (p == current_port) if current_port else (p == default_port),
+                    )
+                    for p, l, d in motor_ports
+                ],
                 title=f"Stepper {axis_upper} - Motor Port"
             )
         else:
@@ -1761,7 +1768,14 @@ class GschpooziWizard:
                     if endstop_ports:
                         endstop_port = self.ui.radiolist(
                             f"Select endstop port for {axis_upper} axis:",
-                            [(p, l, p == current_endstop_port or d) for p, l, d in endstop_ports],
+                            [
+                                (
+                                    p,
+                                    l,
+                                    (p == current_endstop_port) if current_endstop_port else bool(d),
+                                )
+                                for p, l, d in endstop_ports
+                            ],
                             title=f"Stepper {axis_upper} - Endstop Port"
                         )
                     else:
@@ -2063,7 +2077,14 @@ class GschpooziWizard:
                         current_port = self.state.get(f"{state_key}.endstop_port", "")
                     endstop_port = self.ui.radiolist(
                         f"Select endstop port for {axis_upper} axis:",
-                        [(p, l, p == current_port or d) for p, l, d in endstop_ports],
+                        [
+                            (
+                                p,
+                                l,
+                                (p == current_port) if current_port else bool(d),
+                            )
+                            for p, l, d in endstop_ports
+                        ],
                         title=f"Stepper {axis_upper} - Endstop Port"
                     )
                 else:
