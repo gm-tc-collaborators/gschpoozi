@@ -15,8 +15,9 @@ This software is in beta. While core functionality is stable, some hardware comb
 - Be ready to hit emergency stop on first home
 
 **Known Limitations:**
-- Interactive motor discovery is not yet functional - you need to know which stepper is connected to which driver port
-- Manual verification of motor directions is required
+- Stepper/motor discovery is not integrated/reliable yet — assume you must already know which motor is on which driver/port
+- Macro setup (START_PRINT / END_PRINT / macro defaults) is not fully tested across printers yet — review generated macros before relying on them
+- Manual verification of motor directions is required (do this before homing)
 
 ---
 

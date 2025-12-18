@@ -34,6 +34,20 @@ That's it! The script handles everything including Klipper installation if neede
 
 ---
 
+## Safety Warning (Read This First)
+
+This project generates **hardware-critical** Klipper configuration (motors, endstops, heaters). A wrong pin or direction can cause crashes, damage, or fire.
+
+- Always review generated files before restarting Klipper
+- Keep your hand near emergency stop / power switch on the first home
+- Prefer `STEPPER_BUZZ` / identification macros before any homing or movement
+
+**Not fully tested yet:**
+- Stepper discovery (automatic identification/assignment) is not integrated/reliable yet — assume you must know your wiring/ports
+- Macro setup (START_PRINT/END_PRINT behavior and defaults) is not fully validated across printers — review and tune before relying on it
+
+---
+
 ## Installation
 
 ### What You Need
@@ -423,6 +437,11 @@ Main Menu → 4) Generate Config
     ├── macros.cfg        # START_PRINT, END_PRINT, and building blocks
     └── macros-config.cfg # User-editable macro configuration variables
 ```
+
+### Important Notes (Macros + Stepper Discovery)
+
+- The generated macro suite is powerful but **not fully tested across printers**. Treat it as a starting point and validate behavior with safe, incremental tests.
+- Stepper discovery is not currently a fully automated workflow. Use identification macros (`STEPPER_BUZZ`, `IDENTIFY_ALL_STEPPERS`, etc.) and verify each axis manually before homing.
 
 ### hardware.cfg Contents
 
