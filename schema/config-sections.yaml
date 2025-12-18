@@ -77,7 +77,9 @@ stepper_x:
     {% endif %}
     {% endif %}
     position_endstop: {{ stepper_x.position_endstop }}
-    position_min: {{ stepper_x.position_min | default(0) }}
+    # Klipper requires position_endstop to be between position_min and position_max.
+    # Default position_min to position_endstop when missing to avoid invalid configs (e.g. negative endstop positions).
+    position_min: {{ stepper_x.position_min | default(stepper_x.position_endstop | default(0)) }}
     position_max: {{ stepper_x.position_max | default(printer.bed_size_x) }}
     homing_speed: {{ stepper_x.homing_speed | default(50) }}
     {% if stepper_x.endstop_type != 'sensorless' %}
@@ -110,7 +112,9 @@ stepper_y:
     {% endif %}
     {% endif %}
     position_endstop: {{ stepper_y.position_endstop }}
-    position_min: {{ stepper_y.position_min | default(0) }}
+    # Klipper requires position_endstop to be between position_min and position_max.
+    # Default position_min to position_endstop when missing to avoid invalid configs (e.g. negative endstop positions).
+    position_min: {{ stepper_y.position_min | default(stepper_y.position_endstop | default(0)) }}
     position_max: {{ stepper_y.position_max | default(printer.bed_size_y) }}
     homing_speed: {{ stepper_y.homing_speed | default(50) }}
     {% if stepper_y.endstop_type != 'sensorless' %}

@@ -2001,6 +2001,27 @@ class GschpooziWizard:
                 if position_endstop is None:
                     return
 
+                # Position min (must be <= position_endstop)
+                # Default: if endstop is negative (common for nozzle wipe zones), match it; otherwise 0.
+                try:
+                    parsed_endstop = float(position_endstop)
+                except Exception:
+                    parsed_endstop = float(current_position_endstop) if current_position_endstop is not None else 0.0
+
+                current_position_min = self.state.get(f"{state_key}.position_min", None)
+                if current_position_min is None:
+                    current_position_min = int(parsed_endstop) if parsed_endstop < 0 else 0
+
+                position_min = self.ui.inputbox(
+                    f"Position min for {axis_upper} (mm):\n\n"
+                    f"Must be <= position_endstop ({position_endstop}).\n"
+                    "Use negative values if you have a wipe/purge zone beyond the bed.",
+                    default=str(current_position_min),
+                    title=f"Stepper {axis_upper} - Position Min"
+                )
+                if position_min is None:
+                    return
+
                 # Homing settings
                 current_homing_speed = self.state.get(f"{state_key}.homing_speed", 50)
                 homing_speed = self.ui.inputbox(
@@ -2042,6 +2063,7 @@ class GschpooziWizard:
                     self.state.set(f"{state_key}.endstop_config", endstop_config)
                 self.state.set(f"{state_key}.position_max", int(position_max or bed_size))
                 self.state.set(f"{state_key}.position_endstop", int(position_endstop or position_max or bed_size))
+                self.state.set(f"{state_key}.position_min", int(float(position_min)))
                 if homing_speed:
                     self.state.set(f"{state_key}.homing_speed", int(homing_speed or 50))
                 if homing_retract_dist:
@@ -2312,6 +2334,26 @@ class GschpooziWizard:
             if position_endstop is None:
                 return
 
+            # Position min (must be <= position_endstop)
+            try:
+                parsed_endstop = float(position_endstop)
+            except Exception:
+                parsed_endstop = float(current_endstop_pos) if current_endstop_pos is not None else 0.0
+
+            current_min = self.state.get(f"{state_key}.position_min", None)
+            if current_min is None:
+                current_min = int(parsed_endstop) if parsed_endstop < 0 else 0
+
+            position_min = self.ui.inputbox(
+                f"Position min for {axis_upper} (mm):\n\n"
+                f"Must be <= position_endstop ({position_endstop}).\n"
+                "Use negative values if you have a wipe/purge zone beyond the bed.",
+                default=str(current_min),
+                title=f"Stepper {axis_upper} - Position Min"
+            )
+            if position_min is None:
+                return
+
             # Homing settings
             current_homing_speed = self.state.get(f"{state_key}.homing_speed", 50)
             homing_speed = self.ui.inputbox(
@@ -2381,6 +2423,7 @@ class GschpooziWizard:
             bed_size = self.state.get(f"printer.bed_size_{axis}", 350)
             self.state.set(f"{state_key}.position_max", int(position_max or bed_size))
             self.state.set(f"{state_key}.position_endstop", int(position_endstop or position_max or bed_size))
+            self.state.set(f"{state_key}.position_min", int(float(position_min)))
             if homing_speed:
                 self.state.set(f"{state_key}.homing_speed", int(homing_speed or 50))
             if homing_retract_dist:
