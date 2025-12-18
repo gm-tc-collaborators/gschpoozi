@@ -49,6 +49,34 @@ class WizardState:
         # later cause generator output to be invalid.
         cfg = self._state.get("config", {})
         if isinstance(cfg, dict):
+            # Migrate legacy endstop_config -> endstop_pullup/endstop_invert for stepper_x/stepper_y
+            def _migrate_endstop(stepper_key: str) -> None:
+                stepper = cfg.get(stepper_key)
+                if not isinstance(stepper, dict):
+                    return
+                has_flags = ("endstop_pullup" in stepper) or ("endstop_invert" in stepper)
+                legacy = stepper.get("endstop_config")
+                if has_flags:
+                    # Prefer new flags; remove legacy if still present
+                    if legacy is not None:
+                        stepper.pop("endstop_config", None)
+                    return
+                if not isinstance(legacy, str):
+                    return
+                mapping = {
+                    "nc_gnd": (True, False),
+                    "no_gnd": (True, True),
+                    "nc_vcc": (False, True),
+                    "no_vcc": (False, False),
+                }
+                pullup, invert = mapping.get(legacy.strip().lower(), (True, False))
+                stepper["endstop_pullup"] = pullup
+                stepper["endstop_invert"] = invert
+                stepper.pop("endstop_config", None)
+
+            _migrate_endstop("stepper_x")
+            _migrate_endstop("stepper_y")
+
             # Normalize leds list items (avoid null pin/color_order)
             leds = cfg.get("leds")
             if isinstance(leds, list):

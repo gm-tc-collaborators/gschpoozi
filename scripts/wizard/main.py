@@ -714,23 +714,16 @@ class GschpooziWizard:
         }
         return mapping.get(cfg, (True, False))
 
-    def _flags_to_endstop_config(self, *, pullup: bool, invert: bool) -> str:
-        """Convert (pullup, invert) -> legacy endstop_config string."""
-        if pullup and not invert:
-            return "nc_gnd"
-        if pullup and invert:
-            return "no_gnd"
-        if (not pullup) and invert:
-            return "nc_vcc"
-        return "no_vcc"
-
-    def _prompt_endstop_wiring(self, *, axis_upper: str, state_key: str) -> str | None:
-        """Prompt for endstop wiring using two toggles (pullup + invert).
-
-        Returns legacy endstop_config string for backwards compatibility with templates.
-        """
-        current_cfg = self.state.get(f"{state_key}.endstop_config", "nc_gnd")
-        current_pullup, current_invert = self._endstop_config_to_flags(current_cfg)
+    def _prompt_endstop_wiring(self, *, axis_upper: str, state_key: str) -> tuple[bool, bool] | None:
+        """Prompt for endstop wiring using two toggles (pullup + invert)."""
+        # New state (preferred)
+        if self.state.get(f"{state_key}.endstop_pullup") is not None or self.state.get(f"{state_key}.endstop_invert") is not None:
+            current_pullup = bool(self.state.get(f"{state_key}.endstop_pullup", True))
+            current_invert = bool(self.state.get(f"{state_key}.endstop_invert", False))
+        else:
+            # Back-compat: derive from legacy endstop_config if present
+            current_cfg = self.state.get(f"{state_key}.endstop_config", "nc_gnd")
+            current_pullup, current_invert = self._endstop_config_to_flags(current_cfg)
 
         pullup = self.ui.yesno(
             f"Enable pullup resistor for {axis_upper} endstop?\n\n"
@@ -753,7 +746,7 @@ class GschpooziWizard:
         if invert is None:
             return None
 
-        return self._flags_to_endstop_config(pullup=pullup, invert=invert)
+        return (pullup, invert)
 
     def run(self) -> int:
         """Run the wizard. Returns exit code."""
@@ -2004,7 +1997,6 @@ class GschpooziWizard:
 
                 # Physical endstop port and config
                 endstop_port = None
-                endstop_config = None
                 if endstop_type == "physical":
                     # Allow selecting endstop on mainboard vs toolboard when a toolboard exists.
                     has_toolboard = bool(self.state.get("mcu.toolboard.connection_type"))
@@ -2074,18 +2066,24 @@ class GschpooziWizard:
                         self.state.delete(f"{state_key}.endstop_port_toolboard")
                     self.state.save()
 
-                    endstop_config = self._prompt_endstop_wiring(axis_upper=axis_upper, state_key=state_key)
-                    if endstop_config is None:
+                    wiring = self._prompt_endstop_wiring(axis_upper=axis_upper, state_key=state_key)
+                    if wiring is None:
                         return
+                    endstop_pullup, endstop_invert = wiring
 
                     # Persist config immediately so it is reflected when re-entering the menu.
-                    self.state.set(f"{state_key}.endstop_config", endstop_config)
+                    self.state.set(f"{state_key}.endstop_pullup", bool(endstop_pullup))
+                    self.state.set(f"{state_key}.endstop_invert", bool(endstop_invert))
+                    # Drop legacy encoding going forward
+                    self.state.delete(f"{state_key}.endstop_config")
                     self.state.save()
                 else:
                     # Sensorless: clear any stale physical endstop wiring info.
                     self.state.delete(f"{state_key}.endstop_source")
                     self.state.delete(f"{state_key}.endstop_port")
                     self.state.delete(f"{state_key}.endstop_port_toolboard")
+                    self.state.delete(f"{state_key}.endstop_pullup")
+                    self.state.delete(f"{state_key}.endstop_invert")
                     self.state.delete(f"{state_key}.endstop_config")
                     self.state.save()
 
@@ -2217,12 +2215,14 @@ class GschpooziWizard:
                         else:
                             self.state.set(f"{state_key}.endstop_port", endstop_port)
                             self.state.delete(f"{state_key}.endstop_port_toolboard")
-                    if endstop_config:
-                        self.state.set(f"{state_key}.endstop_config", endstop_config)
+                    # Ensure legacy endstop_config stays removed
+                    self.state.delete(f"{state_key}.endstop_config")
                 else:
                     self.state.delete(f"{state_key}.endstop_source")
                     self.state.delete(f"{state_key}.endstop_port")
                     self.state.delete(f"{state_key}.endstop_port_toolboard")
+                    self.state.delete(f"{state_key}.endstop_pullup")
+                    self.state.delete(f"{state_key}.endstop_invert")
                     self.state.delete(f"{state_key}.endstop_config")
 
                 bed_size = self.state.get(f"printer.bed_size_{axis}", 350)
@@ -2413,7 +2413,6 @@ class GschpooziWizard:
         # Endstop configuration (only for primary steppers)
         endstop_type = None
         endstop_port = None
-        endstop_config = None
         position_max = None
         position_endstop = None
         homing_speed = None
@@ -2506,18 +2505,23 @@ class GschpooziWizard:
                 self.state.save()
 
                 # Endstop pin configuration (modifiers)
-                endstop_config = self._prompt_endstop_wiring(axis_upper=axis_upper, state_key=state_key)
-                if endstop_config is None:
+                wiring = self._prompt_endstop_wiring(axis_upper=axis_upper, state_key=state_key)
+                if wiring is None:
                     return
+                endstop_pullup, endstop_invert = wiring
 
                 # Persist config immediately so it is reflected when re-entering the menu.
-                self.state.set(f"{state_key}.endstop_config", endstop_config)
+                self.state.set(f"{state_key}.endstop_pullup", bool(endstop_pullup))
+                self.state.set(f"{state_key}.endstop_invert", bool(endstop_invert))
+                self.state.delete(f"{state_key}.endstop_config")
                 self.state.save()
             else:
                 # Sensorless: clear any stale physical endstop wiring info.
                 self.state.delete(f"{state_key}.endstop_source")
                 self.state.delete(f"{state_key}.endstop_port")
                 self.state.delete(f"{state_key}.endstop_port_toolboard")
+                self.state.delete(f"{state_key}.endstop_pullup")
+                self.state.delete(f"{state_key}.endstop_invert")
                 self.state.delete(f"{state_key}.endstop_config")
                 self.state.save()
 
@@ -2666,8 +2670,9 @@ class GschpooziWizard:
                 else:
                     self.state.set(f"{state_key}.endstop_port", endstop_port)
                     self.state.delete(f"{state_key}.endstop_port_toolboard")
-            if endstop_type == "physical" and endstop_config:
-                self.state.set(f"{state_key}.endstop_config", endstop_config)
+            # Ensure we do not keep the legacy endstop_config encoding; templates use
+            # endstop_pullup/endstop_invert (with fallback for older state).
+            self.state.delete(f"{state_key}.endstop_config")
             bed_size = self.state.get(f"printer.bed_size_{axis}", 350)
             self.state.set(f"{state_key}.position_max", int(position_max or bed_size))
             self.state.set(f"{state_key}.position_endstop", int(position_endstop or position_max or bed_size))

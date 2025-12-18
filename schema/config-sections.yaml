@@ -69,11 +69,17 @@ stepper_x:
     {% if stepper_x.endstop_type == 'sensorless' %}
     endstop_pin: {{ stepper_x.driver_type | lower }}_stepper_x:virtual_endstop
     {% else %}
+    {% set _mods = "" %}
+    {% if (stepper_x.endstop_pullup is defined) or (stepper_x.endstop_invert is defined) %}
+    {% set _mods = ("^" if (stepper_x.endstop_pullup | default(false)) else "") ~ ("!" if (stepper_x.endstop_invert | default(false)) else "") %}
+    {% else %}
+    {% set _mods = pin_config[stepper_x.endstop_config | default('nc_gnd')] %}
+    {% endif %}
     {% if stepper_x.endstop_port_toolboard is defined and stepper_x.endstop_port_toolboard %}
     # Klipper pin modifiers must come before the optional MCU prefix (e.g. ^toolboard:PB0, not toolboard:^PB0)
-    endstop_pin: {{ pin_config[stepper_x.endstop_config] }}toolboard:{{ toolboard.pins[stepper_x.endstop_port_toolboard].signal }}
+    endstop_pin: {{ _mods }}toolboard:{{ toolboard.pins[stepper_x.endstop_port_toolboard].signal }}
     {% else %}
-    endstop_pin: {{ pin_config[stepper_x.endstop_config] }}{{ board.pins[stepper_x.endstop_port].signal }}
+    endstop_pin: {{ _mods }}{{ board.pins[stepper_x.endstop_port].signal }}
     {% endif %}
     {% endif %}
     position_endstop: {{ stepper_x.position_endstop }}
@@ -110,11 +116,17 @@ stepper_y:
     {% if stepper_y.endstop_type == 'sensorless' %}
     endstop_pin: {{ stepper_y.driver_type | lower }}_stepper_y:virtual_endstop
     {% else %}
+    {% set _mods = "" %}
+    {% if (stepper_y.endstop_pullup is defined) or (stepper_y.endstop_invert is defined) %}
+    {% set _mods = ("^" if (stepper_y.endstop_pullup | default(false)) else "") ~ ("!" if (stepper_y.endstop_invert | default(false)) else "") %}
+    {% else %}
+    {% set _mods = pin_config[stepper_y.endstop_config | default('nc_gnd')] %}
+    {% endif %}
     {% if stepper_y.endstop_port_toolboard is defined and stepper_y.endstop_port_toolboard %}
     # Klipper pin modifiers must come before the optional MCU prefix (e.g. ^toolboard:PB0, not toolboard:^PB0)
-    endstop_pin: {{ pin_config[stepper_y.endstop_config] }}toolboard:{{ toolboard.pins[stepper_y.endstop_port_toolboard].signal }}
+    endstop_pin: {{ _mods }}toolboard:{{ toolboard.pins[stepper_y.endstop_port_toolboard].signal }}
     {% else %}
-    endstop_pin: {{ pin_config[stepper_y.endstop_config] }}{{ board.pins[stepper_y.endstop_port].signal }}
+    endstop_pin: {{ _mods }}{{ board.pins[stepper_y.endstop_port].signal }}
     {% endif %}
     {% endif %}
     position_endstop: {{ stepper_y.position_endstop }}
