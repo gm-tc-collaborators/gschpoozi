@@ -14,14 +14,14 @@ assignees: ''
 - [ ] Other: _______________
 
 ## Hardware Details
-- **Manufacturer**: 
-- **Model Name**: 
-- **Version** (if applicable): 
+- **Manufacturer**:
+- **Model Name**:
+- **Version** (if applicable):
 
 ## Links
-- **Product Page**: 
-- **Pinout/Documentation**: 
-- **Sample Klipper Config** (if available): 
+- **Product Page**:
+- **Pinout/Documentation**:
+- **Sample Klipper Config** (if available):
 
 ## Pin Information (for boards)
 If you have the pinout information, please include:
