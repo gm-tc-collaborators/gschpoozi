@@ -226,6 +226,28 @@ class GschpooziWizard:
         except Exception as e:
             return False, str(e)
 
+    def _run_shell_interactive(self, command: str) -> int:
+        """Run a shell command interactively with TTY access.
+        
+        Use this for commands that need user interaction (sudo, confirmations, etc.)
+        Returns the exit code.
+        """
+        import subprocess
+        try:
+            with open("/dev/tty", "r+") as tty:
+                result = subprocess.run(
+                    command,
+                    shell=True,
+                    stdin=tty,
+                    stdout=tty,
+                    stderr=tty,
+                )
+                return result.returncode
+        except OSError:
+            # Fallback without TTY binding
+            result = subprocess.run(command, shell=True)
+            return result.returncode
+
     def _backup_file(self, path: Path) -> None:
         """Create a timestamped backup of a file if it exists."""
         try:
@@ -5631,7 +5653,8 @@ class GschpooziWizard:
 
                 confirm = self.ui.yesno(
                     f"Install KlipperScreen?\n\n"
-                    f"This will run:\n{install_cmd}\n\n"
+                    f"This will run the KlipperScreen installer.\n"
+                    f"You may need to enter your sudo password.\n\n"
                     f"The installation may take several minutes.",
                     title="Confirm Install",
                     default_no=False,
@@ -5641,16 +5664,10 @@ class GschpooziWizard:
                 if not confirm:
                     continue
 
-                self.ui.msgbox(
-                    "Starting KlipperScreen installation...\n\n"
-                    "This will take a few minutes. Please wait.",
-                    title="Installing",
-                    height=10,
-                )
-
-                # Run install command
-                ok, output = self._run_shell(install_cmd)
-                if ok:
+                # Run install command interactively (needs TTY for sudo/prompts)
+                exit_code = self._run_shell_interactive(install_cmd)
+                
+                if exit_code == 0:
                     self.ui.msgbox(
                         "KlipperScreen installed successfully!\n\n"
                         "The service should start automatically.\n"
@@ -5661,13 +5678,14 @@ class GschpooziWizard:
                     if update_mgr:
                         self._ensure_moonraker_update_manager_entry("KlipperScreen", update_mgr)
                 else:
-                    # Show last 500 chars of output for debugging
-                    snippet = output[-500:] if len(output) > 500 else output
                     self.ui.msgbox(
-                        f"Installation failed.\n\n"
-                        f"Output (last 500 chars):\n{snippet}",
-                        title="Installation Failed",
-                        height=20,
+                        f"Installation may have failed (exit code: {exit_code}).\n\n"
+                        f"Check the terminal output above for errors.\n"
+                        f"You can also try installing manually:\n\n"
+                        f"cd ~ && git clone https://github.com/KlipperScreen/KlipperScreen.git\n"
+                        f"cd KlipperScreen && ./scripts/KlipperScreen-install.sh",
+                        title="Installation Issue",
+                        height=16,
                         width=100,
                     )
                 continue
@@ -5686,40 +5704,37 @@ class GschpooziWizard:
                     "This will:\n"
                     "1. Stop the service\n"
                     "2. Pull latest changes (git pull)\n"
-                    "3. Restart the service\n",
+                    "3. Restart the service\n\n"
+                    "You may need to enter your sudo password.",
                     title="Confirm Update",
                     default_no=False,
                 )
                 if not confirm:
                     continue
 
-                # Stop service
-                self._run_shell(f"sudo systemctl stop {svc_name}")
-
-                # Git pull
-                ok, output = self._run_shell(f"cd {ks_dir} && git pull")
-                if not ok:
-                    snippet = output[-300:] if len(output) > 300 else output
-                    self.ui.msgbox(
-                        f"Git pull failed:\n\n{snippet}",
-                        title="Update Failed",
-                        height=16,
-                        width=90,
-                    )
-                    # Try to restart service anyway
-                    self._run_shell(f"sudo systemctl start {svc_name}")
-                    continue
-
-                # Restart service
-                self._run_shell(f"sudo systemctl start {svc_name}")
-
-                self.ui.msgbox(
-                    "KlipperScreen updated successfully!\n\n"
-                    f"Output:\n{output[:300] if len(output) > 300 else output}",
-                    title="Update Complete",
-                    height=16,
-                    width=90,
+                # Run update commands interactively (needs TTY for sudo)
+                update_script = (
+                    f"sudo systemctl stop {svc_name} && "
+                    f"cd {ks_dir} && git pull && "
+                    f"sudo systemctl start {svc_name}"
                 )
+                exit_code = self._run_shell_interactive(update_script)
+
+                if exit_code == 0:
+                    self.ui.msgbox(
+                        "KlipperScreen updated successfully!",
+                        title="Update Complete",
+                    )
+                else:
+                    # Try to restart service in case it was stopped
+                    self._run_shell_interactive(f"sudo systemctl start {svc_name}")
+                    self.ui.msgbox(
+                        f"Update may have failed (exit code: {exit_code}).\n\n"
+                        f"Check the terminal output above for errors.",
+                        title="Update Issue",
+                        height=12,
+                        width=80,
+                    )
                 continue
 
             elif choice == "REMOVE":
@@ -5736,23 +5751,25 @@ class GschpooziWizard:
                     f"1. Stop the service\n"
                     f"2. Delete {ks_dir}\n"
                     f"3. Optionally remove the systemd service\n\n"
+                    f"You may need to enter your sudo password.\n"
                     f"This cannot be undone!",
                     title="Confirm Remove",
                     default_no=True,
-                    height=16,
+                    height=18,
                 )
                 if not confirm:
                     continue
 
-                # Stop service
-                self._run_shell(f"sudo systemctl stop {svc_name}")
-                self._run_shell(f"sudo systemctl disable {svc_name}")
+                # Stop and disable service (interactive for sudo)
+                self._run_shell_interactive(f"sudo systemctl stop {svc_name}")
+                self._run_shell_interactive(f"sudo systemctl disable {svc_name}")
 
                 # Remove directory
-                ok, output = self._run_shell(f"rm -rf {ks_dir}")
-                if not ok:
+                exit_code = self._run_shell_interactive(f"rm -rf {ks_dir}")
+                if exit_code != 0:
                     self.ui.msgbox(
-                        f"Failed to remove directory:\n\n{output}",
+                        f"Failed to remove directory.\n\n"
+                        f"Check terminal output for errors.",
                         title="Removal Failed",
                     )
                     continue
@@ -5766,8 +5783,8 @@ class GschpooziWizard:
                     default_no=True,
                 )
                 if remove_service:
-                    self._run_shell(f"sudo rm -f /etc/systemd/system/{svc_name}.service")
-                    self._run_shell("sudo systemctl daemon-reload")
+                    self._run_shell_interactive(f"sudo rm -f /etc/systemd/system/{svc_name}.service")
+                    self._run_shell_interactive("sudo systemctl daemon-reload")
 
                 # Also remove virtualenv
                 self._run_shell("rm -rf ~/.KlipperScreen-env")
