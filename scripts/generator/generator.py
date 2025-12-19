@@ -123,11 +123,15 @@ class ConfigGenerator:
               ~/klipper/klippy/extras/autotune_tmc.py
             """
             try:
-                klipper_dir = Path.home() / "klipper" / "klippy" / "extras"
+                base = Path.home() / "klipper" / "klippy"
+                # Upstream installer supports both extras/ and plugins/ depending on Klipper build.
                 candidates = [
-                    klipper_dir / "autotune_tmc.py",
-                    klipper_dir / "autotune_tmc.pyc",
-                    klipper_dir / "tmc_autotune.py",  # be tolerant to naming differences
+                    base / "extras" / "autotune_tmc.py",
+                    base / "extras" / "autotune_tmc.pyc",
+                    base / "extras" / "tmc_autotune.py",  # be tolerant to naming differences
+                    base / "plugins" / "autotune_tmc.py",
+                    base / "plugins" / "autotune_tmc.pyc",
+                    base / "plugins" / "tmc_autotune.py",
                 ]
                 return any(p.exists() for p in candidates)
             except Exception:
@@ -150,6 +154,24 @@ class ConfigGenerator:
         # Do not override an explicit user choice (True/False) already stored in state.
         if bool(context["tuning"]["tmc_autotune"].get("enabled")) and "emit_config" not in context["tuning"]["tmc_autotune"]:
             context["tuning"]["tmc_autotune"]["emit_config"] = _has_klipper_tmc_autotune()
+
+        # Back-compat: older wizard state stored motor presets as motor_x/motor_y/motor_z/motor_extruder.
+        # New template expects a list of tuned steppers under tuning.tmc_autotune.steppers.
+        ta = context["tuning"]["tmc_autotune"]
+        if isinstance(ta, dict) and "steppers" not in ta:
+            steppers: list[dict] = []
+            mapping = [
+                ("motor_x", "stepper_x"),
+                ("motor_y", "stepper_y"),
+                ("motor_z", "stepper_z"),
+                ("motor_extruder", "extruder"),
+            ]
+            for motor_key, stepper_name in mapping:
+                motor_val = ta.get(motor_key)
+                if isinstance(motor_val, str) and motor_val.strip():
+                    steppers.append({"stepper": stepper_name, "motor": motor_val.strip()})
+            if steppers:
+                ta["steppers"] = steppers
         if not isinstance(context.get("advanced"), dict):
             context["advanced"] = {}
         # Ensure nested advanced dicts exist for dot-access patterns used in templates

@@ -6707,15 +6707,16 @@ class GschpooziWizard:
             """Best-effort detection of klipper_tmc_autotune in Klipper extras."""
             try:
                 from pathlib import Path as _Path
-                extras = _Path.home() / "klipper" / "klippy" / "extras"
-                return any(
-                    p.exists()
-                    for p in (
-                        extras / "autotune_tmc.py",
-                        extras / "autotune_tmc.pyc",
-                        extras / "tmc_autotune.py",
-                    )
+                base = _Path.home() / "klipper" / "klippy"
+                candidates = (
+                    base / "extras" / "autotune_tmc.py",
+                    base / "extras" / "autotune_tmc.pyc",
+                    base / "extras" / "tmc_autotune.py",
+                    base / "plugins" / "autotune_tmc.py",
+                    base / "plugins" / "autotune_tmc.pyc",
+                    base / "plugins" / "tmc_autotune.py",
                 )
+                return any(p.exists() for p in candidates)
             except Exception:
                 return False
 
@@ -6760,16 +6761,21 @@ class GschpooziWizard:
 set -euo pipefail
 REPO_URL="https://github.com/andrewmcgr/klipper_tmc_autotune.git"
 PLUGIN_DIR="$HOME/klipper_tmc_autotune"
-KLIPPER_EXTRAS="$HOME/klipper/klippy/extras"
+KLIPPER_BASE="$HOME/klipper/klippy"
+if [ -d "$KLIPPER_BASE/plugins" ]; then
+  KLIPPER_TARGET="$KLIPPER_BASE/plugins"
+else
+  KLIPPER_TARGET="$KLIPPER_BASE/extras"
+fi
 
 echo "== klipper_tmc_autotune install/update =="
 echo "Repo: $REPO_URL"
 echo "Plugin dir: $PLUGIN_DIR"
-echo "Klipper extras: $KLIPPER_EXTRAS"
+echo "Klipper target dir: $KLIPPER_TARGET"
 echo ""
 
-if [ ! -d "$KLIPPER_EXTRAS" ]; then
-  echo "ERROR: Klipper extras directory not found: $KLIPPER_EXTRAS"
+if [ ! -d "$KLIPPER_TARGET" ]; then
+  echo "ERROR: Klipper target directory not found: $KLIPPER_TARGET"
   exit 1
 fi
 
@@ -6789,15 +6795,11 @@ if [ -z "$SRC" ]; then
   exit 1
 fi
 
-DEST="$KLIPPER_EXTRAS/autotune_tmc.py"
-if [ -f "$DEST" ]; then
-  echo "Backing up existing extras file..."
-  cp -f "$DEST" "$DEST.bak.$(date +%Y%m%d_%H%M%S)"
-fi
-
-echo "Installing: $SRC -> $DEST"
-install -m 0644 "$SRC" "$DEST"
-echo "Installed."
+echo "Linking plugin files into Klipper..."
+ln -srfn "$PLUGIN_DIR/autotune_tmc.py" "$KLIPPER_TARGET/autotune_tmc.py"
+ln -srfn "$PLUGIN_DIR/motor_constants.py" "$KLIPPER_TARGET/motor_constants.py"
+ln -srfn "$PLUGIN_DIR/motor_database.cfg" "$KLIPPER_TARGET/motor_database.cfg"
+echo "Linked."
 """
                     if restart:
                         script += r"""
@@ -6877,47 +6879,72 @@ read -r _
         if emit is None:
             return
 
-        # These fields are plugin-specific; we store them as strings so users can match plugin docs.
-        motor_x = self.ui.inputbox(
-            "Motor preset for X (plugin-specific string):\n\n"
-            "Leave blank to omit.",
-            default=str(self.state.get("tuning.tmc_autotune.motor_x", "")),
-            title="TMC Autotune - motor_x",
-            height=14,
-            width=88,
+        # Choose which steppers to autotune (avoid free-text stepper names).
+        awd_enabled = bool(self.state.get("printer.awd_enabled", False))
+        stepper_choices = [
+            ("stepper_x", "stepper_x (X)", True),
+            ("stepper_y", "stepper_y (Y)", True),
+            ("stepper_z", "stepper_z (Z)", True),
+            ("extruder", "extruder (E)", True),
+        ]
+        if awd_enabled:
+            stepper_choices.extend(
+                [
+                    ("stepper_x1", "stepper_x1 (AWD X1)", True),
+                    ("stepper_y1", "stepper_y1 (AWD Y1)", True),
+                ]
+            )
+
+        selected_steppers = self.ui.checklist(
+            "Select which steppers/extruder to autotune:\n\n"
+            "This will generate config sections like:\n"
+            "  [autotune_tmc stepper_x]\n\n"
+            "Pick only steppers that actually use TMC drivers.",
+            stepper_choices,
+            title="TMC Autotune - Select Steppers",
+            height=22,
+            width=92,
+            list_height=10,
         )
-        if motor_x is None:
+        if selected_steppers is None:
             return
-        motor_y = self.ui.inputbox(
-            "Motor preset for Y (plugin-specific string):\n\n"
-            "Leave blank to omit.",
-            default=str(self.state.get("tuning.tmc_autotune.motor_y", "")),
-            title="TMC Autotune - motor_y",
-            height=14,
-            width=88,
-        )
-        if motor_y is None:
+        if not selected_steppers:
+            self.ui.msgbox("No steppers selected. Nothing to configure.", title="TMC Autotune")
             return
-        motor_z = self.ui.inputbox(
-            "Motor preset for Z (plugin-specific string):\n\n"
-            "Leave blank to omit.",
-            default=str(self.state.get("tuning.tmc_autotune.motor_z", "")),
-            title="TMC Autotune - motor_z",
-            height=14,
-            width=88,
-        )
-        if motor_z is None:
-            return
-        motor_e = self.ui.inputbox(
-            "Motor preset for Extruder (plugin-specific string):\n\n"
-            "Leave blank to omit.",
-            default=str(self.state.get("tuning.tmc_autotune.motor_extruder", "")),
-            title="TMC Autotune - motor_extruder",
-            height=14,
-            width=88,
-        )
-        if motor_e is None:
-            return
+
+        # Legacy defaults (older wizard versions stored motor_x/motor_y/...)
+        legacy_defaults = {
+            "stepper_x": str(self.state.get("tuning.tmc_autotune.motor_x", "") or ""),
+            "stepper_y": str(self.state.get("tuning.tmc_autotune.motor_y", "") or ""),
+            "stepper_z": str(self.state.get("tuning.tmc_autotune.motor_z", "") or ""),
+            "extruder": str(self.state.get("tuning.tmc_autotune.motor_extruder", "") or ""),
+        }
+        existing_list = self.state.get("tuning.tmc_autotune.steppers", [])
+        existing_map: dict[str, str] = {}
+        if isinstance(existing_list, list):
+            for e in existing_list:
+                if isinstance(e, dict) and isinstance(e.get("stepper"), str):
+                    motor = e.get("motor")
+                    if isinstance(motor, str):
+                        existing_map[e["stepper"]] = motor
+
+        steppers_cfg: list[dict] = []
+        for stepper in selected_steppers:
+            default_motor = existing_map.get(stepper, legacy_defaults.get(stepper, ""))
+            motor = self.ui.inputbox(
+                f"Motor database ID for {stepper}:\n\n"
+                "Examples:\n"
+                "  ldo-42sth48-2004mah\n"
+                "  ldo-36sth20-1004ahg\n\n"
+                "Leave blank to omit.",
+                default=default_motor,
+                title=f"TMC Autotune - motor ({stepper})",
+                height=16,
+                width=92,
+            )
+            if motor is None:
+                return
+            steppers_cfg.append({"stepper": stepper, "motor": (motor or "").strip()})
 
         voltage_choice = self.ui.radiolist(
             "System voltage:",
@@ -6951,10 +6978,7 @@ read -r _
 
         self.state.set("tuning.tmc_autotune.enabled", True)
         self.state.set("tuning.tmc_autotune.emit_config", bool(emit))
-        self.state.set("tuning.tmc_autotune.motor_x", (motor_x or "").strip())
-        self.state.set("tuning.tmc_autotune.motor_y", (motor_y or "").strip())
-        self.state.set("tuning.tmc_autotune.motor_z", (motor_z or "").strip())
-        self.state.set("tuning.tmc_autotune.motor_extruder", (motor_e or "").strip())
+        self.state.set("tuning.tmc_autotune.steppers", steppers_cfg)
         try:
             self.state.set("tuning.tmc_autotune.voltage", int(voltage_choice))
         except Exception:
