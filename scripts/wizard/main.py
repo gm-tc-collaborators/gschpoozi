@@ -228,7 +228,7 @@ class GschpooziWizard:
 
     def _run_shell_interactive(self, command: str) -> int:
         """Run a shell command interactively (KIAUH-style).
-        
+
         Output streams directly to terminal. For commands that need user interaction.
         Returns the exit code.
         """
@@ -240,10 +240,10 @@ class GschpooziWizard:
             return result.returncode
         except Exception:
             return 1
-    
+
     def _run_systemctl(self, action: str, service: str) -> bool:
         """Run systemctl command interactively (allows sudo password prompt).
-        
+
         Returns True on success, False on failure.
         """
         exit_code = self._run_shell_interactive(f"sudo systemctl {action} {service}")
@@ -5587,13 +5587,23 @@ class GschpooziWizard:
                     print("=" * 60 + "\n")
 
                     exit_code = self._run_shell_interactive(str(install_script))
-                    if exit_code == 0:
+                    
+                    # Check if service file was created
+                    service_file = Path("/etc/systemd/system/KlipperScreen.service")
+                    if not service_file.exists():
+                        # Try lowercase
+                        service_file = Path("/etc/systemd/system/klipperscreen.service")
+                    
+                    if exit_code == 0 and service_file.exists():
                         # Ensure service is enabled and started
                         print("\n" + "=" * 60)
                         print("Enabling and starting KlipperScreen service...")
                         print("=" * 60 + "\n")
-                        self._run_systemctl("enable", "KlipperScreen")
-                        self._run_systemctl("start", "KlipperScreen")
+                        
+                        svc = "KlipperScreen" if "KlipperScreen" in str(service_file) else "klipperscreen"
+                        self._run_shell_interactive("sudo systemctl daemon-reload")
+                        self._run_systemctl("enable", svc)
+                        self._run_systemctl("start", svc)
                         
                         if update_mgr:
                             self._ensure_moonraker_update_manager_entry("KlipperScreen", update_mgr)
@@ -5603,10 +5613,21 @@ class GschpooziWizard:
                             title="Installation Complete",
                         )
                     else:
+                        # Installation failed or service not created
+                        error_msg = f"Exit code: {exit_code}\n\n"
+                        if not service_file.exists():
+                            error_msg += "Service file was NOT created.\n"
+                            error_msg += "The install script may have failed.\n\n"
+                            error_msg += "Check terminal output above for errors.\n"
+                            error_msg += "Common issues:\n"
+                            error_msg += "- Missing dependencies\n"
+                            error_msg += "- Permission denied\n"
+                            error_msg += "- Python version too old"
                         self.ui.msgbox(
-                            f"Installation may have failed (exit code: {exit_code}).\n\n"
-                            "Check terminal output for errors.",
-                            title="Installation Issue",
+                            f"Installation failed!\n\n{error_msg}",
+                            title="Installation Failed",
+                            height=18,
+                            width=80,
                         )
                 else:
                     # UPDATE
