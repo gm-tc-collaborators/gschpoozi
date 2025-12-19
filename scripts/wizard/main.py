@@ -6703,31 +6703,56 @@ class GschpooziWizard:
         Safety: by default we only generate a commented example block unless the user
         explicitly chooses to emit the live [autotune_tmc] section.
         """
-        def _has_klipper_tmc_autotune() -> bool:
-            """Best-effort detection of klipper_tmc_autotune in Klipper extras."""
+        def _tmc_autotune_install_status() -> tuple[bool, list[str], str]:
+            """
+            Detect whether klipper_tmc_autotune is installed and COMPLETE.
+
+            The upstream installer links 3 files into Klipper:
+              - autotune_tmc.py
+              - motor_constants.py
+              - motor_database.cfg
+
+            Returns: (is_complete, missing_files, target_dir)
+            """
             try:
                 from pathlib import Path as _Path
                 base = _Path.home() / "klipper" / "klippy"
-                candidates = (
-                    base / "extras" / "autotune_tmc.py",
-                    base / "extras" / "autotune_tmc.pyc",
-                    base / "extras" / "tmc_autotune.py",
-                    base / "plugins" / "autotune_tmc.py",
-                    base / "plugins" / "autotune_tmc.pyc",
-                    base / "plugins" / "tmc_autotune.py",
-                )
-                return any(p.exists() for p in candidates)
-            except Exception:
-                return False
+                target = base / "plugins" if (base / "plugins").exists() else (base / "extras")
 
-        plugin_installed = _has_klipper_tmc_autotune()
+                required = {
+                    "autotune_tmc.py": target / "autotune_tmc.py",
+                    "motor_constants.py": target / "motor_constants.py",
+                    "motor_database.cfg": target / "motor_database.cfg",
+                }
+                missing = [name for name, p in required.items() if not p.exists()]
+                return (len(missing) == 0), missing, str(target)
+            except Exception:
+                return False, ["autotune_tmc.py", "motor_constants.py", "motor_database.cfg"], str(Path.home() / "klipper" / "klippy" / "extras")
+
+        plugin_installed, missing_files, target_dir = _tmc_autotune_install_status()
+
+        if (not plugin_installed) and missing_files and ("autotune_tmc.py" not in missing_files):
+            # Partial install: module exists but DB/constants are missing (causes Klipper load errors).
+            if self.ui.yesno(
+                "TMC Autotune plugin appears PARTIALLY installed.\n\n"
+                f"Target: {target_dir}\n"
+                f"Missing: {', '.join(missing_files)}\n\n"
+                "Repair by re-linking the plugin files now?",
+                title="TMC Autotune - Repair",
+                default_no=False,
+                height=16,
+                width=88,
+            ):
+                # Force the install/update flow below to run.
+                plugin_installed = False
+
         if not plugin_installed:
             if self.ui.yesno(
                 "klipper_tmc_autotune plugin not detected.\n\n"
                 "Would you like to install/update it now?\n\n"
                 "This will:\n"
                 "- clone/pull the plugin repo into ~/klipper_tmc_autotune\n"
-                "- copy autotune_tmc.py into ~/klipper/klippy/extras/\n"
+                "- link plugin files into ~/klipper/klippy/extras/ (or plugins/)\n"
                 "- optionally restart the Klipper service\n\n"
                 "Note: This is system-changing and may prompt for sudo.",
                 title="TMC Autotune - Install Plugin",
@@ -6814,7 +6839,7 @@ echo "Done. Press Enter to return to wizard."
 read -r _
 """
                     rc = self._run_tty_command(["bash", "-lc", script])
-                    plugin_installed = _has_klipper_tmc_autotune()
+                    plugin_installed, missing_files, target_dir = _tmc_autotune_install_status()
                     if rc == 0 and plugin_installed:
                         self.ui.msgbox(
                             "Plugin installed and detected!\n\n"
@@ -6834,8 +6859,8 @@ read -r _
                     else:
                         self.ui.msgbox(
                             "Install/update finished, but plugin still not detected.\n\n"
-                            "Expected file:\n"
-                            "~/klipper/klippy/extras/autotune_tmc.py\n\n"
+                            f"Target: {target_dir}\n"
+                            f"Missing: {', '.join(missing_files) if missing_files else 'unknown'}\n\n"
                             "Check the console output for details.",
                             title="Not Detected",
                             height=14,
