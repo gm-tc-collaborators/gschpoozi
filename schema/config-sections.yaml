@@ -684,9 +684,15 @@ common:
       # See: https://github.com/andrewmcgr/klipper_tmc_autotune#autotune-configuration
       {% for s in (tuning.tmc_autotune.steppers | default([])) %}
       [autotune_tmc {{ s.stepper }}]
-      {% if s.motor %}motor: {{ s.motor }}{% endif %}
-      {% if tuning.tmc_autotune.voltage %}voltage: {{ tuning.tmc_autotune.voltage }}{% endif %}
-      {% if tuning.tmc_autotune.tuning_goal %}tuning_goal: {{ tuning.tmc_autotune.tuning_goal }}{% endif %}
+      {% if s.motor -%}
+      motor: {{ s.motor }}
+      {% endif -%}
+      {% if tuning.tmc_autotune.voltage -%}
+      voltage: {{ tuning.tmc_autotune.voltage }}
+      {% endif -%}
+      {% if tuning.tmc_autotune.tuning_goal -%}
+      tuning_goal: {{ tuning.tmc_autotune.tuning_goal }}
+      {% endif %}
 
       {% endfor %}
       {% else %}
