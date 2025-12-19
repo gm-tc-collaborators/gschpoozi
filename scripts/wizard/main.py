@@ -5932,6 +5932,125 @@ class GschpooziWizard:
                 return False
 
         plugin_installed = _has_klipper_tmc_autotune()
+        if not plugin_installed:
+            if self.ui.yesno(
+                "klipper_tmc_autotune plugin not detected.\n\n"
+                "Would you like to install/update it now?\n\n"
+                "This will:\n"
+                "- clone/pull the plugin repo into ~/klipper_tmc_autotune\n"
+                "- copy autotune_tmc.py into ~/klipper/klippy/extras/\n"
+                "- optionally restart the Klipper service\n\n"
+                "Note: This is system-changing and may prompt for sudo.",
+                title="TMC Autotune - Install Plugin",
+                default_no=False,
+                height=20,
+                width=88,
+            ):
+                if not (Path.home() / "klipper" / "klippy" / "extras").exists():
+                    self.ui.msgbox(
+                        "Klipper source tree not found at:\n\n"
+                        "~/klipper/klippy/extras\n\n"
+                        "Install Klipper first (Klipper Setup → Manage Components → install klipper),\n"
+                        "then retry this install.",
+                        title="Cannot Install",
+                        height=14,
+                        width=80,
+                    )
+                else:
+                    restart = self.ui.yesno(
+                        "Restart Klipper after installing the plugin?\n\n"
+                        "Recommended: Yes (required for Klipper to load new extras).",
+                        title="Restart Klipper",
+                        default_no=False,
+                        height=12,
+                        width=70,
+                    )
+                    if restart is None:
+                        restart = True
+
+                    script = r"""
+set -euo pipefail
+REPO_URL="https://github.com/andrewmcgr/klipper_tmc_autotune.git"
+PLUGIN_DIR="$HOME/klipper_tmc_autotune"
+KLIPPER_EXTRAS="$HOME/klipper/klippy/extras"
+
+echo "== klipper_tmc_autotune install/update =="
+echo "Repo: $REPO_URL"
+echo "Plugin dir: $PLUGIN_DIR"
+echo "Klipper extras: $KLIPPER_EXTRAS"
+echo ""
+
+if [ ! -d "$KLIPPER_EXTRAS" ]; then
+  echo "ERROR: Klipper extras directory not found: $KLIPPER_EXTRAS"
+  exit 1
+fi
+
+if [ -d "$PLUGIN_DIR/.git" ]; then
+  echo "Updating existing repo..."
+  git -C "$PLUGIN_DIR" fetch --prune --tags
+  git -C "$PLUGIN_DIR" pull --ff-only
+else
+  echo "Cloning repo..."
+  rm -rf "$PLUGIN_DIR"
+  git clone "$REPO_URL" "$PLUGIN_DIR"
+fi
+
+SRC="$(find "$PLUGIN_DIR" -maxdepth 2 -name 'autotune_tmc.py' | head -n 1 || true)"
+if [ -z "$SRC" ]; then
+  echo "ERROR: Could not find autotune_tmc.py in $PLUGIN_DIR"
+  exit 1
+fi
+
+DEST="$KLIPPER_EXTRAS/autotune_tmc.py"
+if [ -f "$DEST" ]; then
+  echo "Backing up existing extras file..."
+  cp -f "$DEST" "$DEST.bak.$(date +%Y%m%d_%H%M%S)"
+fi
+
+echo "Installing: $SRC -> $DEST"
+install -m 0644 "$SRC" "$DEST"
+echo "Installed."
+"""
+                    if restart:
+                        script += r"""
+echo ""
+echo "Restarting klipper service..."
+sudo systemctl restart klipper
+echo "Restarted."
+"""
+                    script += r"""
+echo ""
+echo "Done. Press Enter to return to wizard."
+read -r _
+"""
+                    rc = self._run_tty_command(["bash", "-lc", script])
+                    plugin_installed = _has_klipper_tmc_autotune()
+                    if rc == 0 and plugin_installed:
+                        self.ui.msgbox(
+                            "Plugin installed and detected!\n\n"
+                            "You can now safely enable 'Emit active config'.",
+                            title="Installed",
+                            height=12,
+                            width=70,
+                        )
+                    elif rc != 0:
+                        self.ui.msgbox(
+                            f"Install/update command failed (exit code {rc}).\n\n"
+                            "Check the console output for details.",
+                            title="Install Failed",
+                            height=12,
+                            width=70,
+                        )
+                    else:
+                        self.ui.msgbox(
+                            "Install/update finished, but plugin still not detected.\n\n"
+                            "Expected file:\n"
+                            "~/klipper/klippy/extras/autotune_tmc.py\n\n"
+                            "Check the console output for details.",
+                            title="Not Detected",
+                            height=14,
+                            width=80,
+                        )
 
         enabled = self.ui.yesno(
             "Enable TMC Autotune config generation?\n\n"
