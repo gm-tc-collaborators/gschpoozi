@@ -1946,7 +1946,11 @@ class GschpooziWizard:
                 gates = self.ui.inputbox(
                     "How many gates/lanes does your MMU have?",
                     title="Gate Count",
-                    default=str((mmu_info.get(\"typical_num_gates\") or [])[0] if isinstance(mmu_info.get(\"typical_num_gates\"), list) and mmu_info.get(\"typical_num_gates\") else 4),
+                    default=str(
+                        (mmu_info.get("typical_num_gates") or [4])[0]
+                        if isinstance(mmu_info.get("typical_num_gates"), list)
+                        else 4
+                    ),
                 )
                 if gates is None:
                     continue
