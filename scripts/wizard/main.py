@@ -5586,25 +5586,25 @@ class GschpooziWizard:
                     print("Running install script...")
                     print("=" * 60 + "\n")
 
-                    exit_code = self._run_shell_interactive(str(install_script))
-                    
+                    exit_code = self._run_shell_interactive(f"bash {install_script}")
+
                     # Check if service file was created
                     service_file = Path("/etc/systemd/system/KlipperScreen.service")
                     if not service_file.exists():
                         # Try lowercase
                         service_file = Path("/etc/systemd/system/klipperscreen.service")
-                    
+
                     if exit_code == 0 and service_file.exists():
                         # Ensure service is enabled and started
                         print("\n" + "=" * 60)
                         print("Enabling and starting KlipperScreen service...")
                         print("=" * 60 + "\n")
-                        
+
                         svc = "KlipperScreen" if "KlipperScreen" in str(service_file) else "klipperscreen"
                         self._run_shell_interactive("sudo systemctl daemon-reload")
                         self._run_systemctl("enable", svc)
                         self._run_systemctl("start", svc)
-                        
+
                         if update_mgr:
                             self._ensure_moonraker_update_manager_entry("KlipperScreen", update_mgr)
                         self.ui.msgbox(
