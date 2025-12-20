@@ -7209,50 +7209,47 @@ class GschpooziWizard:
                     default_vendor = dv.upper() if len(dv) <= 4 else dv.title()
 
             while True:
-                # Step 1: Select vendor
-                vendor_items: list[tuple[str, str, bool]] = []
+                # Step 1: Select vendor (using menu for reliable selection)
+                vendor_items: list[tuple[str, str]] = []
                 for vendor in sorted(vendors.keys()):
                     count = len(vendors[vendor])
-                    is_default = (vendor == default_vendor)
-                    vendor_items.append((vendor, f"{vendor} ({count} motors)", is_default))
+                    vendor_items.append((vendor, f"{vendor} ({count} motors)"))
 
-                # Add skip/cancel options
-                vendor_items.append(("__SKIP__", "Skip (no motor for this group)", False))
+                # Add skip option
+                vendor_items.append(("__SKIP__", "Skip (no motor for this group)"))
 
-                selected_vendor = self.ui.radiolist(
+                selected_vendor = self.ui.menu(
                     f"Select motor vendor for {purpose}:",
                     vendor_items,
                     title=f"TMC Autotune - {purpose} - Vendor",
                     height=min(len(vendor_items) + 12, 30),
                     width=80,
-                    list_height=min(len(vendor_items), 18),
+                    menu_height=min(len(vendor_items), 18),
                 )
                 if selected_vendor is None:
                     return None
                 if selected_vendor == "__SKIP__":
                     return ""
 
-                # Step 2: Select motor from vendor
+                # Step 2: Select motor from vendor (using menu for reliable selection)
                 vendor_motors = vendors.get(selected_vendor, [])
                 if not vendor_motors:
                     continue
 
-                motor_items: list[tuple[str, str, bool]] = []
+                motor_items: list[tuple[str, str]] = []
                 for motor in sorted(vendor_motors):
-                    is_default = (motor == default_value)
-                    # Show just the model part (after vendor prefix) for cleaner display
-                    display = motor
-                    motor_items.append((motor, display, is_default))
+                    # Show the full motor ID
+                    motor_items.append((motor, motor))
 
-                motor_items.append(("__BACK__", "← Back to vendor selection", False))
+                motor_items.append(("__BACK__", "← Back to vendor selection"))
 
-                selected_motor = self.ui.radiolist(
+                selected_motor = self.ui.menu(
                     f"Select motor for {purpose}:\n\nVendor: {selected_vendor}",
                     motor_items,
                     title=f"TMC Autotune - {purpose} - Motor",
                     height=min(len(motor_items) + 12, 35),
                     width=100,
-                    list_height=min(len(motor_items), 25),
+                    menu_height=min(len(motor_items), 25),
                 )
                 if selected_motor is None:
                     return None
