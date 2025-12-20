@@ -7869,6 +7869,112 @@ read -r _
 
         self.ui.msgbox("Input shaper saved!", title="Saved")
 
+    def _configure_accelerometer(self) -> None:
+        """Configure accelerometer for input shaper calibration."""
+        # Detect available accelerometer sources
+        sources = []
+
+        # Check toolboard for accelerometer
+        toolboard_id = self.state.get("mcu.toolboard.board_type", "")
+        if toolboard_id:
+            toolboard_data = self._load_board_data(toolboard_id, "toolboards")
+            if toolboard_data and toolboard_data.get("accelerometer"):
+                accel_info = toolboard_data["accelerometer"]
+                accel_type = accel_info.get("type", "ADXL345")
+                sources.append(("toolboard", f"Toolboard ({accel_type})"))
+
+        # Check probe for accelerometer (Beacon, Cartographer)
+        probe_type = self.state.get("probe.probe_type", "")
+        if probe_type == "beacon":
+            sources.append(("beacon", "Beacon (built-in accelerometer)"))
+        elif probe_type == "cartographer":
+            sources.append(("cartographer", "Cartographer (built-in accelerometer)"))
+
+        # Always offer "none" option
+        sources.append(("none", "None / Manual configuration"))
+
+        if len(sources) == 1:  # Only "none"
+            self.ui.msgbox(
+                "No accelerometer detected!\n\n"
+                "To use input shaper calibration, you need:\n"
+                "• A toolboard with ADXL345/LIS2DW accelerometer, OR\n"
+                "• A Beacon or Cartographer probe (with built-in accelerometer)\n\n"
+                "Configure your hardware first, then return here.",
+                title="Accelerometer Setup"
+            )
+            return
+
+        current_source = self.state.get("tuning.accelerometer.source", "")
+        choice = self.ui.menu(
+            "Select accelerometer source:\n\n"
+            "This configures [adxl345]/[lis2dw] and [resonance_tester] sections\n"
+            "for input shaper calibration.\n\n"
+            "After configuration, use CALIBRATE_SHAPER macro to calibrate.",
+            [(s[0], s[1], s[0] == current_source) for s in sources],
+            title="Accelerometer Setup",
+            height=20,
+            width=80,
+        )
+        if choice is None:
+            return
+
+        if choice == "none":
+            self.state.delete("tuning.accelerometer")
+            self.state.save()
+            self.ui.msgbox("Accelerometer disabled.", title="Saved")
+            return
+
+        # Configure based on source
+        if choice == "toolboard":
+            toolboard_data = self._load_board_data(toolboard_id, "toolboards")
+            accel_info = toolboard_data.get("accelerometer", {})
+
+            self.state.set("tuning.accelerometer.enabled", True)
+            self.state.set("tuning.accelerometer.source", "toolboard")
+            self.state.set("tuning.accelerometer.type", accel_info.get("type", "ADXL345"))
+            self.state.set("tuning.accelerometer.mcu_prefix", "toolboard:")
+            self.state.set("tuning.accelerometer.cs_pin", accel_info.get("cs_pin", ""))
+
+            # SPI configuration
+            if accel_info.get("spi_bus"):
+                self.state.set("tuning.accelerometer.spi_bus", accel_info["spi_bus"])
+            else:
+                # Software SPI
+                self.state.set("tuning.accelerometer.spi_software_sclk_pin",
+                               accel_info.get("spi_software_sclk_pin", ""))
+                self.state.set("tuning.accelerometer.spi_software_mosi_pin",
+                               accel_info.get("spi_software_mosi_pin", ""))
+                self.state.set("tuning.accelerometer.spi_software_miso_pin",
+                               accel_info.get("spi_software_miso_pin", ""))
+
+        elif choice == "beacon":
+            self.state.set("tuning.accelerometer.enabled", True)
+            self.state.set("tuning.accelerometer.source", "beacon")
+            # Beacon has its own accel_chip, no adxl345 section needed
+
+        elif choice == "cartographer":
+            self.state.set("tuning.accelerometer.enabled", True)
+            self.state.set("tuning.accelerometer.source", "cartographer")
+            self.state.set("tuning.accelerometer.type", "ADXL345")
+            self.state.set("tuning.accelerometer.mcu_prefix", "cartographer:")
+            self.state.set("tuning.accelerometer.cs_pin", "PA3")
+            self.state.set("tuning.accelerometer.spi_bus", "spi1")
+
+        self.state.save()
+
+        self.ui.msgbox(
+            f"Accelerometer configured!\n\n"
+            f"Source: {choice}\n\n"
+            f"After generating config, use these macros:\n"
+            f"• CALIBRATE_SHAPER - Full calibration\n"
+            f"• COMPARE_BELTS - Belt tension check (CoreXY)\n"
+            f"• SHAPER_CALIBRATION_WIZARD - Step-by-step guide\n\n"
+            f"Graphs will be saved to config/plots/",
+            title="Accelerometer - Saved",
+            height=18,
+            width=70
+        )
+
     def _configure_macros(self) -> None:
         """
         Configure macro behavior (START_PRINT / END_PRINT).
@@ -7988,12 +8094,21 @@ read -r _
     def tuning_menu(self) -> None:
         """Tuning and optimization menu."""
         while True:
+            # Show accelerometer status
+            accel_source = self.state.get("tuning.accelerometer.source", "")
+            accel_status = {
+                "toolboard": "Toolboard",
+                "beacon": "Beacon",
+                "cartographer": "Cartographer",
+            }.get(accel_source, None)
+
             choice = self.ui.menu(
                 "Tuning & Optimization\n\n"
                 "Configure advanced features and calibration.",
                 [
                     ("3.1", "TMC Autotune         (Motor optimization)"),
                     ("3.2", "Input Shaper         (Resonance compensation)"),
+                    ("3.3", self._format_menu_item("Accelerometer", accel_status) if accel_status else "Accelerometer         (For input shaper calibration)"),
                     ("3.6", "Macros               (START_PRINT, etc.)"),
                     ("3.9", "Exclude Object       (Cancel individual objects)"),
                     ("3.10", "Arc Support         (G2/G3 commands)"),
@@ -8008,6 +8123,8 @@ read -r _
                 self._configure_tmc_autotune()
             elif choice == "3.2":
                 self._configure_input_shaper()
+            elif choice == "3.3":
+                self._configure_accelerometer()
             elif choice == "3.6":
                 self._configure_macros()
             elif choice == "3.10":

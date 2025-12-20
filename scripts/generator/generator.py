@@ -88,6 +88,9 @@ class ConfigGenerator:
             'common.exclude_object': 'gschpoozi/tuning.cfg',
             'common.tmc_autotune': 'gschpoozi/tuning.cfg',
             'common.input_shaper': 'gschpoozi/tuning.cfg',
+            'common.accelerometer': 'gschpoozi/tuning.cfg',
+            'common.resonance_tester': 'gschpoozi/tuning.cfg',
+            'common.shaper_shell_commands': 'gschpoozi/tuning.cfg',
             'common.gcode_arcs': 'gschpoozi/tuning.cfg',
             'common.respond': 'gschpoozi/tuning.cfg',
             'common.save_variables': 'gschpoozi/tuning.cfg',
@@ -144,7 +147,7 @@ class ConfigGenerator:
         if not isinstance(context.get("tuning"), dict):
             context["tuning"] = {}
         # Ensure nested tuning dicts exist for dot-access patterns used in templates
-        for k in ("virtual_sdcard", "idle_timeout", "pause_resume", "arc_support", "respond", "save_variables", "exclude_object", "tmc_autotune", "input_shaper"):
+        for k in ("virtual_sdcard", "idle_timeout", "pause_resume", "arc_support", "respond", "save_variables", "exclude_object", "tmc_autotune", "input_shaper", "accelerometer"):
             if not isinstance(context["tuning"].get(k), dict):
                 context["tuning"][k] = {}
         # Defaults for always-safe tuning sections

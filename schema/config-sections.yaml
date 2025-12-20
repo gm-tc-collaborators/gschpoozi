@@ -647,6 +647,71 @@ common:
       damping_ratio_y: {{ tuning.input_shaper.damping_ratio_y | default(0.1) }}
       {% endif %}
 
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Accelerometer Configuration
+  # Source: toolboard accelerometer or probe with built-in accelerometer
+  # ─────────────────────────────────────────────────────────────────────────────
+  accelerometer:
+    condition: "tuning.accelerometer.enabled"
+    template: |
+      {% if tuning.accelerometer.source == 'toolboard' %}
+      {% if tuning.accelerometer.type == 'ADXL345' %}
+      [adxl345]
+      {% if tuning.accelerometer.spi_bus %}
+      cs_pin: {{ tuning.accelerometer.mcu_prefix }}{{ tuning.accelerometer.cs_pin }}
+      spi_bus: {{ tuning.accelerometer.spi_bus }}
+      {% else %}
+      cs_pin: {{ tuning.accelerometer.mcu_prefix }}{{ tuning.accelerometer.cs_pin }}
+      spi_software_sclk_pin: {{ tuning.accelerometer.mcu_prefix }}{{ tuning.accelerometer.spi_software_sclk_pin }}
+      spi_software_mosi_pin: {{ tuning.accelerometer.mcu_prefix }}{{ tuning.accelerometer.spi_software_mosi_pin }}
+      spi_software_miso_pin: {{ tuning.accelerometer.mcu_prefix }}{{ tuning.accelerometer.spi_software_miso_pin }}
+      {% endif %}
+      {% elif tuning.accelerometer.type == 'LIS2DW12' %}
+      [lis2dw]
+      cs_pin: {{ tuning.accelerometer.mcu_prefix }}{{ tuning.accelerometer.cs_pin }}
+      {% if tuning.accelerometer.spi_bus %}
+      spi_bus: {{ tuning.accelerometer.spi_bus }}
+      {% endif %}
+      {% endif %}
+      {% endif %}
+
+  resonance_tester:
+    condition: "tuning.accelerometer.enabled"
+    template: |
+      [resonance_tester]
+      {% if tuning.accelerometer.source == 'beacon' %}
+      accel_chip: beacon
+      {% elif tuning.accelerometer.source == 'cartographer' %}
+      accel_chip: adxl345
+      {% elif tuning.accelerometer.type == 'ADXL345' %}
+      accel_chip: adxl345
+      {% elif tuning.accelerometer.type == 'LIS2DW12' %}
+      accel_chip: lis2dw
+      {% endif %}
+      probe_points: {{ (printer.bed_size_x / 2) | int }}, {{ (printer.bed_size_y / 2) | int }}, 20
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # Input Shaper Calibration Shell Commands
+  # Requires gcode_shell_command extension
+  # ─────────────────────────────────────────────────────────────────────────────
+  shaper_shell_commands:
+    condition: "tuning.accelerometer.enabled"
+    template: |
+      [gcode_shell_command shaper_graph_x]
+      command: python3 ~/printer_data/config/gschpoozi/scripts/tools/shaper_graphs.py axis x
+      timeout: 120
+      verbose: True
+
+      [gcode_shell_command shaper_graph_y]
+      command: python3 ~/printer_data/config/gschpoozi/scripts/tools/shaper_graphs.py axis y
+      timeout: 120
+      verbose: True
+
+      [gcode_shell_command shaper_graph_belts]
+      command: python3 ~/printer_data/config/gschpoozi/scripts/tools/shaper_graphs.py belts
+      timeout: 120
+      verbose: True
+
   gcode_arcs:
     # Arc (G2/G3) support
     # Default: enabled (the wizard sets tuning.arc_support.enabled; generator also defaults it on)
@@ -1076,6 +1141,123 @@ common:
           M118 References:
           M118   https://www.klipper3d.org/Config_checks.html
           M118   https://mpx.wiki/Troubleshooting/corexy-direction
+          M118 ════════════════════════════════════════════════════════════════════
+
+      # ─────────────────────────────────────────────────────────────────────────────
+      # INPUT SHAPER CALIBRATION MACROS
+      # Lightweight alternative to Shake&Tune
+      # ─────────────────────────────────────────────────────────────────────────────
+
+      [gcode_macro CALIBRATE_SHAPER]
+      description: Run input shaper calibration for X, Y, or both axes
+      gcode:
+          {% set axis = params.AXIS|default('both')|lower %}
+          {% set accel = params.ACCEL|default(5000)|int %}
+
+          M118 ════════════════════════════════════════════════════════════════════
+          M118 INPUT SHAPER CALIBRATION
+          M118 ════════════════════════════════════════════════════════════════════
+
+          # Home if not already homed
+          {% if "xyz" not in printer.toolhead.homed_axes %}
+              M118 Homing first...
+              G28
+          {% endif %}
+
+          {% if axis == 'x' or axis == 'both' %}
+              M118 Testing X axis resonances...
+              TEST_RESONANCES AXIS=X
+              M118 Generating X axis graph...
+              RUN_SHELL_COMMAND CMD=shaper_graph_x
+          {% endif %}
+
+          {% if axis == 'y' or axis == 'both' %}
+              M118 Testing Y axis resonances...
+              TEST_RESONANCES AXIS=Y
+              M118 Generating Y axis graph...
+              RUN_SHELL_COMMAND CMD=shaper_graph_y
+          {% endif %}
+
+          M118 ════════════════════════════════════════════════════════════════════
+          M118 CALIBRATION COMPLETE
+          M118 ════════════════════════════════════════════════════════════════════
+          M118 View graphs in Mainsail/Fluidd: config/plots/
+          M118 To apply recommendations, run: APPLY_SHAPER
+
+      [gcode_macro COMPARE_BELTS]
+      description: Compare belt tensions (CoreXY). Run resonance tests and generate comparison graph.
+      gcode:
+          M118 ════════════════════════════════════════════════════════════════════
+          M118 BELT TENSION COMPARISON (CoreXY)
+          M118 ════════════════════════════════════════════════════════════════════
+
+          # Home if not already homed
+          {% if "xyz" not in printer.toolhead.homed_axes %}
+              M118 Homing first...
+              G28
+          {% endif %}
+
+          M118 Testing X axis (Belt A+B)...
+          TEST_RESONANCES AXIS=X
+
+          M118 Testing Y axis (Belt A-B)...
+          TEST_RESONANCES AXIS=Y
+
+          M118 Generating belt comparison graph...
+          RUN_SHELL_COMMAND CMD=shaper_graph_belts
+
+          M118 ════════════════════════════════════════════════════════════════════
+          M118 BELT COMPARISON COMPLETE
+          M118 ════════════════════════════════════════════════════════════════════
+          M118 View graph in Mainsail/Fluidd: config/plots/belt_comparison.png
+          M118
+          M118 For CoreXY with uneven belt tension:
+          M118 - Tighten the belt on the axis with LOWER frequency
+          M118 - Target: < 3 Hz difference between X and Y peaks
+
+      [gcode_macro APPLY_SHAPER]
+      description: Apply input shaper recommendations from last calibration
+      gcode:
+          {% set axis = params.AXIS|default('both')|lower %}
+
+          M118 ════════════════════════════════════════════════════════════════════
+          M118 APPLY INPUT SHAPER SETTINGS
+          M118 ════════════════════════════════════════════════════════════════════
+          M118
+          M118 NOTE: This macro shows recommended settings.
+          M118 To permanently apply them, use Mainsail/Fluidd console:
+          M118
+          M118   SAVE_CONFIG
+          M118
+          M118 Or manually edit printer.cfg [input_shaper] section.
+          M118
+          M118 View recommendations: config/plots/shaper_recommendations.json
+          M118 ════════════════════════════════════════════════════════════════════
+
+      [gcode_macro SHAPER_CALIBRATION_WIZARD]
+      description: Display input shaper calibration instructions
+      gcode:
+          M118 ════════════════════════════════════════════════════════════════════
+          M118 INPUT SHAPER CALIBRATION WIZARD
+          M118 ════════════════════════════════════════════════════════════════════
+          M118
+          M118 STEP 1: RUN CALIBRATION
+          M118 Run: CALIBRATE_SHAPER
+          M118 This tests both X and Y axes and generates graphs.
+          M118
+          M118 STEP 2: VIEW GRAPHS
+          M118 In Mainsail/Fluidd, browse to: config/plots/
+          M118 Open shaper_x.png and shaper_y.png
+          M118
+          M118 STEP 3: CHECK BELT TENSION (CoreXY only)
+          M118 Run: COMPARE_BELTS
+          M118 Peaks should be within 3 Hz of each other.
+          M118
+          M118 STEP 4: APPLY SETTINGS
+          M118 Edit [input_shaper] in printer.cfg with recommended values.
+          M118 Or use: SET_INPUT_SHAPER SHAPER_TYPE_X=... SHAPER_FREQ_X=...
+          M118 Then: SAVE_CONFIG
+          M118
           M118 ════════════════════════════════════════════════════════════════════
 
 # Multi-pin groups (for fans with multiple pins)
