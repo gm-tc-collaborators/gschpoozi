@@ -245,6 +245,7 @@ class TemplateRenderer:
             ('tmc_stepper_z', None),
             # Extruder
             ('extruder', None),
+            ('tmc_extruder', None),
             ('heater_bed', None),
             # Fans
             ('multi_pin', None),
