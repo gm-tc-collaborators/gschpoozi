@@ -7528,32 +7528,50 @@ read -r _
         if high_motor is None:
             return
 
-        # === Configure Low Voltage Group (Z + Extruder) ===
-        self.ui.msgbox(
-            f"Configure LOW VOLTAGE group:\n\n"
-            f"Z Steppers: {', '.join(low_voltage_z_steppers)}\n"
-            f"Z Driver (from stepper config): {z_driver}\n\n"
-            f"Extruder Driver (from stepper config): {e_driver}\n\n"
-            "Z and extruder often run on lower voltage (24V) with different motors.",
-            title="TMC Autotune - Low Voltage Group",
+        # Core motors tuning goal
+        current_core_goal = existing_high.get("tuning_goal", "performance")
+        core_goal = self.ui.menu(
+            f"Tuning goal for {high_voltage_label}:\n\n"
+            "Core motors typically benefit from performance or autoswitch.",
+            [
+                ("auto", "Auto (plugin decides)"),
+                ("silent", "Prioritize silence"),
+                ("performance", "Prioritize performance (recommended)"),
+                ("autoswitch", "Auto-switch modes"),
+            ],
+            title="TMC Autotune - Core Motors Goal",
             height=18,
+            width=80,
+            menu_height=6,
+        )
+        if core_goal is None:
+            return
+
+        # === Configure Z Motors ===
+        self.ui.msgbox(
+            f"Configure Z MOTORS:\n\n"
+            f"Steppers: {', '.join(low_voltage_z_steppers)}\n"
+            f"Driver (from stepper config): {z_driver}\n\n"
+            "Z motors typically run on lower voltage and benefit from silent tuning.",
+            title="TMC Autotune - Z Motors",
+            height=16,
             width=80,
         )
 
-        # Low voltage selection
-        current_low_voltage = existing_low.get("voltage", 24)
-        low_voltage = self.ui.radiolist(
-            "Voltage for Z motors and Extruder:",
+        # Z voltage selection
+        current_z_voltage = existing_low.get("voltage", 24)
+        z_voltage = self.ui.radiolist(
+            f"Voltage for Z motors ({', '.join(low_voltage_z_steppers)}):",
             [
-                ("24", "24V (typical)", current_low_voltage == 24),
-                ("48", "48V", current_low_voltage == 48),
+                ("24", "24V (typical)", current_z_voltage == 24),
+                ("48", "48V", current_z_voltage == 48),
             ],
-            title="TMC Autotune - Low Voltage Group",
+            title="TMC Autotune - Z Motors Voltage",
             height=14,
             width=70,
             list_height=4,
         )
-        if low_voltage is None:
+        if z_voltage is None:
             return
 
         # Z motor selection
@@ -7566,6 +7584,51 @@ read -r _
         if z_motor is None:
             return
 
+        # Z motors tuning goal
+        current_z_goal = existing_low.get("z_tuning_goal", "silent")
+        z_goal = self.ui.menu(
+            f"Tuning goal for Z motors:\n\n"
+            "Z motors move slowly - silent mode is often preferred.",
+            [
+                ("auto", "Auto (plugin decides)"),
+                ("silent", "Prioritize silence (recommended)"),
+                ("performance", "Prioritize performance"),
+                ("autoswitch", "Auto-switch modes"),
+            ],
+            title="TMC Autotune - Z Motors Goal",
+            height=18,
+            width=80,
+            menu_height=6,
+        )
+        if z_goal is None:
+            return
+
+        # === Configure Extruder ===
+        self.ui.msgbox(
+            f"Configure EXTRUDER:\n\n"
+            f"Driver (from stepper config): {e_driver}\n\n"
+            "Extruder may have different tuning needs than Z motors.",
+            title="TMC Autotune - Extruder",
+            height=14,
+            width=80,
+        )
+
+        # Extruder voltage selection
+        current_e_voltage = existing_low.get("extruder_voltage", 24)
+        e_voltage = self.ui.radiolist(
+            "Voltage for Extruder:",
+            [
+                ("24", "24V (typical)", current_e_voltage == 24),
+                ("48", "48V", current_e_voltage == 48),
+            ],
+            title="TMC Autotune - Extruder Voltage",
+            height=14,
+            width=70,
+            list_height=4,
+        )
+        if e_voltage is None:
+            return
+
         # Extruder motor selection
         default_e_motor = existing_low.get("extruder_motor", legacy_motor_e) or ""
         extruder_motor = _pick_motor_hierarchical(
@@ -7576,33 +7639,35 @@ read -r _
         if extruder_motor is None:
             return
 
-        # === Tuning Goal ===
-        current_goal = self.state.get("tuning.tmc_autotune.tuning_goal", "auto")
-        goal = self.ui.menu(
-            "Tuning goal (plugin-specific):",
+        # Extruder tuning goal
+        current_e_goal = existing_low.get("extruder_tuning_goal", "auto")
+        e_goal = self.ui.menu(
+            "Tuning goal for Extruder:\n\n"
+            "Extruder tuning depends on your setup and preferences.",
             [
                 ("auto", "Auto (plugin decides)"),
                 ("silent", "Prioritize silence"),
                 ("performance", "Prioritize performance"),
-                ("autoswitch", "Auto-switch modes (plugin-defined)"),
+                ("autoswitch", "Auto-switch modes"),
             ],
-            title="TMC Autotune - Goal",
+            title="TMC Autotune - Extruder Goal",
             height=18,
             width=80,
-            menu_height=8,
+            menu_height=6,
         )
-        if goal is None:
+        if e_goal is None:
             return
 
         # === Build steppers array for generator compatibility ===
         steppers_cfg: list[dict] = []
 
-        # High voltage steppers
+        # Core steppers (high voltage)
         for stepper in high_voltage_steppers:
             steppers_cfg.append({
                 "stepper": stepper,
                 "motor": high_motor,
                 "voltage": int(high_voltage),
+                "tuning_goal": core_goal,
             })
 
         # Z steppers
@@ -7610,31 +7675,36 @@ read -r _
             steppers_cfg.append({
                 "stepper": stepper,
                 "motor": z_motor,
-                "voltage": int(low_voltage),
+                "voltage": int(z_voltage),
+                "tuning_goal": z_goal,
             })
 
         # Extruder
         steppers_cfg.append({
             "stepper": "extruder",
             "motor": extruder_motor,
-            "voltage": int(low_voltage),
+            "voltage": int(e_voltage),
+            "tuning_goal": e_goal,
         })
 
         # === Save state ===
         self.state.set("tuning.tmc_autotune.enabled", True)
         self.state.set("tuning.tmc_autotune.emit_config", bool(emit))
-        self.state.set("tuning.tmc_autotune.tuning_goal", goal)
 
         # Save group settings for UI restoration
         self.state.set("tuning.tmc_autotune.high_voltage_group", {
             "voltage": int(high_voltage),
             "motor": high_motor,
+            "tuning_goal": core_goal,
             "steppers": high_voltage_steppers,
         })
         self.state.set("tuning.tmc_autotune.low_voltage_group", {
-            "voltage": int(low_voltage),
+            "voltage": int(z_voltage),
             "z_motor": z_motor,
+            "z_tuning_goal": z_goal,
+            "extruder_voltage": int(e_voltage),
             "extruder_motor": extruder_motor,
+            "extruder_tuning_goal": e_goal,
         })
 
         # Save steppers array for generator compatibility
@@ -7644,17 +7714,20 @@ read -r _
         # === Summary ===
         summary = (
             "TMC Autotune configured!\n\n"
-            f"HIGH VOLTAGE GROUP ({high_voltage}V):\n"
+            f"CORE MOTORS ({high_voltage}V):\n"
             f"  Motor: {high_motor or '(none)'}\n"
+            f"  Goal: {core_goal}\n"
             f"  Steppers: {', '.join(high_voltage_steppers)}\n\n"
-            f"LOW VOLTAGE GROUP ({low_voltage}V):\n"
-            f"  Z Motor: {z_motor or '(none)'}\n"
-            f"  Z Steppers: {', '.join(low_voltage_z_steppers)}\n"
-            f"  Extruder Motor: {extruder_motor or '(none)'}\n\n"
-            f"Tuning Goal: {goal}\n"
+            f"Z MOTORS ({z_voltage}V):\n"
+            f"  Motor: {z_motor or '(none)'}\n"
+            f"  Goal: {z_goal}\n"
+            f"  Steppers: {', '.join(low_voltage_z_steppers)}\n\n"
+            f"EXTRUDER ({e_voltage}V):\n"
+            f"  Motor: {extruder_motor or '(none)'}\n"
+            f"  Goal: {e_goal}\n\n"
             f"Emit Config: {'Yes' if emit else 'No (commented)'}"
         )
-        self.ui.msgbox(summary, title="TMC Autotune - Saved", height=24, width=80)
+        self.ui.msgbox(summary, title="TMC Autotune - Saved", height=26, width=80)
 
     def _configure_input_shaper(self) -> None:
         """Configure [input_shaper] (resonance compensation)."""

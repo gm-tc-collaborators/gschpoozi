@@ -622,7 +622,9 @@ common:
       {% elif tuning.tmc_autotune.voltage -%}
       voltage: {{ tuning.tmc_autotune.voltage }}
       {% endif -%}
-      {% if tuning.tmc_autotune.tuning_goal -%}
+      {% if s.tuning_goal -%}
+      tuning_goal: {{ s.tuning_goal }}
+      {% elif tuning.tmc_autotune.tuning_goal -%}
       tuning_goal: {{ tuning.tmc_autotune.tuning_goal }}
       {% endif %}
 
