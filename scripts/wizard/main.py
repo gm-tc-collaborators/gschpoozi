@@ -575,6 +575,10 @@ class GschpooziWizard:
         Collect a mapping of raw mainboard pins -> description for conflict detection.
 
         This intentionally focuses on pins the wizard assigns (steppers/fans/heaters/sensors), not a full parser.
+        
+        .. deprecated:: 2.1
+            Use PinManager.load_used_from_state() and PinManager.get_all_used() instead.
+            See scripts/wizard/pins.py for the new unified pin management approach.
         """
         exclude = set()
         for p in (exclude_pins or set()):
@@ -4230,6 +4234,7 @@ class GschpooziWizard:
         )
 
     def _collect_used_mainboard_pins(self, exclude_bed: bool = False) -> set:
+        # .. deprecated:: 2.1 - Use PinManager instead. See scripts/wizard/pins.py
         """Collect mainboard pins already assigned in wizard state.
 
         Args:
@@ -4310,6 +4315,10 @@ class GschpooziWizard:
         """Build radiolist options for output pins (heaters, fans, misc outputs).
 
         Returns list of (tag, label, is_selected) tuples.
+        
+        .. deprecated:: 2.1
+            Use PinManager.select_output_pin() instead.
+            See scripts/wizard/pins.py for the new unified pin selection approach.
         """
         options = []
         seen_tags = set()
@@ -4361,6 +4370,10 @@ class GschpooziWizard:
         """Build radiolist options for thermistor/ADC pins.
 
         Returns list of (tag, label, is_selected) tuples.
+        
+        .. deprecated:: 2.1
+            Use PinManager.select_output_pin() with groups=["thermistor_ports"] instead.
+            See scripts/wizard/pins.py for the new unified pin selection approach.
         """
         options = []
         seen_tags = set()
