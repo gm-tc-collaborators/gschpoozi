@@ -455,7 +455,7 @@ beacon:
     home_method: {{ probe.homing_mode | default('contact') }}
     home_method_when_homed: proximity
     home_autocalibrate: {{ probe.home_autocalibrate | default('unhomed') }}
-    mesh_main_direction: {{ probe.mesh_main_direction | default('x') }}
+    mesh_main_direction: {{ probe.mesh_main_direction | default('y') }}
     mesh_runs: {{ probe.mesh_runs | default(1) }}
 
 cartographer:
@@ -764,7 +764,14 @@ common:
       variable_bed_center_y: {{ (printer.bed_size_y / 2) | int }}
       # Probe and Leveling
       variable_probe_type: "{{ probe.probe_type | default('none') }}"
-      {% if probe.probe_type in ['beacon', 'cartographer', 'btt_eddy'] %}
+      {% if probe.probe_type == 'beacon' %}
+      # Beacon always uses rapid_scan for fast mesh scanning
+      variable_eddy_mesh_method: "rapid_scan"
+      {% elif probe.probe_type == 'cartographer' %}
+      # Cartographer: use scan method (touch mode uses scan for mesh)
+      variable_eddy_mesh_method: "{{ probe.eddy_mesh_method | default('scan') }}"
+      {% elif probe.probe_type == 'btt_eddy' %}
+      # BTT Eddy: use rapid_scan by default for fast scanning
       variable_eddy_mesh_method: "{{ probe.eddy_mesh_method | default('rapid_scan') }}"
       {% else %}
       variable_eddy_mesh_method: "none"

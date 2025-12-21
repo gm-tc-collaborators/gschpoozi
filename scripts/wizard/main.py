@@ -5411,14 +5411,19 @@ class GschpooziWizard:
                 )
 
             elif probe_type == "btt_eddy":
-                homing_mode = self.ui.radiolist(
+                current_eddy_mesh_method = self.state.get("probe.eddy_mesh_method", "rapid_scan")
+                eddy_mesh_method = self.ui.radiolist(
                     "BTT Eddy mesh method:",
                     [
-                        ("rapid_scan", "Rapid Scan (fast)", current_homing_mode == "rapid_scan" or (not current_homing_mode and True)),
-                        ("scan", "Standard Scan", current_homing_mode == "scan"),
+                        ("rapid_scan", "Rapid Scan (fast)", current_eddy_mesh_method == "rapid_scan" or (not current_eddy_mesh_method and True)),
+                        ("scan", "Standard Scan", current_eddy_mesh_method == "scan"),
                     ],
                     title="BTT Eddy - Mesh Method"
                 )
+                if eddy_mesh_method:
+                    self.state.set("probe.eddy_mesh_method", eddy_mesh_method)
+                # BTT Eddy doesn't have separate homing mode, so don't set homing_mode
+                homing_mode = None
 
             # Mesh settings for eddy probes
             current_mesh_direction = self.state.get("probe.mesh_main_direction", "y")
