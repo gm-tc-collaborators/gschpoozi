@@ -8074,21 +8074,52 @@ fi
 # Download from KIAUH repository (same method KIAUH uses)
 EXTENSION_URL="https://raw.githubusercontent.com/th33xitus/kiauh/master/resources/gcode_shell_command.py"
 
-echo "Downloading gcode_shell_command.py from GitHub (KIAUH method)..."
+echo "Downloading gcode_shell_command.py from GitHub..."
+echo "URL: $EXTENSION_URL"
+echo ""
+
+DOWNLOAD_SUCCESS=0
 if command -v wget >/dev/null 2>&1; then
-  wget -q -O "$KLIPPER_TARGET/gcode_shell_command.py" "$EXTENSION_URL"
+  echo "Using wget..."
+  if wget --timeout=30 --tries=3 -q --show-progress -O "$KLIPPER_TARGET/gcode_shell_command.py" "$EXTENSION_URL" 2>&1; then
+    DOWNLOAD_SUCCESS=1
+  else
+    echo "wget failed, exit code: $?"
+  fi
 elif command -v curl >/dev/null 2>&1; then
-  curl -sSL -o "$KLIPPER_TARGET/gcode_shell_command.py" "$EXTENSION_URL"
+  echo "Using curl..."
+  if curl --max-time 30 --connect-timeout 10 -sSL --progress-bar -o "$KLIPPER_TARGET/gcode_shell_command.py" "$EXTENSION_URL" 2>&1; then
+    DOWNLOAD_SUCCESS=1
+  else
+    echo "curl failed, exit code: $?"
+  fi
 else
   echo "ERROR: Neither wget nor curl found. Please install one of them."
   exit 1
 fi
 
-if [ ! -f "$KLIPPER_TARGET/gcode_shell_command.py" ] || [ ! -s "$KLIPPER_TARGET/gcode_shell_command.py" ]; then
-  echo "ERROR: Failed to download gcode_shell_command.py"
+if [ $DOWNLOAD_SUCCESS -eq 0 ]; then
+  echo ""
+  echo "ERROR: Download failed or timed out"
+  echo "Please check your internet connection and try again."
   exit 1
 fi
 
+if [ ! -f "$KLIPPER_TARGET/gcode_shell_command.py" ] || [ ! -s "$KLIPPER_TARGET/gcode_shell_command.py" ]; then
+  echo ""
+  echo "ERROR: Downloaded file is missing or empty"
+  exit 1
+fi
+
+FILE_SIZE=$(stat -c%s "$KLIPPER_TARGET/gcode_shell_command.py" 2>/dev/null || echo "0")
+echo "Downloaded file size: $FILE_SIZE bytes"
+if [ "$FILE_SIZE" -lt 100 ]; then
+  echo "ERROR: File is too small, download may have failed"
+  rm -f "$KLIPPER_TARGET/gcode_shell_command.py"
+  exit 1
+fi
+
+echo ""
 echo "Extension installed to: $KLIPPER_TARGET/gcode_shell_command.py"
 """
                     if restart:
@@ -8245,21 +8276,52 @@ fi
 # Download from KIAUH repository (same method KIAUH uses)
 EXTENSION_URL="https://raw.githubusercontent.com/th33xitus/kiauh/master/resources/gcode_shell_command.py"
 
-echo "Downloading gcode_shell_command.py from GitHub (KIAUH method)..."
+echo "Downloading gcode_shell_command.py from GitHub..."
+echo "URL: $EXTENSION_URL"
+echo ""
+
+DOWNLOAD_SUCCESS=0
 if command -v wget >/dev/null 2>&1; then
-  wget -q -O "$KLIPPER_TARGET/gcode_shell_command.py" "$EXTENSION_URL"
+  echo "Using wget..."
+  if wget --timeout=30 --tries=3 -q --show-progress -O "$KLIPPER_TARGET/gcode_shell_command.py" "$EXTENSION_URL" 2>&1; then
+    DOWNLOAD_SUCCESS=1
+  else
+    echo "wget failed, exit code: $?"
+  fi
 elif command -v curl >/dev/null 2>&1; then
-  curl -sSL -o "$KLIPPER_TARGET/gcode_shell_command.py" "$EXTENSION_URL"
+  echo "Using curl..."
+  if curl --max-time 30 --connect-timeout 10 -sSL --progress-bar -o "$KLIPPER_TARGET/gcode_shell_command.py" "$EXTENSION_URL" 2>&1; then
+    DOWNLOAD_SUCCESS=1
+  else
+    echo "curl failed, exit code: $?"
+  fi
 else
   echo "ERROR: Neither wget nor curl found. Please install one of them."
   exit 1
 fi
 
-if [ ! -f "$KLIPPER_TARGET/gcode_shell_command.py" ] || [ ! -s "$KLIPPER_TARGET/gcode_shell_command.py" ]; then
-  echo "ERROR: Failed to download gcode_shell_command.py"
+if [ $DOWNLOAD_SUCCESS -eq 0 ]; then
+  echo ""
+  echo "ERROR: Download failed or timed out"
+  echo "Please check your internet connection and try again."
   exit 1
 fi
 
+if [ ! -f "$KLIPPER_TARGET/gcode_shell_command.py" ] || [ ! -s "$KLIPPER_TARGET/gcode_shell_command.py" ]; then
+  echo ""
+  echo "ERROR: Downloaded file is missing or empty"
+  exit 1
+fi
+
+FILE_SIZE=$(stat -c%s "$KLIPPER_TARGET/gcode_shell_command.py" 2>/dev/null || echo "0")
+echo "Downloaded file size: $FILE_SIZE bytes"
+if [ "$FILE_SIZE" -lt 100 ]; then
+  echo "ERROR: File is too small, download may have failed"
+  rm -f "$KLIPPER_TARGET/gcode_shell_command.py"
+  exit 1
+fi
+
+echo ""
 echo "Extension installed to: $KLIPPER_TARGET/gcode_shell_command.py"
 """
             if restart:
