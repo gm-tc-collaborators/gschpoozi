@@ -914,7 +914,10 @@ class ConfigGenerator:
 
         for file_path, sections in files.items():
             header = self._generate_header(file_path)
-            content = header + "\n".join(sections)
+            # Join sections with double newlines to ensure spacing between sections
+            # Each section already ends with at least one newline (from renderer)
+            # Adding another newline creates the blank line spacing
+            content = header + "\n\n".join(s.rstrip() for s in sections) + "\n"
             result[file_path] = content
 
         # Ensure expected output files exist even if empty (printer.cfg includes them).
