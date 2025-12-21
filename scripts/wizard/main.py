@@ -8009,7 +8009,7 @@ read -r _
             return
 
         current_source = self.state.get("tuning.accelerometer.source", "")
-        choice = self.ui.menu(
+        choice = self.ui.radiolist(
             "Select accelerometer source:\n\n"
             "This configures [adxl345]/[lis2dw] and [resonance_tester] sections\n"
             "for input shaper calibration.\n\n"
