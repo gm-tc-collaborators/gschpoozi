@@ -8079,31 +8079,55 @@ else
 fi
 
 echo "Validating Python syntax..."
+# First check if file has BOM or encoding issues
+if file "$TEMP_FILE" | grep -q "BOM\|UTF-16\|UTF-32"; then
+  echo "WARNING: File has encoding issues, attempting to fix..."
+  # Convert to UTF-8 without BOM
+  python3 -c "
+import sys
+with open('$TEMP_FILE', 'rb') as f:
+    data = f.read()
+# Remove BOM if present
+if data.startswith(b'\xef\xbb\xbf'):
+    data = data[3:]
+# Try to decode and re-encode as UTF-8
+try:
+    text = data.decode('utf-8')
+except UnicodeDecodeError:
+    text = data.decode('utf-8', errors='ignore')
+with open('$TEMP_FILE', 'w', encoding='utf-8') as f:
+    f.write(text)
+"
+fi
+
+# Validate syntax
 if ! $PYTHON_CMD -m py_compile "$TEMP_FILE" 2>&1; then
   echo ""
   echo "ERROR: Downloaded file has Python syntax errors"
   echo "First few lines of the file:"
-  head -n 5 "$TEMP_FILE"
+  head -n 5 "$TEMP_FILE" | cat -A
   echo ""
   echo "This may indicate:"
   echo "- Network issue (downloaded HTML error page)"
   echo "- Python version incompatibility"
-  echo "- File format issue"
+  echo "- File format/encoding issue"
   rm -f "$TEMP_FILE"
   exit 1
 fi
 
-# Check for common syntax issues that cause "illegal target for annotation"
-if grep -q "^[[:space:]]*from __future__ import annotations" "$TEMP_FILE"; then
-  # Check Python version supports __future__ annotations
-  PYTHON_VERSION=$($PYTHON_CMD -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
-  PYTHON_MAJOR=$(echo "$PYTHON_VERSION" | cut -d. -f1)
-  PYTHON_MINOR=$(echo "$PYTHON_VERSION" | cut -d. -f2)
-  if [ "$PYTHON_MAJOR" -lt 3 ] || ([ "$PYTHON_MAJOR" -eq 3 ] && [ "$PYTHON_MINOR" -lt 7 ]); then
-    echo "WARNING: Python $PYTHON_VERSION may not fully support __future__ annotations"
-    echo "The extension may still work, but syntax validation is limited."
-  fi
-fi
+# Ensure file starts with proper Python header (no BOM, proper encoding)
+# Re-save the file to ensure clean UTF-8 encoding
+python3 << 'PYEOF'
+import sys
+with open('$TEMP_FILE', 'r', encoding='utf-8') as f:
+    content = f.read()
+# Remove any BOM that might have been added
+if content.startswith('\ufeff'):
+    content = content[1:]
+# Ensure it starts cleanly
+with open('$TEMP_FILE', 'w', encoding='utf-8', newline='\n') as f:
+    f.write(content)
+PYEOF
 
 # Move validated file to target location
 mv "$TEMP_FILE" "$KLIPPER_TARGET/gcode_shell_command.py"
