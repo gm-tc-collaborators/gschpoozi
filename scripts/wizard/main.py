@@ -5598,8 +5598,17 @@ class GschpooziWizard:
                     if mesh_max is None:
                         return
 
-                    # Keep probe_count as-is for compatibility, but don't force the user to set it here.
-                    probe_count = current_probe_count
+                    # Prompt for probe_count for eddy probes too
+                    probe_count = self.ui.inputbox(
+                        "Mesh probe count (e.g., 5,5 or 9,9):\n\n"
+                        "Number of probe points in X and Y directions.\n"
+                        "Higher values = more accurate but slower.\n"
+                        "Example: 5,5 (default) or 9,9 for finer mesh.",
+                        default=current_probe_count,
+                        title="Bed Mesh - Probe Count"
+                    )
+                    if probe_count is None:
+                        return
                 else:
                     # Standard probes: probe_count is the primary setting; default boundaries to auto if not set.
                     probe_count = self.ui.inputbox(
@@ -5625,7 +5634,7 @@ class GschpooziWizard:
             mesh_details = ""
             if enable_mesh:
                 if is_eddy_probe:
-                    mesh_details = f"Mesh min/max: {mesh_min} → {mesh_max}\n"
+                    mesh_details = f"Mesh min/max: {mesh_min} → {mesh_max}\nProbe count: {probe_count}\n"
                 else:
                     mesh_details = f"Probe count: {probe_count}\n"
 
