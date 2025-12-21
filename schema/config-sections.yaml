@@ -689,7 +689,13 @@ common:
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Input Shaper Calibration Shell Commands
-  # Requires gcode_shell_command extension
+  # Requires gcode_shell_command extension to be installed in Klipper
+  #
+  # To install the extension:
+  # 1. Download gcode_shell_command.py to ~/klipper/klippy/extras/
+  # 2. Recompile and flash Klipper firmware
+  #
+  # Or use KIAUH: Extensions menu -> G-Code Shell Command
   # ─────────────────────────────────────────────────────────────────────────────
   shaper_shell_commands:
     condition: "tuning.accelerometer.enabled"

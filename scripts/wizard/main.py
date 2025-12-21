@@ -7975,6 +7975,164 @@ read -r _
 
     def _configure_accelerometer(self) -> None:
         """Configure accelerometer for input shaper calibration."""
+        # Check for gcode_shell_command extension (required for shaper graph commands)
+        def _gcode_shell_command_install_status() -> tuple[bool, str]:
+            """Check if gcode_shell_command extension is installed."""
+            try:
+                base = _Path.home() / "klipper" / "klippy"
+                target = base / "plugins" if (base / "plugins").exists() else (base / "extras")
+                extension_file = target / "gcode_shell_command.py"
+                return extension_file.exists(), str(target)
+            except Exception:
+                return False, str(_Path.home() / "klipper" / "klippy" / "extras")
+
+        extension_installed, target_dir = _gcode_shell_command_install_status()
+
+        if not extension_installed:
+            if self.ui.yesno(
+                "gcode_shell_command extension not detected.\n\n"
+                "This extension is required for input shaper graph generation.\n\n"
+                "Would you like to install it now?\n\n"
+                "This will:\n"
+                "- download gcode_shell_command.py to ~/klipper/klippy/extras/\n"
+                "- optionally restart the Klipper service\n\n"
+                "Note: This is system-changing and may prompt for sudo.",
+                title="gcode_shell_command - Install Extension",
+                default_no=False,
+                height=18,
+                width=88,
+            ):
+                if not (_Path.home() / "klipper" / "klippy" / "extras").exists():
+                    self.ui.msgbox(
+                        "Klipper source tree not found at:\n\n"
+                        "~/klipper/klippy/extras\n\n"
+                        "Install Klipper first (Klipper Setup → Manage Components → install klipper),\n"
+                        "then retry this install.",
+                        title="Cannot Install",
+                        height=14,
+                        width=80,
+                    )
+                else:
+                    restart = self.ui.yesno(
+                        "Restart Klipper after installing the extension?\n\n"
+                        "Recommended: Yes (required for Klipper to load new extras).",
+                        title="Restart Klipper",
+                        default_no=False,
+                        height=12,
+                        width=70,
+                    )
+                    if restart is None:
+                        restart = True
+
+                    script = r"""
+set -euo pipefail
+KLIPPER_BASE="$HOME/klipper/klippy"
+if [ -d "$KLIPPER_BASE/plugins" ]; then
+  KLIPPER_TARGET="$KLIPPER_BASE/plugins"
+else
+  KLIPPER_TARGET="$KLIPPER_BASE/extras"
+fi
+
+echo "== gcode_shell_command extension install =="
+echo "Target dir: $KLIPPER_TARGET"
+echo ""
+
+if [ ! -d "$KLIPPER_TARGET" ]; then
+  echo "ERROR: Klipper target directory not found: $KLIPPER_TARGET"
+  exit 1
+fi
+
+# Try multiple sources for gcode_shell_command.py
+EXTENSION_URLS=(
+  "https://raw.githubusercontent.com/th33xitus/kiauh/master/resources/gcode_shell_command.py"
+  "https://raw.githubusercontent.com/Klipper3d/klipper/master/klippy/extras/gcode_shell_command.py"
+)
+
+DOWNLOAD_CMD=""
+if command -v curl >/dev/null 2>&1; then
+  DOWNLOAD_CMD="curl -sSL"
+elif command -v wget >/dev/null 2>&1; then
+  DOWNLOAD_CMD="wget -q -O -"
+else
+  echo "ERROR: Neither curl nor wget found. Please install one of them."
+  exit 1
+fi
+
+SUCCESS=0
+for URL in "${EXTENSION_URLS[@]}"; do
+  echo "Trying: $URL"
+  if [ "$DOWNLOAD_CMD" = "curl -sSL" ]; then
+    if $DOWNLOAD_CMD "$URL" -o "$KLIPPER_TARGET/gcode_shell_command.py" 2>/dev/null; then
+      if [ -f "$KLIPPER_TARGET/gcode_shell_command.py" ] && [ -s "$KLIPPER_TARGET/gcode_shell_command.py" ]; then
+        SUCCESS=1
+        break
+      fi
+    fi
+  else
+    if $DOWNLOAD_CMD "$URL" > "$KLIPPER_TARGET/gcode_shell_command.py" 2>/dev/null; then
+      if [ -f "$KLIPPER_TARGET/gcode_shell_command.py" ] && [ -s "$KLIPPER_TARGET/gcode_shell_command.py" ]; then
+        SUCCESS=1
+        break
+      fi
+    fi
+  fi
+done
+
+if [ $SUCCESS -eq 0 ]; then
+  echo "ERROR: Failed to download gcode_shell_command.py from any source"
+  echo ""
+  echo "Please install manually:"
+  echo "1. Download gcode_shell_command.py from a Klipper extension repository"
+  echo "2. Place it in: $KLIPPER_TARGET/"
+  echo "3. Restart Klipper"
+  exit 1
+fi
+
+echo "Extension installed to: $KLIPPER_TARGET/gcode_shell_command.py"
+chmod +x "$KLIPPER_TARGET/gcode_shell_command.py" 2>/dev/null || true
+"""
+                    if restart:
+                        script += r"""
+echo ""
+echo "Restarting klipper service..."
+sudo systemctl restart klipper
+echo "Restarted."
+"""
+                    script += r"""
+echo ""
+echo "Done. Press Enter to return to wizard."
+read -r _
+"""
+                    rc = self._run_tty_command(["bash", "-lc", script])
+                    extension_installed, target_dir = _gcode_shell_command_install_status()
+                    if rc == 0 and extension_installed:
+                        self.ui.msgbox(
+                            "Extension installed and detected!\n\n"
+                            "You can now use shaper graph commands in your macros.",
+                            title="Installed",
+                            height=12,
+                            width=70,
+                        )
+                    elif rc != 0:
+                        self.ui.msgbox(
+                            f"Install command failed (exit code {rc}).\n\n"
+                            "Check the console output for details.\n\n"
+                            "You may need to manually download gcode_shell_command.py\n"
+                            "from the Klipper community repositories.",
+                            title="Install Failed",
+                            height=14,
+                            width=80,
+                        )
+                    else:
+                        self.ui.msgbox(
+                            "Install finished, but extension still not detected.\n\n"
+                            f"Target: {target_dir}\n\n"
+                            "Check the console output for details.",
+                            title="Not Detected",
+                            height=12,
+                            width=80,
+                        )
+
         # Detect available accelerometer sources
         sources = []
 
