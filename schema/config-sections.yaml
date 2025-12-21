@@ -647,11 +647,12 @@ common:
   # ─────────────────────────────────────────────────────────────────────────────
   # Accelerometer Configuration
   # Source: toolboard accelerometer or probe with built-in accelerometer
+  # Note: Probes with built-in accelerometers (beacon, cartographer) provide their own
+  # accelerometer sections via klipper_config, so we only generate toolboard sections here.
   # ─────────────────────────────────────────────────────────────────────────────
   accelerometer:
-    condition: "tuning.accelerometer.enabled"
+    condition: "tuning.accelerometer.enabled and tuning.accelerometer.source == 'toolboard'"
     template: |
-      {% if tuning.accelerometer.source == 'toolboard' %}
       {% if tuning.accelerometer.type == 'ADXL345' %}
       [adxl345]
       {% if tuning.accelerometer.spi_bus %}
@@ -668,7 +669,6 @@ common:
       cs_pin: {{ tuning.accelerometer.mcu_prefix }}{{ tuning.accelerometer.cs_pin }}
       {% if tuning.accelerometer.spi_bus %}
       spi_bus: {{ tuning.accelerometer.spi_bus }}
-      {% endif %}
       {% endif %}
       {% endif %}
 
@@ -689,7 +689,13 @@ common:
 
   # ─────────────────────────────────────────────────────────────────────────────
   # Input Shaper Calibration Shell Commands
-  # Requires gcode_shell_command extension
+  # Requires gcode_shell_command extension to be installed in Klipper
+  #
+  # To install the extension:
+  # 1. Download gcode_shell_command.py to ~/klipper/klippy/extras/
+  # 2. Recompile and flash Klipper firmware
+  #
+  # Or use KIAUH: Extensions menu -> G-Code Shell Command
   # ─────────────────────────────────────────────────────────────────────────────
   shaper_shell_commands:
     condition: "tuning.accelerometer.enabled"

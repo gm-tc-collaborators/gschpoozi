@@ -1107,6 +1107,7 @@ class GschpooziWizard:
                     ("2", "Hardware Setup        (Configure your printer)"),
                     ("3", "Tuning & Optimization (Macros, input shaper, etc.)"),
                     ("G", "Generate Config       (Create printer.cfg)"),
+                    ("C", "Clear Settings        (Reset all wizard settings)"),
                     ("Q", "Quit"),
                 ],
                 height=40,
@@ -1124,6 +1125,8 @@ class GschpooziWizard:
                 self.tuning_menu()
             elif choice == "G":
                 self.generate_config()
+            elif choice == "C":
+                self._clear_settings()
 
     def _get_status_text(self) -> str:
         """Get status text showing configuration progress."""
@@ -1139,6 +1142,32 @@ class GschpooziWizard:
         else:
             items = [k for k, v in completion.items() if v]
             return f"Status: {done}/{total} sections configured ({', '.join(items)})"
+
+    def _clear_settings(self) -> None:
+        """Clear all wizard settings and reset to defaults."""
+        if not self.ui.yesno(
+            "Clear all wizard settings?\n\n"
+            "This will reset all your configuration choices.\n"
+            "You will need to reconfigure everything.\n\n"
+            "This action cannot be undone!",
+            title="Clear Settings",
+            default_no=True,
+            height=14,
+            width=70,
+        ):
+            return
+
+        # Clear the state
+        self.state.clear()
+        self.state.save()
+
+        self.ui.msgbox(
+            "All settings have been cleared!\n\n"
+            "You can now start fresh configuration.",
+            title="Settings Cleared",
+            height=10,
+            width=60,
+        )
 
     def _format_menu_item(self, base_label: str, status_info: str = None) -> str:
         """Format a menu item with checkmark and status info.
@@ -7981,6 +8010,172 @@ read -r _
 
     def _configure_accelerometer(self) -> None:
         """Configure accelerometer for input shaper calibration."""
+        # Check for gcode_shell_command extension (required for shaper graph commands)
+        def _gcode_shell_command_install_status() -> tuple[bool, str]:
+            """Check if gcode_shell_command extension is installed."""
+            try:
+                base = Path.home() / "klipper" / "klippy"
+                target = base / "plugins" if (base / "plugins").exists() else (base / "extras")
+                extension_file = target / "gcode_shell_command.py"
+                return extension_file.exists(), str(target)
+            except Exception:
+                return False, str(Path.home() / "klipper" / "klippy" / "extras")
+
+        extension_installed, target_dir = _gcode_shell_command_install_status()
+
+        if not extension_installed:
+            if self.ui.yesno(
+                "gcode_shell_command extension not detected.\n\n"
+                "This extension is required for input shaper graph generation.\n\n"
+                "Would you like to install it now?\n\n"
+                "This will:\n"
+                "- download gcode_shell_command.py to ~/klipper/klippy/extras/\n"
+                "- optionally restart the Klipper service\n\n"
+                "Note: This is system-changing and may prompt for sudo.",
+                title="gcode_shell_command - Install Extension",
+                default_no=False,
+                height=18,
+                width=88,
+            ):
+                if not (Path.home() / "klipper" / "klippy" / "extras").exists():
+                    self.ui.msgbox(
+                        "Klipper source tree not found at:\n\n"
+                        "~/klipper/klippy/extras\n\n"
+                        "Install Klipper first (Klipper Setup → Manage Components → install klipper),\n"
+                        "then retry this install.",
+                        title="Cannot Install",
+                        height=14,
+                        width=80,
+                    )
+                else:
+                    restart = self.ui.yesno(
+                        "Restart Klipper after installing the extension?\n\n"
+                        "Recommended: Yes (required for Klipper to load new extras).",
+                        title="Restart Klipper",
+                        default_no=False,
+                        height=12,
+                        width=70,
+                    )
+                    if restart is None:
+                        restart = True
+
+                    # Install using Python - delete old file first, then copy from repo or download
+                    target_base = Path.home() / "klipper" / "klippy"
+                    target_dir = target_base / "plugins" if (target_base / "plugins").exists() else (target_base / "extras")
+                    target_file = target_dir / "gcode_shell_command.py"
+                    source_file = REPO_ROOT / "scripts" / "tools" / "gcode_shell_command.py"
+
+                    if not target_dir.exists():
+                        self.ui.msgbox(
+                            f"Klipper target directory not found:\n\n{target_dir}\n\n"
+                            "Install Klipper first.",
+                            title="Cannot Install",
+                            height=12,
+                            width=70,
+                        )
+                        return
+
+                    try:
+                        # Delete old file first for clean reinstall
+                        if target_file.exists():
+                            target_file.unlink()
+
+                        # Try to copy from repo file first (fastest, no network needed)
+                        if source_file.exists():
+                            import shutil
+                            target_dir.mkdir(parents=True, exist_ok=True)
+                            shutil.copy2(source_file, target_file)
+                            success_msg = f"Extension installed from repository!\n\nLocation: {target_file}"
+                        else:
+                            # Fallback: download from GitHub using Python urllib
+                            import urllib.request
+                            target_dir.mkdir(parents=True, exist_ok=True)
+                            url = "https://raw.githubusercontent.com/th33xitus/kiauh/master/resources/gcode_shell_command.py"
+                            urllib.request.urlretrieve(url, target_file)
+                            success_msg = f"Extension downloaded and installed!\n\nLocation: {target_file}"
+
+                        # Verify the file
+                        if not target_file.exists() or target_file.stat().st_size < 100:
+                            raise Exception("File is missing or too small")
+
+                        self.ui.msgbox(success_msg, title="Installed", height=10, width=70)
+
+                        # Restart if requested
+                        if restart:
+                            import subprocess
+                            subprocess.run(["sudo", "systemctl", "restart", "klipper"], check=False)
+                            self.ui.msgbox(
+                                "Extension installed and Klipper restarted!",
+                                title="Complete",
+                                height=8,
+                                width=60,
+                            )
+
+                        extension_installed, target_dir_str = _gcode_shell_command_install_status()
+                        if extension_installed:
+                            return  # Success, exit the function
+                        else:
+                            self.ui.msgbox(
+                                "Installation completed but extension not detected.\n\n"
+                                f"Check: {target_file}",
+                                title="Warning",
+                                height=10,
+                                width=70,
+                            )
+                    except Exception as e:
+                        self.ui.msgbox(
+                            f"Installation failed:\n\n{str(e)}\n\n"
+                            "You may need to install manually.",
+                            title="Install Failed",
+                            height=12,
+                            width=70,
+                        )
+                        return
+                    if restart:
+                        script += r"""
+echo ""
+echo "Restarting klipper service..."
+sudo systemctl restart klipper
+echo "Restarted."
+"""
+                    script += r"""
+echo ""
+echo "Done. Press Enter to return to wizard."
+read -r _
+"""
+                    rc = self._run_tty_command(["bash", "-lc", script])
+                    extension_installed, target_dir = _gcode_shell_command_install_status()
+                    if rc == 0 and extension_installed:
+                        self.ui.msgbox(
+                            "Extension installed and detected!\n\n"
+                            "You can now use shaper graph commands in your macros.",
+                            title="Installed",
+                            height=12,
+                            width=70,
+                        )
+                    elif rc != 0:
+                        self.ui.msgbox(
+                            f"Install command failed (exit code {rc}).\n\n"
+                            "Check the console output for details.\n\n"
+                            "You may need to manually download gcode_shell_command.py\n"
+                            "from the Klipper community repositories.",
+                            title="Install Failed",
+                            height=14,
+                            width=80,
+                        )
+                    else:
+                        self.ui.msgbox(
+                            "Install finished, but extension still not detected.\n\n"
+                            f"Target: {target_dir}\n\n"
+                            "Check the console output for details.",
+                            title="Not Detected",
+                            height=12,
+                            width=80,
+                        )
+
+        # Show extension status and offer manual install option
+        extension_status = "Installed" if extension_installed else "Not installed"
+
         # Detect available accelerometer sources
         sources = []
 
@@ -8015,17 +8210,132 @@ read -r _
             return
 
         current_source = self.state.get("tuning.accelerometer.source", "")
+
+        # Build menu items
+        menu_items = [(s[0], s[1], s[0] == current_source) for s in sources]
+
+        # Add extension install option if not installed, or manual install option always
+        if not extension_installed:
+            menu_items.append(("__INSTALL__", f"Install gcode_shell_command extension ({extension_status})", False))
+        else:
+            menu_items.append(("__REINSTALL__", f"Reinstall gcode_shell_command extension ({extension_status})", False))
+
+        # Add clear option if configured
+        if current_source:
+            menu_items.append(("__CLEAR__", "Clear/Reset accelerometer settings", False))
+
         choice = self.ui.radiolist(
-            "Select accelerometer source:\n\n"
-            "This configures [adxl345]/[lis2dw] and [resonance_tester] sections\n"
-            "for input shaper calibration.\n\n"
-            "After configuration, use CALIBRATE_SHAPER macro to calibrate.",
-            [(s[0], s[1], s[0] == current_source) for s in sources],
+            f"Select accelerometer source:\n\n"
+            f"This configures [adxl345]/[lis2dw] and [resonance_tester] sections\n"
+            f"for input shaper calibration.\n\n"
+            f"Extension status: {extension_status}\n\n"
+            f"After configuration, use CALIBRATE_SHAPER macro to calibrate.",
+            menu_items,
             title="Accelerometer Setup",
-            height=20,
+            height=22,
             width=80,
         )
         if choice is None:
+            return
+
+        # Handle extension install/reinstall
+        if choice == "__INSTALL__" or choice == "__REINSTALL__":
+            target_base = Path.home() / "klipper" / "klippy"
+            target_dir = target_base / "plugins" if (target_base / "plugins").exists() else (target_base / "extras")
+            target_file = target_dir / "gcode_shell_command.py"
+            source_file = REPO_ROOT / "scripts" / "tools" / "gcode_shell_command.py"
+
+            if not target_dir.exists():
+                self.ui.msgbox(
+                    f"Klipper target directory not found:\n\n{target_dir}\n\n"
+                    "Install Klipper first.",
+                    title="Cannot Install",
+                    height=12,
+                    width=70,
+                )
+                return
+
+            restart = self.ui.yesno(
+                "Restart Klipper after installing the extension?\n\n"
+                "Recommended: Yes (required for Klipper to load new extras).",
+                title="Restart Klipper",
+                default_no=False,
+                height=12,
+                width=70,
+            )
+            if restart is None:
+                restart = True
+
+            try:
+                # Delete old file first for clean reinstall
+                if target_file.exists():
+                    target_file.unlink()
+
+                # Try to copy from repo file first (fastest, no network needed)
+                if source_file.exists():
+                    import shutil
+                    target_dir.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(source_file, target_file)
+                    success_msg = f"Extension installed from repository!\n\nLocation: {target_file}"
+                else:
+                    # Fallback: download from GitHub using Python urllib
+                    import urllib.request
+                    target_dir.mkdir(parents=True, exist_ok=True)
+                    url = "https://raw.githubusercontent.com/th33xitus/kiauh/master/resources/gcode_shell_command.py"
+                    urllib.request.urlretrieve(url, target_file)
+                    success_msg = f"Extension downloaded and installed!\n\nLocation: {target_file}"
+
+                # Verify the file
+                if not target_file.exists() or target_file.stat().st_size < 100:
+                    raise Exception("File is missing or too small")
+
+                self.ui.msgbox(success_msg, title="Installed", height=10, width=70)
+
+                # Restart if requested
+                if restart:
+                    import subprocess
+                    subprocess.run(["sudo", "systemctl", "restart", "klipper"], check=False)
+                    self.ui.msgbox(
+                        "Extension installed and Klipper restarted!",
+                        title="Complete",
+                        height=8,
+                        width=60,
+                    )
+
+                extension_installed, target_dir_str = _gcode_shell_command_install_status()
+                if extension_installed:
+                    return  # Success, exit the function
+                else:
+                    self.ui.msgbox(
+                        "Installation completed but extension not detected.\n\n"
+                        f"Check: {target_file}",
+                        title="Warning",
+                        height=10,
+                        width=70,
+                    )
+            except Exception as e:
+                self.ui.msgbox(
+                    f"Installation failed:\n\n{str(e)}\n\n"
+                    "You may need to install manually.",
+                    title="Install Failed",
+                    height=12,
+                    width=70,
+                )
+            return
+
+        if choice == "__CLEAR__":
+            if self.ui.yesno(
+                "Clear accelerometer settings?\n\n"
+                "This will reset the accelerometer configuration so you can\n"
+                "set it up again (and trigger extension installation if needed).",
+                title="Clear Accelerometer",
+                default_no=False,
+                height=12,
+                width=70,
+            ):
+                self.state.delete("tuning.accelerometer")
+                self.state.save()
+                self.ui.msgbox("Accelerometer settings cleared.", title="Cleared")
             return
 
         if choice == "none":
