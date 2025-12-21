@@ -1000,6 +1000,25 @@ class ConfigGenerator:
             lines.append(f"[include {include}]")
 
         lines.append("")
+        lines.append("# ═══════════════════════════════════════════════════════════════════════════════")
+        lines.append("# SAVE_CONFIG Override Sections")
+        lines.append("# ═══════════════════════════════════════════════════════════════════════════════")
+        lines.append("# These sections allow SAVE_CONFIG to save PID values after PID_CALIBRATE")
+        lines.append("# Values here override the defaults in gschpoozi/hardware.cfg")
+        lines.append("# SAVE_CONFIG will add 'control: pid' and PID values to these sections")
+        lines.append("")
+        lines.append("[extruder]")
+        lines.append("control: pid")
+        lines.append("pid_Kp: 0")
+        lines.append("pid_Ki: 0")
+        lines.append("pid_Kd: 0")
+        lines.append("")
+        lines.append("[heater_bed]")
+        lines.append("control: pid")
+        lines.append("pid_Kp: 0")
+        lines.append("pid_Ki: 0")
+        lines.append("pid_Kd: 0")
+        lines.append("")
 
         generated_block = "\n".join(lines).rstrip() + "\n"
 
