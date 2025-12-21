@@ -413,6 +413,10 @@ class GschpooziWizard:
         if not ports:
             return []
 
+        # Get PinManager to check for assignments
+        pin_manager = self._get_pin_manager()
+        location = "mainboard" if board_type == "boards" else "toolboard"
+
         result = []
         for port_id, port_info in ports.items():
             if isinstance(port_info, dict):
@@ -423,6 +427,11 @@ class GschpooziWizard:
                     label = f"{label} ({pin})"
             else:
                 label = port_id
+
+            # Add assignment info if port is used
+            assigned_to = pin_manager.get_used_by(location, port_id)
+            if assigned_to:
+                label = f"{label} ⚠️ Assigned to: {assigned_to}"
 
             is_default = (port_id == default_port)
             result.append((port_id, label, is_default))
@@ -487,11 +496,14 @@ class GschpooziWizard:
             if g not in groups:
                 groups.append(g)
 
+        # Get PinManager to check for assignments
+        pin_manager = self._get_pin_manager()
+
         options = []
         tag_to_pin = {}
         selected_tag = None
 
-        def _add_option(tag: str, desc: str, pin: str) -> None:
+        def _add_option(tag: str, desc: str, pin: str, port_id: str = None) -> None:
             nonlocal selected_tag
             if not pin or not isinstance(pin, str):
                 return
@@ -500,6 +512,13 @@ class GschpooziWizard:
             if default_pin and pin == default_pin and selected_tag is None:
                 is_selected = True
                 selected_tag = tag
+
+            # Add assignment info if port_id is provided and it's assigned
+            if port_id:
+                assigned_to = pin_manager.get_used_by(location, port_id)
+                if assigned_to:
+                    desc = f"{desc} ⚠️ Assigned to: {assigned_to}"
+
             options.append((tag, desc, is_selected))
 
         for group in groups:
@@ -512,30 +531,30 @@ class GschpooziWizard:
                 if isinstance(port_info, dict) and isinstance(port_info.get("pins"), dict):
                     for sub_id, sub_pin in port_info["pins"].items():
                         tag = f"{group}:{port_id}:{sub_id}"
-                        _add_option(tag, f"{port_id}-{sub_id} ({sub_pin}) [{group}]", str(sub_pin))
+                        _add_option(tag, f"{port_id}-{sub_id} ({sub_pin}) [{group}]", str(sub_pin), port_id)
                     continue
 
                 if isinstance(port_info, dict):
                     # Common forms
                     if "pin" in port_info:
                         tag = f"{group}:{port_id}:pin"
-                        _add_option(tag, f"{port_id} ({port_info['pin']}) [{group}]", str(port_info["pin"]))
+                        _add_option(tag, f"{port_id} ({port_info['pin']}) [{group}]", str(port_info["pin"]), port_id)
                     if "signal_pin" in port_info:
                         tag = f"{group}:{port_id}:signal"
-                        _add_option(tag, f"{port_id} ({port_info['signal_pin']}) [{group}]", str(port_info["signal_pin"]))
+                        _add_option(tag, f"{port_id} ({port_info['signal_pin']}) [{group}]", str(port_info["signal_pin"]), port_id)
 
-                    # Include other *_pin fields (useful for “all known” discovery)
+                    # Include other *_pin fields (useful for "all known" discovery)
                     for k, v in port_info.items():
                         if k in {"pin", "signal_pin", "pins"}:
                             continue
                         if k.endswith("_pin") and isinstance(v, str) and v:
                             tag = f"{group}:{port_id}:{k}"
-                            _add_option(tag, f"{port_id} {k} ({v}) [{group}]", v)
+                            _add_option(tag, f"{port_id} {k} ({v}) [{group}]", v, port_id)
                 else:
                     # Rare: port_info is a direct string pin
                     if isinstance(port_info, str) and port_info:
                         tag = f"{group}:{port_id}:raw"
-                        _add_option(tag, f"{port_id} ({port_info}) [{group}]", port_info)
+                        _add_option(tag, f"{port_id} ({port_info}) [{group}]", port_info, port_id)
 
         # Add manual fallback
         options.append(("manual", "Manual entry", selected_tag is None))
@@ -3035,6 +3054,18 @@ class GschpooziWizard:
                     if endstop_port is None:
                         return
 
+                    # Check if port is already assigned and unassign it
+                    pin_manager = self._get_pin_manager()
+                    assigned_to = pin_manager.get_used_by(endstop_source, endstop_port)
+                    if assigned_to and endstop_port != current_endstop_port:
+                        unassigned_purpose = pin_manager.unassign_port_from_state(endstop_source, endstop_port)
+                        if unassigned_purpose:
+                            self.ui.msgbox(
+                                f"Port {endstop_port} was previously assigned to: {unassigned_purpose}\n\n"
+                                f"It has been unassigned and is now available for: {axis_upper} endstop",
+                                title="Port Reassigned"
+                            )
+
                     # Persist chosen endstop port immediately and clear the other side to avoid ambiguity.
                     if endstop_source == "toolboard":
                         self.state.set(f"{state_key}.endstop_port_toolboard", endstop_port)
@@ -4651,9 +4682,12 @@ class GschpooziWizard:
         if part_pin is None:
             return
 
-        # Mark as used for conflict detection (skip if cleared)
-        if part_pin:
-            pin_manager.mark_used(part_location, part_pin, "Part cooling fan")
+        # If empty string, user cancelled or cleared - return early
+        if not part_pin:
+            return
+
+        # Mark as used for conflict detection
+        pin_manager.mark_used(part_location, part_pin, "Part cooling fan")
 
         # Part cooling fan parameters
         current_max_power = self.state.get("fans.part_cooling.max_power", 1.0)
@@ -4785,8 +4819,12 @@ class GschpooziWizard:
             if controller_pin is None:
                 return
 
-            # Mark as used for conflict detection (skip if cleared)
-            if controller_pin:
+            # If empty string, user cancelled or cleared - skip controller fan config
+            if not controller_pin:
+                has_controller_fan = False
+                controller_pin = None
+            else:
+                # Mark as used for conflict detection
                 pin_manager.mark_used("mainboard", controller_pin, "Controller fan")
 
             # Controller fan parameters
@@ -5102,17 +5140,12 @@ class GschpooziWizard:
         # Save part cooling fan
         # State keys must match config-sections.yaml template expectations
         self.state.set("fans.part_cooling.location", part_location)
-        if part_pin:  # If pin is cleared (empty string), delete the key instead of setting it
-            if part_location == "toolboard":
-                self.state.set("fans.part_cooling.pin_toolboard", part_pin)
-                self.state.delete("fans.part_cooling.pin_mainboard")  # Clear other key
-            else:
-                self.state.set("fans.part_cooling.pin_mainboard", part_pin)
-                self.state.delete("fans.part_cooling.pin_toolboard")  # Clear other key
+        if part_location == "toolboard":
+            self.state.set("fans.part_cooling.pin_toolboard", part_pin)
+            self.state.delete("fans.part_cooling.pin_mainboard")  # Clear other key
         else:
-            # Clear both keys when pin is cleared
-            self.state.delete("fans.part_cooling.pin_mainboard")
-            self.state.delete("fans.part_cooling.pin_toolboard")
+            self.state.set("fans.part_cooling.pin_mainboard", part_pin)
+            self.state.delete("fans.part_cooling.pin_toolboard")  # Clear other key
         self.state.set("fans.part_cooling.max_power", float(max_power or 1.0))
         self.state.set("fans.part_cooling.kick_start_time", float(kick_start_time or 0.5))
         self.state.set("fans.part_cooling.off_below", float(off_below or 0.1))
@@ -5123,17 +5156,12 @@ class GschpooziWizard:
         # Save hotend fan
         # State keys must match config-sections.yaml template expectations
         self.state.set("fans.hotend.location", hotend_location)
-        if hotend_pin:  # If pin is cleared (empty string), delete the key instead of setting it
-            if hotend_location == "toolboard":
-                self.state.set("fans.hotend.pin_toolboard", hotend_pin)
-                self.state.delete("fans.hotend.pin_mainboard")  # Clear other key
-            else:
-                self.state.set("fans.hotend.pin_mainboard", hotend_pin)
-                self.state.delete("fans.hotend.pin_toolboard")  # Clear other key
+        if hotend_location == "toolboard":
+            self.state.set("fans.hotend.pin_toolboard", hotend_pin)
+            self.state.delete("fans.hotend.pin_mainboard")  # Clear other key
         else:
-            # Clear both keys when pin is cleared
-            self.state.delete("fans.hotend.pin_mainboard")
-            self.state.delete("fans.hotend.pin_toolboard")
+            self.state.set("fans.hotend.pin_mainboard", hotend_pin)
+            self.state.delete("fans.hotend.pin_toolboard")  # Clear other key
         self.state.set("fans.hotend.heater", heater or "extruder")
         self.state.set("fans.hotend.heater_temp", int(heater_temp or 50))
         self.state.set("fans.hotend.fan_speed", float(fan_speed or 1.0))
@@ -5142,12 +5170,8 @@ class GschpooziWizard:
 
         # Save controller fan
         self.state.set("fans.controller.enabled", has_controller_fan)
-        if has_controller_fan:
-            if controller_pin:
-                self.state.set("fans.controller.pin", controller_pin)  # Changed from port
-            else:
-                # Pin was cleared - delete the pin key but keep other settings
-                self.state.delete("fans.controller.pin")
+        if has_controller_fan and controller_pin:
+            self.state.set("fans.controller.pin", controller_pin)  # Changed from port
             self.state.set("fans.controller.kick_start_time", float(controller_kick_start or 0.5))
             self.state.set("fans.controller.stepper", stepper or "stepper_x")
             self.state.set("fans.controller.idle_timeout", int(idle_timeout or 60))
@@ -6312,6 +6336,44 @@ class GschpooziWizard:
             )
             if pin is None:
                 return None
+
+            # Check if pin is already assigned and unassign it
+            # Note: _pick_pin_from_known_ports returns raw pin strings, so we need to find the port_id
+            # For now, we'll check if the pin matches any assigned port by resolving port_ids to pins
+            pin_manager = self._get_pin_manager()
+            board_type = "boards" if location == "mainboard" else "toolboards"
+            board_id = self.state.get("mcu.main.board_type", "") if location == "mainboard" else self.state.get("mcu.toolboard.board_type", "")
+            board_data = self._load_board_data(board_id, board_type)
+
+            # Try to find which port_id this pin belongs to
+            port_id_for_pin = None
+            if isinstance(board_data, dict):
+                for group in ["endstop_ports", "misc_ports", "probe_ports", "fan_ports", "heater_ports"]:
+                    group_data = board_data.get(group, {})
+                    if isinstance(group_data, dict):
+                        for port_id, port_info in group_data.items():
+                            if isinstance(port_info, dict):
+                                port_pin = port_info.get("pin") or port_info.get("signal_pin", "")
+                                if port_pin == pin:
+                                    port_id_for_pin = port_id
+                                    break
+                            elif isinstance(port_info, str) and port_info == pin:
+                                port_id_for_pin = port_id
+                                break
+                        if port_id_for_pin:
+                            break
+
+            # If we found a port_id, check for assignment
+            if port_id_for_pin:
+                assigned_to = pin_manager.get_used_by(location, port_id_for_pin)
+                if assigned_to and port_id_for_pin != current_pin:
+                    unassigned_purpose = pin_manager.unassign_port_from_state(location, port_id_for_pin)
+                    if unassigned_purpose:
+                        self.ui.msgbox(
+                            f"Port {port_id_for_pin} (pin {pin}) was previously assigned to: {unassigned_purpose}\n\n"
+                            f"It has been unassigned and is now available for: {name}",
+                            title="Port Reassigned"
+                        )
 
             # Pin modifiers (Klipper): ^ (pull-up), ~ (pull-down), ! (invert)
             # Default pull-up ON to preserve existing behavior (previously hard-coded '^').
