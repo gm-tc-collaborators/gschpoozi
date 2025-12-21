@@ -88,6 +88,9 @@ class ConfigGenerator:
             'common.exclude_object': 'gschpoozi/tuning.cfg',
             'common.tmc_autotune': 'gschpoozi/tuning.cfg',
             'common.input_shaper': 'gschpoozi/tuning.cfg',
+            'common.accelerometer': 'gschpoozi/tuning.cfg',
+            'common.resonance_tester': 'gschpoozi/tuning.cfg',
+            'common.shaper_shell_commands': 'gschpoozi/tuning.cfg',
             'common.gcode_arcs': 'gschpoozi/tuning.cfg',
             'common.respond': 'gschpoozi/tuning.cfg',
             'common.save_variables': 'gschpoozi/tuning.cfg',
@@ -144,7 +147,7 @@ class ConfigGenerator:
         if not isinstance(context.get("tuning"), dict):
             context["tuning"] = {}
         # Ensure nested tuning dicts exist for dot-access patterns used in templates
-        for k in ("virtual_sdcard", "idle_timeout", "pause_resume", "arc_support", "respond", "save_variables", "exclude_object", "tmc_autotune", "input_shaper"):
+        for k in ("virtual_sdcard", "idle_timeout", "pause_resume", "arc_support", "respond", "save_variables", "exclude_object", "tmc_autotune", "input_shaper", "accelerometer"):
             if not isinstance(context["tuning"].get(k), dict):
                 context["tuning"][k] = {}
         # Defaults for always-safe tuning sections
@@ -594,18 +597,17 @@ class ConfigGenerator:
                 heater_port = extruder.get('heater_port_mainboard')
                 pins['extruder']['heater'] = _get_pin(board_pins, heater_port, 'signal')
 
-            # Sensor pin (may have pullup)
+            # Sensor pin (ADC input - no ^ modifier, uses pullup_resistor value instead)
             sensor_loc = extruder.get('sensor_location', 'mainboard')
-            sensor_pullup = extruder.get('sensor_pullup', False)
             if sensor_loc == 'toolboard':
                 sensor_port = extruder.get('sensor_port_toolboard')
                 pins['extruder']['sensor'] = _get_pin(
                     toolboard_pins, sensor_port, 'signal',
-                    mcu_prefix='toolboard', pullup=sensor_pullup
+                    mcu_prefix='toolboard'
                 )
             else:
                 sensor_port = extruder.get('sensor_port_mainboard')
-                pins['extruder']['sensor'] = _get_pin(board_pins, sensor_port, 'signal', pullup=sensor_pullup)
+                pins['extruder']['sensor'] = _get_pin(board_pins, sensor_port, 'signal')
 
         # --- Heater Bed ---
         heater_bed = context.get('heater_bed', {})
@@ -911,7 +913,10 @@ class ConfigGenerator:
 
         for file_path, sections in files.items():
             header = self._generate_header(file_path)
-            content = header + "\n".join(sections)
+            # Join sections with double newlines to ensure spacing between sections
+            # Each section already ends with at least one newline (from renderer)
+            # Adding another newline creates the blank line spacing
+            content = header + "\n\n".join(s.rstrip() for s in sections) + "\n"
             result[file_path] = content
 
         # Ensure expected output files exist even if empty (printer.cfg includes them).

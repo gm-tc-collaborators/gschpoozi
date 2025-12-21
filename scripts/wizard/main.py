@@ -10,6 +10,7 @@ import sys
 import os
 import json
 import re
+import traceback
 from pathlib import Path
 
 # Add parent directory to path for imports
@@ -412,16 +413,41 @@ class GschpooziWizard:
         if not ports:
             return []
 
+        # Get PinManager to check for assignments
+        pin_manager = self._get_pin_manager()
+        location = "mainboard" if board_type == "boards" else "toolboard"
+
         result = []
         for port_id, port_info in ports.items():
             if isinstance(port_info, dict):
                 label = port_info.get("label", port_id)
                 # Include pin info if available
                 pin = port_info.get("pin", port_info.get("signal_pin", ""))
+                # Check for alternative name (e.g., PWM_out)
+                alt_name = port_info.get("name", port_info.get("alt_name", ""))
+
+                # Build comprehensive label showing all identifiers
+                parts = []
                 if pin:
-                    label = f"{label} ({pin})"
+                    parts.append(pin)
+                if alt_name:
+                    parts.append(alt_name)
+
+                if parts:
+                    # Format: "Port ID (pin - alt_name)" or "Port ID (pin)"
+                    identifiers = " - ".join(parts)
+                    label = f"{port_id} ({identifiers}) - {label}"
+                elif pin:
+                    label = f"{port_id} ({pin}) - {label}"
+                else:
+                    label = f"{port_id} - {label}"
             else:
                 label = port_id
+
+            # Add assignment info if port is used
+            assigned_to = pin_manager.get_used_by(location, port_id)
+            if assigned_to:
+                label = f"{label} ⚠️ Assigned to: {assigned_to}"
 
             is_default = (port_id == default_port)
             result.append((port_id, label, is_default))
@@ -486,11 +512,14 @@ class GschpooziWizard:
             if g not in groups:
                 groups.append(g)
 
+        # Get PinManager to check for assignments
+        pin_manager = self._get_pin_manager()
+
         options = []
         tag_to_pin = {}
         selected_tag = None
 
-        def _add_option(tag: str, desc: str, pin: str) -> None:
+        def _add_option(tag: str, desc: str, pin: str, port_id: str = None) -> None:
             nonlocal selected_tag
             if not pin or not isinstance(pin, str):
                 return
@@ -499,6 +528,13 @@ class GschpooziWizard:
             if default_pin and pin == default_pin and selected_tag is None:
                 is_selected = True
                 selected_tag = tag
+
+            # Add assignment info if port_id is provided and it's assigned
+            if port_id:
+                assigned_to = pin_manager.get_used_by(location, port_id)
+                if assigned_to:
+                    desc = f"{desc} ⚠️ Assigned to: {assigned_to}"
+
             options.append((tag, desc, is_selected))
 
         for group in groups:
@@ -511,30 +547,45 @@ class GschpooziWizard:
                 if isinstance(port_info, dict) and isinstance(port_info.get("pins"), dict):
                     for sub_id, sub_pin in port_info["pins"].items():
                         tag = f"{group}:{port_id}:{sub_id}"
-                        _add_option(tag, f"{port_id}-{sub_id} ({sub_pin}) [{group}]", str(sub_pin))
+                        _add_option(tag, f"{port_id}-{sub_id} ({sub_pin}) [{group}]", str(sub_pin), port_id)
                     continue
 
                 if isinstance(port_info, dict):
+                    # Get alternative name if available
+                    alt_name = port_info.get("name", port_info.get("alt_name", ""))
+
                     # Common forms
                     if "pin" in port_info:
                         tag = f"{group}:{port_id}:pin"
-                        _add_option(tag, f"{port_id} ({port_info['pin']}) [{group}]", str(port_info["pin"]))
+                        pin_str = str(port_info["pin"])
+                        # Build description with all identifiers
+                        if alt_name:
+                            desc = f"{port_id} ({pin_str} - {alt_name}) [{group}]"
+                        else:
+                            desc = f"{port_id} ({pin_str}) [{group}]"
+                        _add_option(tag, desc, pin_str, port_id)
                     if "signal_pin" in port_info:
                         tag = f"{group}:{port_id}:signal"
-                        _add_option(tag, f"{port_id} ({port_info['signal_pin']}) [{group}]", str(port_info["signal_pin"]))
+                        signal_str = str(port_info["signal_pin"])
+                        # Build description with all identifiers
+                        if alt_name:
+                            desc = f"{port_id} ({signal_str} - {alt_name}) [{group}]"
+                        else:
+                            desc = f"{port_id} ({signal_str}) [{group}]"
+                        _add_option(tag, desc, signal_str, port_id)
 
-                    # Include other *_pin fields (useful for “all known” discovery)
+                    # Include other *_pin fields (useful for "all known" discovery)
                     for k, v in port_info.items():
                         if k in {"pin", "signal_pin", "pins"}:
                             continue
                         if k.endswith("_pin") and isinstance(v, str) and v:
                             tag = f"{group}:{port_id}:{k}"
-                            _add_option(tag, f"{port_id} {k} ({v}) [{group}]", v)
+                            _add_option(tag, f"{port_id} {k} ({v}) [{group}]", v, port_id)
                 else:
                     # Rare: port_info is a direct string pin
                     if isinstance(port_info, str) and port_info:
                         tag = f"{group}:{port_id}:raw"
-                        _add_option(tag, f"{port_id} ({port_info}) [{group}]", port_info)
+                        _add_option(tag, f"{port_id} ({port_info}) [{group}]", port_info, port_id)
 
         # Add manual fallback
         options.append(("manual", "Manual entry", selected_tag is None))
@@ -3034,6 +3085,18 @@ class GschpooziWizard:
                     if endstop_port is None:
                         return
 
+                    # Check if port is already assigned and unassign it
+                    pin_manager = self._get_pin_manager()
+                    assigned_to = pin_manager.get_used_by(endstop_source, endstop_port)
+                    if assigned_to and endstop_port != current_endstop_port:
+                        unassigned_purpose = pin_manager.unassign_port_from_state(endstop_source, endstop_port)
+                        if unassigned_purpose:
+                            self.ui.msgbox(
+                                f"Port {endstop_port} was previously assigned to: {unassigned_purpose}\n\n"
+                                f"It has been unassigned and is now available for: {axis_upper} endstop",
+                                title="Port Reassigned"
+                            )
+
                     # Persist chosen endstop port immediately and clear the other side to avoid ambiguity.
                     if endstop_source == "toolboard":
                         self.state.set(f"{state_key}.endstop_port_toolboard", endstop_port)
@@ -4049,19 +4112,6 @@ class GschpooziWizard:
 
         pin_manager.mark_used(sensor_location, sensor_port, "Hotend thermistor")
 
-        # Sensor pin pullup (^ modifier) - many toolboards need this
-        current_sensor_pullup = self.state.get("extruder.sensor_pullup", False)
-        sensor_pullup = self.ui.yesno(
-            "Enable internal pullup on thermistor pin?\n\n"
-            "Most toolboards (Nitehawk, EBB, SHT36, etc.) need this enabled.\n"
-            "If you get 'ADC out of range' errors or temperature reads ~350°C,\n"
-            "you likely need this ON.\n\n"
-            "Mainboards usually have hardware pullups and don't need this.",
-            title="Hotend - Sensor Pin Pullup",
-            default_no=not current_sensor_pullup
-        )
-        # yesno returns True for Yes, False for No (cancel returns False too, but that's acceptable here)
-
         # Thermistor type
         sensor_types = [
             ("Generic 3950", "Generic 3950 (most common)"),
@@ -4200,8 +4250,9 @@ class GschpooziWizard:
             self.state.delete("extruder.sensor_port_toolboard")  # Clear other key
 
         self.state.set("extruder.sensor_type", sensor_type)
-        self.state.set("extruder.sensor_pullup", sensor_pullup)
         self.state.set("extruder.pullup_resistor", pullup_resistor)
+        # Remove sensor_pullup if it exists (ADC inputs don't use ^ modifier)
+        self.state.delete("extruder.sensor_pullup")
         self.state.set("extruder.min_temp", int(min_temp or 0))
         self.state.set("extruder.max_temp", int(max_temp or 300))
         self.state.set("extruder.drive_type", drive_type or "direct")
@@ -4212,7 +4263,6 @@ class GschpooziWizard:
         self.state.save()
 
         pullup_text = f"\n  Pullup resistor: {pullup_resistor}Ω" if pullup_resistor else ""
-        pin_pullup_text = " (^ pullup)" if sensor_pullup else ""
         self.ui.msgbox(
             f"Extruder & Hotend configured!\n\n"
             f"EXTRUDER MOTOR:\n"
@@ -4223,7 +4273,7 @@ class GschpooziWizard:
             f"HOTEND:\n"
             f"  Heater: {heater_location} ({heater_port})\n"
             f"  Thermistor: {sensor_type}\n"
-            f"  Sensor port: {sensor_location} ({sensor_port}){pin_pullup_text}{pullup_text}\n"
+            f"  Sensor port: {sensor_location} ({sensor_port}){pullup_text}\n"
             f"  Temp range: {min_temp}°C - {max_temp}°C\n"
             f"  Drive: {drive_type}\n"
             f"  Nozzle: {nozzle_diameter}mm",
@@ -4650,6 +4700,10 @@ class GschpooziWizard:
         if part_pin is None:
             return
 
+        # If empty string, user cancelled or cleared - return early
+        if not part_pin:
+            return
+
         # Mark as used for conflict detection
         pin_manager.mark_used(part_location, part_pin, "Part cooling fan")
 
@@ -4663,34 +4717,37 @@ class GschpooziWizard:
         if max_power is None:
             return
 
-        current_kick_start = self.state.get("fans.part_cooling.kick_start_time", 0.5)
-        kick_start_time = self.ui.inputbox(
-            "Kick start time (seconds):\n\n"
-            "(Time to run at full speed to start fan)",
-            default=str(current_kick_start),
-            title="Fans - Part Cooling Kick Start"
-        )
-        if kick_start_time is None:
-            return
-
-        current_off_below = self.state.get("fans.part_cooling.off_below", 0.1)
-        off_below = self.ui.inputbox(
-            "Off below (PWM):\n\n"
-            "(Minimum PWM for fan to spin, usually 0.1)",
-            default=str(current_off_below),
-            title="Fans - Part Cooling Off Below"
-        )
-        if off_below is None:
-            return
-
-        current_cycle = self.state.get("fans.part_cooling.cycle_time", 0.010)
+        current_cycle = self.state.get("fans.part_cooling.cycle_time", 0.002)
         cycle_time = self.ui.inputbox(
             "Cycle time (seconds):\n\n"
-            "(PWM cycle time, usually 0.010)",
+            "(PWM cycle time, usually 0.002 for part cooling fans)",
             default=str(current_cycle),
             title="Fans - Part Cooling Cycle Time"
         )
         if cycle_time is None:
+            return
+
+        # Hardware PWM (default to false for part cooling)
+        current_hardware_pwm = self.state.get("fans.part_cooling.hardware_pwm", False)
+        hardware_pwm = self.ui.yesno(
+            "Use hardware PWM for part cooling fan?\n\n"
+            "Most part cooling fans use software PWM (No).\n"
+            "Hardware PWM is only needed for specific fan controllers.",
+            title="Fans - Part Cooling Hardware PWM",
+            default_no=not current_hardware_pwm
+        )
+        if hardware_pwm is None:
+            return
+
+        # Shutdown speed (default to 0 - fan should turn off on shutdown)
+        current_shutdown_speed = self.state.get("fans.part_cooling.shutdown_speed", 0)
+        shutdown_speed = self.ui.inputbox(
+            "Shutdown speed (0.0-1.0):\n\n"
+            "(Fan speed when printer shuts down, usually 0)",
+            default=str(current_shutdown_speed),
+            title="Fans - Part Cooling Shutdown Speed"
+        )
+        if shutdown_speed is None:
             return
 
         # === HOTEND FAN ===
@@ -4728,8 +4785,9 @@ class GschpooziWizard:
         if hotend_pin is None:
             return
 
-        # Mark as used for conflict detection
-        pin_manager.mark_used(hotend_location, hotend_pin, "Hotend fan")
+        # Mark as used for conflict detection (skip if cleared)
+        if hotend_pin:
+            pin_manager.mark_used(hotend_location, hotend_pin, "Hotend fan")
 
         # Hotend fan parameters
         current_heater = self.state.get("fans.hotend.heater", "extruder")
@@ -4782,8 +4840,13 @@ class GschpooziWizard:
             if controller_pin is None:
                 return
 
-            # Mark as used for conflict detection
-            pin_manager.mark_used("mainboard", controller_pin, "Controller fan")
+            # If empty string, user cancelled or cleared - skip controller fan config
+            if not controller_pin:
+                has_controller_fan = False
+                controller_pin = None
+            else:
+                # Mark as used for conflict detection
+                pin_manager.mark_used("mainboard", controller_pin, "Controller fan")
 
             # Controller fan parameters
             current_kick_start = self.state.get("fans.controller.kick_start_time", 0.5)
@@ -5105,9 +5168,12 @@ class GschpooziWizard:
             self.state.set("fans.part_cooling.pin_mainboard", part_pin)
             self.state.delete("fans.part_cooling.pin_toolboard")  # Clear other key
         self.state.set("fans.part_cooling.max_power", float(max_power or 1.0))
-        self.state.set("fans.part_cooling.kick_start_time", float(kick_start_time or 0.5))
-        self.state.set("fans.part_cooling.off_below", float(off_below or 0.1))
-        self.state.set("fans.part_cooling.cycle_time", float(cycle_time or 0.010))
+        self.state.set("fans.part_cooling.cycle_time", float(cycle_time or 0.002))
+        self.state.set("fans.part_cooling.hardware_pwm", bool(hardware_pwm))
+        self.state.set("fans.part_cooling.shutdown_speed", float(shutdown_speed or 0))
+        # Remove invalid parameters if they exist (from old configs)
+        self.state.delete("fans.part_cooling.kick_start_time")
+        self.state.delete("fans.part_cooling.off_below")
         # Save progress even if user later cancels out
         self.state.save()
 
@@ -6294,6 +6360,44 @@ class GschpooziWizard:
             )
             if pin is None:
                 return None
+
+            # Check if pin is already assigned and unassign it
+            # Note: _pick_pin_from_known_ports returns raw pin strings, so we need to find the port_id
+            # For now, we'll check if the pin matches any assigned port by resolving port_ids to pins
+            pin_manager = self._get_pin_manager()
+            board_type = "boards" if location == "mainboard" else "toolboards"
+            board_id = self.state.get("mcu.main.board_type", "") if location == "mainboard" else self.state.get("mcu.toolboard.board_type", "")
+            board_data = self._load_board_data(board_id, board_type)
+
+            # Try to find which port_id this pin belongs to
+            port_id_for_pin = None
+            if isinstance(board_data, dict):
+                for group in ["endstop_ports", "misc_ports", "probe_ports", "fan_ports", "heater_ports"]:
+                    group_data = board_data.get(group, {})
+                    if isinstance(group_data, dict):
+                        for port_id, port_info in group_data.items():
+                            if isinstance(port_info, dict):
+                                port_pin = port_info.get("pin") or port_info.get("signal_pin", "")
+                                if port_pin == pin:
+                                    port_id_for_pin = port_id
+                                    break
+                            elif isinstance(port_info, str) and port_info == pin:
+                                port_id_for_pin = port_id
+                                break
+                        if port_id_for_pin:
+                            break
+
+            # If we found a port_id, check for assignment
+            if port_id_for_pin:
+                assigned_to = pin_manager.get_used_by(location, port_id_for_pin)
+                if assigned_to and port_id_for_pin != current_pin:
+                    unassigned_purpose = pin_manager.unassign_port_from_state(location, port_id_for_pin)
+                    if unassigned_purpose:
+                        self.ui.msgbox(
+                            f"Port {port_id_for_pin} (pin {pin}) was previously assigned to: {unassigned_purpose}\n\n"
+                            f"It has been unassigned and is now available for: {name}",
+                            title="Port Reassigned"
+                        )
 
             # Pin modifiers (Klipper): ^ (pull-up), ~ (pull-down), ! (invert)
             # Default pull-up ON to preserve existing behavior (previously hard-coded '^').
@@ -7869,6 +7973,112 @@ read -r _
 
         self.ui.msgbox("Input shaper saved!", title="Saved")
 
+    def _configure_accelerometer(self) -> None:
+        """Configure accelerometer for input shaper calibration."""
+        # Detect available accelerometer sources
+        sources = []
+
+        # Check toolboard for accelerometer
+        toolboard_id = self.state.get("mcu.toolboard.board_type", "")
+        if toolboard_id:
+            toolboard_data = self._load_board_data(toolboard_id, "toolboards")
+            if toolboard_data and toolboard_data.get("accelerometer"):
+                accel_info = toolboard_data["accelerometer"]
+                accel_type = accel_info.get("type", "ADXL345")
+                sources.append(("toolboard", f"Toolboard ({accel_type})"))
+
+        # Check probe for accelerometer (Beacon, Cartographer)
+        probe_type = self.state.get("probe.probe_type", "")
+        if probe_type == "beacon":
+            sources.append(("beacon", "Beacon (built-in accelerometer)"))
+        elif probe_type == "cartographer":
+            sources.append(("cartographer", "Cartographer (built-in accelerometer)"))
+
+        # Always offer "none" option
+        sources.append(("none", "None / Manual configuration"))
+
+        if len(sources) == 1:  # Only "none"
+            self.ui.msgbox(
+                "No accelerometer detected!\n\n"
+                "To use input shaper calibration, you need:\n"
+                "• A toolboard with ADXL345/LIS2DW accelerometer, OR\n"
+                "• A Beacon or Cartographer probe (with built-in accelerometer)\n\n"
+                "Configure your hardware first, then return here.",
+                title="Accelerometer Setup"
+            )
+            return
+
+        current_source = self.state.get("tuning.accelerometer.source", "")
+        choice = self.ui.menu(
+            "Select accelerometer source:\n\n"
+            "This configures [adxl345]/[lis2dw] and [resonance_tester] sections\n"
+            "for input shaper calibration.\n\n"
+            "After configuration, use CALIBRATE_SHAPER macro to calibrate.",
+            [(s[0], s[1], s[0] == current_source) for s in sources],
+            title="Accelerometer Setup",
+            height=20,
+            width=80,
+        )
+        if choice is None:
+            return
+
+        if choice == "none":
+            self.state.delete("tuning.accelerometer")
+            self.state.save()
+            self.ui.msgbox("Accelerometer disabled.", title="Saved")
+            return
+
+        # Configure based on source
+        if choice == "toolboard":
+            toolboard_data = self._load_board_data(toolboard_id, "toolboards")
+            accel_info = toolboard_data.get("accelerometer", {})
+
+            self.state.set("tuning.accelerometer.enabled", True)
+            self.state.set("tuning.accelerometer.source", "toolboard")
+            self.state.set("tuning.accelerometer.type", accel_info.get("type", "ADXL345"))
+            self.state.set("tuning.accelerometer.mcu_prefix", "toolboard:")
+            self.state.set("tuning.accelerometer.cs_pin", accel_info.get("cs_pin", ""))
+
+            # SPI configuration
+            if accel_info.get("spi_bus"):
+                self.state.set("tuning.accelerometer.spi_bus", accel_info["spi_bus"])
+            else:
+                # Software SPI
+                self.state.set("tuning.accelerometer.spi_software_sclk_pin",
+                               accel_info.get("spi_software_sclk_pin", ""))
+                self.state.set("tuning.accelerometer.spi_software_mosi_pin",
+                               accel_info.get("spi_software_mosi_pin", ""))
+                self.state.set("tuning.accelerometer.spi_software_miso_pin",
+                               accel_info.get("spi_software_miso_pin", ""))
+
+        elif choice == "beacon":
+            self.state.set("tuning.accelerometer.enabled", True)
+            self.state.set("tuning.accelerometer.source", "beacon")
+            # Beacon has its own accel_chip, no adxl345 section needed
+
+        elif choice == "cartographer":
+            self.state.set("tuning.accelerometer.enabled", True)
+            self.state.set("tuning.accelerometer.source", "cartographer")
+            self.state.set("tuning.accelerometer.type", "ADXL345")
+            self.state.set("tuning.accelerometer.mcu_prefix", "cartographer:")
+            self.state.set("tuning.accelerometer.cs_pin", "PA3")
+            self.state.set("tuning.accelerometer.spi_bus", "spi1")
+
+        self.state.save()
+
+        self.ui.msgbox(
+            f"Accelerometer configured!\n\n"
+            f"Source: {choice}\n\n"
+            f"After generating config, use these macros:\n"
+            f"• CALIBRATE_SHAPER - Full calibration\n"
+            f"• COMPARE_BELTS - Belt tension check (CoreXY)\n"
+            f"• SHAPER_CALIBRATION_WIZARD - Step-by-step guide\n\n"
+            f"Graphs will be saved to config/plots/",
+            title="Accelerometer - Saved",
+            height=18,
+            width=70
+        )
+
     def _configure_macros(self) -> None:
         """
         Configure macro behavior (START_PRINT / END_PRINT).
@@ -7988,12 +8198,21 @@ read -r _
     def tuning_menu(self) -> None:
         """Tuning and optimization menu."""
         while True:
+            # Show accelerometer status
+            accel_source = self.state.get("tuning.accelerometer.source", "")
+            accel_status = {
+                "toolboard": "Toolboard",
+                "beacon": "Beacon",
+                "cartographer": "Cartographer",
+            }.get(accel_source, None)
+
             choice = self.ui.menu(
                 "Tuning & Optimization\n\n"
                 "Configure advanced features and calibration.",
                 [
                     ("3.1", "TMC Autotune         (Motor optimization)"),
                     ("3.2", "Input Shaper         (Resonance compensation)"),
+                    ("3.3", self._format_menu_item("Accelerometer", accel_status) if accel_status else "Accelerometer         (For input shaper calibration)"),
                     ("3.6", "Macros               (START_PRINT, etc.)"),
                     ("3.9", "Exclude Object       (Cancel individual objects)"),
                     ("3.10", "Arc Support         (G2/G3 commands)"),
@@ -8008,6 +8227,8 @@ read -r _
                 self._configure_tmc_autotune()
             elif choice == "3.2":
                 self._configure_input_shaper()
+            elif choice == "3.3":
+                self._configure_accelerometer()
             elif choice == "3.6":
                 self._configure_macros()
             elif choice == "3.10":
@@ -8065,8 +8286,45 @@ read -r _
                 title="Generation Complete"
             )
         except Exception as e:
+            # Format detailed error message with traceback
+            error_type = type(e).__name__
+            error_msg = str(e) if str(e) else "(no error message)"
+            full_traceback = traceback.format_exc()
+            tb_lines = full_traceback.splitlines()
+
+            # Log full error to file for debugging
+            log_path = self._wizard_log_path()
+            try:
+                log_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(log_path, "a", encoding="utf-8") as f:
+                    from datetime import datetime
+                    ts = datetime.now().isoformat(timespec="seconds")
+                    f.write(f"\n{'='*80}\n")
+                    f.write(f"{ts} - Configuration Generation Error\n")
+                    f.write(f"{'='*80}\n")
+                    f.write(f"Error Type: {error_type}\n")
+                    f.write(f"Error Message: {error_msg}\n")
+                    f.write(f"\nFull Traceback:\n{full_traceback}\n")
+            except Exception:
+                # Logging must never break the wizard
+                pass
+
+            # Build a readable error message for dialog (show summary + traceback tail)
+            error_details = f"Error Type: {error_type}\n"
+            error_details += f"Error Message: {error_msg}\n\n"
+
+            # Include the last 10 lines of traceback (most relevant)
+            if len(tb_lines) > 10:
+                error_details += "Traceback (most recent call last):\n"
+                error_details += "\n".join(tb_lines[-10:])
+            else:
+                error_details += "Full Traceback:\n"
+                error_details += "\n".join(tb_lines)
+
+            error_details += f"\n\nFull error details logged to:\n{log_path}"
+
             self.ui.msgbox(
-                f"Error generating configuration:\n\n{e}",
+                f"Error generating configuration:\n\n{error_details}",
                 title="Generation Failed"
             )
 

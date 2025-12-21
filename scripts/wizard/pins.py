@@ -211,6 +211,140 @@ class PinManager:
         if location in self._used_pins and port_id in self._used_pins[location]:
             del self._used_pins[location][port_id]
 
+    def unassign_port_from_state(self, location: str, port_id: str) -> Optional[str]:
+        """
+        Unassign a port from its current usage in the state.
+
+        Args:
+            location: "mainboard" or "toolboard"
+            port_id: Port ID to unassign
+
+        Returns:
+            Purpose string describing what was unassigned, or None if nothing was found
+        """
+        # Get what it's currently assigned to
+        purpose = self.get_used_by(location, port_id)
+        if not purpose:
+            return None
+
+        # Unassign based on the purpose string pattern
+        # Fans
+        if purpose == "Part cooling fan":
+            if location == "mainboard":
+                if self.state.get("fans.part_cooling.pin_mainboard") == port_id:
+                    self.state.delete("fans.part_cooling.pin_mainboard")
+            else:
+                if self.state.get("fans.part_cooling.pin_toolboard") == port_id:
+                    self.state.delete("fans.part_cooling.pin_toolboard")
+        elif purpose == "Hotend fan":
+            if location == "mainboard":
+                if self.state.get("fans.hotend.pin_mainboard") == port_id:
+                    self.state.delete("fans.hotend.pin_mainboard")
+            else:
+                if self.state.get("fans.hotend.pin_toolboard") == port_id:
+                    self.state.delete("fans.hotend.pin_toolboard")
+        elif purpose == "Controller fan":
+            if self.state.get("fans.controller.pin") == port_id:
+                self.state.delete("fans.controller.pin")
+        elif purpose.startswith("Additional fan #"):
+            # Find and remove from additional_fans list
+            additional_fans = self.state.get("fans.additional_fans", [])
+            if isinstance(additional_fans, list):
+                updated = []
+                for fan in additional_fans:
+                    if isinstance(fan, dict):
+                        fan_pin = fan.get("pin", "").strip()
+                        fan_pins = fan.get("pins", "")
+                        if isinstance(fan_pins, str):
+                            fan_pins_list = [p.strip() for p in fan_pins.split(",") if p.strip()]
+                        elif isinstance(fan_pins, list):
+                            fan_pins_list = [str(p).strip() for p in fan_pins if p]
+                        else:
+                            fan_pins_list = []
+
+                        # Skip if this fan uses the port
+                        if fan_pin == port_id or port_id in fan_pins_list:
+                            continue
+                    updated.append(fan)
+                self.state.set("fans.additional_fans", updated)
+
+        # Heaters
+        elif purpose == "Extruder heater":
+            if location == "mainboard":
+                if self.state.get("extruder.heater_port_mainboard") == port_id:
+                    self.state.delete("extruder.heater_port_mainboard")
+            else:
+                if self.state.get("extruder.heater_port_toolboard") == port_id:
+                    self.state.delete("extruder.heater_port_toolboard")
+        elif purpose == "Heated bed heater":
+            if self.state.get("heater_bed.heater_pin") == port_id:
+                self.state.delete("heater_bed.heater_pin")
+
+        # Thermistors
+        elif purpose == "Extruder thermistor":
+            if location == "mainboard":
+                if self.state.get("extruder.sensor_port_mainboard") == port_id:
+                    self.state.delete("extruder.sensor_port_mainboard")
+            else:
+                if self.state.get("extruder.sensor_port_toolboard") == port_id:
+                    self.state.delete("extruder.sensor_port_toolboard")
+        elif purpose == "Bed thermistor":
+            if self.state.get("heater_bed.sensor_port") == port_id:
+                self.state.delete("heater_bed.sensor_port")
+
+        # Endstops
+        elif purpose.endswith(" endstop"):
+            stepper_name = purpose.replace(" endstop", "")
+            if location == "mainboard":
+                if self.state.get(f"{stepper_name}.endstop_port") == port_id:
+                    self.state.delete(f"{stepper_name}.endstop_port")
+            else:
+                if self.state.get(f"{stepper_name}.endstop_port_toolboard") == port_id:
+                    self.state.delete(f"{stepper_name}.endstop_port_toolboard")
+
+        # Filament sensors
+        elif purpose.startswith("Filament sensor ("):
+            filament_sensors = self.state.get("filament_sensors", [])
+            if isinstance(filament_sensors, list):
+                updated = []
+                for sensor in filament_sensors:
+                    if isinstance(sensor, dict) and sensor.get("pin", "").strip() != port_id:
+                        updated.append(sensor)
+                self.state.set("filament_sensors", updated)
+
+        # LEDs
+        elif purpose.startswith("LED ("):
+            leds = self.state.get("leds", [])
+            if isinstance(leds, list):
+                updated = []
+                for led in leds:
+                    if isinstance(led, dict) and led.get("pin", "").strip() != port_id:
+                        updated.append(led)
+                self.state.set("leds", updated)
+
+        # Temperature sensors
+        elif purpose.startswith("Temp sensor ("):
+            temp_sensors = self.state.get("temperature_sensors.additional", [])
+            if isinstance(temp_sensors, list):
+                updated = []
+                for sensor in temp_sensors:
+                    if isinstance(sensor, dict) and sensor.get("sensor_pin", "").strip() != port_id:
+                        updated.append(sensor)
+                self.state.set("temperature_sensors.additional", updated)
+
+        # Chamber temperature sensor (check separately)
+        chamber_port = self.state.get("temperature_sensors.chamber.sensor_port_mainboard", "")
+        if chamber_port == port_id:
+            self.state.delete("temperature_sensors.chamber.sensor_port_mainboard")
+
+        # Remove from used pins tracking
+        self.mark_unused(location, port_id)
+
+        # Refresh to reload from state (in case there are other references)
+        self.refresh()
+
+        return purpose
+
     def is_available(self, location: str, port_id: str) -> bool:
         """Check if a pin/port is available (not already used)."""
         return port_id not in self._used_pins.get(location, {})
@@ -305,8 +439,8 @@ class PinManager:
                 continue
 
             for port_id, port_info in group_data.items():
-                # Skip if already used or explicitly excluded
-                if port_id in used or port_id in exclude:
+                # Skip if explicitly excluded (but show used ports now)
+                if port_id in exclude:
                     continue
 
                 # Apply direction filtering for misc_ports
@@ -334,6 +468,11 @@ class PinManager:
                 else:
                     label = f"{port_id} [{group}]"
                     port_info = {"pin": str(port_info) if port_info else ""}
+
+                # Add assignment info if port is used
+                assigned_to = used.get(port_id)
+                if assigned_to:
+                    label = f"{label} ⚠️ Assigned to: {assigned_to}"
 
                 available.append((port_id, label, port_info))
 
@@ -464,6 +603,17 @@ class PinManager:
                 )
                 if port is None:
                     return None
+
+            # Check if port is already assigned and unassign it
+            assigned_to = self.get_used_by(location, port)
+            if assigned_to and port != current_port:
+                unassigned_purpose = self.unassign_port_from_state(location, port)
+                if unassigned_purpose:
+                    self.ui.msgbox(
+                        f"Port {port} was previously assigned to: {unassigned_purpose}\n\n"
+                        f"It has been unassigned and is now available for: {purpose}",
+                        title="Port Reassigned"
+                    )
 
         # Pullup toggle
         pullup = self.ui.yesno(
@@ -658,6 +808,17 @@ class PinManager:
                 if port is None:
                     return None
 
+            # Check if port is already assigned and unassign it
+            assigned_to = self.get_used_by(location, port)
+            if assigned_to and port != current_port:
+                unassigned_purpose = self.unassign_port_from_state(location, port)
+                if unassigned_purpose:
+                    self.ui.msgbox(
+                        f"Port {port} was previously assigned to: {unassigned_purpose}\n\n"
+                        f"It has been unassigned and is now available for: {purpose}",
+                        title="Port Reassigned"
+                    )
+
         # Sensor type selection
         sensor_type = self.select_sensor_type(current_sensor_type, f"{purpose} - Sensor Type")
         if sensor_type is None:
@@ -746,7 +907,7 @@ class PinManager:
         if not any(x[2] for x in options):
             options[0] = (options[0][0], options[0][1], True)
 
-        # Sort: relevant ports first
+        # Sort: relevant ports first, then manual entry
         def sort_key(item):
             tag, label, _ = item
             if tag == "manual":
@@ -777,6 +938,17 @@ class PinManager:
                 default=current_port or "",
                 title=title
             )
+
+        # Check if port is already assigned and unassign it
+        assigned_to = self.get_used_by(location, port)
+        if assigned_to and port != current_port:
+            unassigned_purpose = self.unassign_port_from_state(location, port)
+            if unassigned_purpose:
+                self.ui.msgbox(
+                    f"Port {port} was previously assigned to: {unassigned_purpose}\n\n"
+                    f"It has been unassigned and is now available for: {purpose}",
+                    title="Port Reassigned"
+                )
 
         return port
 

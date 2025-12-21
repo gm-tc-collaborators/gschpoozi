@@ -169,7 +169,11 @@ class TemplateRenderer:
             context['pin_config'] = self.pin_config
 
             template = self.env.from_string(template_str)
-            return template.render(**context)
+            result = template.render(**context)
+            # Ensure result ends with at least one newline
+            if not result.endswith('\n'):
+                result += '\n'
+            return result
         except TemplateSyntaxError as e:
             return f"# Template error: {e}\n"
         except Exception as e:

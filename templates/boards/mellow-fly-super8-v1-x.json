@@ -184,9 +184,10 @@
       "pwm": true
     },
     "IN7": {
-      "label": "IN7 (5V tolerant input, PWM capable)",
+      "label": "IN7 (PF8 - PWM_out, 5V tolerant input, PWM capable)",
       "pin": "PF8",
-      "pwm": true
+      "pwm": true,
+      "name": "PWM_out"
     }
   },
 
