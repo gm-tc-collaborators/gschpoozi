@@ -8046,14 +8046,17 @@ fi
 EXTENSION_URL="https://raw.githubusercontent.com/dw-0/kiauh/refs/heads/master/kiauh/extensions/gcode_shell_cmd/assets/gcode_shell_command.py"
 
 echo "Downloading gcode_shell_command.py from GitHub..."
+TEMP_FILE=$(mktemp)
 if command -v wget >/dev/null 2>&1; then
-  if ! wget -q -O "$KLIPPER_TARGET/gcode_shell_command.py" "$EXTENSION_URL"; then
+  if ! wget -q -O "$TEMP_FILE" "$EXTENSION_URL"; then
     echo "ERROR: Failed to download from GitHub"
+    rm -f "$TEMP_FILE"
     exit 1
   fi
 elif command -v curl >/dev/null 2>&1; then
-  if ! curl -sSL -o "$KLIPPER_TARGET/gcode_shell_command.py" "$EXTENSION_URL"; then
+  if ! curl -sSL -o "$TEMP_FILE" "$EXTENSION_URL"; then
     echo "ERROR: Failed to download from GitHub"
+    rm -f "$TEMP_FILE"
     exit 1
   fi
 else
@@ -8061,19 +8064,49 @@ else
   exit 1
 fi
 
-if [ ! -f "$KLIPPER_TARGET/gcode_shell_command.py" ] || [ ! -s "$KLIPPER_TARGET/gcode_shell_command.py" ]; then
-  echo "ERROR: Downloaded file is missing or empty"
+if [ ! -s "$TEMP_FILE" ]; then
+  echo "ERROR: Downloaded file is empty"
+  rm -f "$TEMP_FILE"
   exit 1
 fi
 
-# Validate it's valid Python
-if ! python3 -m py_compile "$KLIPPER_TARGET/gcode_shell_command.py" 2>/dev/null; then
-  echo "ERROR: Downloaded file is not valid Python code"
-  echo "This may indicate a network issue or the file has changed."
-  rm -f "$KLIPPER_TARGET/gcode_shell_command.py"
+# Validate it's valid Python syntax using the same Python that Klipper uses
+KLIPPY_PYTHON="$HOME/klippy-env/bin/python3"
+if [ -f "$KLIPPY_PYTHON" ]; then
+  PYTHON_CMD="$KLIPPY_PYTHON"
+else
+  PYTHON_CMD="python3"
+fi
+
+echo "Validating Python syntax..."
+if ! $PYTHON_CMD -m py_compile "$TEMP_FILE" 2>&1; then
+  echo ""
+  echo "ERROR: Downloaded file has Python syntax errors"
+  echo "First few lines of the file:"
+  head -n 5 "$TEMP_FILE"
+  echo ""
+  echo "This may indicate:"
+  echo "- Network issue (downloaded HTML error page)"
+  echo "- Python version incompatibility"
+  echo "- File format issue"
+  rm -f "$TEMP_FILE"
   exit 1
 fi
 
+# Check for common syntax issues that cause "illegal target for annotation"
+if grep -q "^[[:space:]]*from __future__ import annotations" "$TEMP_FILE"; then
+  # Check Python version supports __future__ annotations
+  PYTHON_VERSION=$($PYTHON_CMD -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+  PYTHON_MAJOR=$(echo "$PYTHON_VERSION" | cut -d. -f1)
+  PYTHON_MINOR=$(echo "$PYTHON_VERSION" | cut -d. -f2)
+  if [ "$PYTHON_MAJOR" -lt 3 ] || ([ "$PYTHON_MAJOR" -eq 3 ] && [ "$PYTHON_MINOR" -lt 7 ]); then
+    echo "WARNING: Python $PYTHON_VERSION may not fully support __future__ annotations"
+    echo "The extension may still work, but syntax validation is limited."
+  fi
+fi
+
+# Move validated file to target location
+mv "$TEMP_FILE" "$KLIPPER_TARGET/gcode_shell_command.py"
 echo "Extension installed to: $KLIPPER_TARGET/gcode_shell_command.py"
 chmod 644 "$KLIPPER_TARGET/gcode_shell_command.py"
 """
