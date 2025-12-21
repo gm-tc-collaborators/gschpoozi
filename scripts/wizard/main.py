@@ -8167,17 +8167,38 @@ read -r _
             return
 
         current_source = self.state.get("tuning.accelerometer.source", "")
+
+        # Add option to clear/reset accelerometer settings
+        menu_items = [(s[0], s[1], s[0] == current_source) for s in sources]
+        if current_source:  # Only show clear option if something is configured
+            menu_items.append(("__CLEAR__", "Clear/Reset accelerometer settings", False))
+
         choice = self.ui.radiolist(
             "Select accelerometer source:\n\n"
             "This configures [adxl345]/[lis2dw] and [resonance_tester] sections\n"
             "for input shaper calibration.\n\n"
             "After configuration, use CALIBRATE_SHAPER macro to calibrate.",
-            [(s[0], s[1], s[0] == current_source) for s in sources],
+            menu_items,
             title="Accelerometer Setup",
             height=20,
             width=80,
         )
         if choice is None:
+            return
+
+        if choice == "__CLEAR__":
+            if self.ui.yesno(
+                "Clear accelerometer settings?\n\n"
+                "This will reset the accelerometer configuration so you can\n"
+                "set it up again (and trigger extension installation if needed).",
+                title="Clear Accelerometer",
+                default_no=False,
+                height=12,
+                width=70,
+            ):
+                self.state.delete("tuning.accelerometer")
+                self.state.save()
+                self.ui.msgbox("Accelerometer settings cleared.", title="Cleared")
             return
 
         if choice == "none":
