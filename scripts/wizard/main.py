@@ -7979,12 +7979,12 @@ read -r _
         def _gcode_shell_command_install_status() -> tuple[bool, str]:
             """Check if gcode_shell_command extension is installed."""
             try:
-                base = _Path.home() / "klipper" / "klippy"
+                base = Path.home() / "klipper" / "klippy"
                 target = base / "plugins" if (base / "plugins").exists() else (base / "extras")
                 extension_file = target / "gcode_shell_command.py"
                 return extension_file.exists(), str(target)
             except Exception:
-                return False, str(_Path.home() / "klipper" / "klippy" / "extras")
+                return False, str(Path.home() / "klipper" / "klippy" / "extras")
 
         extension_installed, target_dir = _gcode_shell_command_install_status()
 
@@ -8002,7 +8002,7 @@ read -r _
                 height=18,
                 width=88,
             ):
-                if not (_Path.home() / "klipper" / "klippy" / "extras").exists():
+                if not (Path.home() / "klipper" / "klippy" / "extras").exists():
                     self.ui.msgbox(
                         "Klipper source tree not found at:\n\n"
                         "~/klipper/klippy/extras\n\n"
