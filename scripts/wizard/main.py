@@ -4651,8 +4651,9 @@ class GschpooziWizard:
         if part_pin is None:
             return
 
-        # Mark as used for conflict detection
-        pin_manager.mark_used(part_location, part_pin, "Part cooling fan")
+        # Mark as used for conflict detection (skip if cleared)
+        if part_pin:
+            pin_manager.mark_used(part_location, part_pin, "Part cooling fan")
 
         # Part cooling fan parameters
         current_max_power = self.state.get("fans.part_cooling.max_power", 1.0)
@@ -4729,8 +4730,9 @@ class GschpooziWizard:
         if hotend_pin is None:
             return
 
-        # Mark as used for conflict detection
-        pin_manager.mark_used(hotend_location, hotend_pin, "Hotend fan")
+        # Mark as used for conflict detection (skip if cleared)
+        if hotend_pin:
+            pin_manager.mark_used(hotend_location, hotend_pin, "Hotend fan")
 
         # Hotend fan parameters
         current_heater = self.state.get("fans.hotend.heater", "extruder")
@@ -4783,8 +4785,9 @@ class GschpooziWizard:
             if controller_pin is None:
                 return
 
-            # Mark as used for conflict detection
-            pin_manager.mark_used("mainboard", controller_pin, "Controller fan")
+            # Mark as used for conflict detection (skip if cleared)
+            if controller_pin:
+                pin_manager.mark_used("mainboard", controller_pin, "Controller fan")
 
             # Controller fan parameters
             current_kick_start = self.state.get("fans.controller.kick_start_time", 0.5)
@@ -5099,12 +5102,17 @@ class GschpooziWizard:
         # Save part cooling fan
         # State keys must match config-sections.yaml template expectations
         self.state.set("fans.part_cooling.location", part_location)
-        if part_location == "toolboard":
-            self.state.set("fans.part_cooling.pin_toolboard", part_pin)
-            self.state.delete("fans.part_cooling.pin_mainboard")  # Clear other key
+        if part_pin:  # If pin is cleared (empty string), delete the key instead of setting it
+            if part_location == "toolboard":
+                self.state.set("fans.part_cooling.pin_toolboard", part_pin)
+                self.state.delete("fans.part_cooling.pin_mainboard")  # Clear other key
+            else:
+                self.state.set("fans.part_cooling.pin_mainboard", part_pin)
+                self.state.delete("fans.part_cooling.pin_toolboard")  # Clear other key
         else:
-            self.state.set("fans.part_cooling.pin_mainboard", part_pin)
-            self.state.delete("fans.part_cooling.pin_toolboard")  # Clear other key
+            # Clear both keys when pin is cleared
+            self.state.delete("fans.part_cooling.pin_mainboard")
+            self.state.delete("fans.part_cooling.pin_toolboard")
         self.state.set("fans.part_cooling.max_power", float(max_power or 1.0))
         self.state.set("fans.part_cooling.kick_start_time", float(kick_start_time or 0.5))
         self.state.set("fans.part_cooling.off_below", float(off_below or 0.1))
@@ -5115,12 +5123,17 @@ class GschpooziWizard:
         # Save hotend fan
         # State keys must match config-sections.yaml template expectations
         self.state.set("fans.hotend.location", hotend_location)
-        if hotend_location == "toolboard":
-            self.state.set("fans.hotend.pin_toolboard", hotend_pin)
-            self.state.delete("fans.hotend.pin_mainboard")  # Clear other key
+        if hotend_pin:  # If pin is cleared (empty string), delete the key instead of setting it
+            if hotend_location == "toolboard":
+                self.state.set("fans.hotend.pin_toolboard", hotend_pin)
+                self.state.delete("fans.hotend.pin_mainboard")  # Clear other key
+            else:
+                self.state.set("fans.hotend.pin_mainboard", hotend_pin)
+                self.state.delete("fans.hotend.pin_toolboard")  # Clear other key
         else:
-            self.state.set("fans.hotend.pin_mainboard", hotend_pin)
-            self.state.delete("fans.hotend.pin_toolboard")  # Clear other key
+            # Clear both keys when pin is cleared
+            self.state.delete("fans.hotend.pin_mainboard")
+            self.state.delete("fans.hotend.pin_toolboard")
         self.state.set("fans.hotend.heater", heater or "extruder")
         self.state.set("fans.hotend.heater_temp", int(heater_temp or 50))
         self.state.set("fans.hotend.fan_speed", float(fan_speed or 1.0))
@@ -5129,8 +5142,12 @@ class GschpooziWizard:
 
         # Save controller fan
         self.state.set("fans.controller.enabled", has_controller_fan)
-        if has_controller_fan and controller_pin:
-            self.state.set("fans.controller.pin", controller_pin)  # Changed from port
+        if has_controller_fan:
+            if controller_pin:
+                self.state.set("fans.controller.pin", controller_pin)  # Changed from port
+            else:
+                # Pin was cleared - delete the pin key but keep other settings
+                self.state.delete("fans.controller.pin")
             self.state.set("fans.controller.kick_start_time", float(controller_kick_start or 0.5))
             self.state.set("fans.controller.stepper", stepper or "stepper_x")
             self.state.set("fans.controller.idle_timeout", int(idle_timeout or 60))

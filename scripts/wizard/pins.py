@@ -741,14 +741,20 @@ class PinManager:
             is_selected = (port_id == current_port)
             options.append((port_id, label, is_selected))
 
+        # Add "Clear selection" option if there's a current selection
+        if current_port:
+            options.append(("clear", "Clear selection (remove pin)", False))
+
         options.append(("manual", "Manual entry...", not current_port))
 
         if not any(x[2] for x in options):
             options[0] = (options[0][0], options[0][1], True)
 
-        # Sort: relevant ports first
+        # Sort: clear first, then relevant ports, then manual entry
         def sort_key(item):
             tag, label, _ = item
+            if tag == "clear":
+                return (-1, "aaa")  # Put clear option at the very top (negative sorts first)
             if tag == "manual":
                 return (2, "zzz")
             # Prioritize ports that match the output type
@@ -770,6 +776,9 @@ class PinManager:
 
         if port is None:
             return None
+
+        if port == "clear":
+            return ""  # Return empty string to indicate clearing
 
         if port == "manual":
             return self.ui.inputbox(
