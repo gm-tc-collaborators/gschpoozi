@@ -8205,7 +8205,7 @@ read -r _
                 "beacon": "Beacon",
                 "cartographer": "Cartographer",
             }.get(accel_source, None)
-            
+
             # Format accelerometer menu item
             if accel_status:
                 accel_menu_label = self._format_menu_item("Accelerometer", accel_status)
