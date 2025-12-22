@@ -5496,7 +5496,18 @@ class GschpooziWizard:
         if homing_mode:
             self.state.set("probe.homing_mode", homing_mode)
         if contact_max_temp:
-            self.state.set("probe.contact_max_hotend_temperature", int(contact_max_temp))
+            contact_max_val = int(contact_max_temp)
+            self.state.set("probe.contact_max_hotend_temperature", contact_max_val)
+            # Warn if preheat is too close to contact max
+            preheat = self.state.get("macros.extruder_preheat_temp", 150)
+            if preheat >= contact_max_val - 5:
+                self.ui.msgbox(
+                    f"Warning: Your preheat temp ({preheat}C) is too close to this limit ({contact_max_val}C).\n\n"
+                    f"PID overshoot may cause Beacon to reject probing.\n\n"
+                    f"Consider lowering preheat to {contact_max_val - 10}C\n"
+                    f"or raising contact limit.",
+                    title="Temperature Conflict Warning"
+                )
         if mesh_main_direction:
             self.state.set("probe.bed_mesh.mesh_main_direction", mesh_main_direction)
         if mesh_runs:
@@ -8619,7 +8630,23 @@ read -r _
                     )
                     if v:
                         try:
-                            self.state.set("macros.extruder_preheat_temp", int(v))
+                            preheat_val = int(v)
+                            self.state.set("macros.extruder_preheat_temp", preheat_val)
+                            # Warn if preheat is too close to contact max for Beacon/Cartographer
+                            probe_type = self.state.get("probe.probe_type", "none")
+                            homing_mode = self.state.get("probe.homing_mode", "")
+                            homing_method = self.state.get("homing.homing_method", "")
+                            contact_max = self.state.get("probe.contact_max_hotend_temperature", 180)
+                            is_contact = "contact" in homing_mode or "contact" in homing_method
+                            if probe_type in ("beacon", "cartographer") and is_contact:
+                                if preheat_val >= contact_max - 5:
+                                    self.ui.msgbox(
+                                        f"Warning: Preheat temp {preheat_val}C is too close to contact limit {contact_max}C.\n\n"
+                                        f"Beacon contact probing requires hotend below {contact_max}C.\n"
+                                        f"PID overshoot may cause probing failures.\n\n"
+                                        f"Recommended: Set preheat to {contact_max - 10}C or lower.",
+                                        title="Temperature Conflict Warning"
+                                    )
                         except ValueError:
                             pass
                     # Preheat scale
