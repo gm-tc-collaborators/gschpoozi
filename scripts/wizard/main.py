@@ -19,6 +19,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from wizard.ui import WizardUI
 from wizard.state import get_state, WizardState
 from wizard.pins import PinManager
+from wizard.macro_defaults import (
+    get_smart_defaults,
+    get_suggested_preset,
+    apply_smart_defaults,
+    get_mesh_method,
+    get_z_calibration_gcode,
+)
+
 
 # Find repo root (where templates/ lives)
 SCRIPT_DIR = Path(__file__).parent.resolve()
@@ -5432,15 +5440,17 @@ class GschpooziWizard:
                 homing_mode = None
 
             # Eddy probe mesh method (stored here, used later in bed mesh config)
-            if probe_type != "btt_eddy":  # BTT Eddy already set above
-                current_mesh_method = self.state.get("probe.bed_mesh.mesh_method", "scan" if probe_type == "beacon" else "rapid_scan")
+            # Beacon only supports METHOD=beacon - no selection needed (hardcoded in generator)
+            if probe_type == "cartographer":
+                # Cartographer uses METHOD=scan (Klipper standard)
+                current_mesh_method = self.state.get("probe.bed_mesh.mesh_method", "scan")
                 mesh_method = self.ui.radiolist(
-                    f"{probe_type.replace('_', ' ').title()} mesh method:",
+                    "Cartographer mesh method:",
                     [
+                        ("scan", "Standard Scan (continuous scanning)", current_mesh_method == "scan" or not current_mesh_method),
                         ("rapid_scan", "Rapid Scan (fastest)", current_mesh_method == "rapid_scan"),
-                        ("scan", "Standard Scan (more accurate)", current_mesh_method == "scan" or (probe_type == "beacon" and not current_mesh_method)),
                     ],
-                    title="Probe - Mesh Method"
+                    title="Cartographer - Mesh Method"
                 )
                 if mesh_method:
                     self.state.set("probe.bed_mesh.mesh_method", mesh_method)
@@ -5494,7 +5504,18 @@ class GschpooziWizard:
         if homing_mode:
             self.state.set("probe.homing_mode", homing_mode)
         if contact_max_temp:
-            self.state.set("probe.contact_max_hotend_temperature", int(contact_max_temp))
+            contact_max_val = int(contact_max_temp)
+            self.state.set("probe.contact_max_hotend_temperature", contact_max_val)
+            # Warn if preheat is too close to contact max
+            preheat = self.state.get("macros.extruder_preheat_temp", 150)
+            if preheat >= contact_max_val - 5:
+                self.ui.msgbox(
+                    f"Warning: Your preheat temp ({preheat}C) is too close to this limit ({contact_max_val}C).\n\n"
+                    f"PID overshoot may cause Beacon to reject probing.\n\n"
+                    f"Consider lowering preheat to {contact_max_val - 10}C\n"
+                    f"or raising contact limit.",
+                    title="Temperature Conflict Warning"
+                )
         if mesh_main_direction:
             self.state.set("probe.bed_mesh.mesh_main_direction", mesh_main_direction)
         if mesh_runs:
@@ -8436,119 +8457,756 @@ read -r _
 
     def _configure_macros(self) -> None:
         """
-        Configure macro behavior (START_PRINT / END_PRINT).
+        Configure macro behavior (START_PRINT, END_PRINT, PAUSE, LOAD/UNLOAD, etc.).
 
-        The generator already emits macros with defaults; this menu lets users store
-        common overrides in wizard state so macros-config.cfg reflects them.
+        Comprehensive macro configuration with presets, tiered settings, and
+        material profiles. Generates macros-config.cfg with all settings.
         """
-        # Very small, high-signal set of options (safe defaults).
-        while True:
-            bed_mesh_mode = str(self.state.get("macros.bed_mesh_mode", "adaptive") or "adaptive")
-            purge_style = str(self.state.get("macros.purge_style", "adaptive") or "adaptive")
-            heat_soak = self.state.get("macros.heat_soak_time", 0) or 0
-            wipe_count = self.state.get("macros.wipe_count", 3) or 3
+
+        def _get_preset_status() -> str:
+            """Get current preset status."""
+            preset = self.state.get("macros.preset", "beginner_safe")
+            presets = {
+                "beginner_safe": "Beginner Safe",
+                "voron_style": "Voron-Style",
+                "speed_optimized": "Speed-Optimized",
+                "enclosed_hightemp": "Enclosed High-Temp",
+                "bed_slinger": "Bed Slinger",
+                "production": "Production Mode",
+                "custom": "Custom",
+            }
+            return presets.get(preset, "Custom")
+
+        def _apply_preset(preset_name: str) -> None:
+            """Apply a preset's settings as defaults."""
+            presets = {
+                "beginner_safe": {
+                    "extruder_preheat_temp": 150, "preheat_scale": 0.75,
+                    "level_bed_at_temp": True, "bed_mesh_mode": "saved",
+                    "probe_temp_source": "print", "bed_stabilize_before_probe": True,
+                    "bed_stabilize_dwell": 0, "bed_off_during_probe": False,
+                    "heat_soak_enabled": False, "heat_soak_time": 0,
+                    "purge_style": "line", "purge_amount": 30.0,
+                    "brush_enabled": False, "heating_park_position": "center",
+                    "park_position": "front", "pause_heater_off": True, "motor_off_delay": 60,
+                },
+                "voron_style": {
+                    "extruder_preheat_temp": 150, "preheat_scale": 0.75,
+                    "level_bed_at_temp": True, "bed_mesh_mode": "adaptive",
+                    "probe_temp_source": "print", "bed_stabilize_before_probe": True,
+                    "bed_stabilize_dwell": 30, "bed_off_during_probe": False,
+                    "heat_soak_enabled": True, "heat_soak_time": 15,
+                    "purge_style": "blob", "purge_amount": 30.0,
+                    "brush_enabled": True, "wipe_count": 3,
+                    "heating_park_position": "back", "park_position": "back",
+                    "pause_heater_off": False, "motor_off_delay": 300, "always_home_z": True,
+                },
+                "speed_optimized": {
+                    "extruder_preheat_temp": 180, "preheat_scale": 1.0,
+                    "level_bed_at_temp": False, "bed_mesh_mode": "saved",
+                    "probe_temp_source": "print", "bed_stabilize_before_probe": False,
+                    "bed_stabilize_dwell": 0, "bed_off_during_probe": False,
+                    "heat_soak_enabled": False, "heat_soak_time": 0,
+                    "purge_style": "adaptive", "purge_amount": 20.0,
+                    "brush_enabled": False, "heating_park_position": "none",
+                    "park_position": "front", "pause_heater_off": False, "motor_off_delay": 30,
+                },
+                "enclosed_hightemp": {
+                    "extruder_preheat_temp": 150, "preheat_scale": 0.6,
+                    "level_bed_at_temp": True, "bed_mesh_mode": "adaptive",
+                    "probe_temp_source": "fixed", "probe_bed_temp": 80,
+                    "bed_stabilize_before_probe": True, "bed_stabilize_dwell": 60,
+                    "bed_off_during_probe": False,
+                    "heat_soak_enabled": True, "heat_soak_time": 20,
+                    "chamber_temp_default": 50, "chamber_timeout": 45,
+                    "purge_style": "blob", "brush_enabled": True,
+                    "wipe_count": 5, "heating_park_position": "back",
+                    "park_position": "back", "pause_heater_off": False,
+                    "turn_off_fans": False, "fan_off_delay": 300, "motor_off_delay": 600,
+                },
+                "bed_slinger": {
+                    "extruder_preheat_temp": 150, "preheat_scale": 0.75,
+                    "level_bed_at_temp": True, "bed_mesh_mode": "saved",
+                    "probe_temp_source": "print", "bed_stabilize_before_probe": True,
+                    "bed_stabilize_dwell": 0, "bed_off_during_probe": False,
+                    "heat_soak_enabled": False, "heat_soak_time": 0,
+                    "purge_style": "line", "brush_enabled": False,
+                    "heating_park_position": "front", "park_position": "front",
+                    "pause_heater_off": True, "motor_off_delay": 120,
+                },
+                "production": {
+                    "extruder_preheat_temp": 160, "preheat_scale": 0.8,
+                    "level_bed_at_temp": True, "bed_mesh_mode": "adaptive",
+                    "probe_temp_source": "print", "bed_stabilize_before_probe": True,
+                    "bed_stabilize_dwell": 10, "bed_off_during_probe": False,
+                    "heat_soak_enabled": False, "heat_soak_time": 5,
+                    "purge_style": "adaptive", "purge_amount": 25.0,
+                    "heating_park_position": "back", "park_position": "back",
+                    "pause_heater_off": False, "pause_timeout": 86400, "motor_off_delay": 600,
+                },
+            }
+            if preset_name in presets:
+                for key, value in presets[preset_name].items():
+                    self.state.set(f"macros.{key}", value)
+                self.state.set("macros.preset", preset_name)
+                self.state.save()
+
+        def _configure_presets() -> None:
+            """Select a macro preset."""
+            current = self.state.get("macros.preset", "beginner_safe")
+            presets = [
+                ("beginner_safe", "Beginner Safe - Conservative, safety-focused"),
+                ("voron_style", "Voron-Style - Full workflow with heat soak"),
+                ("speed_optimized", "Speed-Optimized - Minimal start time"),
+                ("enclosed_hightemp", "Enclosed High-Temp - ABS/ASA/PC workflow"),
+                ("bed_slinger", "Bed Slinger - For cartesian printers"),
+                ("production", "Production Mode - Balanced for batch printing"),
+            ]
+            # Mark current
+            items = [(k, f"{'* ' if k == current else ''}{v}") for k, v in presets]
 
             choice = self.ui.menu(
-                "Macros (START_PRINT / END_PRINT)\n\n"
-                "Configure macro defaults that will be written into macros-config.cfg.\n\n"
-                f"Current:\n"
-                f"  bed_mesh_mode: {bed_mesh_mode}\n"
-                f"  purge_style:   {purge_style}\n"
-                f"  heat_soak:     {heat_soak} min\n"
-                f"  wipe_count:    {wipe_count}\n\n"
-                "Select an item to edit:",
+                "Quick Setup Presets\n\n"
+                "Select a preset to apply recommended settings.\n"
+                "You can customize individual settings afterward.\n\n"
+                f"Current: {_get_preset_status()}",
+                items,
+                title="Macros - Presets",
+            )
+            if choice is None:
+                return
+
+            confirm = self.ui.yesno(
+                f"Apply '{choice.replace('_', ' ').title()}' preset?\n\n"
+                "This will set recommended values for all macro settings.\n"
+                "You can still customize them afterward.",
+                title="Apply Preset",
+            )
+            if confirm:
+                _apply_preset(choice)
+                self.ui.msgbox(f"Preset '{choice.replace('_', ' ').title()}' applied!", title="Preset Applied")
+
+        def _configure_start_print() -> None:
+            """Configure START_PRINT macro settings."""
+            while True:
+                preheat = self.state.get("macros.extruder_preheat_temp", 150)
+                scale = self.state.get("macros.preheat_scale", 0.75)
+                mesh = self.state.get("macros.bed_mesh_mode", "adaptive")
+                purge = self.state.get("macros.purge_style", "line")
+                soak_en = self.state.get("macros.heat_soak_enabled", False)
+                soak_time = self.state.get("macros.heat_soak_time", 0)
+                level_at_temp = self.state.get("macros.level_bed_at_temp", True)
+                probe_temp_src = self.state.get("macros.probe_temp_source", "print")
+                bed_off_probe = self.state.get("macros.bed_off_during_probe", False)
+                heating_park = self.state.get("macros.heating_park_position", "center")
+
+                # Format bed heating status
+                bed_heat_status = probe_temp_src
+                if bed_off_probe:
+                    bed_heat_status += ", heater off"
+
+                choice = self.ui.menu(
+                    "START_PRINT Settings\n\n"
+                    f"  Preheat temp:     {preheat}C (scale: {scale})\n"
+                    f"  Bed heating:      {bed_heat_status}\n"
+                    f"  Heating park:     {heating_park}\n"
+                    f"  Bed mesh:         {mesh}\n"
+                    f"  Purge style:      {purge}\n"
+                    f"  Heat soak:        {'Enabled' if soak_en else 'Disabled'} ({soak_time}min)\n"
+                    f"  Level at temp:    {'Yes' if level_at_temp else 'No'}\n",
+                    [
+                        ("preheat", "Preheat Settings"),
+                        ("bed", "Bed Heating Behavior"),
+                        ("heatpark", "Heating Park Position"),
+                        ("mesh", "Bed Mesh Mode"),
+                        ("purge", "Purge Settings"),
+                        ("soak", "Heat Soak Settings"),
+                        ("brush", "Nozzle Brush/Cleaning"),
+                        ("chamber", "Chamber Settings"),
+                        ("B", "Back"),
+                    ],
+                    title="START_PRINT",
+                )
+                if choice is None or choice == "B":
+                    return
+
+                if choice == "preheat":
+                    # Preheat temp
+                    v = self.ui.inputbox(
+                        "Extruder preheat temperature (C):\n\n"
+                        "Max temp during bed heating to prevent ooze.\n"
+                        "Typical: 150 for most, 180 for speed.",
+                        default=str(preheat),
+                        title="Preheat Temperature",
+                    )
+                    if v:
+                        try:
+                            preheat_val = int(v)
+                            self.state.set("macros.extruder_preheat_temp", preheat_val)
+                            # Warn if preheat is too close to contact max for Beacon/Cartographer
+                            probe_type = self.state.get("probe.probe_type", "none")
+                            homing_mode = self.state.get("probe.homing_mode", "")
+                            homing_method = self.state.get("homing.homing_method", "")
+                            contact_max = self.state.get("probe.contact_max_hotend_temperature", 180)
+                            is_contact = "contact" in homing_mode or "contact" in homing_method
+                            if probe_type in ("beacon", "cartographer") and is_contact:
+                                if preheat_val >= contact_max - 5:
+                                    self.ui.msgbox(
+                                        f"Warning: Preheat temp {preheat_val}C is too close to contact limit {contact_max}C.\n\n"
+                                        f"Beacon contact probing requires hotend below {contact_max}C.\n"
+                                        f"PID overshoot may cause probing failures.\n\n"
+                                        f"Recommended: Set preheat to {contact_max - 10}C or lower.",
+                                        title="Temperature Conflict Warning"
+                                    )
+                        except ValueError:
+                            pass
+                    # Preheat scale
+                    v = self.ui.inputbox(
+                        "Preheat scale factor (0.0 - 1.0):\n\n"
+                        "Multiplier for extruder temp during preheat.\n"
+                        "0.0 = no preheat, 0.5 = half, 1.0 = full temp.\n"
+                        "Typical: 0.75",
+                        default=str(scale),
+                        title="Preheat Scale",
+                    )
+                    if v:
+                        try:
+                            self.state.set("macros.preheat_scale", float(v))
+                        except ValueError:
+                            pass
+                    # Level at temp
+                    lat = self.ui.yesno(
+                        "Wait for bed temperature before leveling?\n\n"
+                        "Yes: More accurate leveling (recommended)\n"
+                        "No: Level while heating (faster start)",
+                        title="Level at Temperature",
+                        default_no=not level_at_temp,
+                    )
+                    self.state.set("macros.level_bed_at_temp", lat)
+                    self.state.save()
+                    self.state.set("macros.preset", "custom")
+
+                elif choice == "bed":
+                    # Bed heating behavior submenu
+                    current_src = self.state.get("macros.probe_temp_source", "print")
+                    current_fixed = self.state.get("macros.probe_bed_temp", 60)
+                    current_stabilize = self.state.get("macros.bed_stabilize_before_probe", True)
+                    current_dwell = self.state.get("macros.bed_stabilize_dwell", 0)
+                    current_off = self.state.get("macros.bed_off_during_probe", False)
+                    current_reheat = self.state.get("macros.bed_reheat_after_probe", True)
+
+                    # Probe temperature source
+                    src = self.ui.menu(
+                        "Probe Temperature Source\n\n"
+                        "What bed temperature to use during probing and meshing?\n\n"
+                        "• print: Use the full print bed temperature\n"
+                        "• initial_layer: Use BED_INITIAL param (for first layer temp)\n"
+                        "• fixed: Use a fixed lower temperature (faster heating)",
+                        [
+                            ("print", f"{'* ' if current_src == 'print' else ''}Print temp - Use full BED temperature"),
+                            ("initial_layer", f"{'* ' if current_src == 'initial_layer' else ''}Initial layer - Use BED_INITIAL parameter"),
+                            ("fixed", f"{'* ' if current_src == 'fixed' else ''}Fixed temp - Use fixed probe temperature"),
+                        ],
+                        title="Probe Temperature",
+                    )
+                    if src:
+                        self.state.set("macros.probe_temp_source", src)
+
+                        # If fixed, ask for the temperature
+                        if src == "fixed":
+                            v = self.ui.inputbox(
+                                "Fixed probe temperature (C):\n\n"
+                                "Bed temperature during probing/meshing.\n"
+                                "Lower temp = faster heating. Typical: 60",
+                                default=str(current_fixed),
+                                title="Fixed Probe Temp",
+                            )
+                            if v:
+                                try:
+                                    self.state.set("macros.probe_bed_temp", int(v))
+                                except ValueError:
+                                    pass
+
+                    # Stabilization dwell
+                    dwell = self.ui.inputbox(
+                        "Stabilization dwell time (seconds):\n\n"
+                        "Wait time after bed reaches temperature\n"
+                        "for thermal equilibrium before probing.\n\n"
+                        "0 = no extra wait, 30-60 = recommended for accuracy",
+                        default=str(current_dwell),
+                        title="Stabilization Dwell",
+                    )
+                    if dwell:
+                        try:
+                            self.state.set("macros.bed_stabilize_dwell", int(dwell))
+                        except ValueError:
+                            pass
+
+                    # Heater off during probing
+                    off = self.ui.yesno(
+                        "Turn off bed heater during probing?\n\n"
+                        "Yes: Eliminates PWM noise (SSR interference)\n"
+                        "No: Keep heater on (recommended for thermal probes)\n\n"
+                        "Only enable if you have probe accuracy issues\n"
+                        "caused by heater PWM interference.",
+                        title="Heater Off During Probe",
+                        default_no=not current_off,
+                    )
+                    self.state.set("macros.bed_off_during_probe", off)
+
+                    if off:
+                        # Reheat after probing
+                        reheat = self.ui.yesno(
+                            "Reheat bed after probing?\n\n"
+                            "Yes: Wait for bed to reach print temp (recommended)\n"
+                            "No: Start printing immediately",
+                            title="Reheat After Probe",
+                            default_no=not current_reheat,
+                        )
+                        self.state.set("macros.bed_reheat_after_probe", reheat)
+
+                    self.state.save()
+                    self.state.set("macros.preset", "custom")
+
+                elif choice == "heatpark":
+                    # Heating park position - where to park during final extruder heating
+                    hp = self.ui.menu(
+                        "Park position during final extruder heating:\n\n"
+                        "Where should the nozzle wait while heating to print temp?\n"
+                        "This prevents ooze from dripping onto the bed.\n",
+                        [
+                            ("center", "Center - Middle of bed (default)"),
+                            ("front", "Front - Front center of bed"),
+                            ("back", "Back - Back center of bed"),
+                            ("front_left", "Front Left - Corner"),
+                            ("front_right", "Front Right - Corner"),
+                            ("back_left", "Back Left - Corner"),
+                            ("back_right", "Back Right - Corner"),
+                            ("none", "None - Stay where mesh ended"),
+                        ],
+                        title="Heating Park Position",
+                    )
+                    if hp:
+                        self.state.set("macros.heating_park_position", hp)
+                        self.state.save()
+                        self.state.set("macros.preset", "custom")
+
+                elif choice == "mesh":
+                    m = self.ui.menu(
+                        "Bed mesh mode:",
+                        [
+                            ("adaptive", "Adaptive - Mesh print area only (fast)"),
+                            ("full", "Full - Complete bed mesh"),
+                            ("saved", "Saved - Load default profile (fastest)"),
+                            ("none", "None - Skip meshing"),
+                        ],
+                        title="Bed Mesh Mode",
+                    )
+                    if m:
+                        self.state.set("macros.bed_mesh_mode", m)
+                        self.state.save()
+                        self.state.set("macros.preset", "custom")
+
+                elif choice == "purge":
+                    p = self.ui.menu(
+                        "Purge style:",
+                        [
+                            ("line", "Line - Simple purge line (default)"),
+                            ("adaptive", "Adaptive - Near print area (KAMP-style)"),
+                            ("blob", "Blob - Bucket purge (needs bucket)"),
+                            ("voron", "Voron - Full decontamination (bucket+brush)"),
+                            ("none", "None - Skip purging"),
+                        ],
+                        title="Purge Style",
+                    )
+                    if p:
+                        self.state.set("macros.purge_style", p)
+                    # Purge amount
+                    amt = self.ui.inputbox(
+                        "Purge amount (mm of filament):\n\nTypical: 30",
+                        default=str(self.state.get("macros.purge_amount", 30.0)),
+                        title="Purge Amount",
+                    )
+                    if amt:
+                        try:
+                            self.state.set("macros.purge_amount", float(amt))
+                        except ValueError:
+                            pass
+                    self.state.save()
+                    self.state.set("macros.preset", "custom")
+
+                elif choice == "soak":
+                    soak_en = self.ui.yesno(
+                        "Enable heat soak?\n\n"
+                        "Allows bed/chamber to stabilize before printing.\n"
+                        "Recommended for ABS/ASA/PC materials.",
+                        title="Heat Soak",
+                        default_no=not self.state.get("macros.heat_soak_enabled", False),
+                    )
+                    self.state.set("macros.heat_soak_enabled", soak_en)
+                    if soak_en:
+                        t = self.ui.inputbox(
+                            "Heat soak time (minutes):\n\n"
+                            "Materials like ABS need 10-20 min.\n"
+                            "PLA/PETG typically don't need heat soak.",
+                            default=str(self.state.get("macros.heat_soak_time", 10)),
+                            title="Heat Soak Time",
+                        )
+                        if t:
+                            try:
+                                self.state.set("macros.heat_soak_time", int(t))
+                            except ValueError:
+                                pass
+                    self.state.save()
+                    self.state.set("macros.preset", "custom")
+
+                elif choice == "brush":
+                    brush = self.ui.yesno(
+                        "Enable nozzle brush cleaning?\n\n"
+                        "Requires a brush station on your printer.",
+                        title="Nozzle Brush",
+                        default_no=not self.state.get("macros.brush_enabled", False),
+                    )
+                    self.state.set("macros.brush_enabled", brush)
+                    if brush:
+                        wc = self.ui.inputbox(
+                            "Wipe count:\n\nNumber of brush strokes. Typical: 3",
+                            default=str(self.state.get("macros.wipe_count", 3)),
+                            title="Wipe Count",
+                        )
+                        if wc:
+                            try:
+                                self.state.set("macros.wipe_count", int(wc))
+                            except ValueError:
+                                pass
+                    self.state.save()
+                    self.state.set("macros.preset", "custom")
+
+                elif choice == "chamber":
+                    ch_temp = self.ui.inputbox(
+                        "Default chamber temperature (C):\n\n"
+                        "0 = no chamber heating.\n"
+                        "Typical: 45 for ABS, 50 for ASA.",
+                        default=str(self.state.get("macros.chamber_temp_default", 0)),
+                        title="Chamber Temperature",
+                    )
+                    if ch_temp:
+                        try:
+                            self.state.set("macros.chamber_temp_default", int(ch_temp))
+                        except ValueError:
+                            pass
+                    ch_timeout = self.ui.inputbox(
+                        "Chamber heating timeout (minutes):\n\n"
+                        "Max wait time for chamber. Typical: 30",
+                        default=str(self.state.get("macros.chamber_timeout", 30)),
+                        title="Chamber Timeout",
+                    )
+                    if ch_timeout:
+                        try:
+                            self.state.set("macros.chamber_timeout", int(ch_timeout))
+                        except ValueError:
+                            pass
+                    self.state.save()
+                    self.state.set("macros.preset", "custom")
+
+        def _configure_end_print() -> None:
+            """Configure END_PRINT macro settings."""
+            while True:
+                park = self.state.get("macros.park_position", "front")
+                z_hop = self.state.get("macros.park_z_hop", 10.0)
+                retract = self.state.get("macros.end_retract_length", 10.0)
+                motor_delay = self.state.get("macros.motor_off_delay", 300)
+
+                choice = self.ui.menu(
+                    "END_PRINT Settings\n\n"
+                    f"  Park position:    {park}\n"
+                    f"  Z hop:            {z_hop}mm\n"
+                    f"  Retraction:       {retract}mm\n"
+                    f"  Motor off delay:  {motor_delay}s\n",
+                    [
+                        ("park", "Parking Settings"),
+                        ("retract", "Retraction Settings"),
+                        ("cooldown", "Cooldown Settings"),
+                        ("B", "Back"),
+                    ],
+                    title="END_PRINT",
+                )
+                if choice is None or choice == "B":
+                    return
+
+                if choice == "park":
+                    p = self.ui.menu(
+                        "Park position at end of print:",
+                        [
+                            ("front", "Front center"),
+                            ("back", "Back center"),
+                            ("center", "Bed center"),
+                            ("front_left", "Front left"),
+                            ("front_right", "Front right"),
+                            ("back_left", "Back left"),
+                            ("back_right", "Back right"),
+                        ],
+                        title="Park Position",
+                    )
+                    if p:
+                        self.state.set("macros.park_position", p)
+                    zh = self.ui.inputbox(
+                        "Z hop before parking (mm):\n\nTypical: 10",
+                        default=str(z_hop),
+                        title="Z Hop",
+                    )
+                    if zh:
+                        try:
+                            self.state.set("macros.park_z_hop", float(zh))
+                        except ValueError:
+                            pass
+                    self.state.save()
+                    self.state.set("macros.preset", "custom")
+
+                elif choice == "retract":
+                    rl = self.ui.inputbox(
+                        "End print retraction length (mm):\n\nTypical: 10",
+                        default=str(retract),
+                        title="Retract Length",
+                    )
+                    if rl:
+                        try:
+                            self.state.set("macros.end_retract_length", float(rl))
+                        except ValueError:
+                            pass
+                    rs = self.ui.inputbox(
+                        "Retraction speed (mm/s):\n\nTypical: 30",
+                        default=str(self.state.get("macros.end_retract_speed", 30.0)),
+                        title="Retract Speed",
+                    )
+                    if rs:
+                        try:
+                            self.state.set("macros.end_retract_speed", float(rs))
+                        except ValueError:
+                            pass
+                    self.state.save()
+                    self.state.set("macros.preset", "custom")
+
+                elif choice == "cooldown":
+                    md = self.ui.inputbox(
+                        "Motor off delay (seconds):\n\n"
+                        "Time before disabling steppers after print.\n"
+                        "Typical: 300 (5 min)",
+                        default=str(motor_delay),
+                        title="Motor Off Delay",
+                    )
+                    if md:
+                        try:
+                            self.state.set("macros.motor_off_delay", int(md))
+                        except ValueError:
+                            pass
+                    self.state.save()
+                    self.state.set("macros.preset", "custom")
+
+        def _configure_pause_resume() -> None:
+            """Configure PAUSE/RESUME macro settings."""
+            while True:
+                pause_ret = self.state.get("macros.pause_retract", 1.0)
+                pause_pos = self.state.get("macros.pause_position", "front")
+                heater_off = self.state.get("macros.pause_heater_off", False)
+                resume_prime = self.state.get("macros.resume_prime", 1.0)
+
+                choice = self.ui.menu(
+                    "PAUSE / RESUME Settings\n\n"
+                    f"  Pause retract:    {pause_ret}mm\n"
+                    f"  Pause position:   {pause_pos}\n"
+                    f"  Heater off:       {'Yes (safe)' if heater_off else 'No (hot)'}\n"
+                    f"  Resume prime:     {resume_prime}mm\n",
+                    [
+                        ("pause", "Pause Behavior"),
+                        ("resume", "Resume Behavior"),
+                        ("safety", "Safety Settings"),
+                        ("B", "Back"),
+                    ],
+                    title="PAUSE / RESUME",
+                )
+                if choice is None or choice == "B":
+                    return
+
+                if choice == "pause":
+                    pr = self.ui.inputbox(
+                        "Pause retraction (mm):\n\nSmall retract before moving. Typical: 1",
+                        default=str(pause_ret),
+                        title="Pause Retract",
+                    )
+                    if pr:
+                        try:
+                            self.state.set("macros.pause_retract", float(pr))
+                        except ValueError:
+                            pass
+                    pp = self.ui.menu(
+                        "Park position when paused:",
+                        [
+                            ("front", "Front center"),
+                            ("back", "Back center"),
+                            ("center", "Bed center"),
+                        ],
+                        title="Pause Position",
+                    )
+                    if pp:
+                        self.state.set("macros.pause_position", pp)
+                    self.state.save()
+
+                elif choice == "resume":
+                    rp = self.ui.inputbox(
+                        "Resume prime amount (mm):\n\n"
+                        "Extrusion before resuming. Typical: 1",
+                        default=str(resume_prime),
+                        title="Resume Prime",
+                    )
+                    if rp:
+                        try:
+                            self.state.set("macros.resume_prime", float(rp))
+                        except ValueError:
+                            pass
+                    self.state.save()
+
+                elif choice == "safety":
+                    ho = self.ui.yesno(
+                        "Turn off hotend when paused?\n\n"
+                        "Yes: Safer (prevents heat creep overnight)\n"
+                        "No: Faster resume (stays hot)\n\n"
+                        "Recommended: Yes for safety",
+                        title="Heater Off on Pause",
+                        default_no=not heater_off,
+                    )
+                    self.state.set("macros.pause_heater_off", ho)
+                    self.state.save()
+                    self.state.set("macros.preset", "custom")
+
+        def _configure_filament() -> None:
+            """Configure LOAD/UNLOAD filament macros."""
+            while True:
+                load_temp = self.state.get("macros.load_temp", 220)
+                load_len = self.state.get("macros.load_length", 100)
+                unload_len = self.state.get("macros.unload_length", 100)
+                tip_shape = self.state.get("macros.unload_tip_shape", True)
+
+                choice = self.ui.menu(
+                    "Filament Macros (LOAD / UNLOAD)\n\n"
+                    f"  Load temp:        {load_temp}C\n"
+                    f"  Load length:      {load_len}mm\n"
+                    f"  Unload length:    {unload_len}mm\n"
+                    f"  Tip shaping:      {'Enabled' if tip_shape else 'Disabled'}\n",
+                    [
+                        ("load", "LOAD_FILAMENT Settings"),
+                        ("unload", "UNLOAD_FILAMENT Settings"),
+                        ("B", "Back"),
+                    ],
+                    title="Filament Macros",
+                )
+                if choice is None or choice == "B":
+                    return
+
+                if choice == "load":
+                    lt = self.ui.inputbox(
+                        "Load temperature (C):\n\nTypical: 220",
+                        default=str(load_temp),
+                        title="Load Temperature",
+                    )
+                    if lt:
+                        try:
+                            self.state.set("macros.load_temp", int(lt))
+                        except ValueError:
+                            pass
+                    ll = self.ui.inputbox(
+                        "Load length (mm):\n\n"
+                        "Bowden: 100+, Direct drive: 50-80",
+                        default=str(load_len),
+                        title="Load Length",
+                    )
+                    if ll:
+                        try:
+                            self.state.set("macros.load_length", int(ll))
+                        except ValueError:
+                            pass
+                    self.state.save()
+
+                elif choice == "unload":
+                    ul = self.ui.inputbox(
+                        "Unload length (mm):\n\nShould match load length.",
+                        default=str(unload_len),
+                        title="Unload Length",
+                    )
+                    if ul:
+                        try:
+                            self.state.set("macros.unload_length", int(ul))
+                        except ValueError:
+                            pass
+                    ts = self.ui.yesno(
+                        "Enable tip shaping on unload?\n\n"
+                        "Forms a clean tip for easier reload.\n"
+                        "Recommended: Yes",
+                        title="Tip Shaping",
+                        default_no=not tip_shape,
+                    )
+                    self.state.set("macros.unload_tip_shape", ts)
+                    self.state.save()
+
+        # ═══════════════════════════════════════════════════════════════════════════════
+        # Smart Defaults Initialization
+        # ═══════════════════════════════════════════════════════════════════════════════
+        # Apply smart defaults on first entry based on hardware configuration
+        if self.state.get("macros.preset") is None:
+            # First time - apply smart defaults and suggest a preset
+            applied = apply_smart_defaults(self.state)
+            suggested = get_suggested_preset(self.state)
+            if applied > 0:
+                # Ask if user wants to apply the suggested preset
+                if self.ui.yesno(
+                    f"Hardware-based defaults applied ({applied} settings).\n\n"
+                    f"Based on your configuration, the '{suggested.replace('_', ' ').title()}'\n"
+                    f"preset is recommended.\n\n"
+                    f"Apply this preset?",
+                    title="Smart Defaults",
+                ):
+                    _apply_preset(suggested)
+                else:
+                    # User declined - set to custom (they're using smart defaults only)
+                    self.state.set("macros.preset", "custom")
+                    self.state.save()
+
+        # Main macro menu
+        while True:
+            preset_status = _get_preset_status()
+            mesh = self.state.get("macros.bed_mesh_mode", "adaptive")
+            purge = self.state.get("macros.purge_style", "line")
+            soak = "On" if self.state.get("macros.heat_soak_enabled", False) else "Off"
+
+            choice = self.ui.menu(
+                "Macro Configuration\n\n"
+                f"  Preset:      {preset_status}\n"
+                f"  Mesh mode:   {mesh}\n"
+                f"  Purge:       {purge}\n"
+                f"  Heat soak:   {soak}\n",
                 [
-                    ("mesh", "Bed mesh mode (adaptive/saved/none)"),
-                    ("purge", "Purge style (adaptive/line/blob)"),
-                    ("soak", "Heat soak time (minutes)"),
-                    ("wipe", "Brush wipe count"),
+                    ("PRESET", f"Quick Setup Preset ({preset_status})"),
+                    ("START", "START_PRINT Settings"),
+                    ("END", "END_PRINT Settings"),
+                    ("PAUSE", "PAUSE / RESUME Settings"),
+                    ("FILAMENT", "Filament Macros (Load/Unload)"),
                     ("B", "Back"),
                 ],
                 title="Macros",
-                height=22,
-                width=90,
-                menu_height=10,
             )
             if choice is None or choice == "B":
                 return
 
-            if choice == "mesh":
-                m = self.ui.menu(
-                    "Bed mesh mode:",
-                    [
-                        ("adaptive", "Adaptive (recommended)"),
-                        ("saved", "Saved (load default profile)"),
-                        ("none", "None (skip meshing)"),
-                    ],
-                    title="Macros - Bed mesh mode",
-                    height=16,
-                    width=70,
-                    menu_height=6,
-                )
-                if m is None:
-                    continue
-                self.state.set("macros.bed_mesh_mode", m)
-                self.state.save()
-                continue
-
-            if choice == "purge":
-                p = self.ui.menu(
-                    "Purge style:",
-                    [
-                        ("adaptive", "Adaptive (macro chooses)"),
-                        ("line", "Purge line"),
-                        ("blob", "Blob/bucket purge"),
-                    ],
-                    title="Macros - Purge style",
-                    height=16,
-                    width=70,
-                    menu_height=6,
-                )
-                if p is None:
-                    continue
-                self.state.set("macros.purge_style", p)
-                self.state.save()
-                continue
-
-            if choice == "soak":
-                v = self.ui.inputbox(
-                    "Heat soak time (minutes):\n\n0 disables heat soak.",
-                    default=str(self.state.get("macros.heat_soak_time", 0)),
-                    title="Macros - Heat soak",
-                    height=14,
-                    width=70,
-                )
-                if v is None:
-                    continue
-                try:
-                    mins = int(float(str(v).strip()))
-                    if mins < 0:
-                        raise ValueError()
-                    self.state.set("macros.heat_soak_time", mins)
-                    self.state.save()
-                except Exception:
-                    self.ui.msgbox("Invalid number. Please enter 0 or a positive integer.", title="Error")
-                continue
-
-            if choice == "wipe":
-                v = self.ui.inputbox(
-                    "Brush wipe count:\n\nTypical: 3",
-                    default=str(self.state.get("macros.wipe_count", 3)),
-                    title="Macros - Wipe count",
-                    height=14,
-                    width=70,
-                )
-                if v is None:
-                    continue
-                try:
-                    wc = int(float(str(v).strip()))
-                    if wc < 0:
-                        raise ValueError()
-                    self.state.set("macros.wipe_count", wc)
-                    self.state.save()
-                except Exception:
-                    self.ui.msgbox("Invalid number. Please enter 0 or a positive integer.", title="Error")
-                continue
+            if choice == "PRESET":
+                _configure_presets()
+            elif choice == "START":
+                _configure_start_print()
+            elif choice == "END":
+                _configure_end_print()
+            elif choice == "PAUSE":
+                _configure_pause_resume()
+            elif choice == "FILAMENT":
+                _configure_filament()
 
     def tuning_menu(self) -> None:
         """Tuning and optimization menu."""

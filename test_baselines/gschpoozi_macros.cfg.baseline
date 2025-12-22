@@ -17,10 +17,18 @@ gcode:
         M117 Skipping mesh
     {% elif MODE == "saved" %}
         BED_MESH_PROFILE LOAD=default
-    {% elif cfg.probe_type in ['beacon', 'cartographer', 'btt_eddy'] %}
-        # Eddy probes use rapid_scan or scan method
-        BED_MESH_CALIBRATE METHOD={cfg.eddy_mesh_method}
+    {% elif MODE == "adaptive" %}
+        # Adaptive mesh - only mesh print area
+        {% if cfg.probe_type in ['beacon', 'cartographer', 'btt_eddy'] %}
+            BED_MESH_CALIBRATE METHOD={cfg.eddy_mesh_method} ADAPTIVE=1
+        {% else %}
+            BED_MESH_CALIBRATE ADAPTIVE=1
+        {% endif %}
     {% else %}
-        # Standard probes
-        BED_MESH_CALIBRATE
+        # Full mesh
+        {% if cfg.probe_type in ['beacon', 'cartographer', 'btt_eddy'] %}
+            BED_MESH_CALIBRATE METHOD={cfg.eddy_mesh_method}
+        {% else %}
+            BED_MESH_CALIBRATE
+        {% endif %}
     {% endif %}
