@@ -5411,37 +5411,52 @@ class GschpooziWizard:
                 )
 
             elif probe_type == "btt_eddy":
-                current_eddy_mesh_method = self.state.get("probe.eddy_mesh_method", "rapid_scan")
-                eddy_mesh_method = self.ui.radiolist(
+                current_mesh_method = self.state.get("probe.bed_mesh.mesh_method", "rapid_scan")
+                mesh_method = self.ui.radiolist(
                     "BTT Eddy mesh method:",
                     [
-                        ("rapid_scan", "Rapid Scan (fast)", current_eddy_mesh_method == "rapid_scan" or (not current_eddy_mesh_method and True)),
-                        ("scan", "Standard Scan", current_eddy_mesh_method == "scan"),
+                        ("rapid_scan", "Rapid Scan (fastest)", current_mesh_method == "rapid_scan" or (not current_mesh_method and True)),
+                        ("scan", "Standard Scan", current_mesh_method == "scan"),
                     ],
                     title="BTT Eddy - Mesh Method"
                 )
-                if eddy_mesh_method:
-                    self.state.set("probe.eddy_mesh_method", eddy_mesh_method)
+                if mesh_method:
+                    self.state.set("probe.bed_mesh.mesh_method", mesh_method)
                 # BTT Eddy doesn't have separate homing mode, so don't set homing_mode
                 homing_mode = None
 
-            # Mesh settings for eddy probes
-            current_mesh_direction = self.state.get("probe.mesh_main_direction", "y")
+            # Eddy probe mesh method (stored here, used later in bed mesh config)
+            if probe_type != "btt_eddy":  # BTT Eddy already set above
+                current_mesh_method = self.state.get("probe.bed_mesh.mesh_method", "scan" if probe_type == "beacon" else "rapid_scan")
+                mesh_method = self.ui.radiolist(
+                    f"{probe_type.replace('_', ' ').title()} mesh method:",
+                    [
+                        ("rapid_scan", "Rapid Scan (fastest)", current_mesh_method == "rapid_scan"),
+                        ("scan", "Standard Scan (more accurate)", current_mesh_method == "scan" or (probe_type == "beacon" and not current_mesh_method)),
+                    ],
+                    title="Probe - Mesh Method"
+                )
+                if mesh_method:
+                    self.state.set("probe.bed_mesh.mesh_method", mesh_method)
+
+            # Mesh direction for eddy probes
+            current_mesh_direction = self.state.get("probe.bed_mesh.mesh_main_direction", "x")
             mesh_main_direction = self.ui.radiolist(
                 "Mesh scan direction:",
                 [
-                    ("x", "X direction", current_mesh_direction == "x"),
-                    ("y", "Y direction", current_mesh_direction == "y" or (not current_mesh_direction and True)),
+                    ("x", "X direction", current_mesh_direction == "x" or (not current_mesh_direction and True)),
+                    ("y", "Y direction", current_mesh_direction == "y"),
                 ],
                 title="Probe - Mesh Direction"
             )
 
-            current_mesh_runs = self.state.get("probe.mesh_runs", 1)
+            current_mesh_runs = self.state.get("probe.bed_mesh.mesh_runs", 2)
             mesh_runs = self.ui.radiolist(
                 "Mesh scan passes:",
                 [
-                    ("1", "1 pass (faster)", current_mesh_runs == 1 or (not current_mesh_runs and True)),
-                    ("2", "2 passes (more accurate)", current_mesh_runs == 2),
+                    ("1", "1 pass (faster)", str(current_mesh_runs) == "1"),
+                    ("2", "2 passes (recommended)", str(current_mesh_runs) == "2" or (not current_mesh_runs and True)),
+                    ("3", "3 passes (most accurate)", str(current_mesh_runs) == "3"),
                 ],
                 title="Probe - Mesh Runs"
             )
@@ -5475,9 +5490,9 @@ class GschpooziWizard:
         if contact_max_temp:
             self.state.set("probe.contact_max_hotend_temperature", int(contact_max_temp))
         if mesh_main_direction:
-            self.state.set("probe.mesh_main_direction", mesh_main_direction)
+            self.state.set("probe.bed_mesh.mesh_main_direction", mesh_main_direction)
         if mesh_runs:
-            self.state.set("probe.mesh_runs", int(mesh_runs))
+            self.state.set("probe.bed_mesh.mesh_runs", int(mesh_runs))
         if location:
             self.state.set("probe.location", location)
 
@@ -5496,6 +5511,122 @@ class GschpooziWizard:
             f"Probe configured!\n\n{summary}\n\n"
             "Remember to run PROBE_CALIBRATE for Z offset",
             title="Configuration Saved"
+        )
+
+        # Configure bed mesh (probe-dependent settings)
+        self._configure_probe_bed_mesh(probe_type, eddy_probes)
+
+    def _configure_probe_bed_mesh(self, probe_type: str, eddy_probes: list) -> None:
+        """Configure bed mesh settings (moved from bed leveling since mesh is probe-dependent)."""
+        is_eddy_probe = probe_type in eddy_probes
+
+        current_mesh_enabled = self.state.get("probe.bed_mesh.enabled", True)
+        enable_mesh = self.ui.yesno(
+            "Enable bed mesh compensation?",
+            title="Probe - Bed Mesh",
+            default_no=not current_mesh_enabled
+        )
+
+        if not enable_mesh:
+            self.state.set("probe.bed_mesh.enabled", False)
+            self.state.save()
+            return
+
+        # Get bed size for auto-calculations
+        bed_x = float(self.state.get("printer.bed_size_x", 300))
+        bed_y = float(self.state.get("printer.bed_size_y", 300))
+        x_off = float(self.state.get("probe.x_offset", 0.0))
+        y_off = float(self.state.get("probe.y_offset", 0.0))
+        default_mesh_min = f"{int(abs(x_off) + 10)}, {int(abs(y_off) + 10)}"
+        default_mesh_max = f"{int(bed_x - abs(x_off) - 10)}, {int(bed_y - abs(y_off) - 10)}"
+
+        # Probe count - different defaults for eddy vs standard probes
+        if probe_type == "cartographer":
+            default_probe_count = "20, 20"
+        elif is_eddy_probe:
+            default_probe_count = "9, 9"
+        else:
+            default_probe_count = "5, 5"
+
+        current_probe_count = self.state.get("probe.bed_mesh.probe_count", default_probe_count) or default_probe_count
+        probe_count = self.ui.inputbox(
+            f"Mesh probe count (X, Y):\n\n"
+            f"{'Eddy probes are fast - higher counts recommended.' if is_eddy_probe else 'Higher values = more accurate but slower.'}\n"
+            f"Default for {probe_type}: {default_probe_count}",
+            default=current_probe_count,
+            title="Bed Mesh - Probe Count"
+        )
+        if probe_count is None:
+            return
+
+        # Mesh boundaries
+        current_mesh_min = self.state.get("probe.bed_mesh.mesh_min", "auto")
+        current_mesh_max = self.state.get("probe.bed_mesh.mesh_max", "auto")
+
+        if is_eddy_probe:
+            # Eddy probes: prompt for mesh boundaries since rapid scanning needs precise bounds
+            mesh_min = self.ui.inputbox(
+                "Mesh minimum (X, Y):\n\n"
+                "Start of scan area. Use 'auto' for calculated bounds.\n"
+                f"Auto would be: {default_mesh_min}",
+                default=current_mesh_min if current_mesh_min != "auto" else default_mesh_min,
+                title="Bed Mesh - Mesh Min"
+            )
+            if mesh_min is None:
+                return
+
+            mesh_max = self.ui.inputbox(
+                "Mesh maximum (X, Y):\n\n"
+                "End of scan area. Use 'auto' for calculated bounds.\n"
+                f"Auto would be: {default_mesh_max}",
+                default=current_mesh_max if current_mesh_max != "auto" else default_mesh_max,
+                title="Bed Mesh - Mesh Max"
+            )
+            if mesh_max is None:
+                return
+
+            # Scan overshoot (eddy probes only)
+            current_overshoot = self.state.get("probe.bed_mesh.scan_overshoot", 8)
+            scan_overshoot = self.ui.inputbox(
+                "Scan overshoot (mm):\n\n"
+                "Distance to travel outside mesh for path optimization.\n"
+                "Recommended: 8mm (minimum: 1mm)",
+                default=str(current_overshoot),
+                title="Bed Mesh - Scan Overshoot"
+            )
+            if scan_overshoot:
+                self.state.set("probe.bed_mesh.scan_overshoot", int(scan_overshoot))
+        else:
+            # Standard probes: use auto for mesh boundaries
+            mesh_min = "auto"
+            mesh_max = "auto"
+
+        # Save all mesh settings
+        self.state.set("probe.bed_mesh.enabled", True)
+        self.state.set("probe.bed_mesh.probe_count", probe_count)
+        self.state.set("probe.bed_mesh.mesh_min", mesh_min)
+        self.state.set("probe.bed_mesh.mesh_max", mesh_max)
+
+        # Set probe-type appropriate defaults for speed and horizontal_move_z
+        if is_eddy_probe:
+            self.state.set("probe.bed_mesh.speed", 300)
+            self.state.set("probe.bed_mesh.horizontal_move_z", 2)
+        else:
+            self.state.set("probe.bed_mesh.speed", 200)
+            self.state.set("probe.bed_mesh.horizontal_move_z", 5)
+
+        self.state.save()
+
+        # Summary
+        mesh_summary = f"Probe count: {probe_count}\n"
+        if is_eddy_probe:
+            mesh_summary += f"Mesh bounds: {mesh_min} → {mesh_max}\n"
+            mesh_method = self.state.get("probe.bed_mesh.mesh_method", "rapid_scan")
+            mesh_summary += f"Method: {mesh_method}\n"
+
+        self.ui.msgbox(
+            f"Bed mesh configured!\n\n{mesh_summary}",
+            title="Bed Mesh Saved"
         )
 
     def _homing_setup(self) -> None:
@@ -5542,114 +5673,13 @@ class GschpooziWizard:
         )
 
     def _bed_leveling_setup(self) -> None:
-        """Configure bed leveling."""
+        """Configure bed leveling (Z Tilt / QGL). Bed mesh is configured in probe section."""
         z_count = self.state.get("stepper_z.z_motor_count", 1)
-        probe_type = self.state.get("probe.probe_type", "none")
-        eddy_probes = {"beacon", "cartographer", "btt_eddy"}
-        is_eddy_probe = probe_type in eddy_probes
 
         def _format_leveling_type(value: str) -> str:
             if not value or value == "none":
                 return "None"
             return value.replace("_", " ").upper() if value == "qgl" else value.replace("_", " ").title()
-
-        def _configure_mesh() -> None:
-            current_mesh_enabled = self.state.get("bed_leveling.bed_mesh.enabled", False)
-            enable_mesh = self.ui.yesno(
-                "Enable bed mesh?",
-                title="Bed Leveling - Bed Mesh",
-                default_no=not current_mesh_enabled
-            )
-
-            # Mesh boundaries and/or probe count
-            current_probe_count = self.state.get("bed_leveling.bed_mesh.probe_count", "5,5") or "5,5"
-            current_mesh_min = self.state.get("bed_leveling.bed_mesh.mesh_min", None)
-            current_mesh_max = self.state.get("bed_leveling.bed_mesh.mesh_max", None)
-
-            probe_count = current_probe_count
-            mesh_min = current_mesh_min
-            mesh_max = current_mesh_max
-
-            if enable_mesh:
-                # Defaults for mesh boundaries (same logic as schema/config-sections.yaml "auto")
-                bed_x = float(self.state.get("printer.bed_size_x", 300))
-                bed_y = float(self.state.get("printer.bed_size_y", 300))
-                x_off = float(self.state.get("probe.x_offset", 0.0))
-                y_off = float(self.state.get("probe.y_offset", 0.0))
-                default_mesh_min = f"{int(abs(x_off) + 10)}, {int(abs(y_off) + 10)}"
-                default_mesh_max = f"{int(bed_x - abs(x_off) - 10)}, {int(bed_y - abs(y_off) - 10)}"
-
-                if is_eddy_probe:
-                    # Eddy probes use rapid scanning; boundaries matter most.
-                    mesh_min = self.ui.inputbox(
-                        "Mesh minimum (x, y):\n\n"
-                        "Defines the start of the scan area.\n"
-                        "Example: 15, 28\n"
-                        "You can also enter 'auto' to let gschpoozi calculate safe bounds.",
-                        default=(mesh_min if mesh_min not in [None, ""] else default_mesh_min),
-                        title="Bed Mesh - Mesh Min"
-                    )
-                    if mesh_min is None:
-                        return
-
-                    mesh_max = self.ui.inputbox(
-                        "Mesh maximum (x, y):\n\n"
-                        "Defines the end of the scan area.\n"
-                        "Example: 315, 280\n"
-                        "You can also enter 'auto' to let gschpoozi calculate safe bounds.",
-                        default=(mesh_max if mesh_max not in [None, ""] else default_mesh_max),
-                        title="Bed Mesh - Mesh Max"
-                    )
-                    if mesh_max is None:
-                        return
-
-                    # Prompt for probe_count for eddy probes too
-                    probe_count = self.ui.inputbox(
-                        "Mesh probe count (e.g., 5,5 or 9,9):\n\n"
-                        "Number of probe points in X and Y directions.\n"
-                        "Higher values = more accurate but slower.\n"
-                        "Example: 5,5 (default) or 9,9 for finer mesh.",
-                        default=current_probe_count,
-                        title="Bed Mesh - Probe Count"
-                    )
-                    if probe_count is None:
-                        return
-                else:
-                    # Standard probes: probe_count is the primary setting; default boundaries to auto if not set.
-                    probe_count = self.ui.inputbox(
-                        "Mesh probe count (e.g., 5,5):",
-                        default=current_probe_count,
-                        title="Bed Mesh - Probe Count"
-                    )
-                    if probe_count is None:
-                        return
-                    if not mesh_min:
-                        mesh_min = "auto"
-                    if not mesh_max:
-                        mesh_max = "auto"
-
-            self.state.set("bed_leveling.bed_mesh.enabled", enable_mesh)
-            # Ensure probe_count is always a valid string, never None
-            self.state.set("bed_leveling.bed_mesh.probe_count", probe_count or "5,5")
-            if enable_mesh:
-                # Always store boundaries (template supports "auto")
-                self.state.set("bed_leveling.bed_mesh.mesh_min", mesh_min or "auto")
-                self.state.set("bed_leveling.bed_mesh.mesh_max", mesh_max or "auto")
-            self.state.save()
-
-            mesh_details = ""
-            if enable_mesh:
-                if is_eddy_probe:
-                    mesh_details = f"Mesh min/max: {mesh_min} → {mesh_max}\nProbe count: {probe_count}\n"
-                else:
-                    mesh_details = f"Probe count: {probe_count}\n"
-
-            self.ui.msgbox(
-                f"Bed mesh saved!\n\n"
-                f"Mesh: {'Enabled' if enable_mesh else 'Disabled'}\n"
-                f"{mesh_details}",
-                title="Configuration Saved"
-            )
 
         def _configure_leveling_method() -> None:
             current_leveling_type = self.state.get("bed_leveling.leveling_type", "none") or "none"
@@ -5691,16 +5721,12 @@ class GschpooziWizard:
                 title="Configuration Saved"
             )
 
-        # Top-level menu: always offer bed mesh; offer method only when applicable.
+        # Bed leveling menu - only leveling method (bed mesh moved to probe section)
         while True:
             current_method = self.state.get("bed_leveling.leveling_type", "none") or "none"
-            current_mesh_enabled = self.state.get("bed_leveling.bed_mesh.enabled", False)
-            mesh_status = "Enabled" if current_mesh_enabled else "Disabled"
             method_status = _format_leveling_type(current_method)
 
-            menu_items = [
-                ("MESH", f"Bed Mesh ({mesh_status})"),
-            ]
+            menu_items = []
             if z_count >= 2:
                 label = "Leveling Method (QGL)" if z_count == 4 else "Leveling Method (Z Tilt)"
                 menu_items.append(("METHOD", f"{label} ({method_status})"))
@@ -5711,17 +5737,15 @@ class GschpooziWizard:
 
             choice = self.ui.menu(
                 "Bed Leveling\n\n"
-                "Configure bed mesh and (optional) gantry leveling.\n"
-                "Mesh is independent and works on single-Z setups too.",
+                "Configure gantry leveling (Z Tilt / QGL).\n"
+                "Note: Bed mesh is configured in the Probe section.",
                 menu_items,
                 title="Bed Leveling"
             )
 
             if choice is None or choice == "DONE":
                 break
-            if choice == "MESH":
-                _configure_mesh()
-            elif choice == "METHOD":
+            if choice == "METHOD":
                 _configure_leveling_method()
 
     def _temperature_sensors_setup(self) -> None:
