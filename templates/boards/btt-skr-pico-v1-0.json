@@ -31,8 +31,12 @@
   },
   "heater_ports": {
     "HE": {
-      "label": "Heater ",
+      "label": "Heater",
       "pin": "gpio23"
+    },
+    "HB": {
+      "label": "Heated Bed",
+      "pin": "gpio21"
     }
   },
   "fan_ports": {
@@ -63,6 +67,18 @@
     }
   },
   "endstop_ports": {
+    "X_STOP": {
+      "label": "X Endstop",
+      "pin": "gpio4"
+    },
+    "Y_STOP": {
+      "label": "Y Endstop",
+      "pin": "gpio3"
+    },
+    "Z_STOP": {
+      "label": "Z Endstop",
+      "pin": "gpio25"
+    },
     "PROBE": {
       "label": "Probe Input",
       "pin": "gpio22"

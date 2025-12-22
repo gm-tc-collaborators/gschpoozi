@@ -175,6 +175,10 @@
     "T2": {
       "label": "Thermistor 2",
       "pin": "PC4"
+    },
+    "T3": {
+      "label": "Thermistor 3",
+      "pin": "PA7"
     }
   },
   "endstop_ports": {
