@@ -1277,19 +1277,6 @@ categories:
                 type: "choice"
                 options: ["unhomed", "always", "never"]
                 default: "unhomed"
-              # Mesh settings
-              - name: "mesh_main_direction"
-                type: "choice"
-                options: ["x", "y"]
-                default: "x"
-              - name: "mesh_runs"
-                type: "int"
-                default: 1
-              - name: "eddy_mesh_method"
-                type: "choice"
-                options: ["rapid_scan", "scan"]
-                default: "rapid_scan"
-                description: "Mesh calibration method"
 
           - id: "2.9.6"
             name: "Cartographer Settings"
@@ -1323,11 +1310,6 @@ categories:
               - name: "backlash_comp"
                 type: "float"
                 default: 0.5
-              - name: "eddy_mesh_method"
-                type: "choice"
-                options: ["rapid_scan", "scan", "touch"]
-                default: "rapid_scan"
-                description: "Mesh calibration method"
 
           - id: "2.9.7"
             name: "BTT Eddy Settings"
@@ -1352,11 +1334,75 @@ categories:
                 type: "float"
                 default: 0
                 required: true
-              - name: "eddy_mesh_method"
+
+          # Bed Mesh - probe-dependent settings
+          - id: "2.9.8"
+            name: "Bed Mesh"
+            klipper_section: "[bed_mesh]"
+            condition: "2.9.1.probe_type != 'none'"
+            description: "Bed mesh configuration - settings depend on probe type"
+            parameters:
+              - name: "enabled"
+                type: "bool"
+                default: true
+                description: "Enable bed mesh compensation"
+              # Eddy probe specific: mesh method (shown for all eddy probes)
+              - name: "mesh_method"
                 type: "choice"
                 options: ["rapid_scan", "scan"]
                 default: "rapid_scan"
-                description: "Mesh calibration method"
+                condition: "2.9.1.probe_type in ['beacon', 'cartographer', 'btt_eddy']"
+                description: "rapid_scan is faster, scan is more accurate"
+              # Eddy probe specific: mesh direction and runs
+              - name: "mesh_main_direction"
+                type: "choice"
+                options: ["x", "y"]
+                default: "x"
+                condition: "2.9.1.probe_type in ['beacon', 'cartographer', 'btt_eddy']"
+                description: "Primary travel direction during mesh scan"
+              - name: "mesh_runs"
+                type: "choice"
+                options: ["1", "2", "3"]
+                default: "2"
+                condition: "2.9.1.probe_type in ['beacon', 'cartographer', 'btt_eddy']"
+                description: "Number of passes (2 recommended for accuracy)"
+              # Common mesh settings
+              - name: "probe_count"
+                type: "text"
+                description: "Grid density (X,Y). Eddy probes can use higher counts."
+                # Default set dynamically based on probe type in wizard
+              - name: "mesh_min"
+                type: "text"
+                default: "auto"
+                description: "Auto-calculated from probe offset + 10mm margin"
+              - name: "mesh_max"
+                type: "text"
+                default: "auto"
+                description: "Auto-calculated from bed size - probe offset - 10mm margin"
+              # Eddy probe specific: scan overshoot
+              - name: "scan_overshoot"
+                type: "int"
+                default: 8
+                condition: "2.9.1.probe_type in ['beacon', 'cartographer', 'btt_eddy']"
+                description: "Travel distance outside mesh for path optimization (mm)"
+              # Speed settings
+              - name: "speed"
+                type: "int"
+                description: "Probe movement speed. Eddy probes use 300+, standard use 120-200."
+                # Default set dynamically based on probe type
+              - name: "horizontal_move_z"
+                type: "float"
+                description: "Height during travel. Eddy probes MUST use 2mm or less."
+                # Default set dynamically: 2 for eddy, 5 for standard
+              # Fade settings (advanced)
+              - name: "fade_start"
+                type: "float"
+                default: 0.6
+                description: "Z height where mesh compensation starts fading"
+              - name: "fade_end"
+                type: "float"
+                default: 10.0
+                description: "Z height where mesh compensation fully fades out"
 
       # 2.10 Homing
       - id: "2.10"
@@ -1496,45 +1542,7 @@ categories:
                 type: "int"
                 default: 10
 
-          - id: "2.11.4"
-            name: "Bed Mesh"
-            klipper_section: "[bed_mesh]"
-            required: true
-            description: "Mesh boundaries even if not used - sets limits for when mesh is generated"
-            parameters:
-              - name: "enabled"
-                type: "bool"
-                default: true
-              - name: "speed"
-                type: "int"
-                default: 200
-              - name: "horizontal_move_z"
-                type: "int"
-                default: 5
-              - name: "mesh_min"
-                type: "text"
-                default: "auto"
-                description: "Auto-calculated from probe offset + margin"
-              - name: "mesh_max"
-                type: "text"
-                default: "auto"
-                description: "Auto-calculated from bed size - probe offset - margin"
-              - name: "probe_count"
-                type: "text"
-                default: "5,5"
-              - name: "algorithm"
-                type: "choice"
-                options: ["bicubic", "lagrange"]
-                default: "bicubic"
-              - name: "fade_start"
-                type: "float"
-                default: 0.6
-              - name: "fade_end"
-                type: "float"
-                default: 10.0
-              - name: "fade_target"
-                type: "float"
-                default: 0
+          # NOTE: Bed Mesh settings moved to Probe section (2.9.8) since mesh is probe-dependent
 
       # 2.12 Temperature Sensors
       - id: "2.12"
