@@ -8481,8 +8481,8 @@ read -r _
                     "bed_stabilize_dwell": 0, "bed_off_during_probe": False,
                     "heat_soak_enabled": False, "heat_soak_time": 0,
                     "purge_style": "line", "purge_amount": 30.0,
-                    "brush_enabled": False, "park_position": "front",
-                    "pause_heater_off": True, "motor_off_delay": 60,
+                    "brush_enabled": False, "heating_park_position": "center",
+                    "park_position": "front", "pause_heater_off": True, "motor_off_delay": 60,
                 },
                 "voron_style": {
                     "extruder_preheat_temp": 150, "preheat_scale": 0.75,
@@ -8492,8 +8492,8 @@ read -r _
                     "heat_soak_enabled": True, "heat_soak_time": 15,
                     "purge_style": "blob", "purge_amount": 30.0,
                     "brush_enabled": True, "wipe_count": 3,
-                    "park_position": "back", "pause_heater_off": False,
-                    "motor_off_delay": 300, "always_home_z": True,
+                    "heating_park_position": "back", "park_position": "back",
+                    "pause_heater_off": False, "motor_off_delay": 300, "always_home_z": True,
                 },
                 "speed_optimized": {
                     "extruder_preheat_temp": 180, "preheat_scale": 1.0,
@@ -8502,8 +8502,8 @@ read -r _
                     "bed_stabilize_dwell": 0, "bed_off_during_probe": False,
                     "heat_soak_enabled": False, "heat_soak_time": 0,
                     "purge_style": "adaptive", "purge_amount": 20.0,
-                    "brush_enabled": False, "park_position": "front",
-                    "pause_heater_off": False, "motor_off_delay": 30,
+                    "brush_enabled": False, "heating_park_position": "none",
+                    "park_position": "front", "pause_heater_off": False, "motor_off_delay": 30,
                 },
                 "enclosed_hightemp": {
                     "extruder_preheat_temp": 150, "preheat_scale": 0.6,
@@ -8514,9 +8514,9 @@ read -r _
                     "heat_soak_enabled": True, "heat_soak_time": 20,
                     "chamber_temp_default": 50, "chamber_timeout": 45,
                     "purge_style": "blob", "brush_enabled": True,
-                    "wipe_count": 5, "park_position": "back",
-                    "pause_heater_off": False, "turn_off_fans": False,
-                    "fan_off_delay": 300, "motor_off_delay": 600,
+                    "wipe_count": 5, "heating_park_position": "back",
+                    "park_position": "back", "pause_heater_off": False,
+                    "turn_off_fans": False, "fan_off_delay": 300, "motor_off_delay": 600,
                 },
                 "bed_slinger": {
                     "extruder_preheat_temp": 150, "preheat_scale": 0.75,
@@ -8525,8 +8525,8 @@ read -r _
                     "bed_stabilize_dwell": 0, "bed_off_during_probe": False,
                     "heat_soak_enabled": False, "heat_soak_time": 0,
                     "purge_style": "line", "brush_enabled": False,
-                    "park_position": "front", "pause_heater_off": True,
-                    "motor_off_delay": 120,
+                    "heating_park_position": "front", "park_position": "front",
+                    "pause_heater_off": True, "motor_off_delay": 120,
                 },
                 "production": {
                     "extruder_preheat_temp": 160, "preheat_scale": 0.8,
@@ -8535,8 +8535,8 @@ read -r _
                     "bed_stabilize_dwell": 10, "bed_off_during_probe": False,
                     "heat_soak_enabled": False, "heat_soak_time": 5,
                     "purge_style": "adaptive", "purge_amount": 25.0,
-                    "park_position": "back", "pause_heater_off": False,
-                    "pause_timeout": 86400, "motor_off_delay": 600,
+                    "heating_park_position": "back", "park_position": "back",
+                    "pause_heater_off": False, "pause_timeout": 86400, "motor_off_delay": 600,
                 },
             }
             if preset_name in presets:
@@ -8592,6 +8592,7 @@ read -r _
                 level_at_temp = self.state.get("macros.level_bed_at_temp", True)
                 probe_temp_src = self.state.get("macros.probe_temp_source", "print")
                 bed_off_probe = self.state.get("macros.bed_off_during_probe", False)
+                heating_park = self.state.get("macros.heating_park_position", "center")
 
                 # Format bed heating status
                 bed_heat_status = probe_temp_src
@@ -8602,6 +8603,7 @@ read -r _
                     "START_PRINT Settings\n\n"
                     f"  Preheat temp:     {preheat}C (scale: {scale})\n"
                     f"  Bed heating:      {bed_heat_status}\n"
+                    f"  Heating park:     {heating_park}\n"
                     f"  Bed mesh:         {mesh}\n"
                     f"  Purge style:      {purge}\n"
                     f"  Heat soak:        {'Enabled' if soak_en else 'Disabled'} ({soak_time}min)\n"
@@ -8609,6 +8611,7 @@ read -r _
                     [
                         ("preheat", "Preheat Settings"),
                         ("bed", "Bed Heating Behavior"),
+                        ("heatpark", "Heating Park Position"),
                         ("mesh", "Bed Mesh Mode"),
                         ("purge", "Purge Settings"),
                         ("soak", "Heat Soak Settings"),
@@ -8758,6 +8761,29 @@ read -r _
 
                     self.state.save()
                     self.state.set("macros.preset", "custom")
+
+                elif choice == "heatpark":
+                    # Heating park position - where to park during final extruder heating
+                    hp = self.ui.menu(
+                        "Park position during final extruder heating:\n\n"
+                        "Where should the nozzle wait while heating to print temp?\n"
+                        "This prevents ooze from dripping onto the bed.\n",
+                        [
+                            ("center", "Center - Middle of bed (default)"),
+                            ("front", "Front - Front center of bed"),
+                            ("back", "Back - Back center of bed"),
+                            ("front_left", "Front Left - Corner"),
+                            ("front_right", "Front Right - Corner"),
+                            ("back_left", "Back Left - Corner"),
+                            ("back_right", "Back Right - Corner"),
+                            ("none", "None - Stay where mesh ended"),
+                        ],
+                        title="Heating Park Position",
+                    )
+                    if hp:
+                        self.state.set("macros.heating_park_position", hp)
+                        self.state.save()
+                        self.state.set("macros.preset", "custom")
 
                 elif choice == "mesh":
                     m = self.ui.menu(

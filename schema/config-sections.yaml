@@ -822,6 +822,8 @@ common:
       # ═══════════════════════════════════════════════════════════════════════════════
       variable_extruder_preheat_temp: {{ macros.extruder_preheat_temp | default(150) }}
       variable_preheat_scale: {{ macros.preheat_scale | default(0.75) }}
+      # Park position before final extruder heating (front/back/center/front_left/front_right/back_left/back_right/none)
+      variable_heating_park_position: "{{ macros.heating_park_position | default('center') }}"
 
       # ═══════════════════════════════════════════════════════════════════════════════
       # BED HEATING BEHAVIOR
@@ -1196,6 +1198,11 @@ common:
           {% elif cfg.bed_off_during_probe and cfg.bed_reheat_after_probe %}
           # Wait for reheat to complete
           M190 S{BED_TEMP}
+          {% endif %}
+
+          # Park for heating if configured
+          {% if cfg.heating_park_position != "none" %}
+          _PARK POSITION={cfg.heating_park_position}
           {% endif %}
 
           M117 Heating extruder...

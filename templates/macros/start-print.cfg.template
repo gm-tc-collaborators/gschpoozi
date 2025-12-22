@@ -105,7 +105,12 @@ gcode:
     {% if cfg.led_enabled %}
     _STATUS_LED STATUS=heating
     {% endif %}
-    
+
+    # Park for heating if configured
+    {% if cfg.heating_park_position != "none" %}
+    _PARK POSITION={cfg.heating_park_position}
+    {% endif %}
+
     M117 Heating extruder...
     M109 S{EXTRUDER_TEMP}
     
