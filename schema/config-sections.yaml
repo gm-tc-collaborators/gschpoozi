@@ -824,6 +824,24 @@ common:
       variable_preheat_scale: {{ macros.preheat_scale | default(0.75) }}
 
       # ═══════════════════════════════════════════════════════════════════════════════
+      # BED HEATING BEHAVIOR
+      # ═══════════════════════════════════════════════════════════════════════════════
+      # Temperature source for probing/meshing: "print", "initial_layer", or "fixed"
+      variable_probe_temp_source: "{{ macros.probe_temp_source | default('print') }}"
+      # Fixed temperature for probing (only used if probe_temp_source="fixed")
+      variable_probe_bed_temp: {{ macros.probe_bed_temp | default(60) }}
+      # Wait for bed to stabilize before probing
+      variable_bed_stabilize_before_probe: {{ 'True' if (macros.bed_stabilize_before_probe | default(true)) else 'False' }}
+      # Stabilization threshold - how close to target before stable (°C)
+      variable_bed_stabilize_threshold: {{ macros.bed_stabilize_threshold | default(2.0) }}
+      # Optional dwell time after reaching temp for thermal equilibrium (seconds)
+      variable_bed_stabilize_dwell: {{ macros.bed_stabilize_dwell | default(0) }}
+      # Turn off bed heater during probing/meshing
+      variable_bed_off_during_probe: {{ 'True' if (macros.bed_off_during_probe | default(false)) else 'False' }}
+      # Reheat bed after probing if it was turned off
+      variable_bed_reheat_after_probe: {{ 'True' if (macros.bed_reheat_after_probe | default(true)) else 'False' }}
+
+      # ═══════════════════════════════════════════════════════════════════════════════
       # HEAT SOAK
       # ═══════════════════════════════════════════════════════════════════════════════
       variable_heat_soak_enabled: {{ 'True' if (macros.heat_soak_enabled | default(false)) else 'False' }}
@@ -982,11 +1000,12 @@ common:
       # ═══════════════════════════════════════════════════════════════════════════════
       #
       # Usage in slicer start G-code:
-      #   START_PRINT BED={bed_temp} EXTRUDER={extruder_temp} [CHAMBER={chamber_temp}] [MATERIAL={material}] [MESH={mesh_mode}]
+      #   START_PRINT BED={bed_temp} EXTRUDER={extruder_temp} [BED_INITIAL={first_layer_bed_temp}] [CHAMBER={chamber_temp}] [MATERIAL={material}] [MESH={mesh_mode}]
       #
       # Parameters:
-      #   BED        - Bed temperature (required)
+      #   BED        - Bed temperature for printing (required)
       #   EXTRUDER   - Extruder temperature (required)
+      #   BED_INITIAL - Bed temp for probing/meshing (optional, defaults to BED)
       #   CHAMBER    - Chamber temperature (optional, 0 = skip)
       #   MATERIAL   - Filament type: PLA/PETG/ABS/ASA/TPU (optional, for tuning)
       #   MESH       - Bed mesh mode: adaptive/full/saved/none (optional)
@@ -1003,10 +1022,21 @@ common:
           {% set cfg = printer["gcode_macro _MACRO_CONFIG"] %}
 
           {% set BED_TEMP = params.BED|default(60)|int %}
+          {% set BED_INITIAL = params.BED_INITIAL|default(BED_TEMP)|int %}
           {% set EXTRUDER_TEMP = params.EXTRUDER|default(200)|int %}
           {% set MATERIAL = params.MATERIAL|default("PLA")|upper %}
           {% set MESH_MODE = params.MESH|default(cfg.bed_mesh_mode)|lower %}
           {% set PURGE_STYLE = params.PURGE|default(cfg.purge_style)|lower %}
+
+          # Calculate probe temperature based on probe_temp_source setting
+          # Options: "print" = BED_TEMP, "initial_layer" = BED_INITIAL, "fixed" = probe_bed_temp
+          {% if cfg.probe_temp_source == "fixed" %}
+              {% set PROBE_TEMP = cfg.probe_bed_temp %}
+          {% elif cfg.probe_temp_source == "initial_layer" %}
+              {% set PROBE_TEMP = BED_INITIAL %}
+          {% else %}
+              {% set PROBE_TEMP = BED_TEMP %}
+          {% endif %}
 
           # ───────────────────────────────────────────────────────────────────────────
           # Material profile lookup (chamber temp, heat soak time)
@@ -1056,8 +1086,9 @@ common:
           _STATUS_LED STATUS=heating
           {% endif %}
 
-          # Start bed heating (don't wait yet)
-          M140 S{BED_TEMP}
+          # Start bed heating to probe temperature (don't wait yet)
+          # PROBE_TEMP may differ from BED_TEMP based on probe_temp_source setting
+          M140 S{PROBE_TEMP}
 
           # Preheat extruder to prevent cold ooze during probing (don't wait)
           {% if EXTRUDER_PREHEAT > 0 %}
@@ -1071,9 +1102,15 @@ common:
           # Phase 2: Wait for bed and optional heat soak
           # ───────────────────────────────────────────────────────────────────────────
           {% if cfg.level_bed_at_temp %}
-              # Wait for bed to reach temperature before leveling (more accurate)
+              # Wait for bed to reach probe temperature before leveling
               M117 Waiting for bed...
-              M190 S{BED_TEMP}
+              M190 S{PROBE_TEMP}
+
+              {% if cfg.bed_stabilize_before_probe and cfg.bed_stabilize_dwell > 0 %}
+              # Optional dwell time for thermal equilibrium
+              M117 Stabilizing bed temp...
+              G4 P{cfg.bed_stabilize_dwell * 1000}
+              {% endif %}
           {% endif %}
 
           {% if SOAK_TIME > 0 %}
@@ -1092,6 +1129,13 @@ common:
           # ───────────────────────────────────────────────────────────────────────────
           {% if cfg.led_enabled %}
           _STATUS_LED STATUS=leveling
+          {% endif %}
+
+          # Optional: Turn off bed heater during probing (reduces PWM noise for some probes)
+          {% if cfg.bed_off_during_probe %}
+          M117 Heater off for probing...
+          M140 S0
+          G4 P3000  ; Wait 3s for heater to stabilize
           {% endif %}
 
           {% if cfg.leveling_enabled %}
@@ -1120,16 +1164,29 @@ common:
           {% endif %}
 
           # ───────────────────────────────────────────────────────────────────────────
-          # Phase 7: Heat extruder to print temperature
+          # Phase 7: Heat bed to print temperature (and reheat if needed)
           # ───────────────────────────────────────────────────────────────────────────
           {% if cfg.led_enabled %}
           _STATUS_LED STATUS=heating
           {% endif %}
 
-          # Ensure bed is at temp before final extruder heating
-          # (if we skipped the wait earlier with level_bed_at_temp=false)
-          {% if not cfg.level_bed_at_temp %}
+          # Reheat bed if it was turned off during probing
+          {% if cfg.bed_off_during_probe and cfg.bed_reheat_after_probe %}
+          M117 Reheating bed...
+          M140 S{BED_TEMP}
+          {% endif %}
+
+          # Heat bed to final print temp if PROBE_TEMP was different
+          {% if PROBE_TEMP != BED_TEMP %}
+          M117 Heating bed to print temp...
+          M140 S{BED_TEMP}
+          M190 S{BED_TEMP}
+          {% elif not cfg.level_bed_at_temp %}
+          # Wait for bed if we skipped earlier
           M117 Waiting for bed...
+          M190 S{BED_TEMP}
+          {% elif cfg.bed_off_during_probe and cfg.bed_reheat_after_probe %}
+          # Wait for reheat to complete
           M190 S{BED_TEMP}
           {% endif %}
 

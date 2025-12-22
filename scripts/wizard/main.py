@@ -8464,6 +8464,8 @@ read -r _
                 "beginner_safe": {
                     "extruder_preheat_temp": 150, "preheat_scale": 0.75,
                     "level_bed_at_temp": True, "bed_mesh_mode": "saved",
+                    "probe_temp_source": "print", "bed_stabilize_before_probe": True,
+                    "bed_stabilize_dwell": 0, "bed_off_during_probe": False,
                     "heat_soak_enabled": False, "heat_soak_time": 0,
                     "purge_style": "line", "purge_amount": 30.0,
                     "brush_enabled": False, "park_position": "front",
@@ -8472,6 +8474,8 @@ read -r _
                 "voron_style": {
                     "extruder_preheat_temp": 150, "preheat_scale": 0.75,
                     "level_bed_at_temp": True, "bed_mesh_mode": "adaptive",
+                    "probe_temp_source": "print", "bed_stabilize_before_probe": True,
+                    "bed_stabilize_dwell": 30, "bed_off_during_probe": False,
                     "heat_soak_enabled": True, "heat_soak_time": 15,
                     "purge_style": "blob", "purge_amount": 30.0,
                     "brush_enabled": True, "wipe_count": 3,
@@ -8481,6 +8485,8 @@ read -r _
                 "speed_optimized": {
                     "extruder_preheat_temp": 180, "preheat_scale": 1.0,
                     "level_bed_at_temp": False, "bed_mesh_mode": "saved",
+                    "probe_temp_source": "print", "bed_stabilize_before_probe": False,
+                    "bed_stabilize_dwell": 0, "bed_off_during_probe": False,
                     "heat_soak_enabled": False, "heat_soak_time": 0,
                     "purge_style": "adaptive", "purge_amount": 20.0,
                     "brush_enabled": False, "park_position": "front",
@@ -8489,6 +8495,9 @@ read -r _
                 "enclosed_hightemp": {
                     "extruder_preheat_temp": 150, "preheat_scale": 0.6,
                     "level_bed_at_temp": True, "bed_mesh_mode": "adaptive",
+                    "probe_temp_source": "fixed", "probe_bed_temp": 80,
+                    "bed_stabilize_before_probe": True, "bed_stabilize_dwell": 60,
+                    "bed_off_during_probe": False,
                     "heat_soak_enabled": True, "heat_soak_time": 20,
                     "chamber_temp_default": 50, "chamber_timeout": 45,
                     "purge_style": "blob", "brush_enabled": True,
@@ -8499,6 +8508,8 @@ read -r _
                 "bed_slinger": {
                     "extruder_preheat_temp": 150, "preheat_scale": 0.75,
                     "level_bed_at_temp": True, "bed_mesh_mode": "saved",
+                    "probe_temp_source": "print", "bed_stabilize_before_probe": True,
+                    "bed_stabilize_dwell": 0, "bed_off_during_probe": False,
                     "heat_soak_enabled": False, "heat_soak_time": 0,
                     "purge_style": "line", "brush_enabled": False,
                     "park_position": "front", "pause_heater_off": True,
@@ -8507,6 +8518,8 @@ read -r _
                 "production": {
                     "extruder_preheat_temp": 160, "preheat_scale": 0.8,
                     "level_bed_at_temp": True, "bed_mesh_mode": "adaptive",
+                    "probe_temp_source": "print", "bed_stabilize_before_probe": True,
+                    "bed_stabilize_dwell": 10, "bed_off_during_probe": False,
                     "heat_soak_enabled": False, "heat_soak_time": 5,
                     "purge_style": "adaptive", "purge_amount": 25.0,
                     "park_position": "back", "pause_heater_off": False,
@@ -8564,16 +8577,25 @@ read -r _
                 soak_en = self.state.get("macros.heat_soak_enabled", False)
                 soak_time = self.state.get("macros.heat_soak_time", 0)
                 level_at_temp = self.state.get("macros.level_bed_at_temp", True)
+                probe_temp_src = self.state.get("macros.probe_temp_source", "print")
+                bed_off_probe = self.state.get("macros.bed_off_during_probe", False)
+
+                # Format bed heating status
+                bed_heat_status = probe_temp_src
+                if bed_off_probe:
+                    bed_heat_status += ", heater off"
 
                 choice = self.ui.menu(
                     "START_PRINT Settings\n\n"
                     f"  Preheat temp:     {preheat}C (scale: {scale})\n"
+                    f"  Bed heating:      {bed_heat_status}\n"
                     f"  Bed mesh:         {mesh}\n"
                     f"  Purge style:      {purge}\n"
                     f"  Heat soak:        {'Enabled' if soak_en else 'Disabled'} ({soak_time}min)\n"
                     f"  Level at temp:    {'Yes' if level_at_temp else 'No'}\n",
                     [
                         ("preheat", "Preheat Settings"),
+                        ("bed", "Bed Heating Behavior"),
                         ("mesh", "Bed Mesh Mode"),
                         ("purge", "Purge Settings"),
                         ("soak", "Heat Soak Settings"),
@@ -8623,6 +8645,88 @@ read -r _
                         default_no=not level_at_temp,
                     )
                     self.state.set("macros.level_bed_at_temp", lat)
+                    self.state.save()
+                    self.state.set("macros.preset", "custom")
+
+                elif choice == "bed":
+                    # Bed heating behavior submenu
+                    current_src = self.state.get("macros.probe_temp_source", "print")
+                    current_fixed = self.state.get("macros.probe_bed_temp", 60)
+                    current_stabilize = self.state.get("macros.bed_stabilize_before_probe", True)
+                    current_dwell = self.state.get("macros.bed_stabilize_dwell", 0)
+                    current_off = self.state.get("macros.bed_off_during_probe", False)
+                    current_reheat = self.state.get("macros.bed_reheat_after_probe", True)
+
+                    # Probe temperature source
+                    src = self.ui.menu(
+                        "Probe Temperature Source\n\n"
+                        "What bed temperature to use during probing and meshing?\n\n"
+                        "• print: Use the full print bed temperature\n"
+                        "• initial_layer: Use BED_INITIAL param (for first layer temp)\n"
+                        "• fixed: Use a fixed lower temperature (faster heating)",
+                        [
+                            ("print", f"{'* ' if current_src == 'print' else ''}Print temp - Use full BED temperature"),
+                            ("initial_layer", f"{'* ' if current_src == 'initial_layer' else ''}Initial layer - Use BED_INITIAL parameter"),
+                            ("fixed", f"{'* ' if current_src == 'fixed' else ''}Fixed temp - Use fixed probe temperature"),
+                        ],
+                        title="Probe Temperature",
+                    )
+                    if src:
+                        self.state.set("macros.probe_temp_source", src)
+
+                        # If fixed, ask for the temperature
+                        if src == "fixed":
+                            v = self.ui.inputbox(
+                                "Fixed probe temperature (C):\n\n"
+                                "Bed temperature during probing/meshing.\n"
+                                "Lower temp = faster heating. Typical: 60",
+                                default=str(current_fixed),
+                                title="Fixed Probe Temp",
+                            )
+                            if v:
+                                try:
+                                    self.state.set("macros.probe_bed_temp", int(v))
+                                except ValueError:
+                                    pass
+
+                    # Stabilization dwell
+                    dwell = self.ui.inputbox(
+                        "Stabilization dwell time (seconds):\n\n"
+                        "Wait time after bed reaches temperature\n"
+                        "for thermal equilibrium before probing.\n\n"
+                        "0 = no extra wait, 30-60 = recommended for accuracy",
+                        default=str(current_dwell),
+                        title="Stabilization Dwell",
+                    )
+                    if dwell:
+                        try:
+                            self.state.set("macros.bed_stabilize_dwell", int(dwell))
+                        except ValueError:
+                            pass
+
+                    # Heater off during probing
+                    off = self.ui.yesno(
+                        "Turn off bed heater during probing?\n\n"
+                        "Yes: Eliminates PWM noise (SSR interference)\n"
+                        "No: Keep heater on (recommended for thermal probes)\n\n"
+                        "Only enable if you have probe accuracy issues\n"
+                        "caused by heater PWM interference.",
+                        title="Heater Off During Probe",
+                        default_no=not current_off,
+                    )
+                    self.state.set("macros.bed_off_during_probe", off)
+
+                    if off:
+                        # Reheat after probing
+                        reheat = self.ui.yesno(
+                            "Reheat bed after probing?\n\n"
+                            "Yes: Wait for bed to reach print temp (recommended)\n"
+                            "No: Start printing immediately",
+                            title="Reheat After Probe",
+                            default_no=not current_reheat,
+                        )
+                        self.state.set("macros.bed_reheat_after_probe", reheat)
+
                     self.state.save()
                     self.state.set("macros.preset", "custom")
 
