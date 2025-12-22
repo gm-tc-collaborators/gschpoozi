@@ -776,14 +776,20 @@ common:
   macro_config:
     template: |
       [gcode_macro _MACRO_CONFIG]
-      description: Configuration variables for START_PRINT and END_PRINT macros
-      # Printer Dimensions (from wizard)
+      description: Configuration variables for START_PRINT, END_PRINT, PAUSE, and utility macros
+
+      # ═══════════════════════════════════════════════════════════════════════════════
+      # PRINTER DIMENSIONS (from wizard)
+      # ═══════════════════════════════════════════════════════════════════════════════
       variable_bed_size_x: {{ printer.bed_size_x }}
       variable_bed_size_y: {{ printer.bed_size_y }}
       variable_bed_size_z: {{ printer.bed_size_z }}
       variable_bed_center_x: {{ (printer.bed_size_x / 2) | int }}
       variable_bed_center_y: {{ (printer.bed_size_y / 2) | int }}
-      # Probe and Leveling
+
+      # ═══════════════════════════════════════════════════════════════════════════════
+      # PROBE AND LEVELING
+      # ═══════════════════════════════════════════════════════════════════════════════
       variable_probe_type: "{{ probe.probe_type | default('none') }}"
       {% if probe.probe_type == 'beacon' %}
       # Beacon uses 'scan' method for continuous fast scanning
@@ -806,48 +812,141 @@ common:
       {% endif %}
       # Klipper parses gcode_macro variables with Python literal_eval, so booleans must be True/False (not true/false).
       variable_leveling_enabled: {{ 'True' if ((bed_leveling.leveling_type | default('none') | lower) != 'none') else 'False' }}
-      variable_z_calibration_enabled: {{ 'True' if (bed_leveling.z_calibration_enabled | default(true)) else 'False' }}
-      variable_always_home_z: {{ 'True' if (bed_leveling.always_home_z | default(false)) else 'False' }}
-      # Heat Soak
+      variable_z_calibration_enabled: {{ 'True' if (macros.z_calibration_enabled | default(true)) else 'False' }}
+      variable_z_calibration_command: "{{ macros.z_calibration_command | default('') }}"
+      variable_always_home_z: {{ 'True' if (macros.always_home_z | default(true)) else 'False' }}
+      variable_level_bed_at_temp: {{ 'True' if (macros.level_bed_at_temp | default(true)) else 'False' }}
+
+      # ═══════════════════════════════════════════════════════════════════════════════
+      # HEATING
+      # ═══════════════════════════════════════════════════════════════════════════════
+      variable_extruder_preheat_temp: {{ macros.extruder_preheat_temp | default(150) }}
+      variable_preheat_scale: {{ macros.preheat_scale | default(0.75) }}
+
+      # ═══════════════════════════════════════════════════════════════════════════════
+      # HEAT SOAK
+      # ═══════════════════════════════════════════════════════════════════════════════
+      variable_heat_soak_enabled: {{ 'True' if (macros.heat_soak_enabled | default(false)) else 'False' }}
       variable_heat_soak_time: {{ macros.heat_soak_time | default(0) }}
-      # Chamber Heating
+      variable_heat_soak_interruptible: {{ 'True' if (macros.heat_soak_interruptible | default(true)) else 'False' }}
+      variable_heat_soak_threshold: {{ macros.heat_soak_threshold | default(0.5) }}
+
+      # ═══════════════════════════════════════════════════════════════════════════════
+      # CHAMBER
+      # ═══════════════════════════════════════════════════════════════════════════════
       variable_chamber_temp_default: {{ macros.chamber_temp_default | default(0) }}
-      # Bed Mesh
+      variable_chamber_timeout: {{ macros.chamber_timeout | default(30) }}
+      variable_chamber_wait: {{ 'True' if (macros.chamber_wait | default(true)) else 'False' }}
+
+      # ═══════════════════════════════════════════════════════════════════════════════
+      # BED MESH
+      # ═══════════════════════════════════════════════════════════════════════════════
       variable_bed_mesh_mode: "{{ macros.bed_mesh_mode | default('adaptive') }}"
-      # Nozzle Cleaning (Brush)
+
+      # ═══════════════════════════════════════════════════════════════════════════════
+      # NOZZLE CLEANING (BRUSH)
+      # ═══════════════════════════════════════════════════════════════════════════════
       variable_brush_enabled: {{ 'True' if (macros.brush_enabled | default(false)) else 'False' }}
       variable_brush_x: {{ macros.brush_x | default(50.0) }}
       variable_brush_y: {{ macros.brush_y | default(317.0) }}
       variable_brush_z: {{ macros.brush_z | default(1.0) }}
       variable_brush_width: {{ macros.brush_width | default(30.0) }}
       variable_wipe_count: {{ macros.wipe_count | default(3) }}
-      # Purge Settings
-      variable_purge_style: "{{ macros.purge_style | default('adaptive') }}"
+      variable_wipe_speed: {{ macros.wipe_speed | default(100) }}
+
+      # ═══════════════════════════════════════════════════════════════════════════════
+      # PURGE SETTINGS
+      # ═══════════════════════════════════════════════════════════════════════════════
+      variable_purge_style: "{{ macros.purge_style | default('line') }}"
       variable_purge_amount: {{ macros.purge_amount | default(30.0) }}
+      variable_purge_speed: {{ macros.purge_speed | default(3.0) }}
       variable_purge_x: {{ macros.purge_x | default(5) }}
       variable_purge_y: {{ macros.purge_y | default(5) }}
+      variable_purge_clearance: {{ macros.purge_clearance | default(10.0) }}
       # Bucket (for blob/voron purge)
       variable_bucket_x: {{ macros.bucket_x | default((printer.bed_size_x / 2) | int) }}
       variable_bucket_y: {{ macros.bucket_y | default(printer.bed_size_y - 5) }}
       variable_bucket_z: {{ macros.bucket_z | default(5.0) }}
-      # LED Status
-      variable_led_enabled: {{ 'True' if (macros.led_enabled | default(false)) else 'False' }}
-      variable_led_name: "{{ macros.led_name | default('status_led') }}"
-      # Park Position (END_PRINT)
-      variable_park_position: "{{ macros.park_position | default('front') }}"
-      variable_park_z_hop: {{ macros.park_z_hop | default(10.0) }}
-      # Default park_z_max should scale with printer Z travel.
-      # Use (bed_size_z - 5) as a sane cap (also consistent with z_max - 5 safety margin in the macro).
-      variable_park_z_max: {{ (macros.park_z_max | default(printer.bed_size_z - 5)) | float }}
-      # Cooldown (END_PRINT)
-      variable_turn_off_bed: {{ 'True' if (macros.turn_off_bed | default(true)) else 'False' }}
-      variable_turn_off_extruder: {{ 'True' if (macros.turn_off_extruder | default(true)) else 'False' }}
-      variable_turn_off_fans: {{ 'True' if (macros.turn_off_fans | default(false)) else 'False' }}
-      variable_fan_off_delay: {{ macros.fan_off_delay | default(0) }}
-      variable_motor_off_delay: {{ macros.motor_off_delay | default(300) }}
-      # Retract (END_PRINT)
+      variable_bucket_dwell: {{ macros.bucket_dwell | default(1000) }}
+
+      # ═══════════════════════════════════════════════════════════════════════════════
+      # MOVEMENT SPEEDS (mm/s unless noted)
+      # ═══════════════════════════════════════════════════════════════════════════════
+      variable_travel_speed: {{ macros.travel_speed | default(300) }}
+      variable_z_travel_speed: {{ macros.z_travel_speed | default(15) }}
+      variable_homing_speed: {{ macros.homing_speed | default(50) }}
+
+      # ═══════════════════════════════════════════════════════════════════════════════
+      # END PRINT - RETRACTION
+      # ═══════════════════════════════════════════════════════════════════════════════
       variable_end_retract_length: {{ macros.end_retract_length | default(10.0) }}
       variable_end_retract_speed: {{ macros.end_retract_speed | default(30.0) }}
+
+      # ═══════════════════════════════════════════════════════════════════════════════
+      # END PRINT - PARKING
+      # ═══════════════════════════════════════════════════════════════════════════════
+      variable_park_position: "{{ macros.park_position | default('front') }}"
+      variable_park_z_hop: {{ macros.park_z_hop | default(10.0) }}
+      # Default park_z_max should scale with printer Z travel (z_max - 5 safety margin)
+      variable_park_z_max: {{ (macros.park_z_max | default(printer.bed_size_z - 5)) | float }}
+      variable_park_speed: {{ macros.park_speed | default(150) }}
+
+      # ═══════════════════════════════════════════════════════════════════════════════
+      # END PRINT - COOLDOWN
+      # ═══════════════════════════════════════════════════════════════════════════════
+      variable_turn_off_extruder: {{ 'True' if (macros.turn_off_extruder | default(true)) else 'False' }}
+      variable_turn_off_bed: {{ 'True' if (macros.turn_off_bed | default(true)) else 'False' }}
+      variable_turn_off_fans: {{ 'True' if (macros.turn_off_fans | default(true)) else 'False' }}
+      variable_fan_off_delay: {{ macros.fan_off_delay | default(0) }}
+      variable_motor_off_delay: {{ macros.motor_off_delay | default(300) }}
+
+      # ═══════════════════════════════════════════════════════════════════════════════
+      # PAUSE / RESUME
+      # ═══════════════════════════════════════════════════════════════════════════════
+      variable_pause_retract: {{ macros.pause_retract | default(1.0) }}
+      variable_pause_z_hop: {{ macros.pause_z_hop | default(10.0) }}
+      variable_pause_position: "{{ macros.pause_position | default('front') }}"
+      variable_pause_heater_off: {{ 'True' if (macros.pause_heater_off | default(false)) else 'False' }}
+      variable_pause_timeout: {{ macros.pause_timeout | default(43200) }}
+      variable_resume_prime: {{ macros.resume_prime | default(1.0) }}
+      variable_resume_speed: {{ macros.resume_speed | default(100) }}
+
+      # ═══════════════════════════════════════════════════════════════════════════════
+      # FILAMENT LOAD
+      # ═══════════════════════════════════════════════════════════════════════════════
+      variable_load_temp: {{ macros.load_temp | default(220) }}
+      variable_load_length: {{ macros.load_length | default(100) }}
+      variable_load_speed: {{ macros.load_speed | default(300) }}
+      variable_load_prime: {{ macros.load_prime | default(50) }}
+      variable_load_prime_speed: {{ macros.load_prime_speed | default(150) }}
+
+      # ═══════════════════════════════════════════════════════════════════════════════
+      # FILAMENT UNLOAD
+      # ═══════════════════════════════════════════════════════════════════════════════
+      variable_unload_temp: {{ macros.unload_temp | default(220) }}
+      variable_unload_length: {{ macros.unload_length | default(100) }}
+      variable_unload_speed: {{ macros.unload_speed | default(1800) }}
+      variable_unload_tip_shape: {{ 'True' if (macros.unload_tip_shape | default(true)) else 'False' }}
+
+      # ═══════════════════════════════════════════════════════════════════════════════
+      # FILAMENT SENSOR
+      # ═══════════════════════════════════════════════════════════════════════════════
+      variable_filament_sensor_enabled: {{ 'True' if (macros.filament_sensor_enabled | default(false)) else 'False' }}
+      variable_runout_pause: {{ 'True' if (macros.runout_pause | default(true)) else 'False' }}
+      variable_runout_gcode: "{{ macros.runout_gcode | default('M600') }}"
+      variable_insert_delay: {{ macros.insert_delay | default(0) }}
+
+      # ═══════════════════════════════════════════════════════════════════════════════
+      # LED STATUS
+      # ═══════════════════════════════════════════════════════════════════════════════
+      variable_led_enabled: {{ 'True' if (macros.led_enabled | default(false)) else 'False' }}
+      variable_led_name: "{{ macros.led_name | default('status_led') }}"
+      variable_led_heating: "{{ macros.led_heating | default('1.0, 0.2, 0.0') }}"
+      variable_led_printing: "{{ macros.led_printing | default('0.0, 1.0, 0.0') }}"
+      variable_led_paused: "{{ macros.led_paused | default('1.0, 1.0, 0.0') }}"
+      variable_led_error: "{{ macros.led_error | default('1.0, 0.0, 0.0') }}"
+      variable_led_complete: "{{ macros.led_complete | default('0.0, 0.5, 1.0') }}"
+
       gcode:
           # Configuration only - no gcode
 
@@ -905,13 +1004,49 @@ common:
 
           {% set BED_TEMP = params.BED|default(60)|int %}
           {% set EXTRUDER_TEMP = params.EXTRUDER|default(200)|int %}
-          {% set CHAMBER_TEMP = params.CHAMBER|default(cfg.chamber_temp_default)|int %}
           {% set MATERIAL = params.MATERIAL|default("PLA")|upper %}
           {% set MESH_MODE = params.MESH|default(cfg.bed_mesh_mode)|lower %}
           {% set PURGE_STYLE = params.PURGE|default(cfg.purge_style)|lower %}
 
-          # Preheat extruder to safe probing temp (prevents ooze during mesh)
-          {% set EXTRUDER_PREHEAT = 150 %}
+          # ───────────────────────────────────────────────────────────────────────────
+          # Material profile lookup (chamber temp, heat soak time)
+          # Slicer provides BED/EXTRUDER temps; material sets behavior
+          # ───────────────────────────────────────────────────────────────────────────
+          {% set material_profiles = {
+              "PLA":   {"chamber": 0,  "soak": 0},
+              "PETG":  {"chamber": 0,  "soak": 0},
+              "ABS":   {"chamber": 45, "soak": 15},
+              "ASA":   {"chamber": 50, "soak": 15},
+              "TPU":   {"chamber": 0,  "soak": 0},
+              "PC":    {"chamber": 55, "soak": 20},
+              "NYLON": {"chamber": 40, "soak": 10},
+              "HIPS":  {"chamber": 40, "soak": 10}
+          } %}
+          {% set mat = material_profiles.get(MATERIAL, {"chamber": 0, "soak": 0}) %}
+
+          # Chamber temp: Use CHAMBER param if provided, else material default, else config default
+          {% if params.CHAMBER is defined %}
+              {% set CHAMBER_TEMP = params.CHAMBER|int %}
+          {% elif mat.chamber > 0 %}
+              {% set CHAMBER_TEMP = mat.chamber %}
+          {% else %}
+              {% set CHAMBER_TEMP = cfg.chamber_temp_default %}
+          {% endif %}
+
+          # Heat soak: Use material profile if heat_soak_enabled, else config setting
+          {% if cfg.heat_soak_enabled %}
+              {% set SOAK_TIME = [mat.soak, cfg.heat_soak_time]|max %}
+          {% else %}
+              {% set SOAK_TIME = cfg.heat_soak_time %}
+          {% endif %}
+
+          # Calculate preheat temperature using scale factor or fixed temp
+          # preheat_scale: 0.0 = no preheat, 0.5 = half temp, 1.0 = full temp
+          {% if cfg.preheat_scale > 0 %}
+              {% set EXTRUDER_PREHEAT = [(EXTRUDER_TEMP * cfg.preheat_scale)|int, cfg.extruder_preheat_temp]|min %}
+          {% else %}
+              {% set EXTRUDER_PREHEAT = 0 %}
+          {% endif %}
 
           # ───────────────────────────────────────────────────────────────────────────
           # Phase 1: Start heating and home
@@ -924,8 +1059,10 @@ common:
           # Start bed heating (don't wait yet)
           M140 S{BED_TEMP}
 
-          # Preheat extruder to prevent cold ooze (don't wait)
+          # Preheat extruder to prevent cold ooze during probing (don't wait)
+          {% if EXTRUDER_PREHEAT > 0 %}
           M104 S{EXTRUDER_PREHEAT}
+          {% endif %}
 
           # Home if needed
           _HOME_IF_NEEDED
@@ -933,18 +1070,21 @@ common:
           # ───────────────────────────────────────────────────────────────────────────
           # Phase 2: Wait for bed and optional heat soak
           # ───────────────────────────────────────────────────────────────────────────
-          M117 Waiting for bed...
-          M190 S{BED_TEMP}
+          {% if cfg.level_bed_at_temp %}
+              # Wait for bed to reach temperature before leveling (more accurate)
+              M117 Waiting for bed...
+              M190 S{BED_TEMP}
+          {% endif %}
 
-          {% if cfg.heat_soak_time > 0 %}
-          _HEAT_SOAK MINUTES={cfg.heat_soak_time}
+          {% if SOAK_TIME > 0 %}
+          _HEAT_SOAK MINUTES={SOAK_TIME}
           {% endif %}
 
           # ───────────────────────────────────────────────────────────────────────────
           # Phase 3: Chamber heating (if configured)
           # ───────────────────────────────────────────────────────────────────────────
-          {% if CHAMBER_TEMP > 0 %}
-          _CHAMBER_WAIT TEMP={CHAMBER_TEMP}
+          {% if CHAMBER_TEMP > 0 and cfg.chamber_wait %}
+          _CHAMBER_WAIT TEMP={CHAMBER_TEMP} TIMEOUT={cfg.chamber_timeout}
           {% endif %}
 
           # ───────────────────────────────────────────────────────────────────────────
@@ -962,8 +1102,9 @@ common:
           # ───────────────────────────────────────────────────────────────────────────
           # Phase 5: Z calibration (probe-specific)
           # ───────────────────────────────────────────────────────────────────────────
-          {% if cfg.z_calibration_enabled %}
-          _CALIBRATE_Z
+          {% if cfg.z_calibration_enabled and cfg.z_calibration_command != "" %}
+          M117 Z calibration...
+          {cfg.z_calibration_command}
           {% endif %}
 
           # ───────────────────────────────────────────────────────────────────────────
@@ -983,6 +1124,13 @@ common:
           # ───────────────────────────────────────────────────────────────────────────
           {% if cfg.led_enabled %}
           _STATUS_LED STATUS=heating
+          {% endif %}
+
+          # Ensure bed is at temp before final extruder heating
+          # (if we skipped the wait earlier with level_bed_at_temp=false)
+          {% if not cfg.level_bed_at_temp %}
+          M117 Waiting for bed...
+          M190 S{BED_TEMP}
           {% endif %}
 
           M117 Heating extruder...
@@ -1490,25 +1638,52 @@ common:
       [gcode_macro PAUSE]
       description: Pause the running print
       rename_existing: PAUSE_BASE
-      variable_extrude: 1.0
+      variable_saved_extruder_temp: 0
       gcode:
           {% set cfg = printer["gcode_macro _MACRO_CONFIG"] %}
-          {% set E = printer["gcode_macro PAUSE"].extrude|float %}
+          {% set RETRACT = cfg.pause_retract %}
+          {% set Z_HOP = cfg.pause_z_hop %}
 
           # Save current position
           SAVE_GCODE_STATE NAME=PAUSE_state
 
+          # Save extruder temp for resume (if heater_off enabled)
+          {% if cfg.pause_heater_off %}
+              SET_GCODE_VARIABLE MACRO=PAUSE VARIABLE=saved_extruder_temp VALUE={printer.extruder.target}
+          {% endif %}
+
           # Retract
           M83
-          G1 E-{E} F2100
+          G1 E-{RETRACT} F2100
 
-          # Park
-          _PARK POSITION={cfg.park_position}
+          # Z hop
+          {% set current_z = printer.toolhead.position.z %}
+          {% set max_z = printer.toolhead.axis_maximum.z %}
+          {% set target_z = [current_z + Z_HOP, max_z - 5]|min %}
+          G90
+          G0 Z{target_z} F{cfg.z_travel_speed * 60}
+
+          # Park at configured position
+          _PARK POSITION={cfg.pause_position}
+
+          # Set idle timeout (Ellis safety pattern)
+          SET_IDLE_TIMEOUT TIMEOUT={cfg.pause_timeout}
+
+          # Turn off heater if configured (safety feature)
+          {% if cfg.pause_heater_off %}
+              M104 S0
+              M117 Paused (heater off)
+          {% else %}
+              M117 Print paused
+          {% endif %}
+
+          # LED status
+          {% if cfg.led_enabled %}
+              _STATUS_LED STATUS=paused
+          {% endif %}
 
           # Base pause
           PAUSE_BASE
-
-          M117 Print paused
 
       # ───────────────────────────────────────────────────────────────────────────────
       # Resume Print
@@ -1517,14 +1692,31 @@ common:
       description: Resume the paused print
       rename_existing: RESUME_BASE
       gcode:
-          {% set E = printer["gcode_macro PAUSE"].extrude|float %}
+          {% set cfg = printer["gcode_macro _MACRO_CONFIG"] %}
+          {% set PRIME = cfg.resume_prime %}
+          {% set SPEED = cfg.resume_speed %}
+          {% set saved_temp = printer["gcode_macro PAUSE"].saved_extruder_temp %}
+
+          # Restore idle timeout to default
+          SET_IDLE_TIMEOUT TIMEOUT={printer.configfile.settings.idle_timeout.timeout|int}
+
+          # Reheat if heater was turned off
+          {% if cfg.pause_heater_off and saved_temp > 0 %}
+              M117 Reheating...
+              M109 S{saved_temp}
+          {% endif %}
+
+          # LED status
+          {% if cfg.led_enabled %}
+              _STATUS_LED STATUS=printing
+          {% endif %}
 
           # Prime nozzle
           M83
-          G1 E{E} F2100
+          G1 E{PRIME} F{SPEED * 60}
 
           # Restore position
-          RESTORE_GCODE_STATE NAME=PAUSE_state MOVE=1 MOVE_SPEED=100
+          RESTORE_GCODE_STATE NAME=PAUSE_state MOVE=1 MOVE_SPEED={SPEED}
 
           # Base resume
           RESUME_BASE
@@ -1532,16 +1724,97 @@ common:
           M117 Printing...
 
       # ───────────────────────────────────────────────────────────────────────────────
+      # Filament Load
+      # ───────────────────────────────────────────────────────────────────────────────
+      [gcode_macro LOAD_FILAMENT]
+      description: Load filament into the extruder
+      gcode:
+          {% set cfg = printer["gcode_macro _MACRO_CONFIG"] %}
+          {% set TEMP = params.TEMP|default(cfg.load_temp)|float %}
+          {% set LENGTH = params.LENGTH|default(cfg.load_length)|float %}
+          {% set SPEED = params.SPEED|default(cfg.load_speed)|int %}
+          {% set PRIME = params.PRIME|default(cfg.load_prime)|float %}
+          {% set PRIME_SPEED = params.PRIME_SPEED|default(cfg.load_prime_speed)|int %}
+
+          # Save state
+          SAVE_GCODE_STATE NAME=LOAD_FILAMENT_state
+
+          # Heat if needed
+          {% if printer.extruder.temperature < (TEMP - 10) %}
+              M117 Heating for filament load...
+              M109 S{TEMP}
+          {% endif %}
+
+          M117 Loading filament...
+          M83  ; Relative extrusion
+
+          # Fast load (bowden section if applicable)
+          G1 E{LENGTH} F{SPEED}
+
+          # Slow prime (hotend section)
+          G1 E{PRIME} F{PRIME_SPEED}
+
+          # Small retract to prevent ooze
+          G1 E-5 F1800
+
+          M82  ; Absolute extrusion
+          G92 E0
+
+          RESTORE_GCODE_STATE NAME=LOAD_FILAMENT_state
+          M117 Filament loaded
+
+      # ───────────────────────────────────────────────────────────────────────────────
+      # Filament Unload
+      # ───────────────────────────────────────────────────────────────────────────────
+      [gcode_macro UNLOAD_FILAMENT]
+      description: Unload filament from the extruder
+      gcode:
+          {% set cfg = printer["gcode_macro _MACRO_CONFIG"] %}
+          {% set TEMP = params.TEMP|default(cfg.unload_temp)|float %}
+          {% set LENGTH = params.LENGTH|default(cfg.unload_length)|float %}
+          {% set SPEED = params.SPEED|default(cfg.unload_speed)|int %}
+
+          SAVE_GCODE_STATE NAME=UNLOAD_FILAMENT_state
+
+          # Heat if needed
+          {% if printer.extruder.temperature < (TEMP - 10) %}
+              M117 Heating for filament unload...
+              M109 S{TEMP}
+          {% endif %}
+
+          M117 Unloading filament...
+          M83  ; Relative extrusion
+
+          {% if cfg.unload_tip_shape %}
+              # Tip-shaping sequence (reduces stringing on reload)
+              G1 E10 F300      ; Prime
+              G1 E-10 F3600    ; Quick retract
+              G1 E5 F300       ; Small push
+              G1 E-15 F3600    ; Retract
+          {% else %}
+              G1 E10 F300      ; Simple prime
+          {% endif %}
+
+          # Main retract
+          G1 E-{LENGTH} F{SPEED}
+
+          M82  ; Absolute extrusion
+          G92 E0
+
+          RESTORE_GCODE_STATE NAME=UNLOAD_FILAMENT_state
+          M117 Filament unloaded
+
+      # ───────────────────────────────────────────────────────────────────────────────
       # Filament Change (M600)
       # ───────────────────────────────────────────────────────────────────────────────
       [gcode_macro M600]
-      description: Filament change
+      description: Filament change (pause print and unload filament)
       gcode:
           {% set cfg = printer["gcode_macro _MACRO_CONFIG"] %}
 
           M117 Filament change...
 
-          # Pause
+          # Pause print
           PAUSE
 
           # Set LED to indicate waiting
@@ -1549,9 +1822,8 @@ common:
           _STATUS_LED STATUS=error
           {% endif %}
 
-          # Unload filament
-          M83
-          G1 E-50 F1800
+          # Unload filament using configured settings
+          UNLOAD_FILAMENT
 
           M117 Load new filament and RESUME
 

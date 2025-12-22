@@ -1,0 +1,156 @@
+{
+  "_comment": "Macro preset profiles for gschpoozi wizard",
+  "_description": "These presets set recommended defaults that users can then customize",
+
+  "presets": {
+    "beginner_safe": {
+      "name": "Beginner Safe",
+      "description": "Conservative settings for new users - prioritizes safety and reliability",
+      "settings": {
+        "extruder_preheat_temp": 150,
+        "preheat_scale": 0.75,
+        "level_bed_at_temp": true,
+        "bed_mesh_mode": "saved",
+        "heat_soak_enabled": false,
+        "heat_soak_time": 0,
+        "purge_style": "line",
+        "purge_amount": 30.0,
+        "brush_enabled": false,
+        "park_position": "front",
+        "pause_heater_off": true,
+        "pause_timeout": 43200,
+        "turn_off_extruder": true,
+        "turn_off_bed": true,
+        "turn_off_fans": true,
+        "motor_off_delay": 60
+      }
+    },
+
+    "voron_style": {
+      "name": "Voron-Style",
+      "description": "VORON community best practices - full workflow with heat soak and nozzle cleaning",
+      "recommended_for": ["corexy"],
+      "settings": {
+        "extruder_preheat_temp": 150,
+        "preheat_scale": 0.75,
+        "level_bed_at_temp": true,
+        "bed_mesh_mode": "adaptive",
+        "heat_soak_enabled": true,
+        "heat_soak_time": 15,
+        "purge_style": "blob",
+        "purge_amount": 30.0,
+        "brush_enabled": true,
+        "wipe_count": 3,
+        "park_position": "back",
+        "pause_heater_off": false,
+        "pause_timeout": 43200,
+        "turn_off_extruder": true,
+        "turn_off_bed": true,
+        "turn_off_fans": false,
+        "motor_off_delay": 300,
+        "always_home_z": true
+      }
+    },
+
+    "speed_optimized": {
+      "name": "Speed-Optimized",
+      "description": "Minimize start time for quick prints - skip mesh, parallel heating",
+      "settings": {
+        "extruder_preheat_temp": 180,
+        "preheat_scale": 1.0,
+        "level_bed_at_temp": false,
+        "bed_mesh_mode": "saved",
+        "heat_soak_enabled": false,
+        "heat_soak_time": 0,
+        "purge_style": "adaptive",
+        "purge_amount": 20.0,
+        "brush_enabled": false,
+        "park_position": "front",
+        "pause_heater_off": false,
+        "pause_timeout": 7200,
+        "turn_off_extruder": true,
+        "turn_off_bed": true,
+        "turn_off_fans": true,
+        "motor_off_delay": 30
+      }
+    },
+
+    "enclosed_hightemp": {
+      "name": "Enclosed High-Temp",
+      "description": "For enclosed printers running ABS/ASA/PC - extended heat soak and chamber heating",
+      "recommended_for": ["corexy"],
+      "requires": ["chamber_sensor"],
+      "settings": {
+        "extruder_preheat_temp": 150,
+        "preheat_scale": 0.6,
+        "level_bed_at_temp": true,
+        "bed_mesh_mode": "adaptive",
+        "heat_soak_enabled": true,
+        "heat_soak_time": 20,
+        "chamber_temp_default": 50,
+        "chamber_timeout": 45,
+        "purge_style": "blob",
+        "purge_amount": 30.0,
+        "brush_enabled": true,
+        "wipe_count": 5,
+        "park_position": "back",
+        "pause_heater_off": false,
+        "pause_timeout": 43200,
+        "turn_off_extruder": true,
+        "turn_off_bed": false,
+        "turn_off_fans": false,
+        "fan_off_delay": 300,
+        "motor_off_delay": 600
+      }
+    },
+
+    "bed_slinger": {
+      "name": "Bed Slinger",
+      "description": "For cartesian/bed-slinger printers - saved mesh, front parking",
+      "recommended_for": ["cartesian"],
+      "settings": {
+        "extruder_preheat_temp": 150,
+        "preheat_scale": 0.75,
+        "level_bed_at_temp": true,
+        "bed_mesh_mode": "saved",
+        "heat_soak_enabled": false,
+        "heat_soak_time": 0,
+        "purge_style": "line",
+        "purge_amount": 30.0,
+        "brush_enabled": false,
+        "park_position": "front",
+        "pause_heater_off": true,
+        "pause_timeout": 43200,
+        "turn_off_extruder": true,
+        "turn_off_bed": true,
+        "turn_off_fans": true,
+        "motor_off_delay": 120
+      }
+    },
+
+    "production": {
+      "name": "Production Mode",
+      "description": "For production runs - balanced speed and reliability, auto-resume features",
+      "settings": {
+        "extruder_preheat_temp": 160,
+        "preheat_scale": 0.8,
+        "level_bed_at_temp": true,
+        "bed_mesh_mode": "adaptive",
+        "heat_soak_enabled": false,
+        "heat_soak_time": 5,
+        "purge_style": "adaptive",
+        "purge_amount": 25.0,
+        "brush_enabled": false,
+        "park_position": "back",
+        "pause_heater_off": false,
+        "pause_timeout": 86400,
+        "turn_off_extruder": true,
+        "turn_off_bed": true,
+        "turn_off_fans": true,
+        "motor_off_delay": 600
+      }
+    }
+  },
+
+  "default_preset": "beginner_safe"
+}
