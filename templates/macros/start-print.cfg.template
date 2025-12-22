@@ -255,38 +255,26 @@ gcode:
 # Bed Mesh
 # ───────────────────────────────────────────────────────────────────────────────
 [gcode_macro _BED_MESH]
-description: Generate or load bed mesh
+description: Run bed mesh with appropriate method for probe type
 gcode:
-    {% set MODE = params.MODE|default("adaptive")|lower %}
     {% set cfg = printer["gcode_macro _MACRO_CONFIG"] %}
-    
+    {% set MODE = params.MODE|default("adaptive")|lower %}
+
     {% if MODE == "none" %}
-        # Skip mesh
         M117 Skipping mesh
     {% elif MODE == "saved" %}
-        # Load saved profile
         BED_MESH_PROFILE LOAD=default
     {% elif MODE == "adaptive" %}
-        # Adaptive mesh - mesh only print area
-        # Requires PRINT_MIN/PRINT_MAX from slicer or uses full bed
-        {% if params.PRINT_MIN is defined and params.PRINT_MAX is defined %}
-            BED_MESH_CALIBRATE MESH_MIN={params.PRINT_MIN} MESH_MAX={params.PRINT_MAX}
+        # Adaptive mesh - only mesh print area
+        {% if cfg.probe_type in ['beacon', 'cartographer', 'btt_eddy'] %}
+            BED_MESH_CALIBRATE METHOD={cfg.eddy_mesh_method} ADAPTIVE=1
         {% else %}
-            # Fall back to scan/rapid_scan for eddy probes or standard mesh
-            {% if cfg.probe_type in ["beacon", "cartographer"] %}
-                BED_MESH_CALIBRATE METHOD=scan
-            {% elif cfg.probe_type in ["btt_eddy", "btt-eddy"] %}
-                BED_MESH_CALIBRATE METHOD=rapid_scan
-            {% else %}
-                BED_MESH_CALIBRATE ADAPTIVE=1
-            {% endif %}
+            BED_MESH_CALIBRATE ADAPTIVE=1
         {% endif %}
     {% else %}
         # Full mesh
-        {% if cfg.probe_type in ["beacon", "cartographer"] %}
-            BED_MESH_CALIBRATE METHOD=scan
-        {% elif cfg.probe_type in ["btt_eddy", "btt-eddy"] %}
-            BED_MESH_CALIBRATE METHOD=rapid_scan
+        {% if cfg.probe_type in ['beacon', 'cartographer', 'btt_eddy'] %}
+            BED_MESH_CALIBRATE METHOD={cfg.eddy_mesh_method}
         {% else %}
             BED_MESH_CALIBRATE
         {% endif %}

@@ -2560,38 +2560,31 @@ def generate_macros_cfg(wizard_state: Dict) -> str:
     lines.append("    G28 Z")
     lines.append("")
 
-    # _BED_MESH
+    # _BED_MESH - uses runtime config for probe-aware mesh method
     lines.append("[gcode_macro _BED_MESH]")
-    lines.append("description: Generate or load bed mesh")
+    lines.append("description: Run bed mesh with appropriate method for probe type")
     lines.append("gcode:")
-    lines.append('    {% set MODE = params.MODE|default("adaptive")|lower %}')
     lines.append('    {% set cfg = printer["gcode_macro _MACRO_CONFIG"] %}')
+    lines.append('    {% set MODE = params.MODE|default("adaptive")|lower %}')
     lines.append("    ")
     lines.append('    {% if MODE == "none" %}')
     lines.append("        M117 Skipping mesh")
     lines.append('    {% elif MODE == "saved" %}')
     lines.append("        BED_MESH_PROFILE LOAD=default")
     lines.append('    {% elif MODE == "adaptive" %}')
-
-    # Probe-specific mesh commands
-    # Beacon/Cartographer use scan method, BTT Eddy uses rapid_scan
-    if probe_type in ('beacon', 'cartographer'):
-        lines.append("        BED_MESH_CALIBRATE METHOD=scan")
-    elif probe_type in ('btt_eddy', 'btt-eddy'):
-        lines.append("        BED_MESH_CALIBRATE METHOD=rapid_scan")
-    else:
-        lines.append("        BED_MESH_CALIBRATE ADAPTIVE=1")
-
+    lines.append("        # Adaptive mesh - only mesh print area")
+    lines.append("        {% if cfg.probe_type in ['beacon', 'cartographer', 'btt_eddy'] %}")
+    lines.append("            BED_MESH_CALIBRATE METHOD={cfg.eddy_mesh_method} ADAPTIVE=1")
+    lines.append("        {% else %}")
+    lines.append("            BED_MESH_CALIBRATE ADAPTIVE=1")
+    lines.append("        {% endif %}")
     lines.append("    {% else %}")
-
-    # Full mesh mode - same probe-specific methods
-    if probe_type in ('beacon', 'cartographer'):
-        lines.append("        BED_MESH_CALIBRATE METHOD=scan")
-    elif probe_type in ('btt_eddy', 'btt-eddy'):
-        lines.append("        BED_MESH_CALIBRATE METHOD=rapid_scan")
-    else:
-        lines.append("        BED_MESH_CALIBRATE")
-
+    lines.append("        # Full mesh")
+    lines.append("        {% if cfg.probe_type in ['beacon', 'cartographer', 'btt_eddy'] %}")
+    lines.append("            BED_MESH_CALIBRATE METHOD={cfg.eddy_mesh_method}")
+    lines.append("        {% else %}")
+    lines.append("            BED_MESH_CALIBRATE")
+    lines.append("        {% endif %}")
     lines.append("    {% endif %}")
     lines.append("")
 
