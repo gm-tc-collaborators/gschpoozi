@@ -54,19 +54,19 @@
     },
     "MOTOR_7": {
       "label": "Driver 7",
-      "step_pin": "PD11",
-      "dir_pin": "PD9",
-      "enable_pin": "PD15",
-      "cs_pin": "PD14",
-      "uart_pin": "PD14"
+      "step_pin": "PD12",
+      "dir_pin": "PD11",
+      "enable_pin": "PD14",
+      "cs_pin": "PD13",
+      "uart_pin": "PD13"
     },
     "MOTOR_8": {
       "label": "Driver 8",
-      "step_pin": "PD8",
-      "dir_pin": "PC6",
-      "enable_pin": "PC7",
-      "cs_pin": "PD10",
-      "uart_pin": "PD10"
+      "step_pin": "PD10",
+      "dir_pin": "PD8",
+      "enable_pin": "PD9",
+      "cs_pin": "PC7",
+      "uart_pin": "PC7"
     }
   },
   "heater_ports": {

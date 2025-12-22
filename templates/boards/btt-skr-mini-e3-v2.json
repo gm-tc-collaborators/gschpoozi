@@ -33,6 +33,10 @@
     "HE0": {
       "label": "Heater 0",
       "pin": "PC8"
+    },
+    "HB": {
+      "label": "Heated Bed",
+      "pin": "PC9"
     }
   },
   "fan_ports": {

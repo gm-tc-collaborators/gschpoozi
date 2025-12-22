@@ -41,6 +41,10 @@
     "HEAT2": {
       "label": "Heater AT2",
       "pin": "PB0"
+    },
+    "HB": {
+      "label": "Heated Bed",
+      "pin": "PD12"
     }
   },
   "fan_ports": {

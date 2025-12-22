@@ -162,7 +162,7 @@
     },
     "T3": {
       "label": "Thermistor 3",
-      "pin": "PC3"
+      "pin": "PA7"
     }
   },
   "endstop_ports": {
@@ -200,7 +200,7 @@
     },
     "PROBE": {
       "label": "Probe Input",
-      "pin": "PC1"
+      "pin": "PG1"
     }
   },
   "misc_ports": {
