@@ -12,6 +12,7 @@ import json
 import re
 import traceback
 from pathlib import Path
+from typing import Optional, Union, Tuple
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -77,11 +78,11 @@ class GschpooziWizard:
         text: str,
         *,
         default: str = "",
-        title: str | None = None,
+        title: Optional[str] = None,
         height: int = 8,
         width: int = 60,
         debug_key: str = "",
-    ) -> str | None:
+    ) -> Optional[str]:
         """
         Inputbox that distinguishes Cancel vs. other whiptail failures and logs details.
 
@@ -240,7 +241,7 @@ class GschpooziWizard:
         except Exception:
             return False
 
-    def _run_shell(self, command: str) -> tuple[bool, str]:
+    def _run_shell(self, command: str) -> Tuple[bool, str]:
         """Run a shell command and return (ok, combined_output)."""
         try:
             import subprocess
@@ -326,7 +327,7 @@ class GschpooziWizard:
         except Exception:
             return False
 
-    def _write_klipperscreen_conf(self, host: str, port: int) -> tuple[bool, str]:
+    def _write_klipperscreen_conf(self, host: str, port: int) -> Tuple[bool, str]:
         """Write/update ~/KlipperScreen/KlipperScreen.conf with [printer default]."""
         conf_path = Path.home() / "KlipperScreen" / "KlipperScreen.conf"
         try:
@@ -629,7 +630,7 @@ class GschpooziWizard:
             return True
         return False
 
-    def _collect_mainboard_used_pins(self, *, exclude_pins: set[str] | None = None) -> dict[str, str]:
+    def _collect_mainboard_used_pins(self, *, exclude_pins: Optional[set[str]] = None) -> dict[str, str]:
         """
         Collect a mapping of raw mainboard pins -> description for conflict detection.
 
@@ -948,7 +949,7 @@ class GschpooziWizard:
             out.append((v, label))
         return out
 
-    def _pick_heater_name(self, *, current_value: str, title: str) -> str | None:
+    def _pick_heater_name(self, *, current_value: str, title: str) -> Optional[str]:
         """Pick a heater name from known heaters; manual entry fallback."""
         choices = self._get_known_heater_choices(current_value=current_value or "")
         tag_to_value = {}
@@ -1038,7 +1039,7 @@ class GschpooziWizard:
             if value is not None:
                 self.state.set(f"{to_key}.{setting}", value)
 
-    def _endstop_config_to_flags(self, endstop_config: str | None) -> tuple[bool, bool]:
+    def _endstop_config_to_flags(self, endstop_config: Optional[str]) -> Tuple[bool, bool]:
         """Convert legacy endstop_config string -> (pullup, invert).
 
         Legacy values:
@@ -1048,7 +1049,7 @@ class GschpooziWizard:
         - no_vcc: pullup False, invert False  (pin)
         """
         cfg = (endstop_config or "nc_gnd").strip().lower()
-        mapping: dict[str, tuple[bool, bool]] = {
+        mapping: dict[str, Tuple[bool, bool]] = {
             "nc_gnd": (True, False),
             "no_gnd": (True, True),
             "nc_vcc": (False, True),
@@ -1056,7 +1057,7 @@ class GschpooziWizard:
         }
         return mapping.get(cfg, (True, False))
 
-    def _prompt_endstop_wiring(self, *, axis_upper: str, state_key: str) -> tuple[bool, bool] | None:
+    def _prompt_endstop_wiring(self, *, axis_upper: str, state_key: str) -> Optional[Tuple[bool, bool]]:
         """Prompt for endstop wiring using two toggles (pullup + invert)."""
         # New state (preferred)
         if self.state.get(f"{state_key}.endstop_pullup") is not None or self.state.get(f"{state_key}.endstop_invert") is not None:
@@ -1253,7 +1254,7 @@ class GschpooziWizard:
             except Exception:
                 return "(unknown)"
 
-        def test_fetch() -> tuple[bool, str]:
+        def test_fetch() -> Tuple[bool, str]:
             try:
                 env = os.environ.copy()
                 env["GIT_TERMINAL_PROMPT"] = "0"
@@ -2025,7 +2026,7 @@ class GschpooziWizard:
                 parts.append(str(sw))
             return " / ".join(parts) if parts else "Unknown entry"
 
-        def _select_software(allowed: list) -> str | None:
+        def _select_software(allowed: list) -> Optional[str]:
             allowed = [a for a in allowed if a in ("happy_hare", "afc")]
             if not allowed:
                 return None
@@ -2045,7 +2046,7 @@ class GschpooziWizard:
             )
             return chosen
 
-        def _select_board() -> str | None:
+        def _select_board() -> Optional[str]:
             if not boards:
                 self.ui.msgbox(
                     "No MMU board definitions found.\n\n"
@@ -2072,7 +2073,7 @@ class GschpooziWizard:
             )
             return choice if choice and choice != "B" else None
 
-        def _select_connection(default_conn: str | None = None) -> tuple[str | None, dict]:
+        def _select_connection(default_conn: Optional[str] = None) -> Tuple[Optional[str], dict]:
             default_conn = default_conn if default_conn in ("usb", "can") else "usb"
             conn = self.ui.radiolist(
                 "How is this additional MCU connected?",
@@ -6638,7 +6639,7 @@ class GschpooziWizard:
         conf_path = ks_dir / "KlipperScreen.conf"
 
         # Detect service state
-        def _service_state() -> tuple[bool, bool, str]:
+        def _service_state() -> Tuple[bool, bool, str]:
             installed = ks_dir.exists()
             running = False
             svc_name = "KlipperScreen"
@@ -7302,7 +7303,7 @@ class GschpooziWizard:
         import re
         from pathlib import Path as _Path
 
-        def _tmc_autotune_install_status() -> tuple[bool, list[str], str]:
+        def _tmc_autotune_install_status() -> Tuple[bool, list[str], str]:
             """
             Detect whether klipper_tmc_autotune is installed and COMPLETE.
 
@@ -7327,7 +7328,7 @@ class GschpooziWizard:
             except Exception:
                 return False, ["autotune_tmc.py", "motor_constants.py", "motor_database.cfg"], str(Path.home() / "klipper" / "klippy" / "extras")
 
-        def _find_motor_db() -> _Path | None:
+        def _find_motor_db() -> Optional[_Path]:
             """Find the motor database file."""
             candidates = [
                 _Path.home() / "klipper_tmc_autotune" / "motor_database.cfg",
@@ -7369,7 +7370,7 @@ class GschpooziWizard:
                     vendors[vendor_display].append(motor_id)
             return vendors
 
-        def _pick_motor_hierarchical(purpose: str, motor_ids: list[str], default_value: str = "") -> str | None:
+        def _pick_motor_hierarchical(purpose: str, motor_ids: list[str], default_value: str = "") -> Optional[str]:
             """
             Pick a motor using hierarchical vendor -> motor selection.
             No manual input allowed - only menu selection.
@@ -7409,7 +7410,7 @@ class GschpooziWizard:
 
             while True:
                 # Step 1: Select vendor (using menu for reliable selection)
-                vendor_items: list[tuple[str, str]] = []
+                vendor_items: list[Tuple[str, str]] = []
                 for vendor in sorted(vendors.keys()):
                     count = len(vendors[vendor])
                     vendor_items.append((vendor, f"{vendor} ({count} motors)"))
@@ -7435,7 +7436,7 @@ class GschpooziWizard:
                 if not vendor_motors:
                     continue
 
-                motor_items: list[tuple[str, str]] = []
+                motor_items: list[Tuple[str, str]] = []
                 for motor in sorted(vendor_motors):
                     # Show the full motor ID
                     motor_items.append((motor, motor))
@@ -8071,7 +8072,7 @@ read -r _
     def _configure_accelerometer(self) -> None:
         """Configure accelerometer for input shaper calibration."""
         # Check for gcode_shell_command extension (required for shaper graph commands)
-        def _gcode_shell_command_install_status() -> tuple[bool, str]:
+        def _gcode_shell_command_install_status() -> Tuple[bool, str]:
             """Check if gcode_shell_command extension is installed."""
             try:
                 base = Path.home() / "klipper" / "klippy"
