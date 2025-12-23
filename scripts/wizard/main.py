@@ -2820,6 +2820,8 @@ class GschpooziWizard:
             title="Host MCU",
             default_no=not current_enabled
         )
+        if enabled is None:
+            return  # Cancelled
 
         self.state.set("mcu.host.enabled", enabled)
         self.state.save()
@@ -7131,6 +7133,8 @@ class GschpooziWizard:
             height=12,
             width=80,
         )
+        if enabled is None:
+            return  # Cancelled
         self.state.set("advanced.force_move.enable_force_move", bool(enabled))
         self.state.save()
         self.ui.msgbox(
@@ -7150,6 +7154,8 @@ class GschpooziWizard:
             height=13,
             width=90,
         )
+        if enabled is None:
+            return  # Cancelled
         self.state.set("advanced.firmware_retraction.enabled", bool(enabled))
         if not enabled:
             self.state.save()
@@ -8676,6 +8682,8 @@ read -r _
                         title="Level at Temperature",
                         default_no=not level_at_temp,
                     )
+                    if lat is None:
+                        continue  # Cancelled - back to menu
                     self.state.set("macros.level_bed_at_temp", lat)
                     self.state.save()
                     self.state.set("macros.preset", "custom")
@@ -8746,6 +8754,8 @@ read -r _
                         title="Heater Off During Probe",
                         default_no=not current_off,
                     )
+                    if off is None:
+                        continue  # Cancelled - back to menu
                     self.state.set("macros.bed_off_during_probe", off)
 
                     if off:
@@ -8757,6 +8767,8 @@ read -r _
                             title="Reheat After Probe",
                             default_no=not current_reheat,
                         )
+                        if reheat is None:
+                            continue  # Cancelled - back to menu
                         self.state.set("macros.bed_reheat_after_probe", reheat)
 
                     self.state.save()
@@ -8837,6 +8849,8 @@ read -r _
                         title="Heat Soak",
                         default_no=not self.state.get("macros.heat_soak_enabled", False),
                     )
+                    if soak_en is None:
+                        continue  # Cancelled - back to menu
                     self.state.set("macros.heat_soak_enabled", soak_en)
                     if soak_en:
                         t = self.ui.inputbox(
@@ -8861,6 +8875,8 @@ read -r _
                         title="Nozzle Brush",
                         default_no=not self.state.get("macros.brush_enabled", False),
                     )
+                    if brush is None:
+                        continue  # Cancelled - back to menu
                     self.state.set("macros.brush_enabled", brush)
                     if brush:
                         wc = self.ui.inputbox(
@@ -9069,6 +9085,8 @@ read -r _
                         title="Heater Off on Pause",
                         default_no=not heater_off,
                     )
+                    if ho is None:
+                        continue  # Cancelled - back to menu
                     self.state.set("macros.pause_heater_off", ho)
                     self.state.save()
                     self.state.set("macros.preset", "custom")
@@ -9139,6 +9157,8 @@ read -r _
                         title="Tip Shaping",
                         default_no=not tip_shape,
                     )
+                    if ts is None:
+                        continue  # Cancelled - back to menu
                     self.state.set("macros.unload_tip_shape", ts)
                     self.state.save()
 
