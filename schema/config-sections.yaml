@@ -938,7 +938,7 @@ common:
       gcode:
           {% set axis = params.AXIS | default("x") | lower %}
           {% set stepper = "stepper_" ~ axis %}
-          {% set max_driver_temp = params.MAX_DRIVER_TEMP | default({{ tuning.chopper_tuning.max_driver_temp | default(100) }}) | int %}
+          {% set max_driver_temp = params.MAX_DRIVER_TEMP | default(100) | int %}
           {% set state = printer["gcode_macro _CHOPPER_TUNE_STATE"] %}
 
           # Determine TMC driver type
@@ -1062,9 +1062,9 @@ common:
       gcode:
           {% set axis = params.AXIS | default("x") | lower %}
           {% set mode = params.MODE | default("full") | lower %}
-          {% set min_speed = params.MIN_SPEED | default({{ tuning.chopper_tuning.test_speed_min | default(30) }}) | int %}
-          {% set max_speed = params.MAX_SPEED | default({{ tuning.chopper_tuning.test_speed_max | default(150) }}) | int %}
-          {% set step = params.STEP | default({{ tuning.chopper_tuning.test_speed_step | default(10) }}) | int %}
+          {% set min_speed = params.MIN_SPEED | default(30) | int %}
+          {% set max_speed = params.MAX_SPEED | default(150) | int %}
+          {% set step = params.STEP | default(10) | int %}
           {% set state = printer["gcode_macro _CHOPPER_TUNE_STATE"] %}
           {% set stepper = "stepper_" ~ axis %}
 
@@ -1210,7 +1210,7 @@ common:
 
           {% if has_tpfd %}
               # TMC5160/TMC2240: Test TPFD values (primary parameter for mid-range resonance)
-              {% set tpfd_list = {{ tuning.chopper_tuning.tpfd_values | default("0,4,8,12,15") }}.split(",") %}
+              {% set tpfd_list = "0,4,8,12,15".split(",") %}
 
               RESPOND MSG="Testing TPFD values at {test_speed} mm/s"
               RESPOND MSG="TPFD values: {tpfd_list | join(', ')}"
@@ -1223,8 +1223,8 @@ common:
               {% endfor %}
           {% else %}
               # TMC2209: Test TBL/TOFF combinations (no TPFD available)
-              {% set tbl_list = {{ tuning.chopper_tuning.tbl_values | default("0,1,2") }}.split(",") %}
-              {% set toff_list = {{ tuning.chopper_tuning.toff_values | default("1,2,3,4") }}.split(",") %}
+              {% set tbl_list = "0,1,2".split(",") %}
+              {% set toff_list = "1,2,3,4".split(",") %}
 
               RESPOND MSG="TMC2209 mode: Testing TBL/TOFF combinations at {test_speed} mm/s"
 
@@ -1254,10 +1254,10 @@ common:
           {% set axis = params.AXIS | default("x") | lower %}
           {% set speed = params.SPEED | default(75) | int %}
           {% set tpfd = params.TPFD | default(0) | int %}
-          {% set tbl = params.TBL | default({{ tuning.chopper_tuning.default_tbl | default(2) }}) | int %}
-          {% set toff = params.TOFF | default({{ tuning.chopper_tuning.default_toff | default(3) }}) | int %}
-          {% set hstrt = params.HSTRT | default({{ tuning.chopper_tuning.default_hstrt | default(5) }}) | int %}
-          {% set hend = params.HEND | default({{ tuning.chopper_tuning.default_hend | default(3) }}) | int %}
+          {% set tbl = params.TBL | default(2) | int %}
+          {% set toff = params.TOFF | default(3) | int %}
+          {% set hstrt = params.HSTRT | default(5) | int %}
+          {% set hend = params.HEND | default(3) | int %}
           {% set stepper = "stepper_" ~ axis %}
           {% set state = printer["gcode_macro _CHOPPER_TUNE_STATE"] %}
 
@@ -1466,7 +1466,7 @@ common:
           {% set state = printer["gcode_macro _CHOPPER_TUNE_STATE"] %}
 
           # TPFD values to test
-          {% set tpfd_list = {{ tuning.chopper_tuning.tpfd_values | default("0,4,8,12,15") }}.split(",") %}
+          {% set tpfd_list = "0,4,8,12,15".split(",") %}
 
           {% set max_pos = printer.toolhead.axis_maximum[axis] %}
           {% set min_pos = printer.toolhead.axis_minimum[axis] %}
