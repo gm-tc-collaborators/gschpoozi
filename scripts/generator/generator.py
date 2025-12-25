@@ -165,20 +165,6 @@ class ConfigGenerator:
         if bool(context["tuning"]["tmc_autotune"].get("enabled")) and "emit_config" not in context["tuning"]["tmc_autotune"]:
             context["tuning"]["tmc_autotune"]["emit_config"] = _has_klipper_tmc_autotune()
 
-        # Auto-enable chopper tuning when compatible TMC drivers (5160/2240/2209) are detected.
-        # Do not override an explicit user choice already stored in state.
-        if "enabled" not in context["tuning"]["chopper_tuning"]:
-            compatible_drivers = {"TMC5160", "TMC2240", "TMC2209"}
-            has_compatible = False
-            for stepper_key in ("stepper_x", "stepper_y", "stepper_x1", "stepper_y1"):
-                stepper = context.get(stepper_key, {})
-                if isinstance(stepper, dict):
-                    driver = stepper.get("driver_type", "")
-                    if driver in compatible_drivers:
-                        has_compatible = True
-                        break
-            context["tuning"]["chopper_tuning"]["enabled"] = has_compatible
-
         # Back-compat: older wizard state stored motor presets as motor_x/motor_y/motor_z/motor_extruder.
         # New template expects a list of tuned steppers under tuning.tmc_autotune.steppers.
         ta = context["tuning"]["tmc_autotune"]

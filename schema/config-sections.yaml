@@ -747,7 +747,7 @@ common:
 
   # Shell command to run the Python chopper analyzer
   chopper_shell_command:
-    condition: "tuning.chopper_tuning.enabled"
+    render: raw
     template: |
       [gcode_shell_command chopper_analyze]
       command: python3 $HOME/printer_data/config/gschpoozi/scripts/tools/chopper_analyze.py
@@ -757,7 +757,8 @@ common:
   # Hardware stall detection using DIAG pins (TMC5160/TMC2240 only)
   # Monitors for motor stalls during tuning to prevent damage
   chopper_stall_monitor_x:
-    condition: "tuning.chopper_tuning.enabled and tuning.chopper_tuning.enable_stall_detection and pins.stepper_x.diag"
+    condition: "pins.stepper_x.diag"
+    render: raw
     template: |
       [gcode_button stall_monitor_x]
       pin: ^{{ pins.stepper_x.diag }}
@@ -765,7 +766,8 @@ common:
           _CHOPPER_STALL_DETECTED AXIS=X
 
   chopper_stall_monitor_y:
-    condition: "tuning.chopper_tuning.enabled and tuning.chopper_tuning.enable_stall_detection and pins.stepper_y.diag"
+    condition: "pins.stepper_y.diag"
+    render: raw
     template: |
       [gcode_button stall_monitor_y]
       pin: ^{{ pins.stepper_y.diag }}
@@ -774,7 +776,7 @@ common:
 
   # Chopper tuning state and macros
   chopper_tuning_macros:
-    condition: "tuning.chopper_tuning.enabled"
+    render: raw
     template: |
       # ═══════════════════════════════════════════════════════════════════════════════
       # TMC CHOPPER TUNING STATE
@@ -1338,7 +1340,8 @@ common:
   # AWD (All Wheel Drive) Chopper Tuning
   # Additional macros for printers with stepper_x1 and stepper_y1
   chopper_tuning_awd:
-    condition: "tuning.chopper_tuning.enabled and printer.awd_enabled"
+    condition: "printer.awd_enabled"
+    render: raw
     template: |
       # ═══════════════════════════════════════════════════════════════════════════════
       # AWD CHOPPER TUNING SUPPORT
