@@ -758,19 +758,17 @@ common:
   # Monitors for motor stalls during tuning to prevent damage
   chopper_stall_monitor_x:
     condition: "pins.stepper_x.diag"
-    render: raw
     template: |
       [gcode_button stall_monitor_x]
-      pin: ^{{ pins.stepper_x.diag }}
+      pin: {{ pins.stepper_x.diag }}
       press_gcode:
           _CHOPPER_STALL_DETECTED AXIS=X
 
   chopper_stall_monitor_y:
     condition: "pins.stepper_y.diag"
-    render: raw
     template: |
       [gcode_button stall_monitor_y]
-      pin: ^{{ pins.stepper_y.diag }}
+      pin: {{ pins.stepper_y.diag }}
       press_gcode:
           _CHOPPER_STALL_DETECTED AXIS=Y
 
