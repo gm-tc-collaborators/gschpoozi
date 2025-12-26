@@ -4097,6 +4097,8 @@ class GschpooziWizard:
         nozzle_diameter = self.ui.radiolist(
             "Nozzle diameter (mm):",
             [
+                ("0.2", "0.2mm", current_nozzle == 0.2),
+                ("0.3", "0.3mm", current_nozzle == 0.3),
                 ("0.4", "0.4mm (most common)", current_nozzle == 0.4),
                 ("0.5", "0.5mm", current_nozzle == 0.5),
                 ("0.6", "0.6mm", current_nozzle == 0.6),
