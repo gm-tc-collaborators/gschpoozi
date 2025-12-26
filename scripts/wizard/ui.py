@@ -7,6 +7,7 @@ Can be swapped for different implementations if needed.
 
 import subprocess
 import shutil
+import os
 from typing import List, Tuple, Optional, Any
 
 
@@ -29,6 +30,14 @@ class WizardUI:
         """Run whiptail command and return (returncode, output)."""
         cmd = ["whiptail", "--backtitle", self.backtitle] + args
 
+        # Ensure proper terminal environment for whiptail rendering
+        # Some terminals (e.g. MobaXterm) need explicit UTF-8 and TERM settings
+        env = os.environ.copy()
+        if not env.get("LANG") or "UTF-8" not in env.get("LANG", ""):
+            env["LANG"] = "en_US.UTF-8"
+        if not env.get("TERM") or env.get("TERM") == "dumb":
+            env["TERM"] = "xterm-256color"
+
         # whiptail needs direct terminal access for its UI
         # It writes the UI to /dev/tty and returns selection via stderr
         try:
@@ -38,7 +47,8 @@ class WizardUI:
                     stdin=tty,
                     stdout=tty,
                     stderr=subprocess.PIPE,
-                    text=True
+                    text=True,
+                    env=env
                 )
                 # whiptail outputs selection to stderr
                 return result.returncode, result.stderr.strip()
@@ -47,7 +57,8 @@ class WizardUI:
             result = subprocess.run(
                 cmd,
                 stderr=subprocess.PIPE,
-                text=True
+                text=True,
+                env=env
             )
             return result.returncode, result.stderr.strip()
 
