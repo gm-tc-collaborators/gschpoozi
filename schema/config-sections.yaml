@@ -2292,7 +2292,7 @@ common:
       # ═══════════════════════════════════════════════════════════════════════════════
 
       [gcode_macro END_PRINT]
-      description: Complete print end sequence with retraction, parking, and cooldown
+      description: End print (PARK=front|back|center|front_left|front_right|back_left|back_right)
       gcode:
           {% set cfg = printer["gcode_macro _MACRO_CONFIG"] %}
           {% set PARK_POS = params.PARK|default(cfg.park_position)|lower %}
@@ -2374,7 +2374,7 @@ common:
       # Park Toolhead
       # ───────────────────────────────────────────────────────────────────────────────
       [gcode_macro _PARK]
-      description: Park toolhead at specified position
+      description: Park toolhead (POSITION=front|back|center|front_left|front_right|back_left|back_right)
       gcode:
           {% set cfg = printer["gcode_macro _MACRO_CONFIG"] %}
           {% set POSITION = params.POSITION|default(cfg.park_position)|lower %}
