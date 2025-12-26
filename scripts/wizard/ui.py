@@ -36,7 +36,9 @@ class WizardUI:
         if not env.get("LANG") or "UTF-8" not in env.get("LANG", ""):
             env["LANG"] = "en_US.UTF-8"
         if not env.get("TERM") or env.get("TERM") == "dumb":
-            env["TERM"] = "xterm-256color"
+            # Use xterm-r6 as fallback - more compatible than xterm-256color
+            # (MobaXterm in particular has issues with xterm/xterm-256color)
+            env["TERM"] = "xterm-r6"
 
         # whiptail needs direct terminal access for its UI
         # It writes the UI to /dev/tty and returns selection via stderr
