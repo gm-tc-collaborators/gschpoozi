@@ -4713,67 +4713,26 @@ class GschpooziWizard:
         if max_temp is None:
             return
 
-        # Temperature control method (MPC only available with Kalico)
-        klipper_variant = self.state.get("klipper.variant", "standard")
-        current_bed_heater_power = self.state.get("heater_bed.heater_power", 200)
+        # Temperature control method (MPC not recommended for heated beds)
+        control = self.ui.radiolist(
+            "Temperature control method:",
+            [
+                ("pid", "PID (most common)", current_control == "pid"),
+                ("watermark", "Watermark (simple on/off)", current_control == "watermark"),
+            ],
+            title="Heated Bed - Control Method"
+        )
+        if control is None:
+            return
 
-        if klipper_variant == "kalico":
-            control = self.ui.radiolist(
-                "Temperature control method:\n\n"
-                "MPC (Model Predictive Control) is a Kalico feature that\n"
-                "provides faster heating and better temperature stability.",
-                [
-                    ("pid", "PID (traditional)", current_control == "pid"),
-                    ("mpc", "MPC (Kalico)", current_control == "mpc"),
-                    ("watermark", "Watermark (simple on/off)", current_control == "watermark"),
-                ],
-                title="Heated Bed - Control Method"
-            )
-            if control is None:
-                return
-
-            if control == "mpc":
-                bed_heater_power = self.ui.inputbox(
-                    "Bed heater power (watts):\n\n"
-                    "Check your bed heater specs. Common values:\n"
-                    "• 200W - Small beds (Ender 3)\n"
-                    "• 400W - Medium beds (Voron 2.4 250)\n"
-                    "• 600W - Large beds (Voron 2.4 350)\n"
-                    "• 750W+ - Very large beds",
-                    default=str(current_bed_heater_power),
-                    title="Heated Bed - Heater Power (MPC)"
-                )
-                if bed_heater_power is None:
-                    return
-                current_bed_heater_power = int(bed_heater_power)
-        else:
-            control = self.ui.radiolist(
-                "Temperature control method:",
-                [
-                    ("pid", "PID (most common)", current_control == "pid"),
-                    ("watermark", "Watermark (simple on/off)", current_control == "watermark"),
-                ],
-                title="Heated Bed - Control Method"
-            )
-            if control is None:
-                return
-
-        # === 2.7.4: PID/MPC Calibration Info ===
-        if control == "mpc":
-            self.ui.msgbox(
-                "MPC will auto-calibrate on first heat cycle.\n\n"
-                "For best results, run MPC_CALIBRATE HEATER=heater_bed\n"
-                "after the printer is assembled and operational.",
-                title="Heated Bed - MPC Calibration"
-            )
-        else:
-            self.ui.msgbox(
-                "PID values will be set to 0 initially.\n\n"
-                "After first boot, run:\n"
-                "PID_CALIBRATE HEATER=heater_bed TARGET=60\n\n"
-                "Then SAVE_CONFIG to store the values.",
-                title="Heated Bed - PID Calibration"
-            )
+        # === 2.7.4: PID Calibration Info ===
+        self.ui.msgbox(
+            "PID values will be set to 0 initially.\n\n"
+            "After first boot, run:\n"
+            "PID_CALIBRATE HEATER=heater_bed TARGET=60\n\n"
+            "Then SAVE_CONFIG to store the values.",
+            title="Heated Bed - PID Calibration"
+        )
 
         # === 2.7.5: Bed Surface ===
         surface_type = self.ui.radiolist(
@@ -4804,8 +4763,6 @@ class GschpooziWizard:
         self.state.set("heater_bed.min_temp", int(min_temp or 0))
         self.state.set("heater_bed.max_temp", int(max_temp or 120))
         self.state.set("heater_bed.control", control or "pid")
-        if control == "mpc":
-            self.state.set("heater_bed.heater_power", current_bed_heater_power)
         self.state.set("heater_bed.pid_Kp", 0.0)
         self.state.set("heater_bed.pid_Ki", 0.0)
         self.state.set("heater_bed.pid_Kd", 0.0)
@@ -4813,7 +4770,6 @@ class GschpooziWizard:
         self.state.save()
 
         pullup_text = f"\nPullup: {pullup_resistor}Ω" if pullup_resistor else ""
-        calibration_hint = "MPC_CALIBRATE HEATER=heater_bed" if control == "mpc" else "PID_CALIBRATE HEATER=heater_bed TARGET=60"
         self.ui.msgbox(
             f"Heated bed configured!\n\n"
             f"Heater pin: {heater_pin}\n"
@@ -4823,7 +4779,7 @@ class GschpooziWizard:
             f"Temp range: {min_temp}°C - {max_temp}°C\n"
             f"Control: {control}\n"
             f"Surface: {surface_type}\n\n"
-            f"Remember to run {calibration_hint}",
+            "Remember to run PID_CALIBRATE HEATER=heater_bed TARGET=60",
             title="Configuration Saved"
         )
 

@@ -342,15 +342,9 @@ heater_bed:
     {% endif -%}
     min_temp: {{ heater_bed.min_temp | default(0) }}
     max_temp: {{ heater_bed.max_temp | default(120) }}
-    {% if heater_bed.control == 'mpc' %}
-    # MPC (Model Predictive Control) - Kalico feature
-    control: mpc
-    heater_power: {{ heater_bed.heater_power | default(200) }}
-    {% else %}
     # PID control and PID values are in printer.cfg override sections (not here to avoid SAVE_CONFIG conflicts)
     # Run PID_CALIBRATE HEATER=heater_bed TARGET=60, then SAVE_CONFIG
     # SAVE_CONFIG will save control: pid and PID values to the [heater_bed] override section in printer.cfg
-    {% endif %}
 
 # -----------------------------------------------------------------------------
 # Fans
