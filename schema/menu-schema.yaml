@@ -227,7 +227,7 @@ categories:
               - name: "belt_pitch"
                 type: "choice"
                 options: [2, 3, 1.5]
-                labels: ["2mm GT2", "3mm HTD3M", "1.5mm (rare)"]
+                labels: ["2mm GT2", "3mm HTD3M", "1.5mm GT1.5"]
                 default: 2
                 required: true
               - name: "pulley_teeth"
@@ -416,7 +416,7 @@ categories:
               - name: "belt_pitch"
                 type: "choice"
                 options: [2, 3, 1.5]
-                labels: ["2mm GT2", "3mm HTD3M", "1.5mm (rare)"]
+                labels: ["2mm GT2", "3mm HTD3M", "1.5mm GT1.5"]
                 default: 2
                 required: true
               - name: "pulley_teeth"

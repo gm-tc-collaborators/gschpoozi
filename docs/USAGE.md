@@ -287,6 +287,7 @@ Common values:
 | GT2 (2mm) | 20T | 40mm |
 | GT2 (2mm) | 16T | 32mm |
 | GT3 (3mm) | 20T | 60mm |
+| GT1.5 (1.5mm) | 20T | 30mm |
 
 #### Z Rotation Distance (Lead screw)
 

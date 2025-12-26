@@ -3435,12 +3435,13 @@ class GschpooziWizard:
             [
                 ("2", "2mm GT2 (most common)", current_belt == 2),
                 ("3", "3mm HTD3M", current_belt == 3),
+                ("1.5", "1.5mm GT1.5", current_belt == 1.5),
             ],
             title=f"Stepper {axis_upper} - Belt"
         )
         if belt_pitch is None:
             return
-        self.state.set(f"{state_key}.belt_pitch", int(belt_pitch))
+        self.state.set(f"{state_key}.belt_pitch", float(belt_pitch))
         self.state.save()
 
         current_pulley = self.state.get(f"{state_key}.pulley_teeth", 20)
@@ -3813,7 +3814,7 @@ class GschpooziWizard:
         # Save all settings
         self.state.set(f"{state_key}.motor_port", motor_port)
         self.state.set(f"{state_key}.dir_pin_inverted", dir_inverted)
-        self.state.set(f"{state_key}.belt_pitch", int(belt_pitch or 2))
+        self.state.set(f"{state_key}.belt_pitch", float(belt_pitch or 2))
         self.state.set(f"{state_key}.pulley_teeth", int(pulley_teeth or 20))
         self.state.set(f"{state_key}.microsteps", int(microsteps or 32))
         self.state.set(f"{state_key}.full_steps_per_rotation", int(full_steps or 200))
