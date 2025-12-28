@@ -792,9 +792,13 @@ class MenuEngine:
 
         elif field_type == 'choice':
             options = field.get('options', [])
-            choices = [(opt.get('value', ''), opt.get('label', opt.get('value', '')))
-                      for opt in options]
-            result = self.ui.radiolist(prompt, choices, default=current_value, title=label)
+            choices = []
+            for opt in options:
+                val = opt.get('value', '')
+                lbl = opt.get('label', val)
+                is_selected = (val == current_value)
+                choices.append((val, lbl, is_selected))
+            result = self.ui.radiolist(prompt, choices, title=label)
             return result
 
         elif field_type == 'port_select':
