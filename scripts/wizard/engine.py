@@ -835,6 +835,55 @@ class MenuEngine:
             result = self.ui.radiolist(prompt, items, title=label)
             return result
 
+        elif field_type == 'multi_port_select':
+            # Multi-select port picker using checklist
+            port_type = field.get('port_type', 'fan_ports')
+
+            # Get ports from mainboard
+            board_type = self.state.get('mcu.main.board_type')
+            board_data = self.field_renderer._load_board_data(board_type, 'boards')
+
+            # Also get toolboard ports if available
+            toolboard_type = self.state.get('mcu.toolboard.board_type')
+            toolboard_data = {}
+            if toolboard_type:
+                toolboard_data = self.field_renderer._load_board_data(toolboard_type, 'toolboards')
+
+            if not board_data and not toolboard_data:
+                self.ui.msgbox(f"No boards configured. Please set up MCU first.", title=label)
+                return None
+
+            # Build selection items from all available ports
+            items = []
+            current_pins = current_value if isinstance(current_value, list) else []
+
+            # Add mainboard ports
+            ports = board_data.get(port_type, {})
+            for port_id, port_info in ports.items():
+                port_label = port_info.get('label', port_id)
+                pin = port_info.get('pin', '')
+                display = f"[Main] {port_label} ({pin})"
+                is_selected = pin in current_pins
+                items.append((pin, display, is_selected))
+
+            # Add toolboard ports
+            if toolboard_data:
+                tb_ports = toolboard_data.get(port_type, {})
+                for port_id, port_info in tb_ports.items():
+                    port_label = port_info.get('label', port_id)
+                    pin = port_info.get('pin', '')
+                    full_pin = f"toolboard:{pin}"
+                    display = f"[Toolboard] {port_label} ({pin})"
+                    is_selected = full_pin in current_pins
+                    items.append((full_pin, display, is_selected))
+
+            if not items:
+                self.ui.msgbox(f"No {port_type} available on any board.", title=label)
+                return None
+
+            result = self.ui.checklist(prompt, items, title=label)
+            return result if result else []
+
         else:
             # Default to text input
             result = self.ui.inputbox(prompt, default=str(current_value or ''), title=label)

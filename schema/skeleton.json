@@ -1830,10 +1830,11 @@
           },
           {
             "id": "pins",
-            "type": "text",
-            "label": "Pins (comma-separated)",
+            "type": "multi_port_select",
+            "label": "Select Fan Ports",
             "state_key": "pins",
-            "help": "e.g., PB5,PB6 or toolboard:PA0,toolboard:PA1",
+            "port_type": "fan_ports",
+            "help": "Select multiple fan ports to combine",
             "condition": "pin_type == 'multi_pin'"
           },
           {
