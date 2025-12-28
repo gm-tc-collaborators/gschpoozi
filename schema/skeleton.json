@@ -1890,32 +1890,6 @@
       }
     },
 
-    "multi_pins": {
-      "id": "multi_pins",
-      "title": "Multi-Pin Groups",
-      "state_prefix": "advanced.multi_pins",
-      "description": "Combine multiple output pins into one (e.g., for dual-fan setups)",
-      "is_list": true,
-      "item_template": {
-        "fields": [
-          {
-            "id": "name",
-            "type": "text",
-            "label": "Group Name",
-            "state_key": "name",
-            "help": "e.g., dual_part_fan"
-          },
-          {
-            "id": "pins",
-            "type": "text",
-            "label": "Pins (comma-separated)",
-            "state_key": "pins",
-            "help": "e.g., PB5,PB6 or toolboard:PA0,toolboard:PA1"
-          }
-        ]
-      }
-    },
-
     "leds": {
       "id": "leds",
       "title": "LED Configuration",
