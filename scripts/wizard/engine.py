@@ -164,9 +164,6 @@ class MenuEngine:
         Returns:
             True if section completed, False if cancelled
         """
-        import sys
-        print(f"DEBUG: run_section({section_id})", file=sys.stderr)
-
         section = self.skeleton.get_section(section_id)
         if not section:
             self.ui.msgbox(f"Section '{section_id}' not found in skeleton.")
@@ -174,7 +171,6 @@ class MenuEngine:
 
         # Auto-detect list sections and delegate
         if section.get('is_list'):
-            print(f"DEBUG: is_list=True, delegating to run_list_section", file=sys.stderr)
             self.run_list_section(section_id)
             return True
 
@@ -498,9 +494,6 @@ class MenuEngine:
         Returns:
             'back' if user pressed back, None on error
         """
-        import sys
-        print(f"DEBUG: run_list_section({section_id})", file=sys.stderr)
-
         section = self.skeleton.get_section(section_id)
         if not section:
             self.ui.msgbox(f"Section '{section_id}' not found in skeleton.")
@@ -514,12 +507,10 @@ class MenuEngine:
         state_prefix = section.get('state_prefix', section_id)
         item_template = section.get('item_template', {})
         title = section.get('title', section_id)
-        print(f"DEBUG: title={title}, state_prefix={state_prefix}", file=sys.stderr)
 
         while True:
             # Get current list items from state
             items = self._get_list_items(state_prefix)
-            print(f"DEBUG: items count={len(items)}", file=sys.stderr)
 
             # Build menu
             menu_items: List[Tuple[str, str]] = []
@@ -535,16 +526,12 @@ class MenuEngine:
                 menu_items.append(('delete', 'Delete a fan'))
             menu_items.append(('B', 'Back'))
 
-            print(f"DEBUG: menu_items={menu_items}", file=sys.stderr)
-
             # Show menu
             choice = self.ui.menu(
                 title,
                 menu_items,
                 title=title
             )
-
-            print(f"DEBUG: choice={choice}", file=sys.stderr)
 
             if choice is None or choice == 'B':
                 return 'back'
@@ -811,12 +798,37 @@ class MenuEngine:
             return result
 
         elif field_type == 'port_select':
-            # Simplified port select for list items
-            result = self.ui.inputbox(
-                f"{prompt}\n\nEnter pin (e.g., PA5, toolboard:PA1):",
-                default=str(current_value or ''),
-                title=label
-            )
+            # Use FieldRenderer's port select logic
+            port_type = field.get('port_type', 'fan_ports')
+            location = item_data.get('location', 'mainboard')
+
+            # Get available ports from the board
+            if location == 'toolboard':
+                board_type = self.state.get('mcu.toolboard.board_type')
+                board_data = self.field_renderer._load_board_data(board_type, 'toolboards')
+            else:
+                board_type = self.state.get('mcu.main.board_type')
+                board_data = self.field_renderer._load_board_data(board_type, 'boards')
+
+            if not board_data:
+                self.ui.msgbox(f"Board not configured. Please set up MCU first.", title=label)
+                return None
+
+            ports = board_data.get(port_type, {})
+            if not ports:
+                self.ui.msgbox(f"No {port_type} available on selected board.", title=label)
+                return None
+
+            # Build selection items
+            items = []
+            for port_id, port_info in ports.items():
+                port_label = port_info.get('label', port_id)
+                pin = port_info.get('pin', '')
+                display = f"{port_label} ({pin})"
+                is_selected = (port_id == current_value)
+                items.append((port_id, display, is_selected))
+
+            result = self.ui.radiolist(prompt, items, title=label)
             return result
 
         else:
