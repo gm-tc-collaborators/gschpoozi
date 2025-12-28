@@ -76,8 +76,16 @@ class FieldRenderer:
             field: Field definition from skeleton
 
         Returns:
-            The value entered by user, or None if cancelled
+            The value entered by user, None if cancelled, or 'skipped' if condition not met
         """
+        # Check condition at render time (in case state changed since fields were filtered)
+        condition = field.get('condition')
+        if condition:
+            state_dict = self.state.get_all()
+            if not self.skeleton.evaluate_condition(condition, state_dict):
+                # Condition not met - skip this field silently
+                return 'skipped'
+
         field_type = field.get('type', 'text')
 
         # Map field types to render methods

@@ -1333,6 +1333,7 @@
           "group": "driver_types",
           "label": "Driver Type",
           "state_key": "extruder.driver_type",
+          "condition": "extruder.location == 'mainboard'",
           "required": true
         },
         {
