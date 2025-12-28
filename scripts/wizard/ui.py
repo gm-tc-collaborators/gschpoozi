@@ -204,17 +204,20 @@ class WizardUI:
     ) -> Optional[str]:
         """
         Display an input box.
-        
+
         Returns:
             Entered text or None if cancelled
         """
+        import sys
         args = [
             "--title", title or self.title,
             "--inputbox", text,
             str(height), str(width), default
         ]
-        
+
+        print(f"DEBUG inputbox: args={args}", file=sys.stderr)
         code, output = self._run(args)
+        print(f"DEBUG inputbox: code={code}, output={output!r}", file=sys.stderr)
         return output if code == 0 else None
     
     def passwordbox(
