@@ -1,0 +1,13 @@
+{
+  "id": "smart-orbiter-v3",
+  "name": "Smart Orbiter v3 (SO3)",
+  "manufacturer": "Orbiter Projects / LDO",
+  "type": "direct_drive",
+  "gear_ratio": "7.5:1",
+  "rotation_distance": 4.69,
+  "microsteps": 32,
+  "full_steps_per_rotation": 200,
+  "pressure_advance": 0.015,
+  "run_current": 0.8,
+  "notes": "All-in-one extruder with integrated electronics"
+}

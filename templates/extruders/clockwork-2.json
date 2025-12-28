@@ -1,0 +1,12 @@
+{
+  "id": "clockwork-2",
+  "name": "Clockwork 2 (CW2)",
+  "manufacturer": "Voron Design",
+  "type": "direct_drive",
+  "gear_ratio": "50:10",
+  "rotation_distance": 22.6789511,
+  "microsteps": 32,
+  "full_steps_per_rotation": 200,
+  "pressure_advance": 0.04,
+  "notes": "Standard Voron Stealthburner extruder"
+}

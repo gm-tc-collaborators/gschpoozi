@@ -577,31 +577,25 @@ class FieldRenderer:
         return 'mainboard'
 
     def _render_board_select(self, field: Dict[str, Any]) -> Optional[str]:
-        """Render a board selection from templates."""
-        label = field.get('label', 'Select board')
+        """Render a selection from template JSON files."""
+        label = field.get('label', 'Select option')
         state_key = field.get('state_key', '')
         source = field.get('source', 'templates/boards/')
         current = self._get_state_value(state_key)
         title = self._get_contextual_title(field)
 
-        # Determine board type from source
-        if 'toolboards' in source:
-            board_type = 'toolboards'
-        else:
-            board_type = 'boards'
+        # Load available options from source directory
+        options = self._load_template_options(source)
 
-        # Load available boards
-        boards = self._load_available_boards(board_type)
-
-        if not boards:
-            self.ui.msgbox(f"No boards found in {source}", title=title)
+        if not options:
+            self.ui.msgbox(f"No options found in {source}", title=title)
             return None
 
         # Build selection items
         items: List[Tuple[str, str, bool]] = []
-        for board_id, board_name in boards:
-            is_selected = (board_id == current)
-            items.append((board_id, board_name, is_selected))
+        for opt_id, opt_name in options:
+            is_selected = (opt_id == current)
+            items.append((opt_id, opt_name, is_selected))
 
         result = self.ui.radiolist(label, items, title=title)
 
@@ -610,6 +604,41 @@ class FieldRenderer:
             return result
 
         return None
+
+    def _load_template_options(self, source: str) -> List[Tuple[str, str]]:
+        """Load list of options from a template directory.
+
+        Args:
+            source: Relative path to template directory (e.g., 'templates/extruders/')
+
+        Returns:
+            List of (id, display_name) tuples
+        """
+        options = []
+
+        # Handle both relative paths and just directory names
+        if source.startswith('templates/'):
+            source_dir = REPO_ROOT / source.rstrip('/')
+        else:
+            source_dir = REPO_ROOT / "templates" / source.rstrip('/')
+
+        if not source_dir.is_dir():
+            return []
+
+        for json_file in sorted(source_dir.glob("*.json")):
+            try:
+                with open(json_file, 'r') as f:
+                    data = json.load(f)
+                    opt_id = data.get('id', json_file.stem)
+                    opt_name = data.get('name', opt_id)
+                    manufacturer = data.get('manufacturer', '')
+                    if manufacturer:
+                        opt_name = f"{manufacturer} {opt_name}"
+                    options.append((opt_id, opt_name))
+            except (json.JSONDecodeError, IOError):
+                continue
+
+        return options
 
     def _load_available_boards(self, board_type: str = 'boards') -> List[Tuple[str, str]]:
         """Load list of available boards from templates.
@@ -620,26 +649,7 @@ class FieldRenderer:
         Returns:
             List of (board_id, board_name) tuples
         """
-        boards = []
-        boards_dir = REPO_ROOT / "templates" / board_type
-
-        if not boards_dir.is_dir():
-            return []
-
-        for json_file in sorted(boards_dir.glob("*.json")):
-            try:
-                with open(json_file, 'r') as f:
-                    data = json.load(f)
-                    board_id = data.get('id', json_file.stem)
-                    board_name = data.get('name', board_id)
-                    manufacturer = data.get('manufacturer', '')
-                    if manufacturer:
-                        board_name = f"{manufacturer} {board_name}"
-                    boards.append((board_id, board_name))
-            except (json.JSONDecodeError, IOError):
-                continue
-
-        return boards
+        return self._load_template_options(f"templates/{board_type}/")
 
     def _load_board_data(self, board_id: str, board_type: str = 'boards') -> Dict[str, Any]:
         """Load full board JSON data.

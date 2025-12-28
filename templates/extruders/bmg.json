@@ -1,0 +1,12 @@
+{
+  "id": "bmg",
+  "name": "BMG / BMG Clone",
+  "manufacturer": "Bondtech / Various",
+  "type": "direct_drive",
+  "gear_ratio": "50:17",
+  "rotation_distance": 22.6789511,
+  "microsteps": 16,
+  "full_steps_per_rotation": 200,
+  "pressure_advance": 0.05,
+  "notes": "Popular dual-drive extruder"
+}
