@@ -426,6 +426,18 @@
           "status_key": "fans.part_cooling.enabled"
         },
         {
+          "id": "additional_fans",
+          "label": "Additional Fans",
+          "description": "Nevermore, RSCS, Exhaust, etc.",
+          "section": "additional_fans"
+        },
+        {
+          "id": "multi_pins",
+          "label": "Multi-Pin Groups",
+          "description": "Combine multiple output pins",
+          "section": "multi_pins"
+        },
+        {
           "id": "leds",
           "label": "LEDs",
           "section": "leds",

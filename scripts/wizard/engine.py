@@ -169,6 +169,11 @@ class MenuEngine:
             self.ui.msgbox(f"Section '{section_id}' not found in skeleton.")
             return False
 
+        # Auto-detect list sections and delegate
+        if section.get('is_list'):
+            self.run_list_section(section_id)
+            return True
+
         state_dict = self.state.get_all()
 
         # Check section-level condition
@@ -477,3 +482,359 @@ class MenuEngine:
             self.ui.msgbox(warning_text, title="Warnings")
 
         return True
+
+    def run_list_section(self, section_id: str) -> Optional[str]:
+        """Run a list-based section (is_list: true) as a menu.
+
+        Shows existing items with add/edit/delete options.
+
+        Args:
+            section_id: Section identifier from skeleton
+
+        Returns:
+            'back' if user pressed back, None on error
+        """
+        section = self.skeleton.get_section(section_id)
+        if not section:
+            self.ui.msgbox(f"Section '{section_id}' not found in skeleton.")
+            return None
+
+        if not section.get('is_list'):
+            # Not a list section, delegate to regular section
+            self.run_section(section_id)
+            return 'back'
+
+        state_prefix = section.get('state_prefix', section_id)
+        item_template = section.get('item_template', {})
+        title = section.get('title', section_id)
+
+        while True:
+            # Get current list items from state
+            items = self._get_list_items(state_prefix)
+
+            # Build menu
+            menu_items: List[Tuple[str, str]] = []
+
+            # Add existing items
+            for idx, item in enumerate(items):
+                item_name = item.get('name', f"Item {idx + 1}")
+                menu_items.append((f"edit:{idx}", f"{item_name} [Edit]"))
+
+            # Add options
+            menu_items.append(('add', '+ Add new'))
+            if items:
+                menu_items.append(('delete', '- Delete item'))
+            menu_items.append(('B', 'Back'))
+
+            # Show menu
+            choice = self.ui.menu(
+                title,
+                menu_items,
+                title=title
+            )
+
+            if choice is None or choice == 'B':
+                return 'back'
+
+            if choice == 'add':
+                self._add_list_item(section_id, state_prefix, item_template)
+
+            elif choice == 'delete':
+                self._delete_list_item(state_prefix, items)
+
+            elif choice.startswith('edit:'):
+                idx = int(choice.split(':')[1])
+                self._edit_list_item(section_id, state_prefix, item_template, idx, items[idx])
+
+    def _get_list_items(self, state_prefix: str) -> List[Dict[str, Any]]:
+        """Get list items from state.
+
+        Args:
+            state_prefix: State key prefix (e.g., 'fans.additional_fans')
+
+        Returns:
+            List of item dictionaries
+        """
+        # Navigate to the list using dot notation
+        parts = state_prefix.split('.')
+        value = self.state.get_all()
+
+        for part in parts:
+            if isinstance(value, dict) and part in value:
+                value = value[part]
+            else:
+                return []
+
+        if isinstance(value, list):
+            return value
+        return []
+
+    def _set_list_items(self, state_prefix: str, items: List[Dict[str, Any]]) -> None:
+        """Set list items in state.
+
+        Args:
+            state_prefix: State key prefix
+            items: List of item dictionaries
+        """
+        self.state.set(state_prefix, items)
+        self.state.save()
+
+    def _add_list_item(
+        self,
+        section_id: str,
+        state_prefix: str,
+        item_template: Dict[str, Any]
+    ) -> None:
+        """Add a new item to a list section.
+
+        Args:
+            section_id: Section ID for context
+            state_prefix: State key prefix
+            item_template: Template with field definitions
+        """
+        fields = item_template.get('fields', [])
+        new_item: Dict[str, Any] = {}
+
+        # Render each field and collect values
+        for field in fields:
+            # Create a modified field with temporary state key
+            temp_field = field.copy()
+            original_state_key = field.get('state_key', field.get('id'))
+
+            # Check condition (using current new_item values)
+            condition = field.get('condition')
+            if condition:
+                if not self._evaluate_item_condition(condition, new_item):
+                    continue
+
+            # Render the field without saving to main state
+            result = self._render_list_field(temp_field, new_item)
+            if result is None:
+                # User cancelled
+                return
+            if result != 'skipped':
+                new_item[original_state_key] = result
+
+        # Add to list
+        if new_item:
+            items = self._get_list_items(state_prefix)
+            items.append(new_item)
+            self._set_list_items(state_prefix, items)
+
+    def _edit_list_item(
+        self,
+        section_id: str,
+        state_prefix: str,
+        item_template: Dict[str, Any],
+        index: int,
+        current_item: Dict[str, Any]
+    ) -> None:
+        """Edit an existing list item.
+
+        Args:
+            section_id: Section ID for context
+            state_prefix: State key prefix
+            item_template: Template with field definitions
+            index: Index of item in list
+            current_item: Current item data
+        """
+        fields = item_template.get('fields', [])
+        edited_item = current_item.copy()
+
+        # Show fields as a menu for editing
+        while True:
+            state_dict = self.state.get_all()
+            menu_items: List[Tuple[str, str]] = []
+
+            # Filter visible fields based on conditions
+            visible_fields = []
+            for field in fields:
+                condition = field.get('condition')
+                if condition and not self._evaluate_item_condition(condition, edited_item):
+                    continue
+                visible_fields.append(field)
+
+            # Build menu from fields
+            for field in visible_fields:
+                field_id = field.get('id', '')
+                label = field.get('label', field_id)
+                state_key = field.get('state_key', field_id)
+                current_value = edited_item.get(state_key)
+
+                if current_value is not None:
+                    value_str = str(current_value)
+                    if len(value_str) > 20:
+                        value_str = value_str[:17] + "..."
+                    status = f"[{value_str}]"
+                else:
+                    status = "[not set]"
+
+                menu_items.append((field_id, f"{label} {status}"))
+
+            menu_items.append(('save', 'Save Changes'))
+            menu_items.append(('B', 'Cancel'))
+
+            item_name = edited_item.get('name', f"Item {index + 1}")
+            choice = self.ui.menu(
+                f"Edit: {item_name}",
+                menu_items,
+                title=f"Edit: {item_name}"
+            )
+
+            if choice is None or choice == 'B':
+                return
+
+            if choice == 'save':
+                # Save changes
+                items = self._get_list_items(state_prefix)
+                items[index] = edited_item
+                self._set_list_items(state_prefix, items)
+                return
+
+            # Find and render the selected field
+            selected_field = next((f for f in visible_fields if f.get('id') == choice), None)
+            if selected_field:
+                result = self._render_list_field(selected_field, edited_item)
+                if result is not None and result != 'skipped':
+                    state_key = selected_field.get('state_key', selected_field.get('id'))
+                    edited_item[state_key] = result
+
+    def _delete_list_item(self, state_prefix: str, items: List[Dict[str, Any]]) -> None:
+        """Delete an item from the list.
+
+        Args:
+            state_prefix: State key prefix
+            items: Current list of items
+        """
+        if not items:
+            return
+
+        # Build selection menu
+        menu_items: List[Tuple[str, str]] = []
+        for idx, item in enumerate(items):
+            item_name = item.get('name', f"Item {idx + 1}")
+            menu_items.append((str(idx), item_name))
+
+        menu_items.append(('B', 'Cancel'))
+
+        choice = self.ui.menu(
+            "Select item to delete:",
+            menu_items,
+            title="Delete Item"
+        )
+
+        if choice is None or choice == 'B':
+            return
+
+        try:
+            idx = int(choice)
+            item_name = items[idx].get('name', f"Item {idx + 1}")
+
+            # Confirm deletion
+            if self.ui.yesno(f"Delete '{item_name}'?", title="Confirm Delete"):
+                items.pop(idx)
+                self._set_list_items(state_prefix, items)
+        except (ValueError, IndexError):
+            pass
+
+    def _render_list_field(
+        self,
+        field: Dict[str, Any],
+        item_data: Dict[str, Any]
+    ) -> Optional[Any]:
+        """Render a field for a list item (without saving to main state).
+
+        Args:
+            field: Field definition
+            item_data: Current item data (for defaults)
+
+        Returns:
+            Field value, 'skipped' if condition not met, None if cancelled
+        """
+        field_type = field.get('type')
+        label = field.get('label', field.get('id', 'Field'))
+        state_key = field.get('state_key', field.get('id'))
+        help_text = field.get('help', '')
+        default = field.get('default')
+
+        # Use current item value as default
+        current_value = item_data.get(state_key, default)
+
+        prompt = label
+        if help_text:
+            prompt = f"{label}\n\n{help_text}"
+
+        if field_type == 'text':
+            result = self.ui.inputbox(prompt, default=str(current_value or ''), title=label)
+            return result
+
+        elif field_type == 'int':
+            result = self.ui.inputbox(prompt, default=str(current_value or 0), title=label)
+            if result is not None:
+                try:
+                    return int(result)
+                except ValueError:
+                    return current_value
+            return None
+
+        elif field_type == 'float':
+            result = self.ui.inputbox(prompt, default=str(current_value or 0.0), title=label)
+            if result is not None:
+                try:
+                    return float(result)
+                except ValueError:
+                    return current_value
+            return None
+
+        elif field_type == 'bool':
+            result = self.ui.yesno(prompt, title=label)
+            return result
+
+        elif field_type == 'choice':
+            options = field.get('options', [])
+            choices = [(opt.get('value', ''), opt.get('label', opt.get('value', '')))
+                      for opt in options]
+            result = self.ui.radiolist(prompt, choices, default=current_value, title=label)
+            return result
+
+        elif field_type == 'port_select':
+            # Simplified port select for list items
+            result = self.ui.inputbox(
+                f"{prompt}\n\nEnter pin (e.g., PA5, toolboard:PA1):",
+                default=str(current_value or ''),
+                title=label
+            )
+            return result
+
+        else:
+            # Default to text input
+            result = self.ui.inputbox(prompt, default=str(current_value or ''), title=label)
+            return result
+
+    def _evaluate_item_condition(self, condition: str, item_data: Dict[str, Any]) -> bool:
+        """Evaluate a condition using item data.
+
+        Args:
+            condition: Condition string (e.g., "pin_type == 'single'")
+            item_data: Current item data
+
+        Returns:
+            True if condition is met
+        """
+        try:
+            # Simple evaluation for item-level conditions
+            # Replace field references with values from item_data
+            expr = condition
+
+            for key, value in item_data.items():
+                if isinstance(value, str):
+                    expr = expr.replace(key, f"'{value}'")
+                elif value is None:
+                    expr = expr.replace(key, "None")
+                else:
+                    expr = expr.replace(key, str(value))
+
+            # Safe eval with limited context
+            return eval(expr, {"__builtins__": {}}, {})
+        except Exception:
+            return True  # Default to showing field if condition evaluation fails
