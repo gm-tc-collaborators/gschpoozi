@@ -97,12 +97,29 @@ class FieldRenderer:
         renderer = renderers.get(field_type, self._render_text)
         return renderer(field)
 
+    def _get_contextual_title(self, field: Dict[str, Any]) -> str:
+        """Generate a title that includes the section context.
+
+        For example: stepper_x.motor_port -> "Stepper X: Motor Port"
+        """
+        label = field.get('label', 'Field')
+        state_key = field.get('state_key', '')
+
+        if '.' in state_key:
+            prefix = state_key.rsplit('.', 1)[0]
+            # Format prefix: stepper_x -> Stepper X, stepper_y1 -> Stepper Y1
+            section_name = prefix.replace('_', ' ').title()
+            return f"{section_name}: {label}"
+
+        return label
+
     def _render_text(self, field: Dict[str, Any]) -> Optional[str]:
         """Render a text input field."""
         label = field.get('label', 'Enter value')
         state_key = field.get('state_key', '')
         default = field.get('default', '')
         current = self._get_state_value(state_key)
+        title = self._get_contextual_title(field)
 
         if current is not None:
             default = str(current)
@@ -112,7 +129,7 @@ class FieldRenderer:
         if help_text:
             prompt = f"{label}\n\n{help_text}"
 
-        result = self.ui.inputbox(prompt, default=str(default), title=label)
+        result = self.ui.inputbox(prompt, default=str(default), title=title)
 
         if result is not None:
             self._set_state_value(state_key, result)
@@ -127,6 +144,7 @@ class FieldRenderer:
         default = field.get('default', 0)
         current = self._get_state_value(state_key)
         range_def = field.get('range', [])
+        title = self._get_contextual_title(field)
 
         if current is not None:
             default = current
@@ -141,7 +159,7 @@ class FieldRenderer:
             prompt = f"{label}\n\n{help_text}"
 
         while True:
-            result = self.ui.inputbox(prompt, default=str(default), title=label)
+            result = self.ui.inputbox(prompt, default=str(default), title=title)
 
             if result is None:
                 return None
@@ -172,6 +190,7 @@ class FieldRenderer:
         default = field.get('default', 0.0)
         current = self._get_state_value(state_key)
         range_def = field.get('range', [])
+        title = self._get_contextual_title(field)
 
         if current is not None:
             default = current
@@ -186,7 +205,7 @@ class FieldRenderer:
             prompt = f"{label}\n\n{help_text}"
 
         while True:
-            result = self.ui.inputbox(prompt, default=str(default), title=label)
+            result = self.ui.inputbox(prompt, default=str(default), title=title)
 
             if result is None:
                 return None
@@ -216,11 +235,12 @@ class FieldRenderer:
         state_key = field.get('state_key', '')
         default = field.get('default', False)
         current = self._get_state_value(state_key)
+        title = self._get_contextual_title(field)
 
         if current is not None:
             default = bool(current)
 
-        result = self.ui.yesno(label, default_no=not default, title=label)
+        result = self.ui.yesno(label, default_no=not default, title=title)
 
         self._set_state_value(state_key, result)
         return result
@@ -232,6 +252,7 @@ class FieldRenderer:
         options = field.get('options', [])
         default = field.get('default')
         current = self._get_state_value(state_key)
+        title = self._get_contextual_title(field)
 
         if current is not None:
             default = current
@@ -252,10 +273,10 @@ class FieldRenderer:
             items.append((str(value), opt_label, is_selected))
 
         if not items:
-            self.ui.msgbox("No options available", title=label)
+            self.ui.msgbox("No options available", title=title)
             return None
 
-        result = self.ui.radiolist(label, items, title=label)
+        result = self.ui.radiolist(label, items, title=title)
 
         if result is not None:
             # Convert back to original type if needed
@@ -272,6 +293,7 @@ class FieldRenderer:
         state_key = field.get('state_key', '')
         group_id = field.get('group', '')
         current = self._get_state_value(state_key)
+        title = self._get_contextual_title(field)
 
         if not group_id:
             # Fall back to inline options
@@ -282,7 +304,7 @@ class FieldRenderer:
         options = self.skeleton.get_available_options(group_id, state_dict)
 
         if not options:
-            self.ui.msgbox(f"No options available for {label}", title=label)
+            self.ui.msgbox(f"No options available for {label}", title=title)
             return None
 
         # Build radiolist items
@@ -293,7 +315,7 @@ class FieldRenderer:
             is_selected = (value == current)
             items.append((str(value), opt_label, is_selected))
 
-        result = self.ui.radiolist(label, items, title=label)
+        result = self.ui.radiolist(label, items, title=title)
 
         if result is not None:
             # Find the actual value (might not be string)
@@ -310,6 +332,7 @@ class FieldRenderer:
         state_key = field.get('state_key', '')
         options = field.get('options', [])
         current = self._get_state_value(state_key) or []
+        title = self._get_contextual_title(field)
 
         if isinstance(current, str):
             current = [current]
@@ -329,10 +352,10 @@ class FieldRenderer:
             items.append((str(value), opt_label, is_selected))
 
         if not items:
-            self.ui.msgbox("No options available", title=label)
+            self.ui.msgbox("No options available", title=title)
             return None
 
-        result = self.ui.checklist(label, items, title=label)
+        result = self.ui.checklist(label, items, title=title)
 
         if result is not None:
             self._set_state_value(state_key, result)
@@ -346,6 +369,7 @@ class FieldRenderer:
         state_key = field.get('state_key', '')
         current = self._get_state_value(state_key)
         pattern = field.get('auto_detect_pattern', 'Klipper')
+        title = self._get_contextual_title(field)
 
         # Detect serial devices
         devices = self._detect_serial_devices(pattern)
@@ -355,7 +379,7 @@ class FieldRenderer:
             result = self.ui.inputbox(
                 f"{label}\n\nNo devices detected. Enter path manually:",
                 default=current or "/dev/serial/by-id/",
-                title=label
+                title=title
             )
             if result:
                 self._set_state_value(state_key, result)
@@ -371,13 +395,13 @@ class FieldRenderer:
         # Add manual entry option
         items.append(("manual", "Enter manually...", False))
 
-        result = self.ui.radiolist(label, items, title=label)
+        result = self.ui.radiolist(label, items, title=title)
 
         if result == "manual":
             result = self.ui.inputbox(
                 f"{label}\n\nEnter device path:",
                 default=current or "/dev/serial/by-id/",
-                title=label
+                title=title
             )
 
         if result and result != "manual":
@@ -458,14 +482,7 @@ class FieldRenderer:
         state_key = field.get('state_key', '')
         port_type = field.get('port_type', 'motor_ports')
         current = self._get_state_value(state_key)
-
-        # Build a descriptive title from state_key (e.g., "stepper_x.motor_port" -> "Stepper X: Motor Port")
-        title = label
-        if '.' in state_key:
-            prefix = state_key.rsplit('.', 1)[0]
-            # Format prefix: stepper_x -> Stepper X, stepper_y1 -> Stepper Y1
-            section_name = prefix.replace('_', ' ').title()
-            title = f"{section_name}: {label}"
+        title = self._get_contextual_title(field)
 
         # Get board data
         state_dict = self.state.get_all()
@@ -565,6 +582,7 @@ class FieldRenderer:
         state_key = field.get('state_key', '')
         source = field.get('source', 'templates/boards/')
         current = self._get_state_value(state_key)
+        title = self._get_contextual_title(field)
 
         # Determine board type from source
         if 'toolboards' in source:
@@ -576,7 +594,7 @@ class FieldRenderer:
         boards = self._load_available_boards(board_type)
 
         if not boards:
-            self.ui.msgbox(f"No boards found in {source}", title=label)
+            self.ui.msgbox(f"No boards found in {source}", title=title)
             return None
 
         # Build selection items
@@ -585,7 +603,7 @@ class FieldRenderer:
             is_selected = (board_id == current)
             items.append((board_id, board_name, is_selected))
 
-        result = self.ui.radiolist(label, items, title=label)
+        result = self.ui.radiolist(label, items, title=title)
 
         if result is not None:
             self._set_state_value(state_key, result)
