@@ -3685,8 +3685,11 @@
               "label": "Accelerometer Location",
               "state_key": "input_shaper.accel_location",
               "options": [
-                { "value": "mainboard", "label": "Mainboard SPI" },
+                { "value": "beacon", "label": "Beacon (built-in)" },
+                { "value": "cartographer", "label": "Cartographer (built-in)" },
+                { "value": "btt_eddy", "label": "BTT Eddy (built-in)" },
                 { "value": "toolboard", "label": "Toolboard SPI" },
+                { "value": "mainboard", "label": "Mainboard SPI" },
                 { "value": "rpi", "label": "Raspberry Pi SPI" }
               ],
               "default": "toolboard",
