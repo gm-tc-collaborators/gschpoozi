@@ -379,6 +379,31 @@
       ]
     },
 
+    "printer_setup": {
+      "id": "printer_setup",
+      "title": "2.2 Printer Settings",
+      "items": [
+        {
+          "id": "kinematics",
+          "label": "2.2.1 Kinematics",
+          "section": "kinematics",
+          "status_key": "printer.kinematics"
+        },
+        {
+          "id": "tool_setup",
+          "label": "2.2.2 Tool Setup",
+          "section": "tool_setup",
+          "status_key": "printer.tool_count"
+        },
+        {
+          "id": "dimensions",
+          "label": "2.2.3 Dimensions & Limits",
+          "section": "printer_dimensions",
+          "status_key": "printer.bed_size_x"
+        }
+      ]
+    },
+
     "stepper_setup": {
       "id": "stepper_setup",
       "title": "2.3 Steppers & Extruders",
@@ -438,23 +463,37 @@
         },
         {
           "id": "extruder",
-          "label": "2.3.9 Extruder",
+          "label": "2.3.9 Extruder (T0)",
           "section": "extruder",
           "status_key": "extruder.extruder_type"
         },
         {
           "id": "extruder1",
-          "label": "2.3.10 Extruder 1",
+          "label": "2.3.10 Extruder 1 (T1)",
           "section": "extruder1",
           "status_key": "extruder1.enabled",
-          "condition": "printer.extruder_count >= 2"
+          "condition": "printer.tool_count >= 2"
         },
         {
           "id": "extruder2",
-          "label": "2.3.11 Extruder 2",
+          "label": "2.3.11 Extruder 2 (T2)",
           "section": "extruder2",
           "status_key": "extruder2.enabled",
-          "condition": "printer.extruder_count >= 3"
+          "condition": "printer.tool_count >= 3"
+        },
+        {
+          "id": "extruder3",
+          "label": "2.3.12 Extruder 3 (T3)",
+          "section": "extruder3",
+          "status_key": "extruder3.enabled",
+          "condition": "printer.tool_count >= 4"
+        },
+        {
+          "id": "extruder4",
+          "label": "2.3.13 Extruder 4 (T4)",
+          "section": "extruder4",
+          "status_key": "extruder4.enabled",
+          "condition": "printer.tool_count >= 5"
         }
       ]
     },
@@ -470,10 +509,10 @@
           "description": "Mainboard, Host MCU, Probes, MMUs"
         },
         {
-          "id": "printer",
+          "id": "printer_setup",
           "label": "2.2 Printer Settings",
-          "section": "printer",
-          "status_key": "printer.kinematics"
+          "section": "printer_setup",
+          "description": "Kinematics, tools, dimensions"
         },
         {
           "id": "stepper_setup",
@@ -1033,9 +1072,9 @@
       }
     },
 
-    "printer": {
-      "id": "printer",
-      "title": "Printer Settings",
+    "kinematics": {
+      "id": "kinematics",
+      "title": "2.2.1 Kinematics",
       "state_prefix": "printer",
       "klipper_section": "[printer]",
       "fields": [
@@ -1043,10 +1082,69 @@
           "id": "kinematics",
           "type": "exclusive_choice",
           "group": "kinematics",
-          "label": "Kinematics",
+          "label": "Kinematics Type",
           "state_key": "printer.kinematics",
-          "required": true
+          "required": true,
+          "help": "Select your printer's motion system"
         },
+        {
+          "id": "awd_enabled",
+          "type": "bool",
+          "label": "Enable AWD (All Wheel Drive)",
+          "state_key": "printer.awd_enabled",
+          "default": false,
+          "help": "Enable if you have dual motors on X and Y axes",
+          "condition": "printer.kinematics in ['corexy', 'corexz']"
+        }
+      ]
+    },
+
+    "tool_setup": {
+      "id": "tool_setup",
+      "title": "2.2.2 Tool Setup",
+      "state_prefix": "printer",
+      "fields": [
+        {
+          "id": "tool_count",
+          "type": "choice",
+          "label": "Number of Tools/Extruders",
+          "state_key": "printer.tool_count",
+          "options": [
+            { "value": 1, "label": "1 (Single extruder)" },
+            { "value": 2, "label": "2 (Dual extruder / IDEX)" },
+            { "value": 3, "label": "3" },
+            { "value": 4, "label": "4" },
+            { "value": 5, "label": "5" }
+          ],
+          "default": 1,
+          "required": true,
+          "help": "Number of independent tool heads/extruders"
+        },
+        {
+          "id": "tool_change_type",
+          "type": "choice",
+          "label": "Tool Change Method",
+          "state_key": "printer.tool_change_type",
+          "options": [
+            { "value": "none", "label": "None (single tool)" },
+            { "value": "idex", "label": "IDEX (dual independent X)" },
+            { "value": "toolchanger", "label": "Toolchanger (docking)" },
+            { "value": "mixing", "label": "Mixing hotend" },
+            { "value": "mmu", "label": "MMU (single hotend, multi-filament)" }
+          ],
+          "default": "none",
+          "condition": "printer.tool_count >= 2",
+          "help": "How tools are switched during printing"
+        }
+      ]
+    },
+
+    "printer_dimensions": {
+      "id": "printer_dimensions",
+      "title": "2.2.3 Dimensions & Limits",
+      "state_prefix": "printer",
+      "klipper_section": "[printer]",
+      "fields": [
         {
           "id": "bed_size_x",
           "type": "int",
@@ -1082,7 +1180,7 @@
         {
           "id": "max_accel",
           "type": "int",
-          "label": "Max Acceleration (mm/s^2)",
+          "label": "Max Acceleration (mm/s²)",
           "state_key": "printer.max_accel",
           "default": 3000,
           "range": [500, 50000]
@@ -1098,7 +1196,7 @@
         {
           "id": "max_z_accel",
           "type": "int",
-          "label": "Max Z Acceleration (mm/s^2)",
+          "label": "Max Z Acceleration (mm/s²)",
           "state_key": "printer.max_z_accel",
           "default": 350,
           "range": [50, 1000]
@@ -2365,6 +2463,264 @@
           "default": 300,
           "range": [200, 350],
           "condition": "extruder2.enabled"
+        }
+      ]
+    },
+
+    "extruder3": {
+      "id": "extruder3",
+      "title": "Extruder 3 (T3) Configuration",
+      "state_prefix": "extruder3",
+      "klipper_section": "[extruder3]",
+      "fields": [
+        {
+          "id": "enabled",
+          "type": "bool",
+          "label": "Enable Extruder 3",
+          "state_key": "extruder3.enabled",
+          "default": false
+        },
+        {
+          "id": "location",
+          "type": "choice",
+          "label": "Extruder Location",
+          "state_key": "extruder3.location",
+          "options": [
+            { "value": "mainboard", "label": "Mainboard" },
+            { "value": "toolboard", "label": "Toolboard" }
+          ],
+          "default": "mainboard",
+          "condition": "extruder3.enabled"
+        },
+        {
+          "id": "motor_port",
+          "type": "port_select",
+          "label": "Motor Port",
+          "state_key": "extruder3.motor_port",
+          "port_type": "motor_ports",
+          "required": true,
+          "condition": "extruder3.enabled"
+        },
+        {
+          "id": "driver_type",
+          "type": "exclusive_choice",
+          "group": "driver_types",
+          "label": "Driver Type",
+          "state_key": "extruder3.driver_type",
+          "required": true,
+          "condition": "extruder3.enabled"
+        },
+        {
+          "id": "heater_port",
+          "type": "port_select",
+          "label": "Heater Port",
+          "state_key": "extruder3.heater_port",
+          "port_type": "heater_ports",
+          "required": true,
+          "condition": "extruder3.enabled"
+        },
+        {
+          "id": "sensor_port",
+          "type": "port_select",
+          "label": "Thermistor Port",
+          "state_key": "extruder3.sensor_port",
+          "port_type": "thermistor_ports",
+          "required": true,
+          "condition": "extruder3.enabled"
+        },
+        {
+          "id": "sensor_type",
+          "type": "choice",
+          "label": "Thermistor Type",
+          "state_key": "extruder3.sensor_type",
+          "options": [
+            { "value": "ATC Semitec 104NT-4-R025H42G", "label": "ATC Semitec 104NT-4 (Trianglelab)" },
+            { "value": "ATC Semitec 104GT-2", "label": "ATC Semitec 104GT-2" },
+            { "value": "Generic 3950", "label": "Generic 3950 (NTC 100K)" },
+            { "value": "PT1000", "label": "PT1000" }
+          ],
+          "default": "ATC Semitec 104NT-4-R025H42G",
+          "condition": "extruder3.enabled"
+        },
+        {
+          "id": "dir_invert",
+          "type": "bool",
+          "label": "Invert Direction",
+          "state_key": "extruder3.dir_invert",
+          "default": false,
+          "condition": "extruder3.enabled"
+        },
+        {
+          "id": "rotation_distance",
+          "type": "float",
+          "label": "Rotation Distance (mm)",
+          "state_key": "extruder3.rotation_distance",
+          "default": 22.6789511,
+          "condition": "extruder3.enabled"
+        },
+        {
+          "id": "microsteps",
+          "type": "choice",
+          "label": "Microsteps",
+          "state_key": "extruder3.microsteps",
+          "options": [
+            { "value": 16, "label": "16" },
+            { "value": 32, "label": "32" },
+            { "value": 64, "label": "64" }
+          ],
+          "default": 16,
+          "condition": "extruder3.enabled"
+        },
+        {
+          "id": "nozzle_diameter",
+          "type": "choice",
+          "label": "Nozzle Diameter (mm)",
+          "state_key": "extruder3.nozzle_diameter",
+          "options": [
+            { "value": 0.4, "label": "0.4mm" },
+            { "value": 0.6, "label": "0.6mm" },
+            { "value": 0.8, "label": "0.8mm" }
+          ],
+          "default": 0.4,
+          "condition": "extruder3.enabled"
+        },
+        {
+          "id": "max_temp",
+          "type": "int",
+          "label": "Max Temperature (C)",
+          "state_key": "extruder3.max_temp",
+          "default": 300,
+          "range": [200, 350],
+          "condition": "extruder3.enabled"
+        }
+      ]
+    },
+
+    "extruder4": {
+      "id": "extruder4",
+      "title": "Extruder 4 (T4) Configuration",
+      "state_prefix": "extruder4",
+      "klipper_section": "[extruder4]",
+      "fields": [
+        {
+          "id": "enabled",
+          "type": "bool",
+          "label": "Enable Extruder 4",
+          "state_key": "extruder4.enabled",
+          "default": false
+        },
+        {
+          "id": "location",
+          "type": "choice",
+          "label": "Extruder Location",
+          "state_key": "extruder4.location",
+          "options": [
+            { "value": "mainboard", "label": "Mainboard" },
+            { "value": "toolboard", "label": "Toolboard" }
+          ],
+          "default": "mainboard",
+          "condition": "extruder4.enabled"
+        },
+        {
+          "id": "motor_port",
+          "type": "port_select",
+          "label": "Motor Port",
+          "state_key": "extruder4.motor_port",
+          "port_type": "motor_ports",
+          "required": true,
+          "condition": "extruder4.enabled"
+        },
+        {
+          "id": "driver_type",
+          "type": "exclusive_choice",
+          "group": "driver_types",
+          "label": "Driver Type",
+          "state_key": "extruder4.driver_type",
+          "required": true,
+          "condition": "extruder4.enabled"
+        },
+        {
+          "id": "heater_port",
+          "type": "port_select",
+          "label": "Heater Port",
+          "state_key": "extruder4.heater_port",
+          "port_type": "heater_ports",
+          "required": true,
+          "condition": "extruder4.enabled"
+        },
+        {
+          "id": "sensor_port",
+          "type": "port_select",
+          "label": "Thermistor Port",
+          "state_key": "extruder4.sensor_port",
+          "port_type": "thermistor_ports",
+          "required": true,
+          "condition": "extruder4.enabled"
+        },
+        {
+          "id": "sensor_type",
+          "type": "choice",
+          "label": "Thermistor Type",
+          "state_key": "extruder4.sensor_type",
+          "options": [
+            { "value": "ATC Semitec 104NT-4-R025H42G", "label": "ATC Semitec 104NT-4 (Trianglelab)" },
+            { "value": "ATC Semitec 104GT-2", "label": "ATC Semitec 104GT-2" },
+            { "value": "Generic 3950", "label": "Generic 3950 (NTC 100K)" },
+            { "value": "PT1000", "label": "PT1000" }
+          ],
+          "default": "ATC Semitec 104NT-4-R025H42G",
+          "condition": "extruder4.enabled"
+        },
+        {
+          "id": "dir_invert",
+          "type": "bool",
+          "label": "Invert Direction",
+          "state_key": "extruder4.dir_invert",
+          "default": false,
+          "condition": "extruder4.enabled"
+        },
+        {
+          "id": "rotation_distance",
+          "type": "float",
+          "label": "Rotation Distance (mm)",
+          "state_key": "extruder4.rotation_distance",
+          "default": 22.6789511,
+          "condition": "extruder4.enabled"
+        },
+        {
+          "id": "microsteps",
+          "type": "choice",
+          "label": "Microsteps",
+          "state_key": "extruder4.microsteps",
+          "options": [
+            { "value": 16, "label": "16" },
+            { "value": 32, "label": "32" },
+            { "value": 64, "label": "64" }
+          ],
+          "default": 16,
+          "condition": "extruder4.enabled"
+        },
+        {
+          "id": "nozzle_diameter",
+          "type": "choice",
+          "label": "Nozzle Diameter (mm)",
+          "state_key": "extruder4.nozzle_diameter",
+          "options": [
+            { "value": 0.4, "label": "0.4mm" },
+            { "value": 0.6, "label": "0.6mm" },
+            { "value": 0.8, "label": "0.8mm" }
+          ],
+          "default": 0.4,
+          "condition": "extruder4.enabled"
+        },
+        {
+          "id": "max_temp",
+          "type": "int",
+          "label": "Max Temperature (C)",
+          "state_key": "extruder4.max_temp",
+          "default": 300,
+          "range": [200, 350],
+          "condition": "extruder4.enabled"
         }
       ]
     },
