@@ -346,19 +346,20 @@
       "items": [
         {
           "id": "mcu",
-          "label": "MCU Configuration",
+          "label": "2.1 MCU Setup",
           "section": "mcu",
-          "status_key": "mcu.main.board_type"
+          "status_key": "mcu.main.board_type",
+          "description": "Mainboard, Host MCU, Additional MCUs"
         },
         {
           "id": "host_mcu",
-          "label": "Host MCU (RPi GPIO)",
+          "label": "2.1.2 Host MCU",
           "section": "host_mcu",
           "status_key": "mcu.host.enabled"
         },
         {
           "id": "additional_mcus",
-          "label": "Additional MCUs",
+          "label": "2.1.3 Additional MCUs",
           "description": "MMUs, filament buffers, etc.",
           "section": "additional_mcus"
         },
