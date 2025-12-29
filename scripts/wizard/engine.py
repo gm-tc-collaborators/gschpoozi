@@ -575,16 +575,16 @@ class MenuEngine:
 
     def _derive_item_label_from_title(self, title: str) -> str:
         """Derive a singular item label from section title.
-        
+
         Examples:
             "Additional MCUs" -> "MCU"
             "Additional Fans" -> "fan"
             "Additional Temperature Sensors" -> "sensor"
             "2.1.3 Additional MCUs" -> "MCU"
-        
+
         Args:
             title: Section title
-            
+
         Returns:
             Singular item label (lowercase, except acronyms like MCU)
         """
@@ -595,11 +595,11 @@ class MenuEngine:
             if label.startswith(prefix):
                 label = label[len(prefix):]
                 break
-        
+
         # Handle special cases first
         if label.endswith("MCUs"):
             return "MCU"
-        
+
         # Remove trailing "s" to get singular
         if label.endswith("s") and len(label) > 1:
             singular = label[:-1]
@@ -607,7 +607,7 @@ class MenuEngine:
             if singular.isupper() and len(singular) > 1:
                 return singular
             return singular.lower()
-        
+
         # Return as-is, lowercase
         return label.lower()
 
@@ -948,6 +948,103 @@ class MenuEngine:
 
             result = self.ui.checklist(prompt, items, title=label)
             return result if result else []
+
+        elif field_type == 'mcu_select':
+            # Use FieldRenderer's mcu_select logic (combines USB and CAN)
+            usb_devices = self.field_renderer._detect_serial_devices()
+            can_devices = self.field_renderer._query_can_devices()
+
+            # Build selection items
+            items = []
+            for path, display_name in usb_devices:
+                is_selected = (path == current_value)
+                items.append((path, f"[USB] {display_name}", is_selected))
+            for uuid, display_name in can_devices:
+                is_selected = (uuid == current_value)
+                items.append((uuid, f"[CAN] {display_name}", is_selected))
+
+            # Always add manual entry option
+            items.append(("manual", "Enter manually...", False))
+
+            if not usb_devices and not can_devices:
+                self.ui.msgbox(
+                    "No devices detected (USB or CAN).\n\n"
+                    "You can enter the device path or UUID manually.",
+                    title=label
+                )
+
+            result = self.ui.radiolist(prompt, items, title=label)
+            if result == "manual":
+                result = self.ui.inputbox(
+                    f"{label}\n\nEnter device path or UUID:",
+                    default=str(current_value or ''),
+                    title=label
+                )
+            return result if result and result != "manual" else None
+
+        elif field_type == 'can_select':
+            # Use FieldRenderer's CAN query logic
+            can_devices = self.field_renderer._query_can_devices()
+
+            items = []
+            for uuid, display_name in can_devices:
+                is_selected = (uuid == current_value)
+                items.append((uuid, display_name, is_selected))
+            items.append(("manual", "Enter manually...", False))
+
+            if not can_devices:
+                self.ui.msgbox(
+                    "No CAN devices detected.\n\n"
+                    "You can enter the UUID manually.",
+                    title=label
+                )
+
+            result = self.ui.radiolist(prompt, items, title=label)
+            if result == "manual":
+                result = self.ui.inputbox(
+                    f"{label}\n\nEnter CAN UUID:",
+                    default=str(current_value or ''),
+                    title=label
+                )
+            return result if result and result != "manual" else None
+
+        elif field_type == 'serial_select':
+            # Use FieldRenderer's serial detection logic
+            pattern = field.get('auto_detect_pattern', 'Klipper')
+            serial_devices = self.field_renderer._detect_serial_devices(pattern)
+
+            items = []
+            for path, display_name in serial_devices:
+                is_selected = (path == current_value)
+                items.append((path, display_name, is_selected))
+            items.append(("manual", "Enter manually...", False))
+
+            if not serial_devices:
+                self.ui.msgbox(
+                    "No serial devices detected.\n\n"
+                    "You can enter the path manually.",
+                    title=label
+                )
+
+            result = self.ui.radiolist(prompt, items, title=label)
+            if result == "manual":
+                result = self.ui.inputbox(
+                    f"{label}\n\nEnter serial device path:",
+                    default=str(current_value or '/dev/serial/by-id/'),
+                    title=label
+                )
+            return result if result and result != "manual" else None
+
+        elif field_type == 'action':
+            # Action fields trigger handlers - skip in list context
+            action = field.get('action')
+            if action:
+                handler = self.action_handlers.get(action)
+                if handler:
+                    handler()
+                else:
+                    self.ui.msgbox(f"Action '{action}' not implemented.", title="Error")
+            return 'skipped'
 
         else:
             # Default to text input
