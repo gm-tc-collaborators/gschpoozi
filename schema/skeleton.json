@@ -340,16 +340,15 @@
       ]
     },
 
-    "hardware_setup": {
-      "id": "hardware_setup",
-      "title": "Hardware Setup",
+    "mcu_setup": {
+      "id": "mcu_setup",
+      "title": "2.1 MCU Setup",
       "items": [
         {
           "id": "mcu",
-          "label": "2.1 MCU Setup",
+          "label": "2.1.1 Mainboard",
           "section": "mcu",
-          "status_key": "mcu.main.board_type",
-          "description": "Mainboard, Host MCU, Additional MCUs"
+          "status_key": "mcu.main.board_type"
         },
         {
           "id": "host_mcu",
@@ -376,10 +375,23 @@
           "label": "2.1.5 Additional MCUs",
           "description": "Other generic MCUs",
           "section": "additional_mcus"
+        }
+      ]
+    },
+
+    "hardware_setup": {
+      "id": "hardware_setup",
+      "title": "2. Hardware Setup",
+      "items": [
+        {
+          "id": "mcu_setup",
+          "label": "2.1 MCU Setup",
+          "section": "mcu_setup",
+          "description": "Mainboard, Host MCU, Probes, MMUs"
         },
         {
           "id": "printer",
-          "label": "Printer Settings",
+          "label": "2.2 Printer Settings",
           "section": "printer",
           "status_key": "printer.kinematics"
         },
