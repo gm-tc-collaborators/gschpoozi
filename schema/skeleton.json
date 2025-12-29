@@ -638,6 +638,88 @@
           "status_key": "input_shaper.enabled"
         }
       ]
+    },
+
+    "macros": {
+      "id": "macros",
+      "title": "3. Macros",
+      "items": [
+        {
+          "id": "start_print",
+          "label": "3.1 START_PRINT Settings",
+          "section": "start_print_menu",
+          "description": "Heating, mesh, purge, cleaning"
+        },
+        {
+          "id": "end_print",
+          "label": "3.2 END_PRINT Settings",
+          "section": "end_print",
+          "status_key": "macros.park_position"
+        },
+        {
+          "id": "pause_resume",
+          "label": "3.3 PAUSE/RESUME",
+          "section": "pause_resume",
+          "status_key": "macros.pause_position"
+        },
+        {
+          "id": "filament_load",
+          "label": "3.4 Filament Load/Unload",
+          "section": "filament_load",
+          "status_key": "macros.load_temp"
+        },
+        {
+          "id": "led_status",
+          "label": "3.5 LED Status",
+          "section": "led_status",
+          "status_key": "macros.led_enabled",
+          "condition": "leds.enabled"
+        }
+      ]
+    },
+
+    "start_print_menu": {
+      "id": "start_print_menu",
+      "title": "3.1 START_PRINT Settings",
+      "items": [
+        {
+          "id": "heating_behavior",
+          "label": "3.1.1 Heating Behavior",
+          "section": "heating_behavior",
+          "status_key": "macros.extruder_preheat_temp"
+        },
+        {
+          "id": "heat_soak",
+          "label": "3.1.2 Heat Soak",
+          "section": "heat_soak",
+          "status_key": "macros.heat_soak_enabled"
+        },
+        {
+          "id": "chamber",
+          "label": "3.1.3 Chamber",
+          "section": "chamber_macro",
+          "status_key": "macros.chamber_wait",
+          "condition": "temperature_sensors.chamber.enabled"
+        },
+        {
+          "id": "bed_mesh",
+          "label": "3.1.4 Bed Mesh",
+          "section": "bed_mesh_macro",
+          "status_key": "macros.bed_mesh_mode"
+        },
+        {
+          "id": "nozzle_cleaning",
+          "label": "3.1.5 Nozzle Cleaning",
+          "section": "nozzle_cleaning",
+          "status_key": "macros.brush_enabled"
+        },
+        {
+          "id": "purge_settings",
+          "label": "3.1.6 Purge Settings",
+          "section": "purge_settings",
+          "status_key": "macros.purge_style"
+        }
+      ]
     }
   },
 
@@ -3643,6 +3725,724 @@
           "state_key": "tuning.kalico_enabled",
           "default": false,
           "help": "Enables Kalico-specific features like MPC temperature control"
+        }
+      ]
+    },
+
+    "heating_behavior": {
+      "id": "heating_behavior",
+      "title": "3.1.1 Heating Behavior",
+      "state_prefix": "macros",
+      "fields": [
+        {
+          "id": "extruder_preheat_temp",
+          "type": "int",
+          "label": "Extruder Preheat Temperature (C)",
+          "state_key": "macros.extruder_preheat_temp",
+          "default": 150,
+          "range": [100, 250],
+          "help": "Safe temperature for probing (prevents ooze during mesh)"
+        },
+        {
+          "id": "preheat_scale",
+          "type": "float",
+          "label": "Preheat Scale",
+          "state_key": "macros.preheat_scale",
+          "default": 0.75,
+          "range": [0.5, 1.0],
+          "help": "Preheat percentage of target temp (0.75 = 75%)"
+        },
+        {
+          "id": "heating_park_position",
+          "type": "choice",
+          "label": "Park Position During Heating",
+          "state_key": "macros.heating_park_position",
+          "options": [
+            { "value": "none", "label": "None (don't park)" },
+            { "value": "front", "label": "Front" },
+            { "value": "back", "label": "Back" },
+            { "value": "center", "label": "Center" },
+            { "value": "front_left", "label": "Front Left" },
+            { "value": "front_right", "label": "Front Right" },
+            { "value": "back_left", "label": "Back Left" },
+            { "value": "back_right", "label": "Back Right" }
+          ],
+          "default": "center",
+          "help": "Where to park toolhead during final extruder heating after mesh (uses exclude_object if available)"
+        }
+      ]
+    },
+
+    "heat_soak": {
+      "id": "heat_soak",
+      "title": "3.1.2 Heat Soak",
+      "state_prefix": "macros",
+      "fields": [
+        {
+          "id": "heat_soak_enabled",
+          "type": "bool",
+          "label": "Enable Heat Soak",
+          "state_key": "macros.heat_soak_enabled",
+          "default": false,
+          "help": "Wait for bed temperature to stabilize after reaching target"
+        },
+        {
+          "id": "heat_soak_time",
+          "type": "int",
+          "label": "Heat Soak Time (minutes)",
+          "state_key": "macros.heat_soak_time",
+          "default": 0,
+          "range": [0, 60],
+          "condition": "macros.heat_soak_enabled",
+          "help": "Minutes to soak after bed reaches target temp (0=disabled)"
+        },
+        {
+          "id": "heat_soak_interruptible",
+          "type": "bool",
+          "label": "Interruptible Heat Soak",
+          "state_key": "macros.heat_soak_interruptible",
+          "default": true,
+          "condition": "macros.heat_soak_enabled",
+          "help": "Allow skipping heat soak with button press"
+        },
+        {
+          "id": "heat_soak_threshold",
+          "type": "float",
+          "label": "Temperature Stability Threshold (C)",
+          "state_key": "macros.heat_soak_threshold",
+          "default": 0.5,
+          "range": [0.1, 2.0],
+          "condition": "macros.heat_soak_enabled",
+          "help": "How close to target before considered stable"
+        }
+      ]
+    },
+
+    "chamber_macro": {
+      "id": "chamber_macro",
+      "title": "3.1.3 Chamber Heating",
+      "state_prefix": "macros",
+      "fields": [
+        {
+          "id": "chamber_wait",
+          "type": "bool",
+          "label": "Wait for Chamber Temperature",
+          "state_key": "macros.chamber_wait",
+          "default": false,
+          "help": "Wait for chamber to reach target temperature before printing"
+        },
+        {
+          "id": "chamber_temp_default",
+          "type": "int",
+          "label": "Default Chamber Temperature (C)",
+          "state_key": "macros.chamber_temp_default",
+          "default": 0,
+          "range": [0, 100],
+          "condition": "macros.chamber_wait",
+          "help": "Default chamber temp (0=skip, use CHAMBER parameter)"
+        },
+        {
+          "id": "chamber_timeout",
+          "type": "int",
+          "label": "Chamber Timeout (minutes)",
+          "state_key": "macros.chamber_timeout",
+          "default": 30,
+          "range": [5, 120],
+          "condition": "macros.chamber_wait",
+          "help": "Maximum time to wait for chamber to heat"
+        }
+      ]
+    },
+
+    "bed_mesh_macro": {
+      "id": "bed_mesh_macro",
+      "title": "3.1.4 Bed Mesh",
+      "state_prefix": "macros",
+      "fields": [
+        {
+          "id": "bed_mesh_mode",
+          "type": "choice",
+          "label": "Bed Mesh Mode",
+          "state_key": "macros.bed_mesh_mode",
+          "options": [
+            { "value": "adaptive", "label": "Adaptive (mesh only print area)" },
+            { "value": "full", "label": "Full bed mesh" },
+            { "value": "saved", "label": "Load saved mesh" },
+            { "value": "none", "label": "Skip mesh" }
+          ],
+          "default": "adaptive",
+          "help": "How to generate bed mesh"
+        },
+        {
+          "id": "probe_temp_source",
+          "type": "choice",
+          "label": "Probe Temperature Source",
+          "state_key": "macros.probe_temp_source",
+          "options": [
+            { "value": "print", "label": "Print temperature (from slicer)" },
+            { "value": "initial_layer", "label": "Initial layer temperature" },
+            { "value": "fixed", "label": "Fixed temperature" }
+          ],
+          "default": "print",
+          "help": "Temperature to use for probing/meshing"
+        },
+        {
+          "id": "probe_bed_temp",
+          "type": "int",
+          "label": "Fixed Probe Bed Temperature (C)",
+          "state_key": "macros.probe_bed_temp",
+          "default": 60,
+          "range": [20, 120],
+          "condition": "macros.probe_temp_source == 'fixed'",
+          "help": "Fixed bed temperature for probing (only used if probe_temp_source=fixed)"
+        },
+        {
+          "id": "bed_stabilize_before_probe",
+          "type": "bool",
+          "label": "Wait for Bed Stabilization",
+          "state_key": "macros.bed_stabilize_before_probe",
+          "default": true,
+          "help": "Wait for bed temperature to stabilize before probing"
+        },
+        {
+          "id": "bed_stabilize_threshold",
+          "type": "float",
+          "label": "Bed Stabilization Threshold (C)",
+          "state_key": "macros.bed_stabilize_threshold",
+          "default": 2.0,
+          "range": [0.5, 5.0],
+          "condition": "macros.bed_stabilize_before_probe",
+          "help": "How close to target before considered stable"
+        },
+        {
+          "id": "bed_stabilize_dwell",
+          "type": "int",
+          "label": "Bed Stabilization Dwell (seconds)",
+          "state_key": "macros.bed_stabilize_dwell",
+          "default": 0,
+          "range": [0, 300],
+          "condition": "macros.bed_stabilize_before_probe",
+          "help": "Additional dwell time after stabilization for thermal equilibrium"
+        },
+        {
+          "id": "bed_off_during_probe",
+          "type": "bool",
+          "label": "Turn Off Bed During Probe",
+          "state_key": "macros.bed_off_during_probe",
+          "default": false,
+          "help": "Turn off bed heater during probing/meshing (recommended for eddy probes)"
+        },
+        {
+          "id": "bed_reheat_after_probe",
+          "type": "bool",
+          "label": "Reheat Bed After Probe",
+          "state_key": "macros.bed_reheat_after_probe",
+          "default": true,
+          "condition": "macros.bed_off_during_probe",
+          "help": "Reheat bed to print temperature after probing if it was turned off"
+        }
+      ]
+    },
+
+    "nozzle_cleaning": {
+      "id": "nozzle_cleaning",
+      "title": "3.1.5 Nozzle Cleaning",
+      "state_prefix": "macros",
+      "fields": [
+        {
+          "id": "brush_enabled",
+          "type": "bool",
+          "label": "Enable Nozzle Brush",
+          "state_key": "macros.brush_enabled",
+          "default": false,
+          "help": "Clean nozzle at brush station before printing"
+        },
+        {
+          "id": "brush_x",
+          "type": "float",
+          "label": "Brush X Position (mm)",
+          "state_key": "macros.brush_x",
+          "default": 50.0,
+          "range": [0, 500],
+          "condition": "macros.brush_enabled"
+        },
+        {
+          "id": "brush_y",
+          "type": "float",
+          "label": "Brush Y Position (mm)",
+          "state_key": "macros.brush_y",
+          "default": 317.0,
+          "range": [0, 500],
+          "condition": "macros.brush_enabled"
+        },
+        {
+          "id": "brush_z",
+          "type": "float",
+          "label": "Brush Z Height (mm)",
+          "state_key": "macros.brush_z",
+          "default": 1.0,
+          "range": [0, 50],
+          "condition": "macros.brush_enabled"
+        },
+        {
+          "id": "brush_width",
+          "type": "float",
+          "label": "Brush Width (mm)",
+          "state_key": "macros.brush_width",
+          "default": 30.0,
+          "range": [10, 100],
+          "condition": "macros.brush_enabled",
+          "help": "Width of wipe motion across brush"
+        },
+        {
+          "id": "wipe_count",
+          "type": "int",
+          "label": "Wipe Count",
+          "state_key": "macros.wipe_count",
+          "default": 3,
+          "range": [1, 10],
+          "condition": "macros.brush_enabled",
+          "help": "Number of wipe passes across brush"
+        },
+        {
+          "id": "wipe_speed",
+          "type": "int",
+          "label": "Wipe Speed (mm/s)",
+          "state_key": "macros.wipe_speed",
+          "default": 100,
+          "range": [50, 500],
+          "condition": "macros.brush_enabled"
+        }
+      ]
+    },
+
+    "purge_settings": {
+      "id": "purge_settings",
+      "title": "3.1.6 Purge Settings",
+      "state_prefix": "macros",
+      "fields": [
+        {
+          "id": "purge_style",
+          "type": "choice",
+          "label": "Purge Style",
+          "state_key": "macros.purge_style",
+          "options": [
+            { "value": "line", "label": "Line (simple purge line along bed edge)" },
+            { "value": "blob", "label": "Blob (purge into bucket)" },
+            { "value": "adaptive", "label": "Adaptive (purge near print area, requires slicer PRINT_MIN/PRINT_MAX)" },
+            { "value": "voron", "label": "VORON (bucket purge + brush wipe)" },
+            { "value": "none", "label": "None (skip purging)" }
+          ],
+          "default": "line",
+          "help": "How to purge filament before printing"
+        },
+        {
+          "id": "purge_amount",
+          "type": "float",
+          "label": "Purge Amount (mm)",
+          "state_key": "macros.purge_amount",
+          "default": 30.0,
+          "range": [10, 100],
+          "condition": "macros.purge_style != 'none'",
+          "help": "Amount of filament to purge"
+        },
+        {
+          "id": "purge_x",
+          "type": "float",
+          "label": "Purge Line X Start (mm)",
+          "state_key": "macros.purge_x",
+          "default": 5.0,
+          "range": [0, 500],
+          "condition": "macros.purge_style in ['line', 'adaptive']",
+          "help": "X start position for line purge"
+        },
+        {
+          "id": "purge_y",
+          "type": "float",
+          "label": "Purge Line Y Start (mm)",
+          "state_key": "macros.purge_y",
+          "default": 5.0,
+          "range": [0, 500],
+          "condition": "macros.purge_style in ['line', 'adaptive']",
+          "help": "Y start position for line purge"
+        },
+        {
+          "id": "bucket_x",
+          "type": "float",
+          "label": "Bucket X Position (mm)",
+          "state_key": "macros.bucket_x",
+          "default": 165.0,
+          "range": [0, 500],
+          "condition": "macros.purge_style in ['blob', 'voron']",
+          "help": "Bucket X position for blob/voron purge"
+        },
+        {
+          "id": "bucket_y",
+          "type": "float",
+          "label": "Bucket Y Position (mm)",
+          "state_key": "macros.bucket_y",
+          "default": 317.0,
+          "range": [0, 500],
+          "condition": "macros.purge_style in ['blob', 'voron']",
+          "help": "Bucket Y position (usually past bed max)"
+        },
+        {
+          "id": "bucket_z",
+          "type": "float",
+          "label": "Bucket Z Height (mm)",
+          "state_key": "macros.bucket_z",
+          "default": 5.0,
+          "range": [0, 50],
+          "condition": "macros.purge_style in ['blob', 'voron']"
+        }
+      ]
+    },
+
+    "end_print": {
+      "id": "end_print",
+      "title": "3.2 END_PRINT Settings",
+      "state_prefix": "macros",
+      "fields": [
+        {
+          "id": "end_retract_length",
+          "type": "float",
+          "label": "End Retract Length (mm)",
+          "state_key": "macros.end_retract_length",
+          "default": 10.0,
+          "range": [0, 50],
+          "help": "Amount of filament to retract at end of print"
+        },
+        {
+          "id": "end_retract_speed",
+          "type": "float",
+          "label": "End Retract Speed (mm/s)",
+          "state_key": "macros.end_retract_speed",
+          "default": 30.0,
+          "range": [10, 100],
+          "help": "Retraction speed"
+        },
+        {
+          "id": "park_position",
+          "type": "choice",
+          "label": "Park Position",
+          "state_key": "macros.park_position",
+          "options": [
+            { "value": "front", "label": "Front" },
+            { "value": "back", "label": "Back" },
+            { "value": "center", "label": "Center" },
+            { "value": "front_left", "label": "Front Left" },
+            { "value": "front_right", "label": "Front Right" },
+            { "value": "back_left", "label": "Back Left" },
+            { "value": "back_right", "label": "Back Right" }
+          ],
+          "default": "front",
+          "help": "Where to park toolhead after print"
+        },
+        {
+          "id": "park_z_hop",
+          "type": "float",
+          "label": "Park Z Hop (mm)",
+          "state_key": "macros.park_z_hop",
+          "default": 10.0,
+          "range": [0, 100],
+          "help": "Z hop before parking"
+        },
+        {
+          "id": "park_z_max",
+          "type": "float",
+          "label": "Park Z Max (mm)",
+          "state_key": "macros.park_z_max",
+          "default": 335.0,
+          "range": [50, 500],
+          "help": "Maximum Z height for parking"
+        },
+        {
+          "id": "park_speed",
+          "type": "int",
+          "label": "Park Speed (mm/s)",
+          "state_key": "macros.park_speed",
+          "default": 150,
+          "range": [50, 500],
+          "help": "Speed for parking movement"
+        },
+        {
+          "id": "turn_off_bed",
+          "type": "bool",
+          "label": "Turn Off Bed Heater",
+          "state_key": "macros.turn_off_bed",
+          "default": true,
+          "help": "Turn off bed heater at end of print"
+        },
+        {
+          "id": "turn_off_extruder",
+          "type": "bool",
+          "label": "Turn Off Extruder Heater",
+          "state_key": "macros.turn_off_extruder",
+          "default": true,
+          "help": "Turn off extruder heater at end of print"
+        },
+        {
+          "id": "turn_off_fans",
+          "type": "bool",
+          "label": "Turn Off Fans",
+          "state_key": "macros.turn_off_fans",
+          "default": false,
+          "help": "Turn off part cooling fan at end of print"
+        },
+        {
+          "id": "fan_off_delay",
+          "type": "int",
+          "label": "Fan Off Delay (seconds)",
+          "state_key": "macros.fan_off_delay",
+          "default": 0,
+          "range": [0, 600],
+          "condition": "macros.turn_off_fans",
+          "help": "Seconds to wait before turning off fans"
+        },
+        {
+          "id": "motor_off_delay",
+          "type": "int",
+          "label": "Motor Off Delay (seconds)",
+          "state_key": "macros.motor_off_delay",
+          "default": 300,
+          "range": [0, 3600],
+          "help": "Seconds to wait before disabling motors (0=immediate)"
+        }
+      ]
+    },
+
+    "pause_resume": {
+      "id": "pause_resume",
+      "title": "3.3 PAUSE/RESUME",
+      "state_prefix": "macros",
+      "fields": [
+        {
+          "id": "pause_position",
+          "type": "choice",
+          "label": "Pause Park Position",
+          "state_key": "macros.pause_position",
+          "options": [
+            { "value": "front", "label": "Front" },
+            { "value": "back", "label": "Back" },
+            { "value": "center", "label": "Center" },
+            { "value": "front_left", "label": "Front Left" },
+            { "value": "front_right", "label": "Front Right" },
+            { "value": "back_left", "label": "Back Left" },
+            { "value": "back_right", "label": "Back Right" }
+          ],
+          "default": "front",
+          "help": "Where to park toolhead when pausing"
+        },
+        {
+          "id": "pause_z_hop",
+          "type": "float",
+          "label": "Pause Z Hop (mm)",
+          "state_key": "macros.pause_z_hop",
+          "default": 10.0,
+          "range": [0, 100],
+          "help": "Z hop when pausing"
+        },
+        {
+          "id": "pause_retract",
+          "type": "float",
+          "label": "Pause Retract Length (mm)",
+          "state_key": "macros.pause_retract",
+          "default": 1.0,
+          "range": [0, 10],
+          "help": "Filament retraction when pausing"
+        },
+        {
+          "id": "pause_heater_off",
+          "type": "bool",
+          "label": "Turn Off Heaters When Paused",
+          "state_key": "macros.pause_heater_off",
+          "default": false,
+          "help": "Turn off heaters during pause (saves power, may cause ooze)"
+        },
+        {
+          "id": "pause_timeout",
+          "type": "int",
+          "label": "Pause Timeout (seconds)",
+          "state_key": "macros.pause_timeout",
+          "default": 43200,
+          "range": [60, 86400],
+          "help": "Auto-resume after this many seconds (43200 = 12 hours)"
+        },
+        {
+          "id": "resume_prime",
+          "type": "float",
+          "label": "Resume Prime Length (mm)",
+          "state_key": "macros.resume_prime",
+          "default": 1.0,
+          "range": [0, 10],
+          "help": "Filament prime when resuming"
+        },
+        {
+          "id": "resume_speed",
+          "type": "int",
+          "label": "Resume Speed (mm/s)",
+          "state_key": "macros.resume_speed",
+          "default": 100,
+          "range": [50, 500],
+          "help": "Speed for resume movement"
+        }
+      ]
+    },
+
+    "filament_load": {
+      "id": "filament_load",
+      "title": "3.4 Filament Load/Unload",
+      "state_prefix": "macros",
+      "fields": [
+        {
+          "id": "load_temp",
+          "type": "int",
+          "label": "Load Temperature (C)",
+          "state_key": "macros.load_temp",
+          "default": 220,
+          "range": [150, 300],
+          "help": "Temperature for loading filament"
+        },
+        {
+          "id": "load_length",
+          "type": "float",
+          "label": "Load Length (mm)",
+          "state_key": "macros.load_length",
+          "default": 100,
+          "range": [50, 500],
+          "help": "Amount of filament to load"
+        },
+        {
+          "id": "load_speed",
+          "type": "int",
+          "label": "Load Speed (mm/s)",
+          "state_key": "macros.load_speed",
+          "default": 300,
+          "range": [50, 1000],
+          "help": "Speed for loading filament"
+        },
+        {
+          "id": "load_prime",
+          "type": "float",
+          "label": "Load Prime Amount (mm)",
+          "state_key": "macros.load_prime",
+          "default": 50,
+          "range": [0, 200],
+          "help": "Additional prime after loading"
+        },
+        {
+          "id": "load_prime_speed",
+          "type": "int",
+          "label": "Load Prime Speed (mm/s)",
+          "state_key": "macros.load_prime_speed",
+          "default": 150,
+          "range": [50, 500],
+          "help": "Speed for priming after load"
+        },
+        {
+          "id": "unload_temp",
+          "type": "int",
+          "label": "Unload Temperature (C)",
+          "state_key": "macros.unload_temp",
+          "default": 220,
+          "range": [150, 300],
+          "help": "Temperature for unloading filament"
+        },
+        {
+          "id": "unload_length",
+          "type": "float",
+          "label": "Unload Length (mm)",
+          "state_key": "macros.unload_length",
+          "default": 100,
+          "range": [50, 500],
+          "help": "Amount of filament to unload"
+        },
+        {
+          "id": "unload_speed",
+          "type": "int",
+          "label": "Unload Speed (mm/s)",
+          "state_key": "macros.unload_speed",
+          "default": 1800,
+          "range": [100, 3000],
+          "help": "Speed for unloading filament"
+        },
+        {
+          "id": "unload_tip_shape",
+          "type": "bool",
+          "label": "Unload Tip Shape",
+          "state_key": "macros.unload_tip_shape",
+          "default": true,
+          "help": "Create tip shape when unloading (prevents blob)"
+        }
+      ]
+    },
+
+    "led_status": {
+      "id": "led_status",
+      "title": "3.5 LED Status",
+      "state_prefix": "macros",
+      "fields": [
+        {
+          "id": "led_enabled",
+          "type": "bool",
+          "label": "Enable LED Status Updates",
+          "state_key": "macros.led_enabled",
+          "default": false,
+          "help": "Update LED colors during print phases"
+        },
+        {
+          "id": "led_name",
+          "type": "text",
+          "label": "LED Section Name",
+          "state_key": "macros.led_name",
+          "default": "status_led",
+          "condition": "macros.led_enabled",
+          "help": "Name of your [neopixel] section"
+        },
+        {
+          "id": "led_heating",
+          "type": "text",
+          "label": "Heating Color (R,G,B)",
+          "state_key": "macros.led_heating",
+          "default": "1.0, 0.2, 0.0",
+          "condition": "macros.led_enabled",
+          "help": "RGB values 0.0-1.0 (orange)"
+        },
+        {
+          "id": "led_printing",
+          "type": "text",
+          "label": "Printing Color (R,G,B)",
+          "state_key": "macros.led_printing",
+          "default": "0.0, 1.0, 0.0",
+          "condition": "macros.led_enabled",
+          "help": "RGB values 0.0-1.0 (green)"
+        },
+        {
+          "id": "led_paused",
+          "type": "text",
+          "label": "Paused Color (R,G,B)",
+          "state_key": "macros.led_paused",
+          "default": "1.0, 1.0, 0.0",
+          "condition": "macros.led_enabled",
+          "help": "RGB values 0.0-1.0 (yellow)"
+        },
+        {
+          "id": "led_error",
+          "type": "text",
+          "label": "Error Color (R,G,B)",
+          "state_key": "macros.led_error",
+          "default": "1.0, 0.0, 0.0",
+          "condition": "macros.led_enabled",
+          "help": "RGB values 0.0-1.0 (red)"
+        },
+        {
+          "id": "led_complete",
+          "type": "text",
+          "label": "Complete Color (R,G,B)",
+          "state_key": "macros.led_complete",
+          "default": "0.0, 0.5, 1.0",
+          "condition": "macros.led_enabled",
+          "help": "RGB values 0.0-1.0 (blue)"
         }
       ]
     }
