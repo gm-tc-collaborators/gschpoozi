@@ -1770,6 +1770,171 @@
       ]
     },
 
+    "stepper_z1": {
+      "id": "stepper_z1",
+      "title": "Stepper Z1 Configuration",
+      "state_prefix": "stepper_z1",
+      "klipper_section": "[stepper_z1]",
+      "fields": [
+        {
+          "id": "motor_port",
+          "type": "port_select",
+          "label": "Z1 Motor Port",
+          "state_key": "stepper_z1.motor_port",
+          "port_type": "motor_ports",
+          "required": true
+        },
+        {
+          "id": "driver_type",
+          "type": "exclusive_choice",
+          "group": "driver_types",
+          "label": "Driver Type",
+          "state_key": "stepper_z1.driver_type",
+          "required": true
+        },
+        {
+          "id": "dir_invert",
+          "type": "bool",
+          "label": "Invert Direction",
+          "state_key": "stepper_z1.dir_invert",
+          "default": false,
+          "help": "Invert motor direction if it runs backwards"
+        },
+        {
+          "id": "rotation_distance",
+          "type": "float",
+          "label": "Rotation Distance (mm)",
+          "state_key": "stepper_z1.rotation_distance",
+          "default": 8,
+          "help": "Should match stepper_z"
+        },
+        {
+          "id": "microsteps",
+          "type": "choice",
+          "label": "Microsteps",
+          "state_key": "stepper_z1.microsteps",
+          "options": [
+            { "value": 16, "label": "16" },
+            { "value": 32, "label": "32" },
+            { "value": 64, "label": "64" },
+            { "value": 128, "label": "128" },
+            { "value": 256, "label": "256" }
+          ],
+          "default": 32
+        }
+      ]
+    },
+
+    "stepper_z2": {
+      "id": "stepper_z2",
+      "title": "Stepper Z2 Configuration",
+      "state_prefix": "stepper_z2",
+      "klipper_section": "[stepper_z2]",
+      "fields": [
+        {
+          "id": "motor_port",
+          "type": "port_select",
+          "label": "Z2 Motor Port",
+          "state_key": "stepper_z2.motor_port",
+          "port_type": "motor_ports",
+          "required": true
+        },
+        {
+          "id": "driver_type",
+          "type": "exclusive_choice",
+          "group": "driver_types",
+          "label": "Driver Type",
+          "state_key": "stepper_z2.driver_type",
+          "required": true
+        },
+        {
+          "id": "dir_invert",
+          "type": "bool",
+          "label": "Invert Direction",
+          "state_key": "stepper_z2.dir_invert",
+          "default": false,
+          "help": "Invert motor direction if it runs backwards"
+        },
+        {
+          "id": "rotation_distance",
+          "type": "float",
+          "label": "Rotation Distance (mm)",
+          "state_key": "stepper_z2.rotation_distance",
+          "default": 8,
+          "help": "Should match stepper_z"
+        },
+        {
+          "id": "microsteps",
+          "type": "choice",
+          "label": "Microsteps",
+          "state_key": "stepper_z2.microsteps",
+          "options": [
+            { "value": 16, "label": "16" },
+            { "value": 32, "label": "32" },
+            { "value": 64, "label": "64" },
+            { "value": 128, "label": "128" },
+            { "value": 256, "label": "256" }
+          ],
+          "default": 32
+        }
+      ]
+    },
+
+    "stepper_z3": {
+      "id": "stepper_z3",
+      "title": "Stepper Z3 Configuration",
+      "state_prefix": "stepper_z3",
+      "klipper_section": "[stepper_z3]",
+      "fields": [
+        {
+          "id": "motor_port",
+          "type": "port_select",
+          "label": "Z3 Motor Port",
+          "state_key": "stepper_z3.motor_port",
+          "port_type": "motor_ports",
+          "required": true
+        },
+        {
+          "id": "driver_type",
+          "type": "exclusive_choice",
+          "group": "driver_types",
+          "label": "Driver Type",
+          "state_key": "stepper_z3.driver_type",
+          "required": true
+        },
+        {
+          "id": "dir_invert",
+          "type": "bool",
+          "label": "Invert Direction",
+          "state_key": "stepper_z3.dir_invert",
+          "default": false,
+          "help": "Invert motor direction if it runs backwards"
+        },
+        {
+          "id": "rotation_distance",
+          "type": "float",
+          "label": "Rotation Distance (mm)",
+          "state_key": "stepper_z3.rotation_distance",
+          "default": 8,
+          "help": "Should match stepper_z"
+        },
+        {
+          "id": "microsteps",
+          "type": "choice",
+          "label": "Microsteps",
+          "state_key": "stepper_z3.microsteps",
+          "options": [
+            { "value": 16, "label": "16" },
+            { "value": 32, "label": "32" },
+            { "value": 64, "label": "64" },
+            { "value": 128, "label": "128" },
+            { "value": 256, "label": "256" }
+          ],
+          "default": 32
+        }
+      ]
+    },
+
     "extruder": {
       "id": "extruder",
       "title": "Extruder Configuration",
@@ -1942,6 +2107,264 @@
             { "value": "mpc", "label": "MPC (Kalico only)", "condition": "tuning.kalico_enabled" }
           ],
           "default": "pid"
+        }
+      ]
+    },
+
+    "extruder1": {
+      "id": "extruder1",
+      "title": "Extruder 1 Configuration",
+      "state_prefix": "extruder1",
+      "klipper_section": "[extruder1]",
+      "fields": [
+        {
+          "id": "enabled",
+          "type": "bool",
+          "label": "Enable Extruder 1",
+          "state_key": "extruder1.enabled",
+          "default": false
+        },
+        {
+          "id": "location",
+          "type": "choice",
+          "label": "Extruder Location",
+          "state_key": "extruder1.location",
+          "options": [
+            { "value": "mainboard", "label": "Mainboard" },
+            { "value": "toolboard", "label": "Toolboard", "condition": "mcu.toolboard.enabled" }
+          ],
+          "default": "mainboard",
+          "condition": "extruder1.enabled"
+        },
+        {
+          "id": "motor_port",
+          "type": "port_select",
+          "label": "Motor Port",
+          "state_key": "extruder1.motor_port",
+          "port_type": "motor_ports",
+          "required": true,
+          "condition": "extruder1.enabled"
+        },
+        {
+          "id": "driver_type",
+          "type": "exclusive_choice",
+          "group": "driver_types",
+          "label": "Driver Type",
+          "state_key": "extruder1.driver_type",
+          "required": true,
+          "condition": "extruder1.enabled"
+        },
+        {
+          "id": "heater_port",
+          "type": "port_select",
+          "label": "Heater Port",
+          "state_key": "extruder1.heater_port",
+          "port_type": "heater_ports",
+          "required": true,
+          "condition": "extruder1.enabled"
+        },
+        {
+          "id": "sensor_port",
+          "type": "port_select",
+          "label": "Thermistor Port",
+          "state_key": "extruder1.sensor_port",
+          "port_type": "thermistor_ports",
+          "required": true,
+          "condition": "extruder1.enabled"
+        },
+        {
+          "id": "sensor_type",
+          "type": "choice",
+          "label": "Thermistor Type",
+          "state_key": "extruder1.sensor_type",
+          "options": [
+            { "value": "ATC Semitec 104NT-4-R025H42G", "label": "ATC Semitec 104NT-4 (Trianglelab)" },
+            { "value": "ATC Semitec 104GT-2", "label": "ATC Semitec 104GT-2" },
+            { "value": "Generic 3950", "label": "Generic 3950 (NTC 100K)" },
+            { "value": "PT1000", "label": "PT1000" }
+          ],
+          "default": "ATC Semitec 104NT-4-R025H42G",
+          "condition": "extruder1.enabled"
+        },
+        {
+          "id": "dir_invert",
+          "type": "bool",
+          "label": "Invert Direction",
+          "state_key": "extruder1.dir_invert",
+          "default": false,
+          "condition": "extruder1.enabled"
+        },
+        {
+          "id": "rotation_distance",
+          "type": "float",
+          "label": "Rotation Distance (mm)",
+          "state_key": "extruder1.rotation_distance",
+          "default": 22.6789511,
+          "condition": "extruder1.enabled"
+        },
+        {
+          "id": "microsteps",
+          "type": "choice",
+          "label": "Microsteps",
+          "state_key": "extruder1.microsteps",
+          "options": [
+            { "value": 16, "label": "16" },
+            { "value": 32, "label": "32" },
+            { "value": 64, "label": "64" }
+          ],
+          "default": 16,
+          "condition": "extruder1.enabled"
+        },
+        {
+          "id": "nozzle_diameter",
+          "type": "choice",
+          "label": "Nozzle Diameter (mm)",
+          "state_key": "extruder1.nozzle_diameter",
+          "options": [
+            { "value": 0.4, "label": "0.4mm" },
+            { "value": 0.6, "label": "0.6mm" },
+            { "value": 0.8, "label": "0.8mm" }
+          ],
+          "default": 0.4,
+          "condition": "extruder1.enabled"
+        },
+        {
+          "id": "max_temp",
+          "type": "int",
+          "label": "Max Temperature (C)",
+          "state_key": "extruder1.max_temp",
+          "default": 300,
+          "range": [200, 350],
+          "condition": "extruder1.enabled"
+        }
+      ]
+    },
+
+    "extruder2": {
+      "id": "extruder2",
+      "title": "Extruder 2 Configuration",
+      "state_prefix": "extruder2",
+      "klipper_section": "[extruder2]",
+      "fields": [
+        {
+          "id": "enabled",
+          "type": "bool",
+          "label": "Enable Extruder 2",
+          "state_key": "extruder2.enabled",
+          "default": false
+        },
+        {
+          "id": "location",
+          "type": "choice",
+          "label": "Extruder Location",
+          "state_key": "extruder2.location",
+          "options": [
+            { "value": "mainboard", "label": "Mainboard" },
+            { "value": "toolboard", "label": "Toolboard", "condition": "mcu.toolboard.enabled" }
+          ],
+          "default": "mainboard",
+          "condition": "extruder2.enabled"
+        },
+        {
+          "id": "motor_port",
+          "type": "port_select",
+          "label": "Motor Port",
+          "state_key": "extruder2.motor_port",
+          "port_type": "motor_ports",
+          "required": true,
+          "condition": "extruder2.enabled"
+        },
+        {
+          "id": "driver_type",
+          "type": "exclusive_choice",
+          "group": "driver_types",
+          "label": "Driver Type",
+          "state_key": "extruder2.driver_type",
+          "required": true,
+          "condition": "extruder2.enabled"
+        },
+        {
+          "id": "heater_port",
+          "type": "port_select",
+          "label": "Heater Port",
+          "state_key": "extruder2.heater_port",
+          "port_type": "heater_ports",
+          "required": true,
+          "condition": "extruder2.enabled"
+        },
+        {
+          "id": "sensor_port",
+          "type": "port_select",
+          "label": "Thermistor Port",
+          "state_key": "extruder2.sensor_port",
+          "port_type": "thermistor_ports",
+          "required": true,
+          "condition": "extruder2.enabled"
+        },
+        {
+          "id": "sensor_type",
+          "type": "choice",
+          "label": "Thermistor Type",
+          "state_key": "extruder2.sensor_type",
+          "options": [
+            { "value": "ATC Semitec 104NT-4-R025H42G", "label": "ATC Semitec 104NT-4 (Trianglelab)" },
+            { "value": "ATC Semitec 104GT-2", "label": "ATC Semitec 104GT-2" },
+            { "value": "Generic 3950", "label": "Generic 3950 (NTC 100K)" },
+            { "value": "PT1000", "label": "PT1000" }
+          ],
+          "default": "ATC Semitec 104NT-4-R025H42G",
+          "condition": "extruder2.enabled"
+        },
+        {
+          "id": "dir_invert",
+          "type": "bool",
+          "label": "Invert Direction",
+          "state_key": "extruder2.dir_invert",
+          "default": false,
+          "condition": "extruder2.enabled"
+        },
+        {
+          "id": "rotation_distance",
+          "type": "float",
+          "label": "Rotation Distance (mm)",
+          "state_key": "extruder2.rotation_distance",
+          "default": 22.6789511,
+          "condition": "extruder2.enabled"
+        },
+        {
+          "id": "microsteps",
+          "type": "choice",
+          "label": "Microsteps",
+          "state_key": "extruder2.microsteps",
+          "options": [
+            { "value": 16, "label": "16" },
+            { "value": 32, "label": "32" },
+            { "value": 64, "label": "64" }
+          ],
+          "default": 16,
+          "condition": "extruder2.enabled"
+        },
+        {
+          "id": "nozzle_diameter",
+          "type": "choice",
+          "label": "Nozzle Diameter (mm)",
+          "state_key": "extruder2.nozzle_diameter",
+          "options": [
+            { "value": 0.4, "label": "0.4mm" },
+            { "value": 0.6, "label": "0.6mm" },
+            { "value": 0.8, "label": "0.8mm" }
+          ],
+          "default": 0.4,
+          "condition": "extruder2.enabled"
+        },
+        {
+          "id": "max_temp",
+          "type": "int",
+          "label": "Max Temperature (C)",
+          "state_key": "extruder2.max_temp",
+          "default": 300,
+          "range": [200, 350],
+          "condition": "extruder2.enabled"
         }
       ]
     },
