@@ -397,100 +397,100 @@
         },
         {
           "id": "stepper_x",
-          "label": "Stepper X",
+          "label": "2.3 Stepper X",
           "section": "stepper_x",
           "status_key": "stepper_x.driver_type"
         },
         {
           "id": "stepper_x1",
-          "label": "Stepper X1 (AWD)",
+          "label": "2.4 Stepper X1 (AWD)",
           "section": "stepper_x1",
           "status_key": "stepper_x1.driver_type",
           "condition": "printer.awd_enabled"
         },
         {
           "id": "stepper_y",
-          "label": "Stepper Y",
+          "label": "2.5 Stepper Y",
           "section": "stepper_y",
           "status_key": "stepper_y.driver_type"
         },
         {
           "id": "stepper_y1",
-          "label": "Stepper Y1 (AWD)",
+          "label": "2.6 Stepper Y1 (AWD)",
           "section": "stepper_y1",
           "status_key": "stepper_y1.driver_type",
           "condition": "printer.awd_enabled"
         },
         {
           "id": "stepper_z",
-          "label": "Stepper Z",
+          "label": "2.7 Stepper Z",
           "section": "stepper_z",
           "status_key": "stepper_z.z_motor_count"
         },
         {
           "id": "extruder",
-          "label": "Extruder",
+          "label": "2.8 Extruder",
           "section": "extruder",
           "status_key": "extruder.extruder_type"
         },
         {
           "id": "heater_bed",
-          "label": "Heater Bed",
+          "label": "2.9 Heater Bed",
           "section": "heater_bed",
           "status_key": "heater_bed.sensor_type"
         },
         {
           "id": "probe",
-          "label": "Probe",
+          "label": "2.10 Probe",
           "section": "probe",
           "status_key": "probe.probe_type"
         },
         {
           "id": "homing",
-          "label": "Homing",
+          "label": "2.11 Homing",
           "section": "homing",
           "status_key": "homing.homing_method"
         },
         {
           "id": "bed_leveling",
-          "label": "Bed Leveling",
+          "label": "2.12 Bed Leveling",
           "section": "bed_leveling",
           "status_key": "bed_leveling.leveling_type",
           "condition": "probe.probe_type != 'none'"
         },
         {
           "id": "fans",
-          "label": "Fans",
+          "label": "2.13 Fans",
           "section": "fans",
           "status_key": "fans.part_cooling.enabled"
         },
         {
           "id": "additional_fans",
-          "label": "Additional Fans",
+          "label": "2.14 Additional Fans",
           "description": "Nevermore, RSCS, Exhaust, etc.",
           "section": "additional_fans"
         },
         {
           "id": "leds",
-          "label": "LEDs",
+          "label": "2.15 LEDs",
           "section": "leds",
           "status_key": "leds.enabled"
         },
         {
           "id": "temperature_sensors",
-          "label": "Temperature Sensors",
+          "label": "2.16 Temperature Sensors",
           "section": "temperature_sensors",
           "status_key": "temperature_sensors.chamber.enabled"
         },
         {
           "id": "additional_temp_sensors",
-          "label": "Additional Temperature Sensors",
+          "label": "2.17 Additional Temp Sensors",
           "description": "BME280, AHT10, custom thermistors",
           "section": "additional_temp_sensors"
         },
         {
           "id": "filament_sensors",
-          "label": "Filament Sensors",
+          "label": "2.18 Filament Sensors",
           "section": "filament_sensors",
           "status_key": "filament_sensors.runout.enabled"
         }
@@ -499,35 +499,35 @@
 
     "klipper_setup": {
       "id": "klipper_setup",
-      "title": "Klipper Setup",
+      "title": "1. Klipper Setup",
       "items": [
         {
           "id": "manage_components",
-          "label": "1. Manage Klipper Components",
+          "label": "1.1 Manage Klipper Components",
           "description": "Install/update Klipper, Moonraker, frontends",
           "action": "manage_components"
         },
         {
           "id": "can_setup",
-          "label": "2. CAN Interface Setup",
+          "label": "1.2 CAN Interface Setup",
           "description": "Configure CAN bus interfaces",
           "action": "can_setup"
         },
         {
           "id": "katapult_setup",
-          "label": "3. Katapult/Firmware Flashing",
+          "label": "1.3 Katapult/Firmware Flashing",
           "description": "DFU and CAN firmware flashing",
           "action": "katapult_setup"
         },
         {
           "id": "mmu_software",
-          "label": "4. MMU Software Installation",
+          "label": "1.4 MMU Software Installation",
           "description": "Happy Hare, AFC-Klipper-Add-On",
           "action": "install_mmu_software"
         },
         {
           "id": "verify_services",
-          "label": "V. Verify Klipper Services",
+          "label": "1.5 Verify Klipper Services",
           "description": "Check service status",
           "action": "verify_services"
         }
@@ -536,17 +536,17 @@
 
     "tuning": {
       "id": "tuning",
-      "title": "Tuning & Features",
+      "title": "4. Tuning & Features",
       "items": [
         {
           "id": "tuning_config",
-          "label": "General Settings",
+          "label": "4.1 General Settings",
           "section": "tuning",
           "status_key": "tuning.kalico_enabled"
         },
         {
           "id": "input_shaper",
-          "label": "Input Shaper",
+          "label": "4.2 Input Shaper",
           "section": "input_shaper",
           "status_key": "input_shaper.enabled"
         }
