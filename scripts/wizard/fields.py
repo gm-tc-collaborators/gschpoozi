@@ -515,14 +515,6 @@ class FieldRenderer:
         usb_devices = self._detect_serial_devices()
         can_devices = self._query_can_devices()
 
-        if not usb_devices and not can_devices:
-            self.ui.msgbox(
-                "No devices detected (USB or CAN).\n\n"
-                "Make sure devices are connected and powered.",
-                title=title
-            )
-            return None
-
         # Build selection items
         items: List[Tuple[str, str, bool]] = []
 
@@ -536,9 +528,18 @@ class FieldRenderer:
             is_selected = (uuid == current)
             items.append((uuid, f"[CAN] {display_name}", is_selected))
 
-        # Add manual entry option
+        # Always add manual entry option (even if devices found)
         items.append(("manual", "Enter manually...", False))
 
+        # If no devices found, show info message before selection
+        if not usb_devices and not can_devices:
+            self.ui.msgbox(
+                "No devices detected (USB or CAN).\n\n"
+                "You can enter the device path or UUID manually.",
+                title=title
+            )
+
+        # Show selection list (will always have at least "manual" option)
         result = self.ui.radiolist(label, items, title=title)
 
         if result == "manual":
