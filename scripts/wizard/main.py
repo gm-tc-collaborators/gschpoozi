@@ -152,7 +152,10 @@ class GschpooziWizard:
                 error_text += "Unknown validation error.\n"
                 error_text += f"Debug: valid={result['valid']}, errors={len(result['errors'])}, incomplete={len(result['incomplete_sections'])}"
 
-            self.ui.msgbox(error_text, title="Validation Failed")
+            # Calculate height based on number of lines (min 10, max 20)
+            line_count = error_text.count('\n') + 3
+            height = min(20, max(10, line_count))
+            self.ui.msgbox(error_text, title="Validation Failed", height=height)
             return
 
         # Show warnings if any
