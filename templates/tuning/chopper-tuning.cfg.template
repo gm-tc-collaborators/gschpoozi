@@ -44,24 +44,24 @@ gcode:
     {% set pct = levels[printer["gcode_macro _CHOPPER_SAFETY_LIMITS"].safety_level] %}
 
     # Store original values
-    SET_GCODE_VARIABLE MACRO=_CHOPPER_SAFETY_LIMITS VARIABLE=original_velocity VALUE={printer.toolhead.max_velocity}
-    SET_GCODE_VARIABLE MACRO=_CHOPPER_SAFETY_LIMITS VARIABLE=original_accel VALUE={printer.toolhead.max_accel}
+    SET_GCODE_VARIABLE MACRO=_CHOPPER_SAFETY_LIMITS VARIABLE=original_velocity VALUE={{'{'}}printer.toolhead.max_velocity{{'}'}}
+    SET_GCODE_VARIABLE MACRO=_CHOPPER_SAFETY_LIMITS VARIABLE=original_accel VALUE={{'{'}}printer.toolhead.max_accel{{'}'}}
     SET_GCODE_VARIABLE MACRO=_CHOPPER_SAFETY_LIMITS VARIABLE=limits_active VALUE=True
 
     # Apply reduced limits
     {% set safe_vel = (printer.toolhead.max_velocity * pct)|int %}
     {% set safe_accel = (printer.toolhead.max_accel * pct)|int %}
-    SET_VELOCITY_LIMIT VELOCITY={safe_vel} ACCEL={safe_accel}
-    M118 Chopper tuning: Limits set to {safe_vel}mm/s, {safe_accel}mm/s² ({(pct * 100)|int}%)
+    SET_VELOCITY_LIMIT VELOCITY={{'{'}}safe_vel{{'}'}} ACCEL={{'{'}}safe_accel{{'}'}}
+    M118 Chopper tuning: Limits set to {{'{'}}safe_vel{{'}'}}mm/s, {{'{'}}safe_accel{{'}'}}mm/s² ({{'{'}}(pct * 100)|int{{'}'}}%)
 
 [gcode_macro _CHOPPER_RESTORE_LIMITS]
 description: Restore original velocity limits after tuning
 gcode:
     {% set state = printer["gcode_macro _CHOPPER_SAFETY_LIMITS"] %}
     {% if state.limits_active %}
-        SET_VELOCITY_LIMIT VELOCITY={state.original_velocity} ACCEL={state.original_accel}
+        SET_VELOCITY_LIMIT VELOCITY={{'{'}}state.original_velocity{{'}'}} ACCEL={{'{'}}state.original_accel{{'}'}}
         SET_GCODE_VARIABLE MACRO=_CHOPPER_SAFETY_LIMITS VARIABLE=limits_active VALUE=False
-        M118 Velocity limits restored: {state.original_velocity}mm/s, {state.original_accel}mm/s²
+        M118 Velocity limits restored: {{'{'}}state.original_velocity{{'}'}}mm/s, {{'{'}}state.original_accel{{'}'}}mm/s²
     {% endif %}
 
 {% if tuning.chopper_diag0_pin_x or tuning.chopper_diag0_pin_y %}
@@ -92,10 +92,10 @@ variable_tuning_active: False
 gcode:
     {% set stepper = params.STEPPER|default("unknown") %}
     {% if printer["gcode_macro _ON_STALL_DETECTED"].tuning_active %}
-        M118 !!! STALL DETECTED on {stepper} - aborting chopper test !!!
+        M118 !!! STALL DETECTED on {{'{'}}stepper{{'}'}} - aborting chopper test !!!
         _CHOPPER_ABORT
     {% else %}
-        M118 WARNING: Stall detected on {stepper}
+        M118 WARNING: Stall detected on {{'{'}}stepper{{'}'}}
     {% endif %}
 {% endif %}
 
@@ -111,9 +111,9 @@ gcode:
     {% set z_safe = [50, printer.toolhead.axis_maximum.z - 10]|min %}
 
     G90  # Absolute positioning
-    G0 Z{z_safe} F1200
-    G0 X{x_center} Y{y_center} F6000
-    M118 At safe position: X{x_center|round(1)} Y{y_center|round(1)} Z{z_safe}
+    G0 Z{{'{'}}z_safe{{'}'}} F1200
+    G0 X{{'{'}}x_center{{'}'}} Y{{'{'}}y_center{{'}'}} F6000
+    M118 At safe position: X{{'{'}}x_center|round(1){{'}'}} Y{{'{'}}y_center|round(1){{'}'}} Z{{'{'}}z_safe{{'}'}}
 
 [gcode_macro _CHOPPER_CHECK_DRIVER]
 description: Check TMC driver for errors before/during testing
@@ -176,8 +176,8 @@ gcode:
     {% endif %}
 
     M118 ════════════════════════════════════════════════════════════════════
-    M118 TMC CHOPPER TUNING - {stepper}
-    M118 Mode: {mode} | Safety: {safety}
+    M118 TMC CHOPPER TUNING - {{'{'}}stepper{{'}'}}
+    M118 Mode: {{'{'}}mode{{'}'}} | Safety: {{'{'}}safety{{'}'}}
     M118 ════════════════════════════════════════════════════════════════════
 
     # Ensure homed
@@ -187,7 +187,7 @@ gcode:
     {% endif %}
 
     # Apply safety limits
-    SET_GCODE_VARIABLE MACRO=_CHOPPER_SAFETY_LIMITS VARIABLE=safety_level VALUE='"{safety}"'
+    SET_GCODE_VARIABLE MACRO=_CHOPPER_SAFETY_LIMITS VARIABLE=safety_level VALUE='"{{'{'}}safety{{'}'}}}"'
     _CHOPPER_SAFETY_LIMITS
 
     # Enable stall detection if available
@@ -199,16 +199,16 @@ gcode:
     _CHOPPER_SAFE_POSITION
 
     # Check driver status before starting
-    _CHOPPER_CHECK_DRIVER STEPPER={stepper}
+    _CHOPPER_CHECK_DRIVER STEPPER={{'{'}}stepper{{'}'}}
 
     {% if mode == "find_resonance" or mode == "full" %}
         M118 === Phase 1: Finding resonant speeds ===
-        _CHOPPER_FIND_RESONANCE STEPPER={stepper}
+        _CHOPPER_FIND_RESONANCE STEPPER={{'{'}}stepper{{'}'}}
     {% endif %}
 
     {% if mode == "optimize" or mode == "full" %}
         M118 === Phase 2: Optimizing chopper parameters ===
-        _CHOPPER_OPTIMIZE STEPPER={stepper} SPEEDS="{speeds}"
+        _CHOPPER_OPTIMIZE STEPPER={{'{'}}stepper{{'}'}} SPEEDS="{{'{'}}speeds{{'}'}}"
     {% endif %}
 
     {% if mode == "test" %}
@@ -218,7 +218,7 @@ gcode:
         {% set toff = params.TOFF|default(3)|int %}
         {% set hstrt = params.HSTRT|default(5)|int %}
         {% set hend = params.HEND|default(3)|int %}
-        _CHOPPER_TEST_COMBO STEPPER={stepper} SPEEDS="{speeds}" TPFD={tpfd} TBL={tbl} TOFF={toff} HSTRT={hstrt} HEND={hend}
+        _CHOPPER_TEST_COMBO STEPPER={{'{'}}stepper{{'}'}} SPEEDS="{{'{'}}speeds{{'}'}}" TPFD={{'{'}}tpfd{{'}'}} TBL={{'{'}}tbl{{'}'}} TOFF={{'{'}}toff{{'}'}} HSTRT={{'{'}}hstrt{{'}'}} HEND={{'{'}}hend{{'}'}}
     {% endif %}
 
     # Cleanup
@@ -244,7 +244,7 @@ gcode:
     {% set max_speed = params.MAX_SPEED|default(150)|int %}
     {% set step = params.STEP|default(10)|int %}
 
-    M118 Sweeping {min_speed} to {max_speed} mm/s in {step}mm/s increments
+    M118 Sweeping {{'{'}}min_speed{{'}'}} to {{'{'}}max_speed{{'}'}} mm/s in {{'{'}}step{{'}'}}mm/s increments
 
     # Determine axis from stepper name
     {% set axis = "X" if "x" in stepper else "Y" %}
@@ -255,17 +255,17 @@ gcode:
     ACCELEROMETER_MEASURE CHIP={{ input_shaper.accel_chip_name | default('adxl345') }}
 
     {% for speed in range(min_speed, max_speed + 1, step) %}
-        M118 Testing {speed} mm/s...
-        G1 {axis}{center + distance} F{speed * 60}
-        G1 {axis}{center - distance} F{speed * 60}
-        G1 {axis}{center} F{speed * 60}
+        M118 Testing {{'{'}}speed{{'}'}} mm/s...
+        G1 {{'{'}}axis{{'}'}}{{'{'}}center + distance{{'}'}} F{{'{'}}speed * 60{{'}'}}
+        G1 {{'{'}}axis{{'}'}}{{'{'}}center - distance{{'}'}} F{{'{'}}speed * 60{{'}'}}
+        G1 {{'{'}}axis{{'}'}}{{'{'}}center{{'}'}} F{{'{'}}speed * 60{{'}'}}
         G4 P200  # Brief pause between tests
     {% endfor %}
 
     # Stop measurement and save
-    ACCELEROMETER_MEASURE CHIP={{ input_shaper.accel_chip_name | default('adxl345') }} NAME=resonance_sweep_{axis|lower}
+    ACCELEROMETER_MEASURE CHIP={{ input_shaper.accel_chip_name | default('adxl345') }} NAME=resonance_sweep_{{'{'}}axis|lower{{'}'}}
 
-    M118 Resonance sweep complete for {axis} axis
+    M118 Resonance sweep complete for {{'{'}}axis{{'}'}} axis
     M118 Run: CHOPPER_ANALYZE --mode find_resonance
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -287,15 +287,15 @@ gcode:
     {% set tbl_values = [1, 2] %}
     {% set toff_values = [3, 4] %}
 
-    M118 Starting parameter optimization for {stepper}
-    M118 Target speeds: {speeds} mm/s
-    M118 Testing {tpfd_values|length * tbl_values|length * toff_values|length} combinations
+    M118 Starting parameter optimization for {{'{'}}stepper{{'}'}}
+    M118 Target speeds: {{'{'}}speeds{{'}'}} mm/s
+    M118 Testing {{'{'}}tpfd_values|length * tbl_values|length * toff_values|length{{'}'}} combinations
 
     # Test all combinations
     {% for tpfd in tpfd_values %}
         {% for tbl in tbl_values %}
             {% for toff in toff_values %}
-                _CHOPPER_TEST_COMBO STEPPER={stepper} SPEEDS="{speeds}" TPFD={tpfd} TBL={tbl} TOFF={toff} HSTRT=5 HEND=3
+                _CHOPPER_TEST_COMBO STEPPER={{'{'}}stepper{{'}'}} SPEEDS="{{'{'}}speeds{{'}'}}" TPFD={{'{'}}tpfd{{'}'}} TBL={{'{'}}tbl{{'}'}} TOFF={{'{'}}toff{{'}'}} HSTRT=5 HEND=3
             {% endfor %}
         {% endfor %}
     {% endfor %}
@@ -314,19 +314,19 @@ gcode:
     {% set hstrt = params.HSTRT|int %}
     {% set hend = params.HEND|int %}
 
-    M118 Testing: TPFD={tpfd} TBL={tbl} TOFF={toff} HSTRT={hstrt} HEND={hend}
+    M118 Testing: TPFD={{'{'}}tpfd{{'}'}} TBL={{'{'}}tbl{{'}'}} TOFF={{'{'}}toff{{'}'}} HSTRT={{'{'}}hstrt{{'}'}} HEND={{'{'}}hend{{'}'}}
 
     # Apply parameters via SET_TMC_FIELD
-    SET_TMC_FIELD STEPPER={stepper} FIELD=tpfd VALUE={tpfd}
-    SET_TMC_FIELD STEPPER={stepper} FIELD=tbl VALUE={tbl}
-    SET_TMC_FIELD STEPPER={stepper} FIELD=toff VALUE={toff}
-    SET_TMC_FIELD STEPPER={stepper} FIELD=hstrt VALUE={hstrt}
-    SET_TMC_FIELD STEPPER={stepper} FIELD=hend VALUE={hend}
+    SET_TMC_FIELD STEPPER={{'{'}}stepper{{'}'}} FIELD=tpfd VALUE={{'{'}}tpfd{{'}'}}
+    SET_TMC_FIELD STEPPER={{'{'}}stepper{{'}'}} FIELD=tbl VALUE={{'{'}}tbl{{'}'}}
+    SET_TMC_FIELD STEPPER={{'{'}}stepper{{'}'}} FIELD=toff VALUE={{'{'}}toff{{'}'}}
+    SET_TMC_FIELD STEPPER={{'{'}}stepper{{'}'}} FIELD=hstrt VALUE={{'{'}}hstrt{{'}'}}
+    SET_TMC_FIELD STEPPER={{'{'}}stepper{{'}'}} FIELD=hend VALUE={{'{'}}hend{{'}'}}
 
     G4 P100  # Wait for settings to stabilize
 
     # Check driver status
-    _CHOPPER_CHECK_DRIVER STEPPER={stepper}
+    _CHOPPER_CHECK_DRIVER STEPPER={{'{'}}stepper{{'}'}}
 
     # Determine axis
     {% set axis = "X" if "x" in stepper else "Y" %}
@@ -344,12 +344,12 @@ gcode:
         ACCELEROMETER_MEASURE CHIP={{ input_shaper.accel_chip_name | default('adxl345') }}
 
         # Execute test movement
-        G1 {axis}{center + distance} F{speed_int * 60}
-        G1 {axis}{center - distance} F{speed_int * 60}
-        G1 {axis}{center} F{speed_int * 60}
+        G1 {{'{'}}axis{{'}'}}{{'{'}}center + distance{{'}'}} F{{'{'}}speed_int * 60{{'}'}}
+        G1 {{'{'}}axis{{'}'}}{{'{'}}center - distance{{'}'}} F{{'{'}}speed_int * 60{{'}'}}
+        G1 {{'{'}}axis{{'}'}}{{'{'}}center{{'}'}} F{{'{'}}speed_int * 60{{'}'}}
 
         # Stop and save with encoded filename
-        ACCELEROMETER_MEASURE CHIP={{ input_shaper.accel_chip_name | default('adxl345') }} NAME={test_name}_s{speed_int}
+        ACCELEROMETER_MEASURE CHIP={{ input_shaper.accel_chip_name | default('adxl345') }} NAME={{'{'}}test_name{{'}'}}_s{{'{'}}speed_int{{'}'}}
 
         G4 P200  # Pause between speeds
     {% endfor %}
@@ -365,9 +365,9 @@ gcode:
     {% set axis = params.AXIS|default("both") %}
 
     M118 Running chopper analysis...
-    M118 Mode: {mode} | Axis: {axis}
+    M118 Mode: {{'{'}}mode{{'}'}} | Axis: {{'{'}}axis{{'}'}}
 
-    RUN_SHELL_COMMAND CMD=chopper_analyze PARAMS="--mode {mode} --axis {axis}"
+    RUN_SHELL_COMMAND CMD=chopper_analyze PARAMS="--mode {{'{'}}mode{{'}'}} --axis {{'{'}}axis{{'}'}}"
 
     M118 Analysis complete! Check ~/printer_data/config/chopper_results/
 
@@ -394,8 +394,8 @@ gcode:
         SET_STEPPER_ENABLE STEPPER=stepper_x1 ENABLE=0
         SET_STEPPER_ENABLE STEPPER=stepper_y1 ENABLE=0
 
-        TMC_CHOPPER_TUNE STEPPER=stepper_x SAFETY={safety} SPEEDS="{speeds}"
-        TMC_CHOPPER_TUNE STEPPER=stepper_y SAFETY={safety} SPEEDS="{speeds}"
+        TMC_CHOPPER_TUNE STEPPER=stepper_x SAFETY={{'{'}}safety{{'}'}} SPEEDS="{{'{'}}speeds{{'}'}}"
+        TMC_CHOPPER_TUNE STEPPER=stepper_y SAFETY={{'{'}}safety{{'}'}} SPEEDS="{{'{'}}speeds{{'}'}}"
 
         # Re-enable rear pair
         SET_STEPPER_ENABLE STEPPER=stepper_x1 ENABLE=1
@@ -408,8 +408,7 @@ gcode:
         SET_STEPPER_ENABLE STEPPER=stepper_x ENABLE=0
         SET_STEPPER_ENABLE STEPPER=stepper_y ENABLE=0
 
-        TMC_CHOPPER_TUNE STEPPER=stepper_x1 SAFETY={safety} SPEEDS="{speeds}"
-        TMC_CHOPPER_TUNE STEPPER=stepper_y1 SAFETY={safety} SPEEDS="{speeds}"
+        TMC_CHOPPER_TUNE STEPPER=stepper_x1 SAFETY={{'{'}}safety{{'}'}} SPEEDS="{{'{'}}speeds{{'}'}}"
 
         # Re-enable front pair
         SET_STEPPER_ENABLE STEPPER=stepper_x ENABLE=1
