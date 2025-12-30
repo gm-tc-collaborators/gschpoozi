@@ -673,7 +673,7 @@ def generate_hardware_cfg(
     # Check if extruder is on toolboard - support both old and new state formats
     tb_assignments = hardware_state.get('toolboard_assignments', {}) if toolboard else {}
     extruder_config = wizard_state.get('extruder', {})
-    
+
     # New format uses extruder.location, extruder.heater_location, extruder.sensor_location
     extruder_on_toolboard = toolboard and (
         tb_assignments.get('extruder', '') not in ('', 'none') or
@@ -704,8 +704,13 @@ def generate_hardware_cfg(
     else:
         # Extruder motor on main board
         # New format: extruder.motor_port, old format: assignments.extruder
+        # Note: If motor_port has toolboard-style name (e.g., EXTRUDER), fall back to board default
         e_port = extruder_config.get('motor_port') or assignments.get('extruder', 'MOTOR_5')
         e_pins = get_motor_pins(board, e_port)
+        if not e_pins.get('step_pin'):
+            # Port not found on mainboard - try board's default extruder assignment
+            e_port = assignments.get('extruder', 'MOTOR_5')
+            e_pins = get_motor_pins(board, e_port)
         validate_motor_pins(e_pins, 'extruder', e_port)
         e_dir_pin = apply_dir_invert(e_pins['dir_pin'], 'extruder', motor_mapping, hardware_state)
         lines.append(f"step_pin: {e_pins['step_pin']}      # {e_port}")
