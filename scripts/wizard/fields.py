@@ -257,16 +257,23 @@ class FieldRenderer:
         return result
 
     def _render_choice(self, field: Dict[str, Any]) -> Optional[str]:
-        """Render a single-choice selection from inline options."""
+        """Render a single-choice selection from inline options or external source."""
         label = field.get('label', 'Select option')
         state_key = field.get('state_key', '')
-        options = field.get('options', [])
+        source = field.get('source')
+        grouped_by = field.get('grouped_by')
         default = field.get('default')
         current = self._get_state_value(state_key)
         title = self._get_contextual_title(field)
 
         if current is not None:
             default = current
+
+        # Check if we need to load options from external source (e.g., motors.json)
+        if source and source.endswith('.json'):
+            options = self._load_motor_options(source, grouped_by)
+        else:
+            options = field.get('options', [])
 
         # Build radiolist items
         state_dict = self.state.get_all()
@@ -790,6 +797,59 @@ class FieldRenderer:
                     options.append((opt_id, opt_name))
             except (json.JSONDecodeError, IOError):
                 continue
+
+        return options
+
+    def _load_motor_options(self, source: str, grouped_by: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Load motor options from motors.json file, optionally grouped by vendor.
+
+        Args:
+            source: Path to motors.json file (e.g., 'templates/motors/motors.json')
+            grouped_by: If 'vendor', group motors by vendor in the UI
+
+        Returns:
+            List of option dicts with 'value' and 'label' keys
+        """
+        options = []
+
+        # Resolve path
+        if source.startswith('templates/'):
+            json_path = REPO_ROOT / source
+        else:
+            json_path = REPO_ROOT / "templates" / source
+
+        if not json_path.exists():
+            return options
+
+        try:
+            with open(json_path, 'r') as f:
+                motors_data = json.load(f)
+
+            if grouped_by == 'vendor':
+                # Group by vendor
+                for vendor, motors in motors_data.items():
+                    for motor in motors:
+                        motor_id = motor.get('id', '')
+                        motor_name = motor.get('name', motor_id)
+                        # Format: "Vendor: Motor Name"
+                        label = f"{vendor}: {motor_name}"
+                        options.append({
+                            'value': motor_id,
+                            'label': label
+                        })
+            else:
+                # Flat list
+                for vendor, motors in motors_data.items():
+                    for motor in motors:
+                        motor_id = motor.get('id', '')
+                        motor_name = motor.get('name', motor_id)
+                        options.append({
+                            'value': motor_id,
+                            'label': motor_name
+                        })
+        except (json.JSONDecodeError, IOError) as e:
+            # Return empty list on error
+            pass
 
         return options
 

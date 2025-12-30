@@ -644,6 +644,18 @@
           "description": "Install chopper tuning macro framework",
           "status_key": "tuning.chopper_tuning_enabled",
           "condition": "stepper_x.driver_type in ['TMC5160', 'TMC2240', 'TMC2209'] or stepper_y.driver_type in ['TMC5160', 'TMC2240', 'TMC2209']"
+        },
+        {
+          "id": "tmc_autotune",
+          "label": "4.4 TMC Autotune",
+          "section": "tmc_autotune",
+          "status_key": "tuning.tmc_autotune.enabled"
+        },
+        {
+          "id": "firmware_retraction",
+          "label": "4.5 Firmware Retraction",
+          "section": "firmware_retraction",
+          "status_key": "tuning.firmware_retraction.enabled"
         }
       ]
     },
@@ -3651,6 +3663,83 @@
           "state_key": "tuning.kalico_enabled",
           "default": false,
           "help": "Enables Kalico-specific features like MPC temperature control"
+        },
+        {
+          "id": "exclude_object_enabled",
+          "type": "bool",
+          "label": "Exclude Object",
+          "state_key": "tuning.exclude_object.enabled",
+          "default": true,
+          "help": "Enable object exclusion during prints (EXCLUDE_OBJECT_DEFINE)"
+        },
+        {
+          "id": "arc_support_enabled",
+          "type": "bool",
+          "label": "Arc Support",
+          "state_key": "tuning.arc_support.enabled",
+          "default": true,
+          "help": "Enable G2/G3 arc support"
+        },
+        {
+          "id": "arc_support_resolution",
+          "type": "float",
+          "label": "Arc Resolution (mm)",
+          "state_key": "tuning.arc_support.resolution",
+          "default": 0.1,
+          "range": [0.01, 1.0],
+          "condition": "tuning.arc_support.enabled",
+          "help": "Resolution for arc interpolation"
+        },
+        {
+          "id": "force_move_enabled",
+          "type": "bool",
+          "label": "Force Move",
+          "state_key": "tuning.force_move.enabled",
+          "default": true,
+          "help": "Enable SET_KINEMATIC_POSITION command"
+        },
+        {
+          "id": "save_variables_enabled",
+          "type": "bool",
+          "label": "Save Variables",
+          "state_key": "tuning.save_variables.enabled",
+          "default": true,
+          "help": "Enable saving variables to file"
+        },
+        {
+          "id": "save_variables_filename",
+          "type": "text",
+          "label": "Variables File Path",
+          "state_key": "tuning.save_variables.filename",
+          "default": "~/printer_data/config/variables.cfg",
+          "condition": "tuning.save_variables.enabled",
+          "help": "Path to save variables file"
+        },
+        {
+          "id": "idle_timeout",
+          "type": "int",
+          "label": "Idle Timeout (seconds)",
+          "state_key": "tuning.idle_timeout.timeout",
+          "default": 600,
+          "range": [60, 3600],
+          "help": "Turn off heaters/motors after inactivity (safety net)"
+        },
+        {
+          "id": "virtual_sdcard_path",
+          "type": "text",
+          "label": "Virtual SD Card Path",
+          "state_key": "tuning.virtual_sdcard.path",
+          "default": "~/printer_data/gcodes",
+          "help": "Path to virtual SD card directory"
+        },
+        {
+          "id": "pause_resume_recover_velocity",
+          "type": "int",
+          "label": "Pause Resume Recover Velocity (mm/s)",
+          "state_key": "tuning.pause_resume.recover_velocity",
+          "default": 50,
+          "range": [10, 200],
+          "help": "Velocity for recovering from pause (Klipper [pause_resume] section)"
         }
       ]
     },
@@ -3668,6 +3757,141 @@
           "state_key": "tuning.chopper_tuning_enabled",
           "default": false,
           "help": "Install CHOPPER_TUNE macro framework for finding optimal TPFD/TBL/TOFF/HSTRT/HEND values"
+        }
+      ]
+    },
+
+    "tmc_autotune": {
+      "id": "tmc_autotune",
+      "title": "4.4 TMC Autotune",
+      "state_prefix": "tuning",
+      "help": "Automatic TMC driver optimization using motor specifications. Motor selections inherit: XY→X,Y,X1,Y1 | Z→Z,Z1,Z2,Z3 | Extruder→all extruders",
+      "fields": [
+        {
+          "id": "tmc_autotune_enabled",
+          "type": "bool",
+          "label": "Enable TMC Autotune",
+          "state_key": "tuning.tmc_autotune.enabled",
+          "default": false,
+          "help": "Enable automatic TMC driver tuning based on motor specifications"
+        },
+        {
+          "id": "tmc_autotune_voltage",
+          "type": "choice",
+          "label": "Voltage",
+          "state_key": "tuning.tmc_autotune.voltage",
+          "options": [
+            { "value": 24, "label": "24V" },
+            { "value": 48, "label": "48V" }
+          ],
+          "default": 24,
+          "condition": "tuning.tmc_autotune.enabled",
+          "help": "Motor supply voltage"
+        },
+        {
+          "id": "tmc_autotune_motor_xy",
+          "type": "choice",
+          "label": "XY Motor (applies to X, Y, X1, Y1)",
+          "state_key": "tuning.tmc_autotune.motor_xy",
+          "source": "templates/motors/motors.json",
+          "grouped_by": "vendor",
+          "condition": "tuning.tmc_autotune.enabled",
+          "required": true,
+          "help": "Select motor for XY axes (CoreXY/Cartesian) or X/Y (AWD). Settings inherit to all XY motors."
+        },
+        {
+          "id": "tmc_autotune_motor_z",
+          "type": "choice",
+          "label": "Z Motor (applies to Z, Z1, Z2, Z3)",
+          "state_key": "tuning.tmc_autotune.motor_z",
+          "source": "templates/motors/motors.json",
+          "grouped_by": "vendor",
+          "condition": "tuning.tmc_autotune.enabled",
+          "required": true,
+          "help": "Select motor for Z axis. Settings inherit to all Z motors."
+        },
+        {
+          "id": "tmc_autotune_motor_extruder",
+          "type": "choice",
+          "label": "Extruder Motor (applies to all extruders)",
+          "state_key": "tuning.tmc_autotune.motor_extruder",
+          "source": "templates/motors/motors.json",
+          "grouped_by": "vendor",
+          "condition": "tuning.tmc_autotune.enabled",
+          "required": true,
+          "help": "Select motor for extruder(s). Settings inherit to all extruders."
+        },
+        {
+          "id": "tmc_autotune_tuning_goal",
+          "type": "choice",
+          "label": "Tuning Goal",
+          "state_key": "tuning.tmc_autotune.tuning_goal",
+          "options": [
+            { "value": "auto", "label": "Auto (balance silent/performance)" },
+            { "value": "silent", "label": "Silent (prioritize quiet operation)" },
+            { "value": "performance", "label": "Performance (prioritize speed/accel)" },
+            { "value": "autoswitch", "label": "Auto-switch (silent at low speed, performance at high speed)" }
+          ],
+          "default": "auto",
+          "condition": "tuning.tmc_autotune.enabled",
+          "help": "Optimization target for TMC tuning"
+        }
+      ]
+    },
+
+    "firmware_retraction": {
+      "id": "firmware_retraction",
+      "title": "4.5 Firmware Retraction",
+      "state_prefix": "tuning",
+      "help": "Firmware-controlled retraction (G10/G11) instead of slicer retraction",
+      "fields": [
+        {
+          "id": "firmware_retraction_enabled",
+          "type": "bool",
+          "label": "Enable Firmware Retraction",
+          "state_key": "tuning.firmware_retraction.enabled",
+          "default": false,
+          "help": "Enable firmware retraction (G10/G11 commands)"
+        },
+        {
+          "id": "firmware_retraction_retract_length",
+          "type": "float",
+          "label": "Retract Length (mm)",
+          "state_key": "tuning.firmware_retraction.retract_length",
+          "default": 0.5,
+          "range": [0.0, 10.0],
+          "condition": "tuning.firmware_retraction.enabled",
+          "help": "Length to retract filament"
+        },
+        {
+          "id": "firmware_retraction_retract_speed",
+          "type": "float",
+          "label": "Retract Speed (mm/s)",
+          "state_key": "tuning.firmware_retraction.retract_speed",
+          "default": 35.0,
+          "range": [1.0, 200.0],
+          "condition": "tuning.firmware_retraction.enabled",
+          "help": "Speed for retraction"
+        },
+        {
+          "id": "firmware_retraction_unretract_extra_length",
+          "type": "float",
+          "label": "Unretract Extra Length (mm)",
+          "state_key": "tuning.firmware_retraction.unretract_extra_length",
+          "default": 0.0,
+          "range": [0.0, 5.0],
+          "condition": "tuning.firmware_retraction.enabled",
+          "help": "Extra length to push when unretracting (for ooze compensation)"
+        },
+        {
+          "id": "firmware_retraction_unretract_speed",
+          "type": "float",
+          "label": "Unretract Speed (mm/s)",
+          "state_key": "tuning.firmware_retraction.unretract_speed",
+          "default": 35.0,
+          "range": [1.0, 200.0],
+          "condition": "tuning.firmware_retraction.enabled",
+          "help": "Speed for unretraction"
         }
       ]
     },
