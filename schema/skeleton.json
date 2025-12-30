@@ -2589,7 +2589,7 @@
           "state_key": "extruder3.location",
           "options": [
             { "value": "mainboard", "label": "Mainboard" },
-            { "value": "toolboard", "label": "Toolboard" }
+            { "value": "toolboard", "label": "Toolboard", "condition": "mcu.toolboard.enabled" }
           ],
           "default": "mainboard",
           "condition": "extruder3.enabled"
@@ -2718,7 +2718,7 @@
           "state_key": "extruder4.location",
           "options": [
             { "value": "mainboard", "label": "Mainboard" },
-            { "value": "toolboard", "label": "Toolboard" }
+            { "value": "toolboard", "label": "Toolboard", "condition": "mcu.toolboard.enabled" }
           ],
           "default": "mainboard",
           "condition": "extruder4.enabled"
