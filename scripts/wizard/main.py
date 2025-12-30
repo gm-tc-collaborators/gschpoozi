@@ -9482,30 +9482,25 @@ def main():
     # Default theme works well on dark terminals
     # Dark theme inverts colors for light terminal backgrounds
     if args.dark:
-        # Dark theme: dark background, light text
+        # Dark theme: dark background, light text (for light terminal backgrounds)
+        # Using colon separators for better compatibility across systems
         os.environ["NEWT_COLORS"] = (
-            "root=white,black "
-            "border=white,black "
-            "window=white,black "
-            "shadow=black,gray "
-            "title=white,black "
-            "button=black,cyan "
-            "actbutton=white,cyan "
-            "compactbutton=white,black "
-            "checkbox=white,black "
-            "actcheckbox=black,cyan "
-            "entry=black,white "
-            "disentry=gray,white "
-            "label=white,black "
-            "listbox=white,black "
-            "actlistbox=black,cyan "
-            "sellistbox=black,white "
-            "actsellistbox=black,cyan "
-            "textbox=white,black "
-            "acttextbox=black,cyan "
-            "emptyscale=,black "
-            "fullscale=,cyan "
-            "helpline=white,black "
+            "root=white,black:"
+            "border=white,black:"
+            "window=white,black:"
+            "shadow=white,black:"
+            "title=white,black:"
+            "button=black,cyan:"
+            "actbutton=white,cyan:"
+            "checkbox=white,black:"
+            "actcheckbox=black,cyan:"
+            "entry=black,lightgray:"
+            "label=white,black:"
+            "listbox=white,black:"
+            "actlistbox=black,cyan:"
+            "textbox=white,black:"
+            "acttextbox=black,cyan:"
+            "helpline=white,black:"
             "roottext=white,black"
         )
 
