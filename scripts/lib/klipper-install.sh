@@ -162,13 +162,15 @@ check_not_root() {
     return 0
 }
 
-# Check if user has sudo access
+# Check if user has sudo access (interactive - allows password prompt)
 check_sudo_access() {
-    if ! sudo -v 2>/dev/null; then
+    status_msg "Checking sudo access (you may be prompted for your password)..."
+    if ! sudo -v; then
         error_msg "This script requires sudo access."
         error_msg "Please ensure your user has sudo privileges."
         return 1
     fi
+    ok_msg "Sudo access confirmed"
     return 0
 }
 
@@ -356,7 +358,7 @@ EOF
     return 0
 }
 
-# Create moonraker-admin group for polkit permissions
+# Create moonraker-admin group for polkit permissions and add user
 create_moonraker_group() {
     if getent group moonraker-admin > /dev/null 2>&1; then
         status_msg "moonraker-admin group already exists"
@@ -364,6 +366,32 @@ create_moonraker_group() {
         status_msg "Creating moonraker-admin group..."
         sudo groupadd -f moonraker-admin
         ok_msg "Created moonraker-admin group"
+    fi
+
+    # Add current user to moonraker-admin group
+    if ! groups "$USER" | grep -q "\bmoonraker-admin\b"; then
+        status_msg "Adding $USER to moonraker-admin group..."
+        sudo usermod -a -G moonraker-admin "$USER"
+        ok_msg "Added $USER to moonraker-admin group"
+    else
+        ok_msg "User already in moonraker-admin group"
+    fi
+}
+
+# Setup PolicyKit rules for Moonraker (allows service management without root)
+setup_moonraker_polkit() {
+    local polkit_script="${MOONRAKER_DIR}/scripts/set-policykit-rules.sh"
+
+    if [[ -f "$polkit_script" ]]; then
+        status_msg "Setting up PolicyKit rules for Moonraker..."
+        if bash "$polkit_script"; then
+            ok_msg "PolicyKit rules configured"
+        else
+            warn_msg "PolicyKit setup returned non-zero (may already be configured)"
+        fi
+    else
+        warn_msg "PolicyKit script not found at $polkit_script"
+        warn_msg "Moonraker may have limited functionality for service management"
     fi
 }
 
@@ -769,6 +797,12 @@ do_install_moonraker() {
     # Create moonraker.conf
     create_moonraker_conf
 
+    # Setup moonraker-admin group and add user
+    create_moonraker_group
+
+    # Setup PolicyKit rules for service management
+    setup_moonraker_polkit
+
     # Create and enable service
     create_systemd_service "moonraker" "${SERVICE_TEMPLATES}/moonraker.service" || return 1
     enable_service "moonraker"
@@ -777,6 +811,8 @@ do_install_moonraker() {
     echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
     echo -e "${GREEN}  Moonraker installation complete!${NC}"
     echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
+    echo ""
+    echo -e "  ${YELLOW}NOTE: You may need to log out and back in for group changes to take effect.${NC}"
     echo ""
     echo -e "  API available at: ${CYAN}http://$(hostname -I | awk '{print $1}'):7125${NC}"
     echo -e "  Config file: ${CYAN}${PRINTER_DATA}/config/moonraker.conf${NC}"
