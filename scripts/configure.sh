@@ -32,7 +32,7 @@ print_header() {
     echo ""
     echo -e "${GREEN}╔════════════════════════════════════════════════════════════╗${NC}"
     echo -e "${GREEN}║              gschpoozi Configuration Wizard                ║${NC}"
-    echo -e "${GREEN}║                      Version 2.0                           ║${NC}"
+    echo -e "${GREEN}║                      Version 3.0                           ║${NC}"
     echo -e "${GREEN}╚════════════════════════════════════════════════════════════╝${NC}"
     echo ""
 }
@@ -115,7 +115,7 @@ show_help() {
 }
 
 show_version() {
-    echo "gschpoozi v2.0.0"
+    echo "gschpoozi v3.0.0"
     echo "Klipper Configuration Wizard"
 }
 
@@ -164,6 +164,7 @@ main() {
                 ;;
             --dark)
                 theme="dark"
+                passthrough_args+=("--dark")  # Pass to Python wizard
                 shift
                 ;;
             --theme)
@@ -210,13 +211,10 @@ main() {
     # Launch Python wizard
     cd "${REPO_ROOT}"
 
-    # Optional: force a dark theme for whiptail/newt UIs (users can also export NEWT_COLORS themselves)
+    # Validate theme if explicitly provided (Python wizard handles the actual theming)
     if [[ -n "${theme}" && "${theme}" != "default" && "${theme}" != "dark" ]]; then
         print_error "Invalid theme: '${theme}' (expected: dark|default)"
         exit 2
-    fi
-    if [[ "${theme}" == "dark" && -z "${NEWT_COLORS:-}" ]]; then
-        export NEWT_COLORS='root=white,black;window=white,black;shadow=black,black;border=white,black;title=white,black;button=black,white;actbutton=white,blue;compactbutton=white,black;checkbox=white,black;actcheckbox=black,white;entry=white,black;label=white,black;listbox=white,black;actsellistbox=black,white;textbox=white,black;acttextbox=black,white;helpline=white,black;roottext=white,black'
     fi
 
     exec python3 "${WIZARD_DIR}/main.py" "${passthrough_args[@]}"

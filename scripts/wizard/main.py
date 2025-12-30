@@ -38,7 +38,7 @@ REPO_ROOT = SCRIPT_DIR.parent.parent  # scripts/wizard -> scripts -> repo root
 class GschpooziWizard:
     """Main wizard controller."""
 
-    VERSION = "2.0.0"
+    VERSION = "3.0.0"
 
     def __init__(self):
         self.ui = WizardUI(
