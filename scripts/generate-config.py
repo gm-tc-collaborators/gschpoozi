@@ -803,8 +803,9 @@ def generate_hardware_cfg(
             validate_pin(th_pin, f"extruder thermistor on port {th_port}")
             lines.append(f"sensor_pin: {th_pin}  # {th_port}")
 
-        # Add pullup_resistor if specified (important for PT1000 direct)
-        if hotend_pullup:
+        # Add pullup_resistor if specified (required for PT1000 direct and some thermistors)
+        # Only add if not using MAX31865 (which handles pullup internally)
+        if hotend_pullup and 'MAX31865' not in hotend_therm:
             lines.append(f"pullup_resistor: {hotend_pullup}  # Board-specific pullup value")
 
     lines.append("min_temp: 0")
@@ -855,8 +856,9 @@ def generate_hardware_cfg(
     lines.append(f"heater_pin: {hb_pin}  # {hb_port}")
     lines.append(f"sensor_type: {bed_therm}")
     lines.append(f"sensor_pin: {tb_pin}  # {tb_port}")
-    # Add pullup_resistor if specified
-    if bed_pullup:
+    # Add pullup_resistor if specified (required for PT1000 direct and some thermistors)
+    # Only add if not using MAX31865 (which handles pullup internally)
+    if bed_pullup and 'MAX31865' not in bed_therm:
         lines.append(f"pullup_resistor: {bed_pullup}  # Board-specific pullup value")
     lines.append("control: pid")
     lines.append("pid_kp: 54.027  # Run PID_CALIBRATE HEATER=heater_bed TARGET=60")
