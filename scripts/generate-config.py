@@ -670,17 +670,31 @@ def generate_hardware_cfg(
     lines.append("# EXTRUDER")
     lines.append("# " + "─" * 77)
 
-    # Check if extruder is on toolboard (not 'none')
+    # Check if extruder is on toolboard - support both old and new state formats
     tb_assignments = hardware_state.get('toolboard_assignments', {}) if toolboard else {}
-    extruder_on_toolboard = toolboard and tb_assignments.get('extruder', '') not in ('', 'none')
-    heater_on_toolboard = toolboard and tb_assignments.get('heater_extruder', '') not in ('', 'none')
-    therm_on_toolboard = toolboard and tb_assignments.get('thermistor_extruder', '') not in ('', 'none')
+    extruder_config = wizard_state.get('extruder', {})
+    
+    # New format uses extruder.location, extruder.heater_location, extruder.sensor_location
+    extruder_on_toolboard = toolboard and (
+        tb_assignments.get('extruder', '') not in ('', 'none') or
+        extruder_config.get('location') == 'toolboard' or
+        extruder_config.get('motor_location') == 'toolboard'
+    )
+    heater_on_toolboard = toolboard and (
+        tb_assignments.get('heater_extruder', '') not in ('', 'none') or
+        extruder_config.get('heater_location') == 'toolboard'
+    )
+    therm_on_toolboard = toolboard and (
+        tb_assignments.get('thermistor_extruder', '') not in ('', 'none') or
+        extruder_config.get('sensor_location') == 'toolboard'
+    )
 
     lines.append("[extruder]")
 
     if extruder_on_toolboard:
         # Extruder motor on toolboard
-        e_port = tb_assignments.get('extruder', 'EXTRUDER')
+        # New format: extruder.motor_port_toolboard, old format: tb_assignments.extruder
+        e_port = extruder_config.get('motor_port_toolboard') or extruder_config.get('motor_port') or tb_assignments.get('extruder', 'EXTRUDER')
         e_pins = get_motor_pins(toolboard, e_port)
         validate_motor_pins(e_pins, 'extruder', e_port)
         e_dir_pin = apply_dir_invert(e_pins['dir_pin'], 'extruder', motor_mapping, hardware_state)
@@ -689,7 +703,8 @@ def generate_hardware_cfg(
         lines.append(f"enable_pin: !toolboard:{e_pins['enable_pin']}  # {e_port}")
     else:
         # Extruder motor on main board
-        e_port = assignments.get('extruder', 'MOTOR_5')
+        # New format: extruder.motor_port, old format: assignments.extruder
+        e_port = extruder_config.get('motor_port') or assignments.get('extruder', 'MOTOR_5')
         e_pins = get_motor_pins(board, e_port)
         validate_motor_pins(e_pins, 'extruder', e_port)
         e_dir_pin = apply_dir_invert(e_pins['dir_pin'], 'extruder', motor_mapping, hardware_state)
@@ -705,12 +720,14 @@ def generate_hardware_cfg(
     lines.append("filament_diameter: 1.750")
 
     if heater_on_toolboard:
-        he_port = tb_assignments.get('heater_extruder', 'HE')
+        # New format: extruder.heater_port_toolboard, old format: tb_assignments.heater_extruder
+        he_port = extruder_config.get('heater_port_toolboard') or extruder_config.get('heater_port') or tb_assignments.get('heater_extruder', 'HE')
         he_pin = get_heater_pin(toolboard, he_port)
         validate_pin(he_pin, f"extruder heater on toolboard port {he_port}")
         lines.append(f"heater_pin: toolboard:{he_pin}  # {he_port}")
     else:
-        he_port = assignments.get('heater_extruder', 'HE0')
+        # New format: extruder.heater_port, old format: assignments.heater_extruder
+        he_port = extruder_config.get('heater_port') or assignments.get('heater_extruder', 'HE0')
         he_pin = get_heater_pin(board, he_port)
         validate_pin(he_pin, f"extruder heater on port {he_port}")
         lines.append(f"heater_pin: {he_pin}  # {he_port}")
@@ -735,12 +752,14 @@ def generate_hardware_cfg(
         lines.append(f"sensor_type: {hotend_therm}")
 
         if therm_on_toolboard:
-            th_port = tb_assignments.get('thermistor_extruder', 'TH0')
+            # New format: extruder.sensor_port_toolboard, old format: tb_assignments.thermistor_extruder
+            th_port = extruder_config.get('sensor_port_toolboard') or extruder_config.get('sensor_port') or tb_assignments.get('thermistor_extruder', 'TH0')
             th_pin = get_thermistor_pin(toolboard, th_port)
             validate_pin(th_pin, f"extruder thermistor on toolboard port {th_port}")
             lines.append(f"sensor_pin: toolboard:{th_pin}  # {th_port}")
         else:
-            th_port = assignments.get('thermistor_extruder', 'T0')
+            # New format: extruder.sensor_port, old format: assignments.thermistor_extruder
+            th_port = extruder_config.get('sensor_port') or assignments.get('thermistor_extruder', 'T0')
             th_pin = get_thermistor_pin(board, th_port)
             validate_pin(th_pin, f"extruder thermistor on port {th_port}")
             lines.append(f"sensor_pin: {th_pin}  # {th_port}")
