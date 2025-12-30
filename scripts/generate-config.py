@@ -2598,7 +2598,7 @@ def generate_chopper_tuning_cfg(wizard_state: Dict) -> Optional[str]:
     lines.append('    {% if phase == "all" or phase == "a" %}')
     lines.append("        # Phase A: Find best TPFD")
     lines.append("        M118 === Phase A: TPFD optimization ===")
-    lines.append("        M118 Testing TPFD values: {tpfd_values|join(\", \")}")
+    lines.append('        M118 Testing TPFD values: {{tpfd_values|join(", ")}}')
     lines.append('        {% if printer["gcode_macro _CHOPPER_TUNE_STATE"] is defined %}')
     lines.append('            SET_GCODE_VARIABLE MACRO=_CHOPPER_TUNE_STATE VARIABLE=current_phase VALUE="phase_a_tpfd"')
     lines.append("        {% endif %}")
@@ -3611,7 +3611,7 @@ def main():
         hardware_cfg = generate_hardware_cfg(wizard_state, hardware_state, board, toolboard)
 
         output_file = output_dir / "hardware.cfg"
-        with open(output_file, 'w') as f:
+        with open(output_file, 'w', encoding='utf-8') as f:
             f.write(hardware_cfg)
 
         print(f"Generated: {output_file}")
@@ -3621,7 +3621,7 @@ def main():
         calibration_cfg = generate_calibration_cfg(wizard_state, hardware_state)
 
         output_file = output_dir / "calibration.cfg"
-        with open(output_file, 'w') as f:
+        with open(output_file, 'w', encoding='utf-8') as f:
             f.write(calibration_cfg)
 
         print(f"Generated: {output_file}")
@@ -3631,14 +3631,14 @@ def main():
         # Generate macros-config.cfg (user-editable variables)
         macros_config_cfg = generate_macros_config_cfg(wizard_state)
         output_file = output_dir / "macros-config.cfg"
-        with open(output_file, 'w') as f:
+        with open(output_file, 'w', encoding='utf-8') as f:
             f.write(macros_config_cfg)
         print(f"Generated: {output_file}")
 
         # Generate macros.cfg (the actual macros)
         macros_cfg = generate_macros_cfg(wizard_state)
         output_file = output_dir / "macros.cfg"
-        with open(output_file, 'w') as f:
+        with open(output_file, 'w', encoding='utf-8') as f:
             f.write(macros_cfg)
         print(f"Generated: {output_file}")
 
@@ -3646,7 +3646,7 @@ def main():
         chopper_tuning_cfg = generate_chopper_tuning_cfg(wizard_state)
         if chopper_tuning_cfg:
             output_file = output_dir / "chopper-tuning.cfg"
-            with open(output_file, 'w') as f:
+            with open(output_file, 'w', encoding='utf-8') as f:
                 f.write(chopper_tuning_cfg)
             print(f"Generated: {output_file}")
 
