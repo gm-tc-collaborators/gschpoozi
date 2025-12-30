@@ -281,6 +281,138 @@ def analyze_resonance_sweep(csv_dir: str, axis: str = 'x') -> dict:
     return result
 
 
+def find_resonance_speeds(results_dir: str) -> list:
+    """
+    Analyze speed sweep to find problematic speeds using frequency analysis.
+
+    Args:
+        results_dir: Directory containing resonance sweep CSV files
+
+    Returns:
+        List of problematic speeds in mm/s
+    """
+    from pathlib import Path
+    results_path = Path(results_dir)
+
+    # Find resonance sweep files
+    sweep_files = list(results_path.glob("resonance_sweep*.csv"))
+
+    if not sweep_files:
+        print("ERROR: No resonance sweep data found")
+        print("Run: TMC_CHOPPER_TUNE MODE=find_resonance")
+        return [50, 100]  # Fallback to defaults
+
+    # Use most recent sweep file
+    sweep_file = max(sweep_files, key=lambda p: p.stat().st_mtime)
+    print(f"Analyzing resonance sweep: {sweep_file}")
+
+    # Parse accelerometer data
+    data = parse_accel_csv(str(sweep_file))
+    if data is None or len(data) == 0:
+        print("ERROR: Could not parse resonance sweep data")
+        return [50, 100]  # Fallback to defaults
+
+    # Calculate overall RMS vibration
+    overall_rms = calculate_rms_vibration(data)
+
+    # The resonance sweep contains data from multiple speeds tested sequentially
+    # We need to segment the data by time to identify which speeds have high vibration
+    # Estimate segment size: assume ~2 seconds per speed test (movement + pause)
+    # ADXL345 typically samples at 3200 Hz
+    sample_rate = 3200
+    segment_duration = 2.0  # seconds per speed test
+    segment_size = int(sample_rate * segment_duration)
+
+    # Calculate RMS for each segment
+    segment_rms = []
+    num_segments = len(data) // segment_size if segment_size > 0 else 1
+
+    if num_segments < 2:
+        # Not enough data to segment, use frequency analysis
+        peak_freq = calculate_peak_frequency(data, sample_rate)
+        if peak_freq > 0:
+            # Heuristic: convert frequency to approximate speed
+            # Typical resonance frequencies: 20-200 Hz
+            # Typical problem speeds: 30-120 mm/s
+            # Rough mapping (printer-dependent)
+            estimated_speed = min(120, max(30, int(peak_freq * 0.6)))
+            problem_speeds = [
+                max(20, estimated_speed - 10),
+                estimated_speed,
+                min(150, estimated_speed + 10)
+            ]
+            # Remove duplicates and return
+            return sorted(list(set(problem_speeds)))
+        return [50, 100]  # Fallback
+
+    # Analyze segments to find high-vibration regions
+    for i in range(num_segments):
+        start_idx = i * segment_size
+        end_idx = min((i + 1) * segment_size, len(data))
+        segment_data = data[start_idx:end_idx]
+
+        if len(segment_data) > 100:  # Need minimum data points
+            segment_rms_val = calculate_rms_vibration(segment_data)
+            segment_rms.append({
+                'segment': i,
+                'rms': segment_rms_val,
+                'data': segment_data
+            })
+
+    if not segment_rms:
+        return [50, 100]  # Fallback
+
+    # Sort segments by RMS (highest vibration first)
+    segment_rms.sort(key=lambda x: x['rms'], reverse=True)
+
+    # Find segments with vibration significantly above average
+    avg_rms = sum(s['rms'] for s in segment_rms) / len(segment_rms)
+    threshold = avg_rms * 1.3  # 30% above average
+
+    problem_segments = [s for s in segment_rms if s['rms'] > threshold]
+
+    if not problem_segments:
+        # No clear problems, return speeds around the highest vibration segment
+        top_segment = segment_rms[0]['segment']
+        # Estimate speed from segment number (assuming sweep starts at min_speed=20, step=10)
+        min_speed = 20
+        step = 10
+        estimated_speed = min_speed + (top_segment * step)
+        problem_speeds = [
+            max(20, estimated_speed - 10),
+            estimated_speed,
+            min(150, estimated_speed + 10)
+        ]
+        return sorted(list(set(problem_speeds)))
+
+    # Convert problem segments to speed estimates
+    # Assuming sweep parameters: min_speed=20, max_speed=150, step=10
+    min_speed = 20
+    step = 10
+    problem_speeds = []
+
+    for seg in problem_segments[:3]:  # Top 3 problem segments
+        segment_num = seg['segment']
+        estimated_speed = min_speed + (segment_num * step)
+        # Clamp to reasonable range
+        estimated_speed = max(20, min(150, estimated_speed))
+        if estimated_speed not in problem_speeds:
+            problem_speeds.append(estimated_speed)
+
+    # If we found problem speeds, return them (sorted)
+    if problem_speeds:
+        problem_speeds.sort()
+        # Ensure we have at least 2 speeds for testing
+        if len(problem_speeds) == 1:
+            problem_speeds.append(min(150, problem_speeds[0] + 20))
+        return problem_speeds[:3]  # Return up to 3 problem speeds
+
+    # Fallback: return speeds around the highest vibration segment
+    top_segment = segment_rms[0]['segment']
+    estimated_speed = min_speed + (top_segment * step)
+    return [max(20, estimated_speed - 10), estimated_speed, min(150, estimated_speed + 10)]
+
+
 def analyze_parameter_sweep(csv_dir: str, axis: str = 'x') -> dict:
     """
     Analyze chopper parameter test data and find optimal settings.
