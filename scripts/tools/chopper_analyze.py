@@ -65,7 +65,8 @@ PARAM_INFO = {
 def find_chopper_csvs(csv_dir: str, axis: str = None) -> list:
     """Find chopper tuning CSV files."""
     patterns = [
-        'chopper_*.csv',
+        'chopper_*.csv',      # Format: chopper_x_t8_2_3_5_3_s75.csv
+        't*_*_*_*_*_s*.csv',  # Format: t8_2_3_5_3_s75.csv (standalone)
         'resonance_sweep_*.csv',
     ]
 
@@ -75,7 +76,7 @@ def find_chopper_csvs(csv_dir: str, axis: str = None) -> list:
 
     if axis:
         axis = axis.lower()
-        all_files = [f for f in all_files if f'_{axis}_' in f.lower() or f'_{axis}.' in f.lower()]
+        all_files = [f for f in all_files if f'_{axis}_' in f.lower() or f'_{axis}.' in f.lower() or f'chopper_{axis}' in f.lower()]
 
     # Sort by modification time (newest first)
     all_files.sort(key=os.path.getmtime, reverse=True)
@@ -87,8 +88,8 @@ def parse_filename_params(filename: str) -> dict:
     Extract chopper parameters from filename.
 
     Expected formats:
-        chopper_x_tpfd4_tbl2_toff3_s75.csv
-        chopper_y_tpfd8_tbl1_toff4_s100.csv
+        t{tpfd}_{tbl}_{toff}_{hstrt}_{hend}_s{speed}.csv (e.g., t8_2_3_5_3_s75.csv)
+        chopper_x_tpfd4_tbl2_toff3_s75.csv (legacy format)
     """
     params = {
         'axis': None,
@@ -102,19 +103,50 @@ def parse_filename_params(filename: str) -> dict:
 
     basename = os.path.basename(filename).replace('.csv', '')
 
-    # Extract axis
+    # Try new format first: t{tpfd}_{tbl}_{toff}_{hstrt}_{hend}_s{speed}
+    # Example: t8_2_3_5_3_s75
+    new_format_match = re.search(r'^t(\d+)_(\d+)_(\d+)_(\d+)_(\d+)_s(\d+)$', basename)
+    if new_format_match:
+        params['tpfd'] = int(new_format_match.group(1))
+        params['tbl'] = int(new_format_match.group(2))
+        params['toff'] = int(new_format_match.group(3))
+        params['hstrt'] = int(new_format_match.group(4))
+        params['hend'] = int(new_format_match.group(5))
+        params['speed'] = int(new_format_match.group(6))
+        # Try to extract axis from parent directory or other context
+        # For now, we'll try to infer from filename patterns
+        if 'x' in basename.lower() or '_x_' in basename.lower():
+            params['axis'] = 'X'
+        elif 'y' in basename.lower() or '_y_' in basename.lower():
+            params['axis'] = 'Y'
+        return params
+
+    # Try format with axis prefix: chopper_{axis}_t{tpfd}_{tbl}_{toff}_{hstrt}_{hend}_s{speed}
+    # Example: chopper_x_t8_2_3_5_3_s75
+    axis_prefix_match = re.search(r'chopper_([xy])_t(\d+)_(\d+)_(\d+)_(\d+)_(\d+)_s(\d+)', basename, re.IGNORECASE)
+    if axis_prefix_match:
+        params['axis'] = axis_prefix_match.group(1).upper()
+        params['tpfd'] = int(axis_prefix_match.group(2))
+        params['tbl'] = int(axis_prefix_match.group(3))
+        params['toff'] = int(axis_prefix_match.group(4))
+        params['hstrt'] = int(axis_prefix_match.group(5))
+        params['hend'] = int(axis_prefix_match.group(6))
+        params['speed'] = int(axis_prefix_match.group(7))
+        return params
+
+    # Legacy format: chopper_x_tpfd4_tbl2_toff3_s75.csv
     axis_match = re.search(r'chopper_([xy])', basename, re.IGNORECASE)
     if axis_match:
         params['axis'] = axis_match.group(1).upper()
 
-    # Extract parameters
+    # Extract parameters (legacy format with param names)
     for param in ['tpfd', 'tbl', 'toff', 'hstrt', 'hend']:
         match = re.search(rf'{param}(\d+)', basename, re.IGNORECASE)
         if match:
             params[param] = int(match.group(1))
 
     # Extract speed
-    speed_match = re.search(r's(\d+)', basename)
+    speed_match = re.search(r'_s(\d+)', basename)
     if speed_match:
         params['speed'] = int(speed_match.group(1))
 
@@ -249,6 +281,138 @@ def analyze_resonance_sweep(csv_dir: str, axis: str = 'x') -> dict:
     return result
 
 
+def find_resonance_speeds(results_dir: str) -> list:
+    """
+    Analyze speed sweep to find problematic speeds using frequency analysis.
+
+    Args:
+        results_dir: Directory containing resonance sweep CSV files
+
+    Returns:
+        List of problematic speeds in mm/s
+    """
+    from pathlib import Path
+    results_path = Path(results_dir)
+
+    # Find resonance sweep files
+    sweep_files = list(results_path.glob("resonance_sweep*.csv"))
+
+    if not sweep_files:
+        print("ERROR: No resonance sweep data found")
+        print("Run: TMC_CHOPPER_TUNE MODE=find_resonance")
+        return [50, 100]  # Fallback to defaults
+
+    # Use most recent sweep file
+    sweep_file = max(sweep_files, key=lambda p: p.stat().st_mtime)
+    print(f"Analyzing resonance sweep: {sweep_file}")
+
+    # Parse accelerometer data
+    data = parse_accel_csv(str(sweep_file))
+    if data is None or len(data) == 0:
+        print("ERROR: Could not parse resonance sweep data")
+        return [50, 100]  # Fallback to defaults
+
+    # Calculate overall RMS vibration
+    overall_rms = calculate_rms_vibration(data)
+
+    # The resonance sweep contains data from multiple speeds tested sequentially
+    # We need to segment the data by time to identify which speeds have high vibration
+    # Estimate segment size: assume ~2 seconds per speed test (movement + pause)
+    # ADXL345 typically samples at 3200 Hz
+    sample_rate = 3200
+    segment_duration = 2.0  # seconds per speed test
+    segment_size = int(sample_rate * segment_duration)
+
+    # Calculate RMS for each segment
+    segment_rms = []
+    num_segments = len(data) // segment_size if segment_size > 0 else 1
+
+    if num_segments < 2:
+        # Not enough data to segment, use frequency analysis
+        peak_freq = calculate_peak_frequency(data, sample_rate)
+        if peak_freq > 0:
+            # Heuristic: convert frequency to approximate speed
+            # Typical resonance frequencies: 20-200 Hz
+            # Typical problem speeds: 30-120 mm/s
+            # Rough mapping (printer-dependent)
+            estimated_speed = min(120, max(30, int(peak_freq * 0.6)))
+            problem_speeds = [
+                max(20, estimated_speed - 10),
+                estimated_speed,
+                min(150, estimated_speed + 10)
+            ]
+            # Remove duplicates and return
+            return sorted(list(set(problem_speeds)))
+        return [50, 100]  # Fallback
+
+    # Analyze segments to find high-vibration regions
+    for i in range(num_segments):
+        start_idx = i * segment_size
+        end_idx = min((i + 1) * segment_size, len(data))
+        segment_data = data[start_idx:end_idx]
+
+        if len(segment_data) > 100:  # Need minimum data points
+            segment_rms_val = calculate_rms_vibration(segment_data)
+            segment_rms.append({
+                'segment': i,
+                'rms': segment_rms_val,
+                'data': segment_data
+            })
+
+    if not segment_rms:
+        return [50, 100]  # Fallback
+
+    # Sort segments by RMS (highest vibration first)
+    segment_rms.sort(key=lambda x: x['rms'], reverse=True)
+
+    # Find segments with vibration significantly above average
+    avg_rms = sum(s['rms'] for s in segment_rms) / len(segment_rms)
+    threshold = avg_rms * 1.3  # 30% above average
+
+    problem_segments = [s for s in segment_rms if s['rms'] > threshold]
+
+    if not problem_segments:
+        # No clear problems, return speeds around the highest vibration segment
+        top_segment = segment_rms[0]['segment']
+        # Estimate speed from segment number (assuming sweep starts at min_speed=20, step=10)
+        min_speed = 20
+        step = 10
+        estimated_speed = min_speed + (top_segment * step)
+        problem_speeds = [
+            max(20, estimated_speed - 10),
+            estimated_speed,
+            min(150, estimated_speed + 10)
+        ]
+        return sorted(list(set(problem_speeds)))
+
+    # Convert problem segments to speed estimates
+    # Assuming sweep parameters: min_speed=20, max_speed=150, step=10
+    min_speed = 20
+    step = 10
+    problem_speeds = []
+
+    for seg in problem_segments[:3]:  # Top 3 problem segments
+        segment_num = seg['segment']
+        estimated_speed = min_speed + (segment_num * step)
+        # Clamp to reasonable range
+        estimated_speed = max(20, min(150, estimated_speed))
+        if estimated_speed not in problem_speeds:
+            problem_speeds.append(estimated_speed)
+
+    # If we found problem speeds, return them (sorted)
+    if problem_speeds:
+        problem_speeds.sort()
+        # Ensure we have at least 2 speeds for testing
+        if len(problem_speeds) == 1:
+            problem_speeds.append(min(150, problem_speeds[0] + 20))
+        return problem_speeds[:3]  # Return up to 3 problem speeds
+
+    # Fallback: return speeds around the highest vibration segment
+    top_segment = segment_rms[0]['segment']
+    estimated_speed = min_speed + (top_segment * step)
+    return [max(20, estimated_speed - 10), estimated_speed, min(150, estimated_speed + 10)]
+
+
 def analyze_parameter_sweep(csv_dir: str, axis: str = 'x') -> dict:
     """
     Analyze chopper parameter test data and find optimal settings.
@@ -276,6 +440,11 @@ def analyze_parameter_sweep(csv_dir: str, axis: str = 'x') -> dict:
     for csv_path in files:
         params = parse_filename_params(csv_path)
         if params['axis'] and params['axis'].lower() != axis.lower():
+            continue
+
+        # Skip files where essential parameters couldn't be parsed
+        if params['tpfd'] is None or params['tbl'] is None or params['toff'] is None:
+            print(f"  Skipping {os.path.basename(csv_path)}: could not parse parameters from filename")
             continue
 
         data = parse_accel_csv(csv_path)
@@ -388,34 +557,45 @@ def generate_comparison_graph(result: dict, output_path: str) -> None:
 
 
 def generate_config_snippet(result: dict) -> str:
-    """Generate Klipper config snippet with recommended settings."""
+    """Generate Klipper config snippet with recommended settings.
+
+    Detects driver type from result dict or defaults to tmc5160.
+    Driver type should be stored in result['driver_type'] (e.g., 'TMC5160', 'TMC2240').
+    """
     if not result.get('recommendations'):
         return ""
 
     rec = result['recommendations']
     axis = result['axis'].lower()
+    stepper_name = f"stepper_{axis}"
 
-    snippet = f"""
-# ═══════════════════════════════════════════════════════════════════════════════
+    # Detect driver type from result, default to tmc5160
+    driver_type = result.get('driver_type', 'TMC5160').lower()
+    if driver_type not in ('tmc5160', 'tmc2240'):
+        driver_type = 'tmc5160'  # Default fallback
+
+    snippet = f"""# ═══════════════════════════════════════════════════════════════════════════════
 # TMC Chopper Tuning Results - {result['axis']} Axis
 # Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}
 # Vibration improvement: {rec.get('improvement', 0):.1f}%
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# Add these to your [tmc5160 stepper_{axis}] or [tmc2240 stepper_{axis}] section:
-#
-# driver_tpfd: {rec.get('tpfd', 0)}
-# driver_tbl: {rec.get('tbl', 2)}
-# driver_toff: {rec.get('toff', 3)}
-# driver_hstrt: {rec.get('hstrt', 5)}
-# driver_hend: {rec.get('hend', 3)}
-#
-# Or use SET_TMC_FIELD to apply at runtime:
-# SET_TMC_FIELD STEPPER=stepper_{axis} FIELD=tpfd VALUE={rec.get('tpfd', 0)}
-# SET_TMC_FIELD STEPPER=stepper_{axis} FIELD=tbl VALUE={rec.get('tbl', 2)}
-# SET_TMC_FIELD STEPPER=stepper_{axis} FIELD=toff VALUE={rec.get('toff', 3)}
-# SET_TMC_FIELD STEPPER=stepper_{axis} FIELD=hstrt VALUE={rec.get('hstrt', 5)}
-# SET_TMC_FIELD STEPPER=stepper_{axis} FIELD=hend VALUE={rec.get('hend', 3)}
+# Copy these settings to your existing [{driver_type} {stepper_name}] section:
+# (Do not create a duplicate section - add these parameters to your existing one)
+
+[{driver_type} {stepper_name}]
+driver_tpfd: {rec.get('tpfd', 0)}
+driver_tbl: {rec.get('tbl', 2)}
+driver_toff: {rec.get('toff', 3)}
+driver_hstrt: {rec.get('hstrt', 5)}
+driver_hend: {rec.get('hend', 3)}
+
+# Alternative: Apply at runtime using SET_TMC_FIELD (no config restart needed):
+# SET_TMC_FIELD STEPPER={stepper_name} FIELD=tpfd VALUE={rec.get('tpfd', 0)}
+# SET_TMC_FIELD STEPPER={stepper_name} FIELD=tbl VALUE={rec.get('tbl', 2)}
+# SET_TMC_FIELD STEPPER={stepper_name} FIELD=toff VALUE={rec.get('toff', 3)}
+# SET_TMC_FIELD STEPPER={stepper_name} FIELD=hstrt VALUE={rec.get('hstrt', 5)}
+# SET_TMC_FIELD STEPPER={stepper_name} FIELD=hend VALUE={rec.get('hend', 3)}
 """
     return snippet
 

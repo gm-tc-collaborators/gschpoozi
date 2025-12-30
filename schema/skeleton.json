@@ -1,0 +1,4796 @@
+{
+  "$schema": "./skeleton.schema.json",
+  "version": "3.0.0",
+  "metadata": {
+    "name": "gschpoozi",
+    "description": "Klipper Configuration Wizard",
+    "author": "gschpoozi team"
+  },
+
+  "field_types": {
+    "text": {
+      "description": "Free text input",
+      "ui_widget": "inputbox"
+    },
+    "int": {
+      "description": "Integer value",
+      "ui_widget": "inputbox",
+      "validation": "integer"
+    },
+    "float": {
+      "description": "Decimal value",
+      "ui_widget": "inputbox",
+      "validation": "number"
+    },
+    "bool": {
+      "description": "Yes/No toggle",
+      "ui_widget": "yesno"
+    },
+    "choice": {
+      "description": "Single selection from options list",
+      "ui_widget": "radiolist"
+    },
+    "exclusive_choice": {
+      "description": "Single selection from exclusive group",
+      "ui_widget": "radiolist"
+    },
+    "multi_select": {
+      "description": "Multiple selections",
+      "ui_widget": "checklist"
+    },
+    "serial_select": {
+      "description": "Serial device with auto-detection",
+      "ui_widget": "serial_picker"
+    },
+    "port_select": {
+      "description": "Board port selection with conflict detection",
+      "ui_widget": "port_picker"
+    },
+    "board_select": {
+      "description": "Board selection from templates",
+      "ui_widget": "board_picker"
+    },
+    "can_select": {
+      "description": "CAN device with auto-detection",
+      "ui_widget": "can_picker"
+    },
+    "mcu_select": {
+      "description": "MCU device selection (USB or CAN)",
+      "ui_widget": "mcu_picker"
+    },
+    "multi_port_select": {
+      "description": "Multiple port selection with conflict detection",
+      "ui_widget": "multi_port_picker"
+    },
+    "action": {
+      "description": "Action button to trigger wizard functions",
+      "ui_widget": "action_button"
+    }
+  },
+
+  "exclusive_groups": {
+    "probe_types": {
+      "description": "Probe technology - only one can be active",
+      "state_key": "probe.probe_type",
+      "options": [
+        {
+          "value": "none",
+          "label": "No Probe",
+          "klipper_section": null,
+          "homing_modes": null,
+          "bed_mesh_method": null,
+          "requires_serial": false,
+          "requires_homing_retract_dist_0": false,
+          "safe_z_home_compatible": true,
+          "x_offset_fixed": null,
+          "y_offset_fixed": null
+        },
+        {
+          "value": "tap",
+          "label": "Voron Tap",
+          "klipper_section": "[probe]",
+          "homing_modes": null,
+          "bed_mesh_method": null,
+          "requires_serial": false,
+          "requires_homing_retract_dist_0": false,
+          "safe_z_home_compatible": true,
+          "x_offset_fixed": 0,
+          "y_offset_fixed": 0,
+          "sample_retract_dist": 0
+        },
+        {
+          "value": "klicky",
+          "label": "Klicky / Euclid (dockable)",
+          "klipper_section": "[probe]",
+          "homing_modes": null,
+          "bed_mesh_method": null,
+          "requires_serial": false,
+          "requires_homing_retract_dist_0": false,
+          "safe_z_home_compatible": true,
+          "x_offset_fixed": null,
+          "y_offset_fixed": null
+        },
+        {
+          "value": "bltouch",
+          "label": "BLTouch / 3DTouch",
+          "klipper_section": "[bltouch]",
+          "homing_modes": null,
+          "bed_mesh_method": null,
+          "requires_serial": false,
+          "requires_homing_retract_dist_0": false,
+          "safe_z_home_compatible": true,
+          "x_offset_fixed": null,
+          "y_offset_fixed": null
+        },
+        {
+          "value": "inductive",
+          "label": "Inductive Probe (PINDA, SuperPINDA)",
+          "klipper_section": "[probe]",
+          "homing_modes": null,
+          "bed_mesh_method": null,
+          "requires_serial": false,
+          "requires_homing_retract_dist_0": false,
+          "safe_z_home_compatible": true,
+          "x_offset_fixed": null,
+          "y_offset_fixed": null
+        },
+        {
+          "value": "beacon",
+          "label": "Beacon (eddy current)",
+          "klipper_section": "[beacon]",
+          "plugin_required": "beacon",
+          "homing_modes": ["proximity", "contact"],
+          "bed_mesh_method": "METHOD=beacon",
+          "z_calibrate_method": "BEACON_AUTO_CALIBRATE",
+          "requires_serial": true,
+          "requires_homing_retract_dist_0": true,
+          "safe_z_home_compatible": false,
+          "x_offset_fixed": null,
+          "y_offset_fixed": null,
+          "mode_implications": {
+            "contact": {
+              "homing.homing_method": "beacon_contact"
+            },
+            "proximity": {
+              "homing.homing_method": "safe_z_home"
+            }
+          }
+        },
+        {
+          "value": "cartographer",
+          "label": "Cartographer (eddy current)",
+          "klipper_section": "[scanner]",
+          "plugin_required": "cartographer",
+          "homing_modes": ["scan", "touch"],
+          "bed_mesh_method": null,
+          "z_calibrate_method": "CARTOGRAPHER_CALIBRATE",
+          "requires_serial": true,
+          "requires_homing_retract_dist_0": true,
+          "safe_z_home_compatible": false,
+          "x_offset_fixed": null,
+          "y_offset_fixed": null,
+          "mode_implications": {
+            "touch": {
+              "homing.homing_method": "cartographer_touch"
+            },
+            "scan": {
+              "homing.homing_method": "safe_z_home"
+            }
+          }
+        },
+        {
+          "value": "btt_eddy",
+          "label": "BTT Eddy",
+          "klipper_section": "[probe_eddy_current btt_eddy]",
+          "homing_modes": ["proximity"],
+          "bed_mesh_method": "METHOD=scan SCAN_MODE=rapid",
+          "requires_serial": true,
+          "requires_homing_retract_dist_0": true,
+          "safe_z_home_compatible": true,
+          "x_offset_fixed": null,
+          "y_offset_fixed": null
+        }
+      ]
+    },
+
+    "leveling_types": {
+      "description": "Bed leveling method - determined by Z motor count",
+      "state_key": "bed_leveling.leveling_type",
+      "options": [
+        {
+          "value": "none",
+          "label": "None (manual leveling)",
+          "klipper_section": null,
+          "condition": null
+        },
+        {
+          "value": "z_tilt",
+          "label": "Z Tilt Adjust",
+          "klipper_section": "[z_tilt]",
+          "condition": "stepper_z.z_motor_count >= 2 and stepper_z.z_motor_count <= 3"
+        },
+        {
+          "value": "qgl",
+          "label": "Quad Gantry Level",
+          "klipper_section": "[quad_gantry_level]",
+          "condition": "stepper_z.z_motor_count == 4"
+        }
+      ]
+    },
+
+    "endstop_types_xy": {
+      "description": "X/Y axis endstop type",
+      "options": [
+        {
+          "value": "physical",
+          "label": "Physical switch"
+        },
+        {
+          "value": "sensorless",
+          "label": "Sensorless (StallGuard)",
+          "requires_driver": ["TMC2209", "TMC2240", "TMC5160"]
+        }
+      ]
+    },
+
+    "endstop_types_z": {
+      "description": "Z axis endstop type",
+      "options": [
+        {
+          "value": "probe",
+          "label": "Use probe as Z endstop",
+          "condition": "probe.probe_type != 'none'"
+        },
+        {
+          "value": "physical_mainboard",
+          "label": "Physical switch (mainboard)"
+        },
+        {
+          "value": "physical_toolboard",
+          "label": "Physical switch (toolboard)",
+          "condition": "mcu.toolboard.enabled"
+        },
+        {
+          "value": "sensorless",
+          "label": "Sensorless (StallGuard)",
+          "requires_driver": ["TMC2209", "TMC2240", "TMC5160"]
+        }
+      ]
+    },
+
+    "homing_methods": {
+      "description": "Z homing method - auto-selected based on probe",
+      "state_key": "homing.homing_method",
+      "options": [
+        {
+          "value": "safe_z_home",
+          "label": "Safe Z Home (standard)",
+          "klipper_section": "[safe_z_home]",
+          "condition": "probe.probe_type not in ['beacon', 'cartographer'] or (probe.probe_type == 'beacon' and probe.homing_mode == 'proximity') or (probe.probe_type == 'cartographer' and probe.homing_mode == 'scan')"
+        },
+        {
+          "value": "beacon_contact",
+          "label": "Beacon Contact Homing",
+          "klipper_section": null,
+          "condition": "probe.probe_type == 'beacon' and probe.homing_mode == 'contact'",
+          "auto_select": true
+        },
+        {
+          "value": "cartographer_touch",
+          "label": "Cartographer Touch Homing",
+          "klipper_section": null,
+          "condition": "probe.probe_type == 'cartographer' and probe.homing_mode == 'touch'",
+          "auto_select": true
+        }
+      ]
+    },
+
+    "kinematics": {
+      "description": "Printer kinematics type",
+      "state_key": "printer.kinematics",
+      "options": [
+        { "value": "corexy", "label": "CoreXY" },
+        { "value": "corexy-awd", "label": "CoreXY AWD (4 motors)" },
+        { "value": "cartesian", "label": "Cartesian (bed-slinger)" },
+        { "value": "corexz", "label": "CoreXZ" },
+        { "value": "delta", "label": "Delta" }
+      ]
+    },
+
+    "driver_types": {
+      "description": "TMC driver type",
+      "options": [
+        { "value": "TMC2209", "label": "TMC2209", "protocol": "UART" },
+        { "value": "TMC2226", "label": "TMC2226", "protocol": "UART" },
+        { "value": "TMC5160", "label": "TMC5160", "protocol": "SPI" },
+        { "value": "TMC2240", "label": "TMC2240", "protocol": "SPI" },
+        { "value": "TMC2130", "label": "TMC2130", "protocol": "SPI" },
+        { "value": "TMC2208", "label": "TMC2208", "protocol": "UART", "no_stallguard": true }
+      ]
+    },
+
+    "connection_types": {
+      "description": "MCU connection type",
+      "options": [
+        { "value": "USB", "label": "USB Serial" },
+        { "value": "CAN", "label": "CAN Bus" }
+      ]
+    }
+  },
+
+  "menus": {
+    "main": {
+      "id": "main",
+      "title": "gschpoozi - Main Menu",
+      "items": [
+        {
+          "id": "klipper_setup",
+          "label": "1. Klipper Setup",
+          "description": "Installation and verification",
+          "section": "klipper_setup"
+        },
+        {
+          "id": "hardware_setup",
+          "label": "2. Hardware Setup",
+          "description": "Configure printer hardware",
+          "section": "hardware_setup"
+        },
+        {
+          "id": "macros",
+          "label": "3. Macros",
+          "description": "Configure printer macros",
+          "section": "macros"
+        },
+        {
+          "id": "tuning",
+          "label": "4. Tuning & Features",
+          "description": "Optional features and tuning",
+          "section": "tuning"
+        },
+        {
+          "id": "generate",
+          "label": "G. Generate Config",
+          "description": "Generate Klipper configuration files",
+          "action": "generate_config"
+        }
+      ]
+    },
+
+    "mcu_setup": {
+      "id": "mcu_setup",
+      "title": "2.1 MCU Setup",
+      "items": [
+        {
+          "id": "mcu",
+          "label": "2.1.1 Mainboard",
+          "section": "mcu",
+          "status_key": "mcu.main.board_type"
+        },
+        {
+          "id": "host_mcu",
+          "label": "2.1.2 Host MCU",
+          "section": "host_mcu",
+          "status_key": "mcu.host.enabled"
+        },
+        {
+          "id": "eddy_probe",
+          "label": "2.1.3 Eddy Current Probe",
+          "description": "Beacon, Cartographer, BTT Eddy",
+          "section": "eddy_probe",
+          "status_key": "mcu.eddy_probe.probe_type"
+        },
+        {
+          "id": "mmu_buffers",
+          "label": "2.1.4 MMUs/Smart Buffers",
+          "description": "Box Turtle, TradRack, ERCF, etc.",
+          "section": "mmu_buffers",
+          "status_key": "mcu.mmu.type"
+        },
+        {
+          "id": "additional_mcus",
+          "label": "2.1.5 Additional MCUs",
+          "description": "Other generic MCUs",
+          "section": "additional_mcus"
+        }
+      ]
+    },
+
+    "printer_setup": {
+      "id": "printer_setup",
+      "title": "2.2 Printer Settings",
+      "items": [
+        {
+          "id": "kinematics",
+          "label": "2.2.1 Kinematics",
+          "section": "kinematics",
+          "status_key": "printer.kinematics"
+        },
+        {
+          "id": "tool_setup",
+          "label": "2.2.2 Tool Setup",
+          "section": "tool_setup",
+          "status_key": "printer.tool_count"
+        },
+        {
+          "id": "dimensions",
+          "label": "2.2.3 Dimensions & Limits",
+          "section": "printer_dimensions",
+          "status_key": "printer.bed_size_x"
+        }
+      ]
+    },
+
+    "stepper_setup": {
+      "id": "stepper_setup",
+      "title": "2.3 Steppers & Extruders",
+      "items": [
+        {
+          "id": "stepper_x",
+          "label": "2.3.1 Stepper X",
+          "section": "stepper_x",
+          "status_key": "stepper_x.driver_type"
+        },
+        {
+          "id": "stepper_y",
+          "label": "2.3.2 Stepper Y",
+          "section": "stepper_y",
+          "status_key": "stepper_y.driver_type"
+        },
+        {
+          "id": "stepper_x1",
+          "label": "2.3.3 Stepper X1 (AWD)",
+          "section": "stepper_x1",
+          "status_key": "stepper_x1.driver_type",
+          "condition": "printer.awd_enabled"
+        },
+        {
+          "id": "stepper_y1",
+          "label": "2.3.4 Stepper Y1 (AWD)",
+          "section": "stepper_y1",
+          "status_key": "stepper_y1.driver_type",
+          "condition": "printer.awd_enabled"
+        },
+        {
+          "id": "stepper_z",
+          "label": "2.3.5 Stepper Z",
+          "section": "stepper_z",
+          "status_key": "stepper_z.z_motor_count"
+        },
+        {
+          "id": "stepper_z1",
+          "label": "2.3.6 Stepper Z1",
+          "section": "stepper_z1",
+          "status_key": "stepper_z1.driver_type",
+          "condition": "stepper_z.z_motor_count >= 2"
+        },
+        {
+          "id": "stepper_z2",
+          "label": "2.3.7 Stepper Z2",
+          "section": "stepper_z2",
+          "status_key": "stepper_z2.driver_type",
+          "condition": "stepper_z.z_motor_count >= 3"
+        },
+        {
+          "id": "stepper_z3",
+          "label": "2.3.8 Stepper Z3",
+          "section": "stepper_z3",
+          "status_key": "stepper_z3.driver_type",
+          "condition": "stepper_z.z_motor_count >= 4"
+        },
+        {
+          "id": "extruder",
+          "label": "2.3.9 Extruder (T0)",
+          "section": "extruder",
+          "status_key": "extruder.extruder_type"
+        },
+        {
+          "id": "extruder1",
+          "label": "2.3.10 Extruder 1 (T1)",
+          "section": "extruder1",
+          "status_key": "extruder1.enabled",
+          "condition": "printer.tool_count >= 2"
+        },
+        {
+          "id": "extruder2",
+          "label": "2.3.11 Extruder 2 (T2)",
+          "section": "extruder2",
+          "status_key": "extruder2.enabled",
+          "condition": "printer.tool_count >= 3"
+        },
+        {
+          "id": "extruder3",
+          "label": "2.3.12 Extruder 3 (T3)",
+          "section": "extruder3",
+          "status_key": "extruder3.enabled",
+          "condition": "printer.tool_count >= 4"
+        },
+        {
+          "id": "extruder4",
+          "label": "2.3.13 Extruder 4 (T4)",
+          "section": "extruder4",
+          "status_key": "extruder4.enabled",
+          "condition": "printer.tool_count >= 5"
+        }
+      ]
+    },
+
+    "hardware_setup": {
+      "id": "hardware_setup",
+      "title": "2. Hardware Setup",
+      "items": [
+        {
+          "id": "mcu_setup",
+          "label": "2.1 MCU Setup",
+          "section": "mcu_setup",
+          "description": "Mainboard, Host MCU, Probes, MMUs"
+        },
+        {
+          "id": "printer_setup",
+          "label": "2.2 Printer Settings",
+          "section": "printer_setup",
+          "description": "Kinematics, tools, dimensions"
+        },
+        {
+          "id": "stepper_setup",
+          "label": "2.3 Steppers & Extruders",
+          "section": "stepper_setup",
+          "description": "X, Y, Z motors and extruders"
+        },
+        {
+          "id": "heater_bed",
+          "label": "2.4 Heater Bed",
+          "section": "heater_bed",
+          "status_key": "heater_bed.sensor_type"
+        },
+        {
+          "id": "probe",
+          "label": "2.5 Probe",
+          "section": "probe",
+          "status_key": "probe.probe_type"
+        },
+        {
+          "id": "homing",
+          "label": "2.6 Homing",
+          "section": "homing",
+          "status_key": "homing.homing_method"
+        },
+        {
+          "id": "bed_leveling",
+          "label": "2.7 Bed Leveling",
+          "section": "bed_leveling",
+          "status_key": "bed_leveling.leveling_type",
+          "condition": "probe.probe_type != 'none'"
+        },
+        {
+          "id": "fans",
+          "label": "2.8 Fans",
+          "section": "fans",
+          "status_key": "fans.part_cooling.enabled"
+        },
+        {
+          "id": "additional_fans",
+          "label": "2.9 Additional Fans",
+          "description": "Nevermore, RSCS, Exhaust, etc.",
+          "section": "additional_fans"
+        },
+        {
+          "id": "leds",
+          "label": "2.10 LEDs",
+          "section": "leds",
+          "status_key": "leds.enabled"
+        },
+        {
+          "id": "temperature_sensors",
+          "label": "2.11 Temperature Sensors",
+          "section": "temperature_sensors",
+          "status_key": "temperature_sensors.chamber.enabled"
+        },
+        {
+          "id": "additional_temp_sensors",
+          "label": "2.12 Additional Temp Sensors",
+          "description": "BME280, AHT10, custom thermistors",
+          "section": "additional_temp_sensors"
+        },
+        {
+          "id": "filament_sensors",
+          "label": "2.13 Filament Sensors",
+          "section": "filament_sensors",
+          "status_key": "filament_sensors.runout.enabled"
+        }
+      ]
+    },
+
+    "klipper_setup": {
+      "id": "klipper_setup",
+      "title": "1. Klipper Setup",
+      "items": [
+        {
+          "id": "manage_components",
+          "label": "1.1 Manage Klipper Components",
+          "description": "Install/update Klipper, Moonraker, frontends",
+          "action": "manage_components"
+        },
+        {
+          "id": "can_setup",
+          "label": "1.2 CAN Interface Setup",
+          "description": "Configure CAN bus interfaces",
+          "action": "can_setup"
+        },
+        {
+          "id": "katapult_setup",
+          "label": "1.3 Katapult/Firmware Flashing",
+          "description": "DFU and CAN firmware flashing",
+          "action": "katapult_setup"
+        },
+        {
+          "id": "mmu_software",
+          "label": "1.4 MMU Software Installation",
+          "description": "Happy Hare, AFC-Klipper-Add-On",
+          "action": "install_mmu_software"
+        },
+        {
+          "id": "verify_services",
+          "label": "1.5 Verify Klipper Services",
+          "description": "Check service status",
+          "action": "verify_services"
+        }
+      ]
+    },
+
+    "tuning": {
+      "id": "tuning",
+      "title": "4. Tuning & Features",
+      "items": [
+        {
+          "id": "tuning_config",
+          "label": "4.1 General Settings",
+          "section": "tuning",
+          "status_key": "tuning.kalico_enabled"
+        },
+        {
+          "id": "input_shaper",
+          "label": "4.2 Input Shaper",
+          "section": "input_shaper",
+          "status_key": "input_shaper.accel_chip"
+        },
+        {
+          "id": "tmc_chopper",
+          "label": "4.3 TMC Chopper Tuning",
+          "section": "chopper_tuning",
+          "description": "Auto-tune TMC5160/TMC2240 chopper settings using accelerometer data",
+          "status_key": "tuning.chopper_tuning_enabled",
+          "condition": "input_shaper.accel_chip != 'none' and (stepper_x.driver_type in ['TMC5160', 'TMC2240'] or stepper_y.driver_type in ['TMC5160', 'TMC2240'])"
+        },
+        {
+          "id": "tmc_autotune",
+          "label": "4.4 TMC Autotune",
+          "section": "tmc_autotune",
+          "status_key": "tuning.tmc_autotune.enabled"
+        },
+        {
+          "id": "firmware_retraction",
+          "label": "4.5 Firmware Retraction",
+          "section": "firmware_retraction",
+          "status_key": "tuning.firmware_retraction.enabled"
+        }
+      ]
+    },
+
+    "macros": {
+      "id": "macros",
+      "title": "3. Macros",
+      "items": [
+        {
+          "id": "start_print",
+          "label": "3.1 START_PRINT Settings",
+          "section": "start_print_menu",
+          "description": "Heating, mesh, purge, cleaning"
+        },
+        {
+          "id": "end_print",
+          "label": "3.2 END_PRINT Settings",
+          "section": "end_print",
+          "status_key": "macros.park_position"
+        },
+        {
+          "id": "pause_resume",
+          "label": "3.3 PAUSE/RESUME",
+          "section": "pause_resume",
+          "status_key": "macros.pause_position"
+        },
+        {
+          "id": "filament_load",
+          "label": "3.4 Filament Load/Unload",
+          "section": "filament_load",
+          "status_key": "macros.load_temp"
+        },
+        {
+          "id": "led_status",
+          "label": "3.5 LED Status",
+          "section": "led_status",
+          "status_key": "macros.led_enabled",
+          "condition": "leds.enabled"
+        }
+      ]
+    },
+
+    "start_print_menu": {
+      "id": "start_print_menu",
+      "title": "3.1 START_PRINT Settings",
+      "items": [
+        {
+          "id": "heating_behavior",
+          "label": "3.1.1 Heating Behavior",
+          "section": "heating_behavior",
+          "status_key": "macros.extruder_preheat_temp"
+        },
+        {
+          "id": "heat_soak",
+          "label": "3.1.2 Heat Soak",
+          "section": "heat_soak",
+          "status_key": "macros.heat_soak_enabled"
+        },
+        {
+          "id": "chamber",
+          "label": "3.1.3 Chamber",
+          "section": "chamber_macro",
+          "status_key": "macros.chamber_wait",
+          "condition": "temperature_sensors.chamber.enabled"
+        },
+        {
+          "id": "bed_mesh",
+          "label": "3.1.4 Bed Mesh",
+          "section": "bed_mesh_macro",
+          "status_key": "macros.bed_mesh_mode"
+        },
+        {
+          "id": "nozzle_cleaning",
+          "label": "3.1.5 Nozzle Cleaning",
+          "section": "nozzle_cleaning",
+          "status_key": "macros.brush_enabled"
+        },
+        {
+          "id": "purge_settings",
+          "label": "3.1.6 Purge Settings",
+          "section": "purge_settings",
+          "status_key": "macros.purge_style"
+        }
+      ]
+    }
+  },
+
+  "sections": {
+    "mcu": {
+      "id": "mcu",
+      "title": "MCU Setup",
+      "state_prefix": "mcu",
+      "subsections": [
+        {
+          "id": "main",
+          "title": "2.1.1 Mainboard",
+          "required": true,
+          "klipper_section": "[mcu]",
+          "fields": [
+            {
+              "id": "board_type",
+              "type": "board_select",
+              "label": "Board Type",
+              "state_key": "mcu.main.board_type",
+              "source": "templates/boards/",
+              "required": true,
+              "help": "Select your main controller board"
+            },
+            {
+              "id": "connection_type",
+              "type": "choice",
+              "label": "Connection Type",
+              "state_key": "mcu.main.connection_type",
+              "options": [
+                { "value": "USB", "label": "USB Serial" },
+                { "value": "CAN", "label": "CAN Bus" }
+              ],
+              "default": "USB",
+              "required": true,
+              "help": "Choose USB Serial or CAN Bus connection"
+            },
+            {
+              "id": "serial",
+              "type": "serial_select",
+              "label": "Serial Port (USB)",
+              "state_key": "mcu.main.serial",
+              "auto_detect_pattern": "Klipper",
+              "required": true,
+              "condition": "mcu.main.connection_type == 'USB'",
+              "help": "Select USB serial device from /dev/serial/by-id/"
+            },
+            {
+              "id": "canbus_uuid",
+              "type": "can_select",
+              "label": "CAN Bus UUID",
+              "state_key": "mcu.main.canbus_uuid",
+              "required": true,
+              "condition": "mcu.main.connection_type == 'CAN'",
+              "help": "Select CAN device UUID (query via canbus_query.py)"
+            },
+            {
+              "id": "restart_method",
+              "type": "choice",
+              "label": "Restart Method",
+              "state_key": "mcu.main.restart_method",
+              "options": [
+                { "value": "command", "label": "Command (default)" },
+                { "value": "arduino", "label": "Arduino" },
+                { "value": "cheetah", "label": "Cheetah" }
+              ],
+              "default": "command"
+            }
+          ]
+        },
+        {
+          "id": "toolboard",
+          "title": "Toolhead Board",
+          "required": false,
+          "klipper_section": "[mcu toolboard]",
+          "fields": [
+            {
+              "id": "enabled",
+              "type": "bool",
+              "label": "Enable Toolhead Board",
+              "state_key": "mcu.toolboard.enabled",
+              "default": false
+            },
+            {
+              "id": "board_type",
+              "type": "board_select",
+              "label": "Board Type",
+              "state_key": "mcu.toolboard.board_type",
+              "source": "templates/toolboards/",
+              "condition": "mcu.toolboard.enabled"
+            },
+            {
+              "id": "connection_type",
+              "type": "choice",
+              "label": "Connection Type",
+              "state_key": "mcu.toolboard.connection_type",
+              "options": [
+                { "value": "USB", "label": "USB Serial" },
+                { "value": "CAN", "label": "CAN Bus" }
+              ],
+              "default": "CAN",
+              "condition": "mcu.toolboard.enabled"
+            },
+            {
+              "id": "serial",
+              "type": "serial_select",
+              "label": "Serial Port",
+              "state_key": "mcu.toolboard.serial",
+              "auto_detect_pattern": "Klipper",
+              "condition": "mcu.toolboard.enabled and mcu.toolboard.connection_type == 'USB'"
+            },
+            {
+              "id": "canbus_uuid",
+              "type": "text",
+              "label": "CAN Bus UUID",
+              "state_key": "mcu.toolboard.canbus_uuid",
+              "condition": "mcu.toolboard.enabled and mcu.toolboard.connection_type == 'CAN'"
+            }
+          ]
+        }
+      ]
+    },
+
+    "host_mcu": {
+      "id": "host_mcu",
+      "title": "2.1.2 Host MCU",
+      "state_prefix": "mcu.host",
+      "klipper_section": "[mcu rpi]",
+      "help": "Enables GPIO access on the Raspberry Pi for sensors, fans, and other peripherals",
+      "fields": [
+        {
+          "id": "enabled",
+          "type": "bool",
+          "label": "Enable Host MCU",
+          "state_key": "mcu.host.enabled",
+          "default": false,
+          "help": "Required for RPi GPIO sensors, DS18B20, Neopixels on GPIO, etc."
+        },
+        {
+          "id": "setup_host_mcu",
+          "type": "action",
+          "label": "Setup Host MCU Firmware",
+          "action": "setup_host_mcu",
+          "help": "Run make menuconfig, compile, and flash Host MCU firmware",
+          "condition": "mcu.host.enabled"
+        },
+        {
+          "id": "serial",
+          "type": "text",
+          "label": "Serial Path",
+          "state_key": "mcu.host.serial",
+          "default": "/tmp/klipper_host_mcu",
+          "condition": "mcu.host.enabled",
+          "help": "Default Klipper linux MCU socket path"
+        }
+      ]
+    },
+
+    "eddy_probe": {
+      "id": "eddy_probe",
+      "title": "2.1.3 Eddy Current Probe",
+      "state_prefix": "mcu.eddy_probe",
+      "description": "Configure Beacon, Cartographer, or BTT Eddy probes",
+      "fields": [
+        {
+          "id": "probe_type",
+          "type": "choice",
+          "label": "Probe Type",
+          "state_key": "mcu.eddy_probe.probe_type",
+          "options": [
+            { "value": "none", "label": "No Eddy Probe" },
+            { "value": "beacon", "label": "Beacon" },
+            { "value": "cartographer", "label": "Cartographer 3D" },
+            { "value": "btt_eddy", "label": "BTT Eddy" }
+          ],
+          "default": "none",
+          "required": true
+        },
+        {
+          "id": "device_id",
+          "type": "mcu_select",
+          "label": "Select Probe Device",
+          "state_key": "mcu.eddy_probe.device_id",
+          "help": "Query and select probe from USB/CAN devices",
+          "required": true,
+          "condition": "mcu.eddy_probe.probe_type != 'none'"
+        },
+        {
+          "id": "install_module",
+          "type": "action",
+          "label": "Install Probe Module",
+          "action": "install_eddy_module",
+          "help": "Install required Klipper module for this probe",
+          "condition": "mcu.eddy_probe.probe_type != 'none'"
+        }
+      ]
+    },
+
+    "mmu_buffers": {
+      "id": "mmu_buffers",
+      "title": "2.1.4 MMUs/Smart Buffers",
+      "state_prefix": "mcu.mmu",
+      "description": "Configure MMU systems and smart filament buffers",
+      "fields": [
+        {
+          "id": "enabled",
+          "type": "bool",
+          "label": "Enable MMU/Buffer",
+          "state_key": "mcu.mmu.enabled",
+          "default": false
+        },
+        {
+          "id": "type",
+          "type": "choice",
+          "label": "MMU/Buffer Type",
+          "state_key": "mcu.mmu.type",
+          "options": [
+            { "value": "box_turtle", "label": "Box Turtle (AFC)" },
+            { "value": "night_owl", "label": "Night Owl (AFC)" },
+            { "value": "tradrack", "label": "TradRack (Happy Hare)" },
+            { "value": "ercf", "label": "ERCF (Happy Hare)" },
+            { "value": "3ms", "label": "3MS" },
+            { "value": "prusa_mmu", "label": "Prusa MMU" },
+            { "value": "other", "label": "Other" }
+          ],
+          "default": "box_turtle",
+          "condition": "mcu.mmu.enabled"
+        },
+        {
+          "id": "device_id",
+          "type": "mcu_select",
+          "label": "Select MMU Device",
+          "state_key": "mcu.mmu.device_id",
+          "help": "Query and select MMU controller from USB/CAN devices",
+          "condition": "mcu.mmu.enabled"
+        },
+        {
+          "id": "gate_count",
+          "type": "int",
+          "label": "Number of Gates/Filaments",
+          "state_key": "mcu.mmu.gate_count",
+          "default": 4,
+          "range": [2, 16],
+          "condition": "mcu.mmu.enabled"
+        },
+        {
+          "id": "module_type",
+          "type": "choice",
+          "label": "Software Module",
+          "state_key": "mcu.mmu.module_type",
+          "options": [
+            { "value": "happy_hare", "label": "Happy Hare", "condition": "mcu.mmu.type in ['tradrack', 'ercf', 'prusa_mmu', 'other']" },
+            { "value": "afc", "label": "AFC-Klipper-Add-On", "condition": "mcu.mmu.type in ['box_turtle', 'night_owl', 'other']" }
+          ],
+          "help": "Select the software module to control your MMU",
+          "condition": "mcu.mmu.enabled"
+        },
+        {
+          "id": "install_module",
+          "type": "action",
+          "label": "Install MMU Module",
+          "action": "install_mmu_module",
+          "help": "Install the selected MMU software module",
+          "condition": "mcu.mmu.enabled"
+        },
+        {
+          "id": "klipperscreen_addon",
+          "type": "bool",
+          "label": "Install KlipperScreen Add-on",
+          "state_key": "mcu.mmu.klipperscreen_addon",
+          "default": false,
+          "help": "Install KlipperScreen add-on for MMU control",
+          "condition": "mcu.mmu.enabled"
+        },
+        {
+          "id": "install_ks_addon",
+          "type": "action",
+          "label": "Install KlipperScreen Add-on",
+          "action": "install_ks_mmu_addon",
+          "help": "Install KlipperScreen MMU add-on",
+          "condition": "mcu.mmu.enabled and mcu.mmu.klipperscreen_addon"
+        }
+      ]
+    },
+
+    "additional_mcus": {
+      "id": "additional_mcus",
+      "title": "2.1.5 Additional MCUs",
+      "state_prefix": "mcu.additional",
+      "description": "Other external MCUs (generic)",
+      "is_list": true,
+      "item_template": {
+        "fields": [
+          {
+            "id": "device_id",
+            "type": "mcu_select",
+            "label": "Select MCU Device",
+            "state_key": "device_id",
+            "help": "Query and select from available USB/CAN devices",
+            "required": true
+          },
+          {
+            "id": "name",
+            "type": "text",
+            "label": "MCU Name",
+            "state_key": "name",
+            "help": "e.g., mmu, buffer, ercf (used in Klipper config as [mcu name])",
+            "required": true
+          },
+          {
+            "id": "type",
+            "type": "choice",
+            "label": "MCU Type",
+            "state_key": "type",
+            "options": [
+              { "value": "mmu", "label": "MMU (Multi-Material Unit)" },
+              { "value": "filament_buffer", "label": "Filament Buffer" },
+              { "value": "generic", "label": "Generic MCU" }
+            ],
+            "default": "mmu",
+            "required": true
+          },
+          {
+            "id": "mmu_type",
+            "type": "choice",
+            "label": "MMU System",
+            "state_key": "mmu_type",
+            "options": [
+              { "value": "ercf", "label": "ERCF (Enraged Rabbit)" },
+              { "value": "tradrack", "label": "TradRack" },
+              { "value": "box_turtle", "label": "Box Turtle" },
+              { "value": "night_owl", "label": "Night Owl" },
+              { "value": "3ms", "label": "3MS" },
+              { "value": "afc", "label": "AFC / Armored Turtle" },
+              { "value": "other", "label": "Other" }
+            ],
+            "default": "ercf",
+            "condition": "type == 'mmu'"
+          },
+          {
+            "id": "gate_count",
+            "type": "int",
+            "label": "Number of Gates/Filaments",
+            "state_key": "gate_count",
+            "default": 4,
+            "range": [2, 16],
+            "condition": "type == 'mmu'"
+          },
+          {
+            "id": "buffer_type",
+            "type": "choice",
+            "label": "Buffer Type",
+            "state_key": "buffer_type",
+            "options": [
+              { "value": "trad_rack_buffer", "label": "TradRack Buffer" },
+              { "value": "ercf_buffer", "label": "ERCF Buffer (Springy)" },
+              { "value": "afc_buffer", "label": "AFC Buffer" },
+              { "value": "generic", "label": "Generic" }
+            ],
+            "default": "trad_rack_buffer",
+            "condition": "type == 'filament_buffer'"
+          },
+          {
+            "id": "board",
+            "type": "choice",
+            "label": "Controller Board",
+            "state_key": "board",
+            "options": [
+              { "value": "btt_mmb", "label": "BTT MMB (MMU Board)" },
+              { "value": "btt_mmb_can", "label": "BTT MMB CAN" },
+              { "value": "fysetc_erb", "label": "Fysetc ERB (ERCF Board)" },
+              { "value": "mellow_easy_brd", "label": "Mellow EASY-BRD" },
+              { "value": "skr_pico", "label": "SKR Pico" },
+              { "value": "rp2040_zero", "label": "RP2040 Zero" },
+              { "value": "other", "label": "Other" }
+            ],
+            "default": "btt_mmb"
+          },
+          {
+            "id": "connection_type",
+            "type": "choice",
+            "label": "Connection Type",
+            "state_key": "connection_type",
+            "options": [
+              { "value": "USB", "label": "USB Serial" },
+              { "value": "CAN", "label": "CAN Bus" }
+            ],
+            "default": "USB"
+          },
+          {
+            "id": "serial",
+            "type": "serial_select",
+            "label": "Serial Port",
+            "state_key": "serial",
+            "auto_detect_pattern": "Klipper",
+            "condition": "connection_type == 'USB'"
+          },
+          {
+            "id": "canbus_uuid",
+            "type": "can_select",
+            "label": "CAN Bus UUID",
+            "state_key": "canbus_uuid",
+            "help": "Select CAN device UUID from queried devices",
+            "condition": "connection_type == 'CAN'"
+          },
+          {
+            "id": "module_check",
+            "type": "action",
+            "label": "Check Module Installation",
+            "action": "check_module",
+            "help": "Check if required module (Happy Hare, AFC, etc.) is installed",
+            "condition": "type == 'mmu'"
+          },
+          {
+            "id": "module_install",
+            "type": "action",
+            "label": "Install Module",
+            "action": "install_module",
+            "help": "Install required module if not present",
+            "condition": "type == 'mmu'"
+          },
+          {
+            "id": "klipperscreen_addon",
+            "type": "bool",
+            "label": "Install KlipperScreen Add-on",
+            "state_key": "klipperscreen_addon",
+            "default": false,
+            "help": "Install KlipperScreen add-on if applicable",
+            "condition": "type == 'mmu'"
+          }
+        ]
+      }
+    },
+
+    "kinematics": {
+      "id": "kinematics",
+      "title": "2.2.1 Kinematics",
+      "state_prefix": "printer",
+      "klipper_section": "[printer]",
+      "fields": [
+        {
+          "id": "kinematics",
+          "type": "exclusive_choice",
+          "group": "kinematics",
+          "label": "Kinematics Type",
+          "state_key": "printer.kinematics",
+          "required": true,
+          "help": "Select your printer's motion system"
+        },
+        {
+          "id": "awd_enabled",
+          "type": "bool",
+          "label": "Enable AWD (All Wheel Drive)",
+          "state_key": "printer.awd_enabled",
+          "default": false,
+          "help": "Enable if you have dual motors on X and Y axes",
+          "condition": "printer.kinematics in ['corexy', 'corexz']"
+        }
+      ]
+    },
+
+    "tool_setup": {
+      "id": "tool_setup",
+      "title": "2.2.2 Tool Setup",
+      "state_prefix": "printer",
+      "fields": [
+        {
+          "id": "tool_count",
+          "type": "choice",
+          "label": "Number of Tools/Extruders",
+          "state_key": "printer.tool_count",
+          "options": [
+            { "value": 1, "label": "1 (Single extruder)" },
+            { "value": 2, "label": "2 (Dual extruder / IDEX)" },
+            { "value": 3, "label": "3" },
+            { "value": 4, "label": "4" },
+            { "value": 5, "label": "5" }
+          ],
+          "default": 1,
+          "required": true,
+          "help": "Number of independent tool heads/extruders"
+        },
+        {
+          "id": "tool_change_type",
+          "type": "choice",
+          "label": "Tool Change Method",
+          "state_key": "printer.tool_change_type",
+          "options": [
+            { "value": "none", "label": "None (single tool)" },
+            { "value": "idex", "label": "IDEX (dual independent X)" },
+            { "value": "toolchanger", "label": "Toolchanger (docking)" },
+            { "value": "mixing", "label": "Mixing hotend" },
+            { "value": "mmu", "label": "MMU (single hotend, multi-filament)" }
+          ],
+          "default": "none",
+          "condition": "printer.tool_count >= 2",
+          "help": "How tools are switched during printing"
+        }
+      ]
+    },
+
+    "printer_dimensions": {
+      "id": "printer_dimensions",
+      "title": "2.2.3 Dimensions & Limits",
+      "state_prefix": "printer",
+      "klipper_section": "[printer]",
+      "fields": [
+        {
+          "id": "bed_size_x",
+          "type": "int",
+          "label": "Bed Size X (mm)",
+          "state_key": "printer.bed_size_x",
+          "required": true,
+          "range": [100, 500]
+        },
+        {
+          "id": "bed_size_y",
+          "type": "int",
+          "label": "Bed Size Y (mm)",
+          "state_key": "printer.bed_size_y",
+          "required": true,
+          "range": [100, 500]
+        },
+        {
+          "id": "max_z",
+          "type": "int",
+          "label": "Max Z Height (mm)",
+          "state_key": "printer.max_z",
+          "required": true,
+          "range": [100, 500]
+        },
+        {
+          "id": "max_velocity",
+          "type": "int",
+          "label": "Max Velocity (mm/s)",
+          "state_key": "printer.max_velocity",
+          "default": 300,
+          "range": [50, 1000]
+        },
+        {
+          "id": "max_accel",
+          "type": "int",
+          "label": "Max Acceleration (mm/s²)",
+          "state_key": "printer.max_accel",
+          "default": 3000,
+          "range": [500, 50000]
+        },
+        {
+          "id": "max_z_velocity",
+          "type": "int",
+          "label": "Max Z Velocity (mm/s)",
+          "state_key": "printer.max_z_velocity",
+          "default": 15,
+          "range": [5, 50]
+        },
+        {
+          "id": "max_z_accel",
+          "type": "int",
+          "label": "Max Z Acceleration (mm/s²)",
+          "state_key": "printer.max_z_accel",
+          "default": 350,
+          "range": [50, 1000]
+        }
+      ]
+    },
+
+    "probe": {
+      "id": "probe",
+      "title": "Probe Configuration",
+      "state_prefix": "probe",
+      "fields": [
+        {
+          "id": "probe_type",
+          "type": "exclusive_choice",
+          "group": "probe_types",
+          "label": "Probe Type",
+          "state_key": "probe.probe_type",
+          "required": true
+        },
+        {
+          "id": "location",
+          "type": "choice",
+          "label": "Probe Location",
+          "state_key": "probe.location",
+          "options": [
+            { "value": "mainboard", "label": "Mainboard" },
+            { "value": "toolboard", "label": "Toolboard", "condition": "mcu.toolboard.enabled" }
+          ],
+          "default": "toolboard",
+          "condition": "probe.probe_type not in ['none', 'beacon', 'cartographer', 'btt_eddy']"
+        },
+        {
+          "id": "serial",
+          "type": "serial_select",
+          "label": "Probe Serial",
+          "state_key": "probe.serial",
+          "auto_detect_pattern": {
+            "beacon": "Beacon",
+            "cartographer": "Cartographer",
+            "btt_eddy": "BTT"
+          },
+          "required": true,
+          "condition": "probe.probe_type in ['beacon', 'cartographer', 'btt_eddy']"
+        },
+        {
+          "id": "homing_mode",
+          "type": "choice",
+          "label": "Homing Mode",
+          "state_key": "probe.homing_mode",
+          "options": [
+            { "value": "contact", "label": "Contact (nozzle touches bed)" },
+            { "value": "proximity", "label": "Proximity (non-contact)" }
+          ],
+          "default": "contact",
+          "condition": "probe.probe_type == 'beacon'"
+        },
+        {
+          "id": "homing_mode_cartographer",
+          "type": "choice",
+          "label": "Homing Mode",
+          "state_key": "probe.homing_mode",
+          "options": [
+            { "value": "touch", "label": "Touch (contact homing)" },
+            { "value": "scan", "label": "Scan (proximity homing)" }
+          ],
+          "default": "touch",
+          "condition": "probe.probe_type == 'cartographer'"
+        },
+        {
+          "id": "x_offset",
+          "type": "float",
+          "label": "X Offset from Nozzle (mm)",
+          "state_key": "probe.x_offset",
+          "default": 0,
+          "condition": "probe.probe_type not in ['none', 'tap']"
+        },
+        {
+          "id": "y_offset",
+          "type": "float",
+          "label": "Y Offset from Nozzle (mm)",
+          "state_key": "probe.y_offset",
+          "default": 0,
+          "condition": "probe.probe_type not in ['none', 'tap']"
+        },
+        {
+          "id": "contact_max_hotend_temperature",
+          "type": "int",
+          "label": "Max Hotend Temp for Contact (C)",
+          "state_key": "probe.contact_max_hotend_temperature",
+          "default": 180,
+          "range": [150, 200],
+          "condition": "probe.probe_type == 'beacon' and probe.homing_mode == 'contact'"
+        }
+      ],
+      "subsections": [
+        {
+          "id": "bed_mesh",
+          "title": "Bed Mesh Settings",
+          "condition": "probe.probe_type != 'none'",
+          "klipper_section": "[bed_mesh]",
+          "fields": [
+            {
+              "id": "enabled",
+              "type": "bool",
+              "label": "Enable Bed Mesh",
+              "state_key": "probe.bed_mesh.enabled",
+              "default": true
+            },
+            {
+              "id": "mesh_min_x",
+              "type": "int",
+              "label": "Mesh Min X",
+              "state_key": "probe.bed_mesh.mesh_min_x",
+              "auto_calculate": "probe.x_offset + 5"
+            },
+            {
+              "id": "mesh_min_y",
+              "type": "int",
+              "label": "Mesh Min Y",
+              "state_key": "probe.bed_mesh.mesh_min_y",
+              "auto_calculate": "probe.y_offset + 5"
+            },
+            {
+              "id": "mesh_max_x",
+              "type": "int",
+              "label": "Mesh Max X",
+              "state_key": "probe.bed_mesh.mesh_max_x",
+              "auto_calculate": "printer.bed_size_x - 5"
+            },
+            {
+              "id": "mesh_max_y",
+              "type": "int",
+              "label": "Mesh Max Y",
+              "state_key": "probe.bed_mesh.mesh_max_y",
+              "auto_calculate": "printer.bed_size_y - 5"
+            },
+            {
+              "id": "probe_count",
+              "type": "text",
+              "label": "Probe Count (X,Y)",
+              "state_key": "probe.bed_mesh.probe_count",
+              "default": "5,5",
+              "help": "Format: X,Y (e.g., 5,5 or 31,31). Eddy probes can use high counts like 25,25 or 31,31 for rapid scanning."
+            }
+          ]
+        }
+      ]
+    },
+
+    "homing": {
+      "id": "homing",
+      "title": "Homing Configuration",
+      "state_prefix": "homing",
+      "fields": [
+        {
+          "id": "homing_method",
+          "type": "exclusive_choice",
+          "group": "homing_methods",
+          "label": "Z Homing Method",
+          "state_key": "homing.homing_method",
+          "required": true,
+          "auto_select_from_probe": true
+        },
+        {
+          "id": "home_xy_position_x",
+          "type": "int",
+          "label": "Z Home X Position",
+          "state_key": "homing.home_xy_position_x",
+          "auto_calculate": "printer.bed_size_x / 2",
+          "condition": "homing.homing_method == 'safe_z_home'"
+        },
+        {
+          "id": "home_xy_position_y",
+          "type": "int",
+          "label": "Z Home Y Position",
+          "state_key": "homing.home_xy_position_y",
+          "auto_calculate": "printer.bed_size_y / 2",
+          "condition": "homing.homing_method == 'safe_z_home'"
+        }
+      ]
+    },
+
+    "bed_leveling": {
+      "id": "bed_leveling",
+      "title": "Bed Leveling",
+      "state_prefix": "bed_leveling",
+      "condition": "probe.probe_type != 'none'",
+      "fields": [
+        {
+          "id": "leveling_type",
+          "type": "exclusive_choice",
+          "group": "leveling_types",
+          "label": "Leveling Method",
+          "state_key": "bed_leveling.leveling_type",
+          "auto_select_from_z_motors": true
+        }
+      ]
+    },
+
+    "stepper_x": {
+      "id": "stepper_x",
+      "title": "Stepper X Configuration",
+      "state_prefix": "stepper_x",
+      "klipper_section": "[stepper_x]",
+      "fields": [
+        {
+          "id": "motor_port",
+          "type": "port_select",
+          "label": "Motor Port",
+          "state_key": "stepper_x.motor_port",
+          "port_type": "motor_ports",
+          "required": true
+        },
+        {
+          "id": "driver_type",
+          "type": "exclusive_choice",
+          "group": "driver_types",
+          "label": "Driver Type",
+          "state_key": "stepper_x.driver_type",
+          "required": true
+        },
+        {
+          "id": "endstop_type",
+          "type": "exclusive_choice",
+          "group": "endstop_types_xy",
+          "label": "Endstop Type",
+          "state_key": "stepper_x.endstop_type",
+          "required": true
+        },
+        {
+          "id": "endstop_location",
+          "type": "choice",
+          "label": "Endstop Location",
+          "state_key": "stepper_x.endstop_location",
+          "options": [
+            { "value": "mainboard", "label": "Mainboard" },
+            { "value": "toolboard", "label": "Toolboard", "condition": "mcu.toolboard.enabled" }
+          ],
+          "condition": "stepper_x.endstop_type == 'physical'"
+        },
+        {
+          "id": "endstop_port",
+          "type": "port_select",
+          "label": "Endstop Port",
+          "state_key": "stepper_x.endstop_port",
+          "port_type": "endstop_ports",
+          "condition": "stepper_x.endstop_type == 'physical'"
+        },
+        {
+          "id": "endstop_pullup",
+          "type": "bool",
+          "label": "Enable Endstop Pull-up",
+          "state_key": "stepper_x.endstop_pullup",
+          "default": true,
+          "help": "Enable internal pull-up resistor (recommended for mechanical switches)",
+          "condition": "stepper_x.endstop_type == 'physical'"
+        },
+        {
+          "id": "endstop_invert",
+          "type": "bool",
+          "label": "Invert Endstop Logic",
+          "state_key": "stepper_x.endstop_invert",
+          "default": false,
+          "help": "Invert endstop signal (enable for NC switches, disable for NO switches)",
+          "condition": "stepper_x.endstop_type == 'physical'"
+        },
+        {
+          "id": "enable_invert",
+          "type": "bool",
+          "label": "Invert Enable Pin",
+          "state_key": "stepper_x.enable_invert",
+          "default": false,
+          "help": "Invert the motor enable signal (depends on driver board)"
+        },
+        {
+          "id": "dir_invert",
+          "type": "bool",
+          "label": "Invert Direction",
+          "state_key": "stepper_x.dir_invert",
+          "default": false,
+          "help": "Invert motor direction if it runs backwards"
+        },
+        {
+          "id": "position_endstop",
+          "type": "int",
+          "label": "Position Endstop (mm)",
+          "state_key": "stepper_x.position_endstop",
+          "default": 0
+        },
+        {
+          "id": "position_max",
+          "type": "int",
+          "label": "Position Max (mm)",
+          "state_key": "stepper_x.position_max",
+          "auto_calculate": "printer.bed_size_x"
+        },
+        {
+          "id": "homing_speed",
+          "type": "int",
+          "label": "Homing Speed (mm/s)",
+          "state_key": "stepper_x.homing_speed",
+          "default": 50
+        },
+        {
+          "id": "rotation_distance",
+          "type": "float",
+          "label": "Rotation Distance (mm)",
+          "state_key": "stepper_x.rotation_distance",
+          "default": 40,
+          "help": "For GT2-20T pulley: 40mm"
+        },
+        {
+          "id": "microsteps",
+          "type": "choice",
+          "label": "Microsteps",
+          "state_key": "stepper_x.microsteps",
+          "options": [
+            { "value": 16, "label": "16" },
+            { "value": 32, "label": "32" },
+            { "value": 64, "label": "64" },
+            { "value": 128, "label": "128" },
+            { "value": 256, "label": "256" }
+          ],
+          "default": 32
+        }
+      ]
+    },
+
+    "stepper_x1": {
+      "id": "stepper_x1",
+      "title": "Stepper X1 Configuration (AWD)",
+      "description": "X1 shares belt with X - only motor port and direction differ",
+      "state_prefix": "stepper_x1",
+      "klipper_section": "[stepper_x1]",
+      "condition": "printer.awd_enabled",
+      "inherit_from": "stepper_x",
+      "inherited_fields": ["driver_type", "microsteps", "rotation_distance", "enable_invert"],
+      "fields": [
+        {
+          "id": "motor_port",
+          "type": "port_select",
+          "label": "Motor Port",
+          "state_key": "stepper_x1.motor_port",
+          "port_type": "motor_ports",
+          "required": true
+        },
+        {
+          "id": "dir_invert",
+          "type": "bool",
+          "label": "Invert Direction",
+          "state_key": "stepper_x1.dir_invert",
+          "default": false,
+          "help": "Invert motor direction (usually needed for AWD)"
+        }
+      ]
+    },
+
+    "stepper_y": {
+      "id": "stepper_y",
+      "title": "Stepper Y Configuration",
+      "state_prefix": "stepper_y",
+      "klipper_section": "[stepper_y]",
+      "copy_from_option": {
+        "source": "stepper_x",
+        "label": "Use same motor settings as Stepper X?",
+        "help": "CoreXY typically uses identical motors. Copy driver, microsteps, rotation distance from X.",
+        "fields": ["driver_type", "microsteps", "rotation_distance", "enable_invert", "homing_speed"]
+      },
+      "fields": [
+        {
+          "id": "motor_port",
+          "type": "port_select",
+          "label": "Motor Port",
+          "state_key": "stepper_y.motor_port",
+          "port_type": "motor_ports",
+          "required": true
+        },
+        {
+          "id": "driver_type",
+          "type": "exclusive_choice",
+          "group": "driver_types",
+          "label": "Driver Type",
+          "state_key": "stepper_y.driver_type",
+          "required": true,
+          "skip_if_copied": true
+        },
+        {
+          "id": "endstop_type",
+          "type": "exclusive_choice",
+          "group": "endstop_types_xy",
+          "label": "Endstop Type",
+          "state_key": "stepper_y.endstop_type",
+          "required": true
+        },
+        {
+          "id": "endstop_location",
+          "type": "choice",
+          "label": "Endstop Location",
+          "state_key": "stepper_y.endstop_location",
+          "options": [
+            { "value": "mainboard", "label": "Mainboard" },
+            { "value": "toolboard", "label": "Toolboard", "condition": "mcu.toolboard.enabled" }
+          ],
+          "condition": "stepper_y.endstop_type == 'physical'"
+        },
+        {
+          "id": "endstop_port",
+          "type": "port_select",
+          "label": "Endstop Port",
+          "state_key": "stepper_y.endstop_port",
+          "port_type": "endstop_ports",
+          "condition": "stepper_y.endstop_type == 'physical'"
+        },
+        {
+          "id": "endstop_pullup",
+          "type": "bool",
+          "label": "Enable Endstop Pull-up",
+          "state_key": "stepper_y.endstop_pullup",
+          "default": true,
+          "help": "Enable internal pull-up resistor (recommended for mechanical switches)",
+          "condition": "stepper_y.endstop_type == 'physical'"
+        },
+        {
+          "id": "endstop_invert",
+          "type": "bool",
+          "label": "Invert Endstop Logic",
+          "state_key": "stepper_y.endstop_invert",
+          "default": false,
+          "help": "Invert endstop signal (enable for NC switches, disable for NO switches)",
+          "condition": "stepper_y.endstop_type == 'physical'"
+        },
+        {
+          "id": "enable_invert",
+          "type": "bool",
+          "label": "Invert Enable Pin",
+          "state_key": "stepper_y.enable_invert",
+          "default": false,
+          "help": "Invert the motor enable signal (depends on driver board)",
+          "skip_if_copied": true
+        },
+        {
+          "id": "dir_invert",
+          "type": "bool",
+          "label": "Invert Direction",
+          "state_key": "stepper_y.dir_invert",
+          "default": false,
+          "help": "Invert motor direction if it runs backwards"
+        },
+        {
+          "id": "position_endstop",
+          "type": "int",
+          "label": "Position Endstop (mm)",
+          "state_key": "stepper_y.position_endstop",
+          "default": 0
+        },
+        {
+          "id": "position_max",
+          "type": "int",
+          "label": "Position Max (mm)",
+          "state_key": "stepper_y.position_max",
+          "auto_calculate": "printer.bed_size_y"
+        },
+        {
+          "id": "homing_speed",
+          "type": "int",
+          "label": "Homing Speed (mm/s)",
+          "state_key": "stepper_y.homing_speed",
+          "default": 50,
+          "skip_if_copied": true
+        },
+        {
+          "id": "rotation_distance",
+          "type": "float",
+          "label": "Rotation Distance (mm)",
+          "state_key": "stepper_y.rotation_distance",
+          "default": 40,
+          "help": "For GT2-20T pulley: 40mm",
+          "skip_if_copied": true
+        },
+        {
+          "id": "microsteps",
+          "type": "choice",
+          "label": "Microsteps",
+          "state_key": "stepper_y.microsteps",
+          "options": [
+            { "value": 16, "label": "16" },
+            { "value": 32, "label": "32" },
+            { "value": 64, "label": "64" },
+            { "value": 128, "label": "128" },
+            { "value": 256, "label": "256" }
+          ],
+          "default": 32,
+          "skip_if_copied": true
+        }
+      ]
+    },
+
+    "stepper_y1": {
+      "id": "stepper_y1",
+      "title": "Stepper Y1 Configuration (AWD)",
+      "description": "Y1 shares belt with Y - only motor port and direction differ",
+      "state_prefix": "stepper_y1",
+      "klipper_section": "[stepper_y1]",
+      "condition": "printer.awd_enabled",
+      "inherit_from": "stepper_y",
+      "inherited_fields": ["driver_type", "microsteps", "rotation_distance", "enable_invert"],
+      "fields": [
+        {
+          "id": "motor_port",
+          "type": "port_select",
+          "label": "Motor Port",
+          "state_key": "stepper_y1.motor_port",
+          "port_type": "motor_ports",
+          "required": true
+        },
+        {
+          "id": "dir_invert",
+          "type": "bool",
+          "label": "Invert Direction",
+          "state_key": "stepper_y1.dir_invert",
+          "default": false,
+          "help": "Invert motor direction (usually needed for AWD)"
+        }
+      ]
+    },
+
+    "stepper_z": {
+      "id": "stepper_z",
+      "title": "Stepper Z Configuration",
+      "state_prefix": "stepper_z",
+      "klipper_section": "[stepper_z]",
+      "fields": [
+        {
+          "id": "z_motor_count",
+          "type": "choice",
+          "label": "Number of Z Motors",
+          "state_key": "stepper_z.z_motor_count",
+          "options": [
+            { "value": 1, "label": "1 motor" },
+            { "value": 2, "label": "2 motors (Z Tilt)" },
+            { "value": 3, "label": "3 motors (Z Tilt)" },
+            { "value": 4, "label": "4 motors (Quad Gantry)" }
+          ],
+          "default": 1,
+          "required": true
+        },
+        {
+          "id": "motor_port",
+          "type": "port_select",
+          "label": "Z Motor Port",
+          "state_key": "stepper_z.motor_port",
+          "port_type": "motor_ports",
+          "required": true
+        },
+        {
+          "id": "driver_type",
+          "type": "exclusive_choice",
+          "group": "driver_types",
+          "label": "Driver Type",
+          "state_key": "stepper_z.driver_type",
+          "required": true
+        },
+        {
+          "id": "endstop_type",
+          "type": "exclusive_choice",
+          "group": "endstop_types_z",
+          "label": "Z Endstop Type",
+          "state_key": "stepper_z.endstop_type",
+          "required": true
+        },
+        {
+          "id": "endstop_location",
+          "type": "choice",
+          "label": "Endstop Location",
+          "state_key": "stepper_z.endstop_location",
+          "options": [
+            { "value": "mainboard", "label": "Mainboard" },
+            { "value": "toolboard", "label": "Toolboard", "condition": "mcu.toolboard.enabled" }
+          ],
+          "condition": "stepper_z.endstop_type in ['physical_mainboard', 'physical_toolboard']"
+        },
+        {
+          "id": "endstop_port",
+          "type": "port_select",
+          "label": "Endstop Port",
+          "state_key": "stepper_z.endstop_port",
+          "port_type": "endstop_ports",
+          "condition": "stepper_z.endstop_type in ['physical_mainboard', 'physical_toolboard']"
+        },
+        {
+          "id": "endstop_pullup",
+          "type": "bool",
+          "label": "Enable Endstop Pull-up",
+          "state_key": "stepper_z.endstop_pullup",
+          "default": true,
+          "help": "Enable internal pull-up resistor (recommended for mechanical switches)",
+          "condition": "stepper_z.endstop_type in ['physical_mainboard', 'physical_toolboard']"
+        },
+        {
+          "id": "endstop_invert",
+          "type": "bool",
+          "label": "Invert Endstop Logic",
+          "state_key": "stepper_z.endstop_invert",
+          "default": false,
+          "help": "Invert endstop signal (enable for NC switches, disable for NO switches)",
+          "condition": "stepper_z.endstop_type in ['physical_mainboard', 'physical_toolboard']"
+        },
+        {
+          "id": "enable_invert",
+          "type": "bool",
+          "label": "Invert Enable Pin",
+          "state_key": "stepper_z.enable_invert",
+          "default": false,
+          "help": "Invert the motor enable signal (depends on driver board)"
+        },
+        {
+          "id": "dir_invert",
+          "type": "bool",
+          "label": "Invert Direction",
+          "state_key": "stepper_z.dir_invert",
+          "default": false,
+          "help": "Invert motor direction if it runs backwards"
+        },
+        {
+          "id": "position_endstop",
+          "type": "float",
+          "label": "Position Endstop (mm)",
+          "state_key": "stepper_z.position_endstop",
+          "default": 0,
+          "condition": "stepper_z.endstop_type not in ['probe', 'sensorless']"
+        },
+        {
+          "id": "position_max",
+          "type": "int",
+          "label": "Position Max (mm)",
+          "state_key": "stepper_z.position_max",
+          "auto_calculate": "printer.max_z"
+        },
+        {
+          "id": "homing_speed",
+          "type": "int",
+          "label": "Homing Speed (mm/s)",
+          "state_key": "stepper_z.homing_speed",
+          "default": 10
+        },
+        {
+          "id": "rotation_distance",
+          "type": "float",
+          "label": "Rotation Distance (mm)",
+          "state_key": "stepper_z.rotation_distance",
+          "default": 8,
+          "help": "For T8 leadscrew: 8mm, for belt: 40mm"
+        },
+        {
+          "id": "microsteps",
+          "type": "choice",
+          "label": "Microsteps",
+          "state_key": "stepper_z.microsteps",
+          "options": [
+            { "value": 16, "label": "16" },
+            { "value": 32, "label": "32" },
+            { "value": 64, "label": "64" },
+            { "value": 128, "label": "128" },
+            { "value": 256, "label": "256" }
+          ],
+          "default": 32
+        }
+      ]
+    },
+
+    "stepper_z1": {
+      "id": "stepper_z1",
+      "title": "Stepper Z1 Configuration",
+      "state_prefix": "stepper_z1",
+      "klipper_section": "[stepper_z1]",
+      "condition": "stepper_z.z_motor_count >= 2",
+      "fields": [
+        {
+          "id": "motor_port",
+          "type": "port_select",
+          "label": "Z1 Motor Port",
+          "state_key": "stepper_z1.motor_port",
+          "port_type": "motor_ports",
+          "required": true
+        },
+        {
+          "id": "driver_type",
+          "type": "exclusive_choice",
+          "group": "driver_types",
+          "label": "Driver Type",
+          "state_key": "stepper_z1.driver_type",
+          "required": true
+        },
+        {
+          "id": "dir_invert",
+          "type": "bool",
+          "label": "Invert Direction",
+          "state_key": "stepper_z1.dir_invert",
+          "default": false,
+          "help": "Invert motor direction if it runs backwards"
+        },
+        {
+          "id": "rotation_distance",
+          "type": "float",
+          "label": "Rotation Distance (mm)",
+          "state_key": "stepper_z1.rotation_distance",
+          "default": 8,
+          "help": "Should match stepper_z"
+        },
+        {
+          "id": "microsteps",
+          "type": "choice",
+          "label": "Microsteps",
+          "state_key": "stepper_z1.microsteps",
+          "options": [
+            { "value": 16, "label": "16" },
+            { "value": 32, "label": "32" },
+            { "value": 64, "label": "64" },
+            { "value": 128, "label": "128" },
+            { "value": 256, "label": "256" }
+          ],
+          "default": 32
+        }
+      ]
+    },
+
+    "stepper_z2": {
+      "id": "stepper_z2",
+      "title": "Stepper Z2 Configuration",
+      "state_prefix": "stepper_z2",
+      "klipper_section": "[stepper_z2]",
+      "condition": "stepper_z.z_motor_count >= 3",
+      "fields": [
+        {
+          "id": "motor_port",
+          "type": "port_select",
+          "label": "Z2 Motor Port",
+          "state_key": "stepper_z2.motor_port",
+          "port_type": "motor_ports",
+          "required": true
+        },
+        {
+          "id": "driver_type",
+          "type": "exclusive_choice",
+          "group": "driver_types",
+          "label": "Driver Type",
+          "state_key": "stepper_z2.driver_type",
+          "required": true
+        },
+        {
+          "id": "dir_invert",
+          "type": "bool",
+          "label": "Invert Direction",
+          "state_key": "stepper_z2.dir_invert",
+          "default": false,
+          "help": "Invert motor direction if it runs backwards"
+        },
+        {
+          "id": "rotation_distance",
+          "type": "float",
+          "label": "Rotation Distance (mm)",
+          "state_key": "stepper_z2.rotation_distance",
+          "default": 8,
+          "help": "Should match stepper_z"
+        },
+        {
+          "id": "microsteps",
+          "type": "choice",
+          "label": "Microsteps",
+          "state_key": "stepper_z2.microsteps",
+          "options": [
+            { "value": 16, "label": "16" },
+            { "value": 32, "label": "32" },
+            { "value": 64, "label": "64" },
+            { "value": 128, "label": "128" },
+            { "value": 256, "label": "256" }
+          ],
+          "default": 32
+        }
+      ]
+    },
+
+    "stepper_z3": {
+      "id": "stepper_z3",
+      "title": "Stepper Z3 Configuration",
+      "state_prefix": "stepper_z3",
+      "klipper_section": "[stepper_z3]",
+      "condition": "stepper_z.z_motor_count >= 4",
+      "fields": [
+        {
+          "id": "motor_port",
+          "type": "port_select",
+          "label": "Z3 Motor Port",
+          "state_key": "stepper_z3.motor_port",
+          "port_type": "motor_ports",
+          "required": true
+        },
+        {
+          "id": "driver_type",
+          "type": "exclusive_choice",
+          "group": "driver_types",
+          "label": "Driver Type",
+          "state_key": "stepper_z3.driver_type",
+          "required": true
+        },
+        {
+          "id": "dir_invert",
+          "type": "bool",
+          "label": "Invert Direction",
+          "state_key": "stepper_z3.dir_invert",
+          "default": false,
+          "help": "Invert motor direction if it runs backwards"
+        },
+        {
+          "id": "rotation_distance",
+          "type": "float",
+          "label": "Rotation Distance (mm)",
+          "state_key": "stepper_z3.rotation_distance",
+          "default": 8,
+          "help": "Should match stepper_z"
+        },
+        {
+          "id": "microsteps",
+          "type": "choice",
+          "label": "Microsteps",
+          "state_key": "stepper_z3.microsteps",
+          "options": [
+            { "value": 16, "label": "16" },
+            { "value": 32, "label": "32" },
+            { "value": 64, "label": "64" },
+            { "value": 128, "label": "128" },
+            { "value": 256, "label": "256" }
+          ],
+          "default": 32
+        }
+      ]
+    },
+
+    "extruder": {
+      "id": "extruder",
+      "title": "Extruder Configuration",
+      "state_prefix": "extruder",
+      "klipper_section": "[extruder]",
+      "fields": [
+        {
+          "id": "extruder_type",
+          "type": "board_select",
+          "label": "Extruder Type",
+          "state_key": "extruder.extruder_type",
+          "source": "templates/extruders/",
+          "required": true
+        },
+        {
+          "id": "location",
+          "type": "choice",
+          "label": "Extruder Location",
+          "state_key": "extruder.location",
+          "options": [
+            { "value": "mainboard", "label": "Mainboard" },
+            { "value": "toolboard", "label": "Toolboard", "condition": "mcu.toolboard.enabled" }
+          ],
+          "default": "toolboard"
+        },
+        {
+          "id": "motor_port",
+          "type": "port_select",
+          "label": "Motor Port",
+          "state_key": "extruder.motor_port",
+          "port_type": "motor_ports",
+          "required": true
+        },
+        {
+          "id": "driver_type",
+          "type": "exclusive_choice",
+          "group": "driver_types",
+          "label": "Driver Type",
+          "state_key": "extruder.driver_type",
+          "condition": "extruder.location == 'mainboard'",
+          "required": true
+        },
+        {
+          "id": "heater_port",
+          "type": "port_select",
+          "label": "Heater Port",
+          "state_key": "extruder.heater_port",
+          "port_type": "heater_ports",
+          "required": true
+        },
+        {
+          "id": "sensor_port",
+          "type": "port_select",
+          "label": "Thermistor Port",
+          "state_key": "extruder.sensor_port",
+          "port_type": "thermistor_ports",
+          "required": true
+        },
+        {
+          "id": "sensor_type",
+          "type": "choice",
+          "label": "Thermistor Type",
+          "state_key": "extruder.sensor_type",
+          "options": [
+            { "value": "ATC Semitec 104NT-4-R025H42G", "label": "ATC Semitec 104NT-4 (Trianglelab)" },
+            { "value": "ATC Semitec 104GT-2", "label": "ATC Semitec 104GT-2" },
+            { "value": "Generic 3950", "label": "Generic 3950 (NTC 100K)" },
+            { "value": "PT1000", "label": "PT1000" },
+            { "value": "MAX31865", "label": "MAX31865 (PT100/PT1000 amplifier)" }
+          ],
+          "default": "ATC Semitec 104NT-4-R025H42G"
+        },
+        {
+          "id": "pullup_resistor",
+          "type": "choice",
+          "label": "Thermistor Pull-up Resistor",
+          "state_key": "extruder.pullup_resistor",
+          "options": [
+            { "value": "none", "label": "None (use board default)" },
+            { "value": 4700, "label": "4700 ohm (standard)" },
+            { "value": 2200, "label": "2200 ohm" },
+            { "value": "custom", "label": "Custom value" }
+          ],
+          "default": "none",
+          "help": "Override pull-up resistor value for thermistor ADC input (most boards use 4700)",
+          "condition": "extruder.sensor_type != 'MAX31865'"
+        },
+        {
+          "id": "pullup_resistor_custom",
+          "type": "int",
+          "label": "Custom Pull-up Value (ohms)",
+          "state_key": "extruder.pullup_resistor_custom",
+          "condition": "extruder.pullup_resistor == 'custom'",
+          "range": [1000, 10000]
+        },
+        {
+          "id": "heater_invert",
+          "type": "bool",
+          "label": "Invert Heater Pin",
+          "state_key": "extruder.heater_invert",
+          "default": false,
+          "help": "Invert heater output signal (rarely needed)"
+        },
+        {
+          "id": "enable_invert",
+          "type": "bool",
+          "label": "Invert Enable Pin",
+          "state_key": "extruder.enable_invert",
+          "default": false,
+          "help": "Invert the motor enable signal (depends on driver board)"
+        },
+        {
+          "id": "dir_invert",
+          "type": "bool",
+          "label": "Invert Direction",
+          "state_key": "extruder.dir_invert",
+          "default": false,
+          "help": "Invert motor direction for correct extrusion"
+        },
+        {
+          "id": "rotation_distance",
+          "type": "float",
+          "label": "Rotation Distance (mm)",
+          "state_key": "extruder.rotation_distance",
+          "default": 22.6789511,
+          "help": "Distance filament moves per full motor rotation. Check your extruder docs or calibrate with the extruder calibration macro."
+        },
+        {
+          "id": "microsteps",
+          "type": "choice",
+          "label": "Microsteps",
+          "state_key": "extruder.microsteps",
+          "options": [
+            { "value": 16, "label": "16" },
+            { "value": 32, "label": "32" },
+            { "value": 64, "label": "64" }
+          ],
+          "default": 16
+        },
+        {
+          "id": "nozzle_diameter",
+          "type": "choice",
+          "label": "Nozzle Diameter (mm)",
+          "state_key": "extruder.nozzle_diameter",
+          "options": [
+            { "value": 0.2, "label": "0.2mm" },
+            { "value": 0.3, "label": "0.3mm" },
+            { "value": 0.4, "label": "0.4mm" },
+            { "value": 0.5, "label": "0.5mm" },
+            { "value": 0.6, "label": "0.6mm" },
+            { "value": 0.8, "label": "0.8mm" }
+          ],
+          "default": 0.4
+        },
+        {
+          "id": "max_temp",
+          "type": "int",
+          "label": "Max Temperature (C)",
+          "state_key": "extruder.max_temp",
+          "default": 300,
+          "range": [200, 350]
+        },
+        {
+          "id": "control",
+          "type": "choice",
+          "label": "Temperature Control",
+          "state_key": "extruder.control",
+          "options": [
+            { "value": "pid", "label": "PID (standard)" },
+            { "value": "mpc", "label": "MPC (Kalico only)", "condition": "tuning.kalico_enabled" }
+          ],
+          "default": "pid"
+        }
+      ]
+    },
+
+    "extruder1": {
+      "id": "extruder1",
+      "title": "Extruder 1 Configuration",
+      "state_prefix": "extruder1",
+      "klipper_section": "[extruder1]",
+      "fields": [
+        {
+          "id": "enabled",
+          "type": "bool",
+          "label": "Enable Extruder 1",
+          "state_key": "extruder1.enabled",
+          "default": false
+        },
+        {
+          "id": "location",
+          "type": "choice",
+          "label": "Extruder Location",
+          "state_key": "extruder1.location",
+          "options": [
+            { "value": "mainboard", "label": "Mainboard" },
+            { "value": "toolboard", "label": "Toolboard", "condition": "mcu.toolboard.enabled" }
+          ],
+          "default": "mainboard",
+          "condition": "extruder1.enabled"
+        },
+        {
+          "id": "motor_port",
+          "type": "port_select",
+          "label": "Motor Port",
+          "state_key": "extruder1.motor_port",
+          "port_type": "motor_ports",
+          "required": true,
+          "condition": "extruder1.enabled"
+        },
+        {
+          "id": "driver_type",
+          "type": "exclusive_choice",
+          "group": "driver_types",
+          "label": "Driver Type",
+          "state_key": "extruder1.driver_type",
+          "required": true,
+          "condition": "extruder1.enabled"
+        },
+        {
+          "id": "heater_port",
+          "type": "port_select",
+          "label": "Heater Port",
+          "state_key": "extruder1.heater_port",
+          "port_type": "heater_ports",
+          "required": true,
+          "condition": "extruder1.enabled"
+        },
+        {
+          "id": "sensor_port",
+          "type": "port_select",
+          "label": "Thermistor Port",
+          "state_key": "extruder1.sensor_port",
+          "port_type": "thermistor_ports",
+          "required": true,
+          "condition": "extruder1.enabled"
+        },
+        {
+          "id": "sensor_type",
+          "type": "choice",
+          "label": "Thermistor Type",
+          "state_key": "extruder1.sensor_type",
+          "options": [
+            { "value": "ATC Semitec 104NT-4-R025H42G", "label": "ATC Semitec 104NT-4 (Trianglelab)" },
+            { "value": "ATC Semitec 104GT-2", "label": "ATC Semitec 104GT-2" },
+            { "value": "Generic 3950", "label": "Generic 3950 (NTC 100K)" },
+            { "value": "PT1000", "label": "PT1000" }
+          ],
+          "default": "ATC Semitec 104NT-4-R025H42G",
+          "condition": "extruder1.enabled"
+        },
+        {
+          "id": "dir_invert",
+          "type": "bool",
+          "label": "Invert Direction",
+          "state_key": "extruder1.dir_invert",
+          "default": false,
+          "condition": "extruder1.enabled"
+        },
+        {
+          "id": "rotation_distance",
+          "type": "float",
+          "label": "Rotation Distance (mm)",
+          "state_key": "extruder1.rotation_distance",
+          "default": 22.6789511,
+          "condition": "extruder1.enabled"
+        },
+        {
+          "id": "microsteps",
+          "type": "choice",
+          "label": "Microsteps",
+          "state_key": "extruder1.microsteps",
+          "options": [
+            { "value": 16, "label": "16" },
+            { "value": 32, "label": "32" },
+            { "value": 64, "label": "64" }
+          ],
+          "default": 16,
+          "condition": "extruder1.enabled"
+        },
+        {
+          "id": "nozzle_diameter",
+          "type": "choice",
+          "label": "Nozzle Diameter (mm)",
+          "state_key": "extruder1.nozzle_diameter",
+          "options": [
+            { "value": 0.4, "label": "0.4mm" },
+            { "value": 0.6, "label": "0.6mm" },
+            { "value": 0.8, "label": "0.8mm" }
+          ],
+          "default": 0.4,
+          "condition": "extruder1.enabled"
+        },
+        {
+          "id": "max_temp",
+          "type": "int",
+          "label": "Max Temperature (C)",
+          "state_key": "extruder1.max_temp",
+          "default": 300,
+          "range": [200, 350],
+          "condition": "extruder1.enabled"
+        }
+      ]
+    },
+
+    "extruder2": {
+      "id": "extruder2",
+      "title": "Extruder 2 Configuration",
+      "state_prefix": "extruder2",
+      "klipper_section": "[extruder2]",
+      "fields": [
+        {
+          "id": "enabled",
+          "type": "bool",
+          "label": "Enable Extruder 2",
+          "state_key": "extruder2.enabled",
+          "default": false
+        },
+        {
+          "id": "location",
+          "type": "choice",
+          "label": "Extruder Location",
+          "state_key": "extruder2.location",
+          "options": [
+            { "value": "mainboard", "label": "Mainboard" },
+            { "value": "toolboard", "label": "Toolboard", "condition": "mcu.toolboard.enabled" }
+          ],
+          "default": "mainboard",
+          "condition": "extruder2.enabled"
+        },
+        {
+          "id": "motor_port",
+          "type": "port_select",
+          "label": "Motor Port",
+          "state_key": "extruder2.motor_port",
+          "port_type": "motor_ports",
+          "required": true,
+          "condition": "extruder2.enabled"
+        },
+        {
+          "id": "driver_type",
+          "type": "exclusive_choice",
+          "group": "driver_types",
+          "label": "Driver Type",
+          "state_key": "extruder2.driver_type",
+          "required": true,
+          "condition": "extruder2.enabled"
+        },
+        {
+          "id": "heater_port",
+          "type": "port_select",
+          "label": "Heater Port",
+          "state_key": "extruder2.heater_port",
+          "port_type": "heater_ports",
+          "required": true,
+          "condition": "extruder2.enabled"
+        },
+        {
+          "id": "sensor_port",
+          "type": "port_select",
+          "label": "Thermistor Port",
+          "state_key": "extruder2.sensor_port",
+          "port_type": "thermistor_ports",
+          "required": true,
+          "condition": "extruder2.enabled"
+        },
+        {
+          "id": "sensor_type",
+          "type": "choice",
+          "label": "Thermistor Type",
+          "state_key": "extruder2.sensor_type",
+          "options": [
+            { "value": "ATC Semitec 104NT-4-R025H42G", "label": "ATC Semitec 104NT-4 (Trianglelab)" },
+            { "value": "ATC Semitec 104GT-2", "label": "ATC Semitec 104GT-2" },
+            { "value": "Generic 3950", "label": "Generic 3950 (NTC 100K)" },
+            { "value": "PT1000", "label": "PT1000" }
+          ],
+          "default": "ATC Semitec 104NT-4-R025H42G",
+          "condition": "extruder2.enabled"
+        },
+        {
+          "id": "dir_invert",
+          "type": "bool",
+          "label": "Invert Direction",
+          "state_key": "extruder2.dir_invert",
+          "default": false,
+          "condition": "extruder2.enabled"
+        },
+        {
+          "id": "rotation_distance",
+          "type": "float",
+          "label": "Rotation Distance (mm)",
+          "state_key": "extruder2.rotation_distance",
+          "default": 22.6789511,
+          "condition": "extruder2.enabled"
+        },
+        {
+          "id": "microsteps",
+          "type": "choice",
+          "label": "Microsteps",
+          "state_key": "extruder2.microsteps",
+          "options": [
+            { "value": 16, "label": "16" },
+            { "value": 32, "label": "32" },
+            { "value": 64, "label": "64" }
+          ],
+          "default": 16,
+          "condition": "extruder2.enabled"
+        },
+        {
+          "id": "nozzle_diameter",
+          "type": "choice",
+          "label": "Nozzle Diameter (mm)",
+          "state_key": "extruder2.nozzle_diameter",
+          "options": [
+            { "value": 0.4, "label": "0.4mm" },
+            { "value": 0.6, "label": "0.6mm" },
+            { "value": 0.8, "label": "0.8mm" }
+          ],
+          "default": 0.4,
+          "condition": "extruder2.enabled"
+        },
+        {
+          "id": "max_temp",
+          "type": "int",
+          "label": "Max Temperature (C)",
+          "state_key": "extruder2.max_temp",
+          "default": 300,
+          "range": [200, 350],
+          "condition": "extruder2.enabled"
+        }
+      ]
+    },
+
+    "extruder3": {
+      "id": "extruder3",
+      "title": "Extruder 3 (T3) Configuration",
+      "state_prefix": "extruder3",
+      "klipper_section": "[extruder3]",
+      "fields": [
+        {
+          "id": "enabled",
+          "type": "bool",
+          "label": "Enable Extruder 3",
+          "state_key": "extruder3.enabled",
+          "default": false
+        },
+        {
+          "id": "location",
+          "type": "choice",
+          "label": "Extruder Location",
+          "state_key": "extruder3.location",
+          "options": [
+            { "value": "mainboard", "label": "Mainboard" },
+            { "value": "toolboard", "label": "Toolboard", "condition": "mcu.toolboard.enabled" }
+          ],
+          "default": "mainboard",
+          "condition": "extruder3.enabled"
+        },
+        {
+          "id": "motor_port",
+          "type": "port_select",
+          "label": "Motor Port",
+          "state_key": "extruder3.motor_port",
+          "port_type": "motor_ports",
+          "required": true,
+          "condition": "extruder3.enabled"
+        },
+        {
+          "id": "driver_type",
+          "type": "exclusive_choice",
+          "group": "driver_types",
+          "label": "Driver Type",
+          "state_key": "extruder3.driver_type",
+          "required": true,
+          "condition": "extruder3.enabled"
+        },
+        {
+          "id": "heater_port",
+          "type": "port_select",
+          "label": "Heater Port",
+          "state_key": "extruder3.heater_port",
+          "port_type": "heater_ports",
+          "required": true,
+          "condition": "extruder3.enabled"
+        },
+        {
+          "id": "sensor_port",
+          "type": "port_select",
+          "label": "Thermistor Port",
+          "state_key": "extruder3.sensor_port",
+          "port_type": "thermistor_ports",
+          "required": true,
+          "condition": "extruder3.enabled"
+        },
+        {
+          "id": "sensor_type",
+          "type": "choice",
+          "label": "Thermistor Type",
+          "state_key": "extruder3.sensor_type",
+          "options": [
+            { "value": "ATC Semitec 104NT-4-R025H42G", "label": "ATC Semitec 104NT-4 (Trianglelab)" },
+            { "value": "ATC Semitec 104GT-2", "label": "ATC Semitec 104GT-2" },
+            { "value": "Generic 3950", "label": "Generic 3950 (NTC 100K)" },
+            { "value": "PT1000", "label": "PT1000" }
+          ],
+          "default": "ATC Semitec 104NT-4-R025H42G",
+          "condition": "extruder3.enabled"
+        },
+        {
+          "id": "dir_invert",
+          "type": "bool",
+          "label": "Invert Direction",
+          "state_key": "extruder3.dir_invert",
+          "default": false,
+          "condition": "extruder3.enabled"
+        },
+        {
+          "id": "rotation_distance",
+          "type": "float",
+          "label": "Rotation Distance (mm)",
+          "state_key": "extruder3.rotation_distance",
+          "default": 22.6789511,
+          "condition": "extruder3.enabled"
+        },
+        {
+          "id": "microsteps",
+          "type": "choice",
+          "label": "Microsteps",
+          "state_key": "extruder3.microsteps",
+          "options": [
+            { "value": 16, "label": "16" },
+            { "value": 32, "label": "32" },
+            { "value": 64, "label": "64" }
+          ],
+          "default": 16,
+          "condition": "extruder3.enabled"
+        },
+        {
+          "id": "nozzle_diameter",
+          "type": "choice",
+          "label": "Nozzle Diameter (mm)",
+          "state_key": "extruder3.nozzle_diameter",
+          "options": [
+            { "value": 0.4, "label": "0.4mm" },
+            { "value": 0.6, "label": "0.6mm" },
+            { "value": 0.8, "label": "0.8mm" }
+          ],
+          "default": 0.4,
+          "condition": "extruder3.enabled"
+        },
+        {
+          "id": "max_temp",
+          "type": "int",
+          "label": "Max Temperature (C)",
+          "state_key": "extruder3.max_temp",
+          "default": 300,
+          "range": [200, 350],
+          "condition": "extruder3.enabled"
+        }
+      ]
+    },
+
+    "extruder4": {
+      "id": "extruder4",
+      "title": "Extruder 4 (T4) Configuration",
+      "state_prefix": "extruder4",
+      "klipper_section": "[extruder4]",
+      "fields": [
+        {
+          "id": "enabled",
+          "type": "bool",
+          "label": "Enable Extruder 4",
+          "state_key": "extruder4.enabled",
+          "default": false
+        },
+        {
+          "id": "location",
+          "type": "choice",
+          "label": "Extruder Location",
+          "state_key": "extruder4.location",
+          "options": [
+            { "value": "mainboard", "label": "Mainboard" },
+            { "value": "toolboard", "label": "Toolboard", "condition": "mcu.toolboard.enabled" }
+          ],
+          "default": "mainboard",
+          "condition": "extruder4.enabled"
+        },
+        {
+          "id": "motor_port",
+          "type": "port_select",
+          "label": "Motor Port",
+          "state_key": "extruder4.motor_port",
+          "port_type": "motor_ports",
+          "required": true,
+          "condition": "extruder4.enabled"
+        },
+        {
+          "id": "driver_type",
+          "type": "exclusive_choice",
+          "group": "driver_types",
+          "label": "Driver Type",
+          "state_key": "extruder4.driver_type",
+          "required": true,
+          "condition": "extruder4.enabled"
+        },
+        {
+          "id": "heater_port",
+          "type": "port_select",
+          "label": "Heater Port",
+          "state_key": "extruder4.heater_port",
+          "port_type": "heater_ports",
+          "required": true,
+          "condition": "extruder4.enabled"
+        },
+        {
+          "id": "sensor_port",
+          "type": "port_select",
+          "label": "Thermistor Port",
+          "state_key": "extruder4.sensor_port",
+          "port_type": "thermistor_ports",
+          "required": true,
+          "condition": "extruder4.enabled"
+        },
+        {
+          "id": "sensor_type",
+          "type": "choice",
+          "label": "Thermistor Type",
+          "state_key": "extruder4.sensor_type",
+          "options": [
+            { "value": "ATC Semitec 104NT-4-R025H42G", "label": "ATC Semitec 104NT-4 (Trianglelab)" },
+            { "value": "ATC Semitec 104GT-2", "label": "ATC Semitec 104GT-2" },
+            { "value": "Generic 3950", "label": "Generic 3950 (NTC 100K)" },
+            { "value": "PT1000", "label": "PT1000" }
+          ],
+          "default": "ATC Semitec 104NT-4-R025H42G",
+          "condition": "extruder4.enabled"
+        },
+        {
+          "id": "dir_invert",
+          "type": "bool",
+          "label": "Invert Direction",
+          "state_key": "extruder4.dir_invert",
+          "default": false,
+          "condition": "extruder4.enabled"
+        },
+        {
+          "id": "rotation_distance",
+          "type": "float",
+          "label": "Rotation Distance (mm)",
+          "state_key": "extruder4.rotation_distance",
+          "default": 22.6789511,
+          "condition": "extruder4.enabled"
+        },
+        {
+          "id": "microsteps",
+          "type": "choice",
+          "label": "Microsteps",
+          "state_key": "extruder4.microsteps",
+          "options": [
+            { "value": 16, "label": "16" },
+            { "value": 32, "label": "32" },
+            { "value": 64, "label": "64" }
+          ],
+          "default": 16,
+          "condition": "extruder4.enabled"
+        },
+        {
+          "id": "nozzle_diameter",
+          "type": "choice",
+          "label": "Nozzle Diameter (mm)",
+          "state_key": "extruder4.nozzle_diameter",
+          "options": [
+            { "value": 0.4, "label": "0.4mm" },
+            { "value": 0.6, "label": "0.6mm" },
+            { "value": 0.8, "label": "0.8mm" }
+          ],
+          "default": 0.4,
+          "condition": "extruder4.enabled"
+        },
+        {
+          "id": "max_temp",
+          "type": "int",
+          "label": "Max Temperature (C)",
+          "state_key": "extruder4.max_temp",
+          "default": 300,
+          "range": [200, 350],
+          "condition": "extruder4.enabled"
+        }
+      ]
+    },
+
+    "heater_bed": {
+      "id": "heater_bed",
+      "title": "Heater Bed Configuration",
+      "state_prefix": "heater_bed",
+      "klipper_section": "[heater_bed]",
+      "fields": [
+        {
+          "id": "heater_port",
+          "type": "port_select",
+          "label": "Heater Port",
+          "state_key": "heater_bed.heater_port",
+          "port_type": "heater_ports",
+          "required": true
+        },
+        {
+          "id": "sensor_port",
+          "type": "port_select",
+          "label": "Thermistor Port",
+          "state_key": "heater_bed.sensor_port",
+          "port_type": "thermistor_ports",
+          "required": true
+        },
+        {
+          "id": "sensor_type",
+          "type": "choice",
+          "label": "Thermistor Type",
+          "state_key": "heater_bed.sensor_type",
+          "options": [
+            { "value": "Generic 3950", "label": "Generic 3950 (NTC 100K)" },
+            { "value": "ATC Semitec 104NT-4-R025H42G", "label": "ATC Semitec 104NT-4" },
+            { "value": "EPCOS 100K B57560G104F", "label": "EPCOS 100K" },
+            { "value": "PT1000", "label": "PT1000" }
+          ],
+          "default": "Generic 3950"
+        },
+        {
+          "id": "pullup_resistor",
+          "type": "choice",
+          "label": "Thermistor Pull-up Resistor",
+          "state_key": "heater_bed.pullup_resistor",
+          "options": [
+            { "value": "none", "label": "None (use board default)" },
+            { "value": 4700, "label": "4700 ohm (standard)" },
+            { "value": 2200, "label": "2200 ohm" },
+            { "value": "custom", "label": "Custom value" }
+          ],
+          "default": "none",
+          "help": "Override pull-up resistor value for thermistor ADC input (most boards use 4700)"
+        },
+        {
+          "id": "pullup_resistor_custom",
+          "type": "int",
+          "label": "Custom Pull-up Value (ohms)",
+          "state_key": "heater_bed.pullup_resistor_custom",
+          "condition": "heater_bed.pullup_resistor == 'custom'",
+          "range": [1000, 10000]
+        },
+        {
+          "id": "heater_invert",
+          "type": "bool",
+          "label": "Invert Heater Pin",
+          "state_key": "heater_bed.heater_invert",
+          "default": false,
+          "help": "Invert heater output signal (rarely needed)"
+        },
+        {
+          "id": "max_temp",
+          "type": "int",
+          "label": "Max Temperature (C)",
+          "state_key": "heater_bed.max_temp",
+          "default": 120,
+          "range": [80, 130]
+        }
+      ]
+    },
+
+    "fans": {
+      "id": "fans",
+      "title": "Fan Configuration",
+      "state_prefix": "fans",
+      "subsections": [
+        {
+          "id": "part_cooling",
+          "title": "Part Cooling Fan",
+          "klipper_section": "[fan]",
+          "fields": [
+            {
+              "id": "enabled",
+              "type": "bool",
+              "label": "Enable Part Cooling Fan",
+              "state_key": "fans.part_cooling.enabled",
+              "default": true
+            },
+            {
+              "id": "location",
+              "type": "choice",
+              "label": "Fan Location",
+              "state_key": "fans.part_cooling.location",
+              "options": [
+                { "value": "mainboard", "label": "Mainboard" },
+                { "value": "toolboard", "label": "Toolboard", "condition": "mcu.toolboard.enabled" }
+              ],
+              "default": "toolboard",
+              "condition": "fans.part_cooling.enabled"
+            },
+            {
+              "id": "pin_mainboard",
+              "type": "port_select",
+              "label": "Fan Port (Mainboard)",
+              "state_key": "fans.part_cooling.pin_mainboard",
+              "port_type": "fan_ports",
+              "required": true,
+              "condition": "fans.part_cooling.enabled and fans.part_cooling.location == 'mainboard'"
+            },
+            {
+              "id": "pin_toolboard",
+              "type": "port_select",
+              "label": "Fan Port (Toolboard)",
+              "state_key": "fans.part_cooling.pin_toolboard",
+              "port_type": "fan_ports",
+              "required": true,
+              "condition": "fans.part_cooling.enabled and fans.part_cooling.location == 'toolboard'"
+            },
+            {
+              "id": "max_power",
+              "type": "float",
+              "label": "Max Power (0.0-1.0)",
+              "state_key": "fans.part_cooling.max_power",
+              "default": 1.0,
+              "range": [0.0, 1.0],
+              "condition": "fans.part_cooling.enabled"
+            },
+            {
+              "id": "kick_start_time",
+              "type": "float",
+              "label": "Kick Start Time (seconds)",
+              "state_key": "fans.part_cooling.kick_start_time",
+              "default": 0.5,
+              "help": "Time to run at full speed when starting",
+              "condition": "fans.part_cooling.enabled"
+            },
+            {
+              "id": "off_below",
+              "type": "float",
+              "label": "Off Below (0.0-1.0)",
+              "state_key": "fans.part_cooling.off_below",
+              "default": 0.1,
+              "help": "Turn off fan below this speed",
+              "condition": "fans.part_cooling.enabled"
+            },
+            {
+              "id": "cycle_time",
+              "type": "float",
+              "label": "PWM Cycle Time (seconds)",
+              "state_key": "fans.part_cooling.cycle_time",
+              "default": 0.010,
+              "condition": "fans.part_cooling.enabled"
+            }
+          ]
+        },
+        {
+          "id": "hotend",
+          "title": "Hotend Cooling Fan",
+          "klipper_section": "[heater_fan hotend_fan]",
+          "fields": [
+            {
+              "id": "enabled",
+              "type": "bool",
+              "label": "Enable Hotend Fan",
+              "state_key": "fans.hotend.enabled",
+              "default": true
+            },
+            {
+              "id": "location",
+              "type": "choice",
+              "label": "Fan Location",
+              "state_key": "fans.hotend.location",
+              "options": [
+                { "value": "mainboard", "label": "Mainboard" },
+                { "value": "toolboard", "label": "Toolboard", "condition": "mcu.toolboard.enabled" }
+              ],
+              "default": "toolboard",
+              "condition": "fans.hotend.enabled"
+            },
+            {
+              "id": "pin_mainboard",
+              "type": "port_select",
+              "label": "Fan Port (Mainboard)",
+              "state_key": "fans.hotend.pin_mainboard",
+              "port_type": "fan_ports",
+              "required": true,
+              "condition": "fans.hotend.enabled and fans.hotend.location == 'mainboard'"
+            },
+            {
+              "id": "pin_toolboard",
+              "type": "port_select",
+              "label": "Fan Port (Toolboard)",
+              "state_key": "fans.hotend.pin_toolboard",
+              "port_type": "fan_ports",
+              "required": true,
+              "condition": "fans.hotend.enabled and fans.hotend.location == 'toolboard'"
+            },
+            {
+              "id": "heater",
+              "type": "text",
+              "label": "Heater to Monitor",
+              "state_key": "fans.hotend.heater",
+              "default": "extruder",
+              "condition": "fans.hotend.enabled"
+            },
+            {
+              "id": "heater_temp",
+              "type": "int",
+              "label": "Turn On Temperature (C)",
+              "state_key": "fans.hotend.heater_temp",
+              "default": 50,
+              "help": "Fan turns on when heater exceeds this temp",
+              "condition": "fans.hotend.enabled"
+            },
+            {
+              "id": "fan_speed",
+              "type": "float",
+              "label": "Fan Speed (0.0-1.0)",
+              "state_key": "fans.hotend.fan_speed",
+              "default": 1.0,
+              "range": [0.0, 1.0],
+              "condition": "fans.hotend.enabled"
+            }
+          ]
+        },
+        {
+          "id": "controller",
+          "title": "Controller/Electronics Fan",
+          "klipper_section": "[controller_fan controller_fan]",
+          "fields": [
+            {
+              "id": "enabled",
+              "type": "bool",
+              "label": "Enable Controller Fan",
+              "state_key": "fans.controller.enabled",
+              "default": false
+            },
+            {
+              "id": "pin",
+              "type": "port_select",
+              "label": "Fan Port",
+              "state_key": "fans.controller.pin",
+              "port_type": "fan_ports",
+              "required": true,
+              "condition": "fans.controller.enabled"
+            },
+            {
+              "id": "kick_start_time",
+              "type": "float",
+              "label": "Kick Start Time (seconds)",
+              "state_key": "fans.controller.kick_start_time",
+              "default": 0.5,
+              "condition": "fans.controller.enabled"
+            },
+            {
+              "id": "stepper",
+              "type": "text",
+              "label": "Stepper to Monitor",
+              "state_key": "fans.controller.stepper",
+              "default": "stepper_x",
+              "help": "Fan activates when this stepper is active",
+              "condition": "fans.controller.enabled"
+            },
+            {
+              "id": "idle_timeout",
+              "type": "int",
+              "label": "Idle Timeout (seconds)",
+              "state_key": "fans.controller.idle_timeout",
+              "default": 60,
+              "condition": "fans.controller.enabled"
+            },
+            {
+              "id": "idle_speed",
+              "type": "float",
+              "label": "Idle Speed (0.0-1.0)",
+              "state_key": "fans.controller.idle_speed",
+              "default": 0.5,
+              "range": [0.0, 1.0],
+              "condition": "fans.controller.enabled"
+            }
+          ]
+        }
+      ]
+    },
+
+    "additional_fans": {
+      "id": "additional_fans",
+      "title": "Additional Fans",
+      "state_prefix": "fans.additional_fans",
+      "description": "Configure additional fans like Nevermore filters, RSCS, exhaust fans, etc.",
+      "is_list": true,
+      "item_template": {
+        "fields": [
+          {
+            "id": "name",
+            "type": "text",
+            "label": "Fan Name",
+            "state_key": "name",
+            "required": true,
+            "help": "e.g., nevermore, rscs, exhaust"
+          },
+          {
+            "id": "control_mode",
+            "type": "choice",
+            "label": "Control Mode",
+            "state_key": "control_mode",
+            "options": [
+              { "value": "manual", "label": "Manual (fan_generic)" },
+              { "value": "heater", "label": "Heater-controlled (heater_fan)" }
+            ],
+            "default": "manual"
+          },
+          {
+            "id": "pin_type",
+            "type": "choice",
+            "label": "Pin Type",
+            "state_key": "pin_type",
+            "options": [
+              { "value": "single", "label": "Single Pin" },
+              { "value": "multi_pin", "label": "Multi-Pin (combined outputs)" }
+            ],
+            "default": "single"
+          },
+          {
+            "id": "location",
+            "type": "choice",
+            "label": "Location",
+            "state_key": "location",
+            "options": [
+              { "value": "mainboard", "label": "Mainboard" },
+              { "value": "toolboard", "label": "Toolboard" }
+            ],
+            "default": "mainboard",
+            "condition": "pin_type == 'single'"
+          },
+          {
+            "id": "pin",
+            "type": "port_select",
+            "label": "Fan Port",
+            "state_key": "pin",
+            "port_type": "fan_ports",
+            "required": true,
+            "condition": "pin_type == 'single'"
+          },
+          {
+            "id": "multi_pin_name",
+            "type": "text",
+            "label": "Multi-Pin Group Name",
+            "state_key": "multi_pin_name",
+            "help": "Name for this multi-pin group (e.g., rscs_fans)",
+            "condition": "pin_type == 'multi_pin'"
+          },
+          {
+            "id": "pins",
+            "type": "multi_port_select",
+            "label": "Select Fan Ports",
+            "state_key": "pins",
+            "port_type": "fan_ports",
+            "required": true,
+            "help": "Select multiple fan ports to combine",
+            "condition": "pin_type == 'multi_pin'"
+          },
+          {
+            "id": "max_power",
+            "type": "float",
+            "label": "Max Power (0.0-1.0)",
+            "state_key": "max_power",
+            "default": 1.0,
+            "condition": "control_mode == 'manual'"
+          },
+          {
+            "id": "shutdown_speed",
+            "type": "float",
+            "label": "Shutdown Speed (0.0-1.0)",
+            "state_key": "shutdown_speed",
+            "default": 0,
+            "condition": "control_mode == 'manual'"
+          },
+          {
+            "id": "kick_start_time",
+            "type": "float",
+            "label": "Kick Start Time (seconds)",
+            "state_key": "kick_start_time",
+            "default": 0.1
+          },
+          {
+            "id": "off_below",
+            "type": "float",
+            "label": "Off Below (0.0-1.0)",
+            "state_key": "off_below",
+            "default": 0.1,
+            "condition": "control_mode == 'manual'"
+          },
+          {
+            "id": "heater",
+            "type": "text",
+            "label": "Heater to Monitor",
+            "state_key": "heater",
+            "default": "extruder",
+            "condition": "control_mode == 'heater'"
+          },
+          {
+            "id": "heater_temp",
+            "type": "int",
+            "label": "Turn On Temperature (C)",
+            "state_key": "heater_temp",
+            "default": 50,
+            "condition": "control_mode == 'heater'"
+          },
+          {
+            "id": "fan_speed",
+            "type": "float",
+            "label": "Fan Speed (0.0-1.0)",
+            "state_key": "fan_speed",
+            "default": 1.0,
+            "condition": "control_mode == 'heater'"
+          }
+        ]
+      }
+    },
+
+    "leds": {
+      "id": "leds",
+      "title": "LED Configuration",
+      "state_prefix": "leds",
+      "fields": [
+        {
+          "id": "enabled",
+          "type": "bool",
+          "label": "Enable LEDs",
+          "state_key": "leds.enabled",
+          "default": false
+        },
+        {
+          "id": "type",
+          "type": "choice",
+          "label": "LED Type",
+          "state_key": "leds.type",
+          "options": [
+            { "value": "neopixel", "label": "NeoPixel (WS2812)" },
+            { "value": "dotstar", "label": "DotStar (APA102)" }
+          ],
+          "default": "neopixel",
+          "condition": "leds.enabled"
+        },
+        {
+          "id": "location",
+          "type": "choice",
+          "label": "Location",
+          "state_key": "leds.location",
+          "options": [
+            { "value": "mainboard", "label": "Mainboard" },
+            { "value": "toolboard", "label": "Toolboard", "condition": "mcu.toolboard.enabled" }
+          ],
+          "default": "mainboard",
+          "condition": "leds.enabled"
+        },
+        {
+          "id": "pin_mainboard",
+          "type": "port_select",
+          "label": "LED Pin (Mainboard)",
+          "state_key": "leds.pin_mainboard",
+          "port_type": "misc_ports",
+          "required": true,
+          "condition": "leds.enabled and leds.location == 'mainboard'"
+        },
+        {
+          "id": "pin_toolboard",
+          "type": "port_select",
+          "label": "LED Pin (Toolboard)",
+          "state_key": "leds.pin_toolboard",
+          "port_type": "misc_ports",
+          "required": true,
+          "condition": "leds.enabled and leds.location == 'toolboard'"
+        },
+        {
+          "id": "chain_count",
+          "type": "int",
+          "label": "Number of LEDs",
+          "state_key": "leds.chain_count",
+          "default": 1,
+          "range": [1, 100],
+          "required": true,
+          "condition": "leds.enabled"
+        },
+        {
+          "id": "color_order",
+          "type": "choice",
+          "label": "Color Order",
+          "state_key": "leds.color_order",
+          "options": [
+            { "value": "GRB", "label": "GRB (most common)" },
+            { "value": "RGB", "label": "RGB" },
+            { "value": "GRBW", "label": "GRBW" },
+            { "value": "RGBW", "label": "RGBW" }
+          ],
+          "default": "GRB",
+          "condition": "leds.enabled"
+        }
+      ]
+    },
+
+    "temperature_sensors": {
+      "id": "temperature_sensors",
+      "title": "Temperature Sensors",
+      "state_prefix": "temperature_sensors",
+      "subsections": [
+        {
+          "id": "mcu_sensors",
+          "title": "Built-in MCU Temperature Sensors",
+          "fields": [
+            {
+              "id": "mcu_main_enabled",
+              "type": "bool",
+              "label": "Enable Main MCU Temperature",
+              "state_key": "temperature_sensors.mcu_main.enabled",
+              "default": true,
+              "help": "Monitor main board MCU temperature"
+            },
+            {
+              "id": "host_enabled",
+              "type": "bool",
+              "label": "Enable Host (RPi) Temperature",
+              "state_key": "temperature_sensors.host.enabled",
+              "default": true,
+              "help": "Monitor Raspberry Pi CPU temperature"
+            },
+            {
+              "id": "toolboard_enabled",
+              "type": "bool",
+              "label": "Enable Toolboard MCU Temperature",
+              "state_key": "temperature_sensors.toolboard.enabled",
+              "default": false,
+              "condition": "mcu.toolboard.enabled",
+              "help": "Monitor toolboard MCU temperature"
+            }
+          ]
+        },
+        {
+          "id": "chamber",
+          "title": "Chamber Temperature Sensor",
+          "klipper_section": "[temperature_sensor chamber]",
+          "fields": [
+            {
+              "id": "enabled",
+              "type": "bool",
+              "label": "Enable Chamber Sensor",
+              "state_key": "temperature_sensors.chamber.enabled",
+              "default": false
+            },
+            {
+              "id": "sensor_type",
+              "type": "choice",
+              "label": "Sensor Type",
+              "state_key": "temperature_sensors.chamber.sensor_type",
+              "options": [
+                { "value": "Generic 3950", "label": "Generic 3950 (NTC 100K)" },
+                { "value": "NTC 100K beta 3950", "label": "NTC 100K beta 3950" },
+                { "value": "ATC Semitec 104GT-2", "label": "ATC Semitec 104GT-2" },
+                { "value": "ATC Semitec 104NT-4-R025H42G", "label": "ATC Semitec 104NT-4" },
+                { "value": "PT1000", "label": "PT1000 (RTD)" },
+                { "value": "DS18B20", "label": "DS18B20 (1-wire digital)" }
+              ],
+              "default": "Generic 3950",
+              "condition": "temperature_sensors.chamber.enabled"
+            },
+            {
+              "id": "sensor_location",
+              "type": "choice",
+              "label": "Sensor Location",
+              "state_key": "temperature_sensors.chamber.sensor_location",
+              "options": [
+                { "value": "mainboard", "label": "Mainboard" },
+                { "value": "rpi", "label": "Raspberry Pi GPIO" }
+              ],
+              "default": "mainboard",
+              "condition": "temperature_sensors.chamber.enabled"
+            },
+            {
+              "id": "sensor_port_mainboard",
+              "type": "port_select",
+              "label": "Thermistor Port",
+              "state_key": "temperature_sensors.chamber.sensor_port_mainboard",
+              "port_type": "thermistor_ports",
+              "required": true,
+              "condition": "temperature_sensors.chamber.enabled and temperature_sensors.chamber.sensor_location == 'mainboard'"
+            },
+            {
+              "id": "sensor_pin_rpi",
+              "type": "text",
+              "label": "GPIO Pin",
+              "state_key": "temperature_sensors.chamber.sensor_pin_rpi",
+              "default": "gpio4",
+              "required": true,
+              "help": "GPIO pin for DS18B20 (e.g., gpio4)",
+              "condition": "temperature_sensors.chamber.enabled and temperature_sensors.chamber.sensor_location == 'rpi'"
+            },
+            {
+              "id": "pullup_resistor",
+              "type": "choice",
+              "label": "Pullup Resistor",
+              "state_key": "temperature_sensors.chamber.pullup_resistor",
+              "options": [
+                { "value": "4700", "label": "4.7k ohm (standard)" },
+                { "value": "2200", "label": "2.2k ohm (for PT1000)" },
+                { "value": "10000", "label": "10k ohm" },
+                { "value": "none", "label": "None (use board default)" }
+              ],
+              "default": "4700",
+              "condition": "temperature_sensors.chamber.enabled and temperature_sensors.chamber.sensor_type != 'DS18B20'"
+            }
+          ]
+        }
+      ]
+    },
+
+    "additional_temp_sensors": {
+      "id": "additional_temp_sensors",
+      "title": "Additional Temperature Sensors",
+      "state_prefix": "temperature_sensors.additional",
+      "description": "Add custom temperature sensors (BME280, AHT10, additional thermistors, etc.)",
+      "is_list": true,
+      "item_template": {
+        "fields": [
+          {
+            "id": "name",
+            "type": "text",
+            "label": "Sensor Name",
+            "state_key": "name",
+            "help": "e.g., enclosure, electronics_bay"
+          },
+          {
+            "id": "type",
+            "type": "choice",
+            "label": "Sensor Type",
+            "state_key": "type",
+            "options": [
+              { "value": "temperature_mcu", "label": "MCU Temperature" },
+              { "value": "Generic 3950", "label": "Generic 3950 (NTC 100K)" },
+              { "value": "NTC 100K beta 3950", "label": "NTC 100K beta 3950" },
+              { "value": "PT1000", "label": "PT1000 (RTD)" },
+              { "value": "DS18B20", "label": "DS18B20 (1-wire)" },
+              { "value": "BME280", "label": "BME280 (I2C - temp/pressure/humidity)" },
+              { "value": "AHT10", "label": "AHT10 (I2C - temp/humidity)" }
+            ],
+            "default": "Generic 3950"
+          },
+          {
+            "id": "mcu",
+            "type": "choice",
+            "label": "MCU to Monitor",
+            "state_key": "mcu",
+            "options": [
+              { "value": "mcu", "label": "Main MCU" },
+              { "value": "toolboard", "label": "Toolboard" },
+              { "value": "rpi", "label": "Raspberry Pi" }
+            ],
+            "default": "mcu",
+            "condition": "type == 'temperature_mcu'"
+          },
+          {
+            "id": "location",
+            "type": "choice",
+            "label": "Location",
+            "state_key": "location",
+            "options": [
+              { "value": "mainboard", "label": "Mainboard" },
+              { "value": "toolboard", "label": "Toolboard" },
+              { "value": "rpi", "label": "Raspberry Pi" }
+            ],
+            "default": "mainboard",
+            "condition": "type != 'temperature_mcu'"
+          },
+          {
+            "id": "sensor_pin",
+            "type": "text",
+            "label": "Sensor Pin",
+            "state_key": "sensor_pin",
+            "help": "Pin for thermistor or 1-wire sensor",
+            "condition": "type in ['Generic 3950', 'NTC 100K beta 3950', 'PT1000', 'DS18B20']"
+          },
+          {
+            "id": "i2c_address",
+            "type": "text",
+            "label": "I2C Address",
+            "state_key": "i2c_address",
+            "default": "0x76",
+            "help": "I2C address (BME280: 0x76 or 0x77, AHT10: 0x38)",
+            "condition": "type in ['BME280', 'AHT10']"
+          },
+          {
+            "id": "i2c_bus",
+            "type": "text",
+            "label": "I2C Bus",
+            "state_key": "i2c_bus",
+            "help": "e.g., i2c1_PB6_PB7 or i2c_rpi",
+            "condition": "type in ['BME280', 'AHT10']"
+          }
+        ]
+      }
+    },
+
+    "filament_sensors": {
+      "id": "filament_sensors",
+      "title": "Filament Sensors",
+      "state_prefix": "filament_sensors",
+      "subsections": [
+        {
+          "id": "runout",
+          "title": "Runout Sensor",
+          "fields": [
+            {
+              "id": "enabled",
+              "type": "bool",
+              "label": "Enable Runout Sensor",
+              "state_key": "filament_sensors.runout.enabled",
+              "default": false
+            },
+            {
+              "id": "sensor_type",
+              "type": "choice",
+              "label": "Sensor Type",
+              "state_key": "filament_sensors.runout.sensor_type",
+              "options": [
+                { "value": "switch", "label": "Switch (runout only)" },
+                { "value": "motion", "label": "Motion (runout + jam detection)" }
+              ],
+              "default": "switch",
+              "condition": "filament_sensors.runout.enabled",
+              "help": "Switch sensors detect runout only. Motion sensors also detect jams/clogs."
+            },
+            {
+              "id": "sensor_model",
+              "type": "choice",
+              "label": "Sensor Model",
+              "state_key": "filament_sensors.runout.sensor_model",
+              "options": [
+                { "value": "btt_sfs_v1", "label": "BTT Smart Filament Sensor v1.0" },
+                { "value": "btt_sfs_v2", "label": "BTT Smart Filament Sensor v2.0" },
+                { "value": "biqu_motion", "label": "BIQU Filament Motion Sensor" },
+                { "value": "generic_switch", "label": "Generic Microswitch Sensor" },
+                { "value": "generic_optical", "label": "Generic Optical Sensor" },
+                { "value": "custom", "label": "Custom / Other" }
+              ],
+              "default": "generic_switch",
+              "condition": "filament_sensors.runout.enabled"
+            },
+            {
+              "id": "location",
+              "type": "choice",
+              "label": "Location",
+              "state_key": "filament_sensors.runout.location",
+              "options": [
+                { "value": "mainboard", "label": "Mainboard" },
+                { "value": "toolboard", "label": "Toolboard" }
+              ],
+              "default": "mainboard",
+              "condition": "filament_sensors.runout.enabled"
+            },
+            {
+              "id": "pin",
+              "type": "port_select",
+              "label": "Sensor Pin",
+              "state_key": "filament_sensors.runout.pin",
+              "port_type": "endstop_ports",
+              "condition": "filament_sensors.runout.enabled"
+            },
+            {
+              "id": "pin_pullup",
+              "type": "bool",
+              "label": "Enable Pullup Resistor",
+              "state_key": "filament_sensors.runout.pin_pullup",
+              "default": true,
+              "condition": "filament_sensors.runout.enabled",
+              "help": "Enable internal pullup resistor (^PIN)"
+            },
+            {
+              "id": "pin_invert",
+              "type": "bool",
+              "label": "Invert Pin Logic",
+              "state_key": "filament_sensors.runout.pin_invert",
+              "default": false,
+              "condition": "filament_sensors.runout.enabled",
+              "help": "Invert pin signal (!PIN)"
+            },
+            {
+              "id": "detection_length",
+              "type": "float",
+              "label": "Detection Length (mm)",
+              "state_key": "filament_sensors.runout.detection_length",
+              "default": 7.0,
+              "condition": "filament_sensors.runout.enabled and filament_sensors.runout.sensor_type == 'motion'",
+              "help": "Filament movement threshold before triggering jam detection"
+            },
+            {
+              "id": "pause_on_runout",
+              "type": "bool",
+              "label": "Pause on Runout",
+              "state_key": "filament_sensors.runout.pause_on_runout",
+              "default": true,
+              "condition": "filament_sensors.runout.enabled"
+            }
+          ]
+        }
+      ]
+    },
+
+    "input_shaper": {
+      "id": "input_shaper",
+      "title": "Input Shaper / Accelerometer",
+      "state_prefix": "input_shaper",
+      "help": "Shaper type and frequency are auto-calibrated via SHAPER_CALIBRATE macro",
+      "fields": [
+        {
+          "id": "accel_chip",
+          "type": "choice",
+          "label": "Accelerometer Type",
+          "state_key": "input_shaper.accel_chip",
+          "options": [
+            { "value": "none", "label": "None / Not configured" },
+            { "value": "beacon", "label": "Beacon (built-in accelerometer)" },
+            { "value": "cartographer", "label": "Cartographer (built-in accelerometer)" },
+            { "value": "btt_eddy", "label": "BTT Eddy (built-in accelerometer)" },
+            { "value": "adxl345", "label": "ADXL345" },
+            { "value": "lis2dw", "label": "LIS2DW" },
+            { "value": "mpu9250", "label": "MPU9250 / MPU6050" }
+          ],
+          "default": "none"
+        },
+        {
+          "id": "accel_location",
+          "type": "choice",
+          "label": "Accelerometer Location",
+          "state_key": "input_shaper.accel_location",
+          "options": [
+            { "value": "toolboard", "label": "Toolboard SPI" },
+            { "value": "mainboard", "label": "Mainboard SPI" },
+            { "value": "rpi", "label": "Raspberry Pi SPI" }
+          ],
+          "default": "toolboard",
+          "condition": "input_shaper.accel_chip in ['adxl345', 'lis2dw', 'mpu9250']",
+          "help": "Only needed for standalone accelerometers (not eddy probes)"
+        },
+        {
+          "id": "cs_pin",
+          "type": "text",
+          "label": "CS Pin",
+          "state_key": "input_shaper.cs_pin",
+          "help": "Chip select pin for SPI accelerometer",
+          "condition": "input_shaper.accel_chip in ['adxl345', 'lis2dw', 'mpu9250'] and input_shaper.accel_location != 'rpi'"
+        },
+        {
+          "id": "spi_bus",
+          "type": "text",
+          "label": "SPI Bus",
+          "state_key": "input_shaper.spi_bus",
+          "help": "e.g., spi1, spidev0.0",
+          "condition": "input_shaper.accel_chip in ['adxl345', 'lis2dw', 'mpu9250']"
+        }
+      ]
+    },
+
+    "tuning": {
+      "id": "tuning",
+      "title": "Tuning & Features",
+      "state_prefix": "tuning",
+      "fields": [
+        {
+          "id": "kalico_enabled",
+          "type": "bool",
+          "label": "Using Kalico (Klipper fork)",
+          "state_key": "tuning.kalico_enabled",
+          "default": false,
+          "help": "Enables Kalico-specific features like MPC temperature control"
+        },
+        {
+          "id": "exclude_object_enabled",
+          "type": "bool",
+          "label": "Exclude Object",
+          "state_key": "tuning.exclude_object.enabled",
+          "default": true,
+          "help": "Enable object exclusion during prints (EXCLUDE_OBJECT_DEFINE)"
+        },
+        {
+          "id": "arc_support_enabled",
+          "type": "bool",
+          "label": "Arc Support",
+          "state_key": "tuning.arc_support.enabled",
+          "default": true,
+          "help": "Enable G2/G3 arc support"
+        },
+        {
+          "id": "arc_support_resolution",
+          "type": "float",
+          "label": "Arc Resolution (mm)",
+          "state_key": "tuning.arc_support.resolution",
+          "default": 0.1,
+          "range": [0.01, 1.0],
+          "condition": "tuning.arc_support.enabled",
+          "help": "Resolution for arc interpolation"
+        },
+        {
+          "id": "force_move_enabled",
+          "type": "bool",
+          "label": "Force Move",
+          "state_key": "tuning.force_move.enabled",
+          "default": true,
+          "help": "Enable SET_KINEMATIC_POSITION command"
+        },
+        {
+          "id": "save_variables_enabled",
+          "type": "bool",
+          "label": "Save Variables",
+          "state_key": "tuning.save_variables.enabled",
+          "default": true,
+          "help": "Enable saving variables to file"
+        },
+        {
+          "id": "save_variables_filename",
+          "type": "text",
+          "label": "Variables File Path",
+          "state_key": "tuning.save_variables.filename",
+          "default": "~/printer_data/config/variables.cfg",
+          "condition": "tuning.save_variables.enabled",
+          "help": "Path to save variables file"
+        },
+        {
+          "id": "idle_timeout",
+          "type": "int",
+          "label": "Idle Timeout (seconds)",
+          "state_key": "tuning.idle_timeout.timeout",
+          "default": 600,
+          "range": [60, 3600],
+          "help": "Turn off heaters/motors after inactivity (safety net)"
+        },
+        {
+          "id": "virtual_sdcard_path",
+          "type": "text",
+          "label": "Virtual SD Card Path",
+          "state_key": "tuning.virtual_sdcard.path",
+          "default": "~/printer_data/gcodes",
+          "help": "Path to virtual SD card directory"
+        },
+        {
+          "id": "pause_resume_recover_velocity",
+          "type": "int",
+          "label": "Pause Resume Recover Velocity (mm/s)",
+          "state_key": "tuning.pause_resume.recover_velocity",
+          "default": 50,
+          "range": [10, 200],
+          "help": "Velocity for recovering from pause (Klipper [pause_resume] section)"
+        }
+      ]
+    },
+
+    "chopper_tuning": {
+      "id": "chopper_tuning",
+      "title": "4.3 TMC Chopper Tuning",
+      "state_prefix": "tuning",
+      "help": "Auto-tune TMC5160/TMC2240 chopper parameters using accelerometer vibration data. Requires an accelerometer configured in Input Shaper section.",
+      "fields": [
+        {
+          "id": "chopper_tuning_enabled",
+          "type": "bool",
+          "label": "Enable Chopper Tuning Macros",
+          "state_key": "tuning.chopper_tuning_enabled",
+          "default": false,
+          "help": "Generate TMC_CHOPPER_TUNE macro for finding optimal TPFD/TBL/TOFF/HSTRT/HEND values"
+        },
+        {
+          "id": "chopper_safety_level",
+          "type": "choice",
+          "label": "Safety Level",
+          "state_key": "tuning.chopper_safety_level",
+          "options": [
+            { "value": "high", "label": "High (50% velocity limits)" },
+            { "value": "medium", "label": "Medium (70% velocity limits)" },
+            { "value": "low", "label": "Low (90% velocity limits)" }
+          ],
+          "default": "high",
+          "condition": "tuning.chopper_tuning_enabled",
+          "help": "Velocity/acceleration limits applied during tuning to reduce risk"
+        },
+        {
+          "id": "chopper_diag0_pin_x",
+          "type": "text",
+          "label": "DIAG0 Pin (stepper_x)",
+          "state_key": "tuning.chopper_diag0_pin_x",
+          "condition": "tuning.chopper_tuning_enabled",
+          "help": "Optional - enables hardware stall detection during tuning (e.g., PG6 or ^!PG6)"
+        },
+        {
+          "id": "chopper_diag0_pin_y",
+          "type": "text",
+          "label": "DIAG0 Pin (stepper_y)",
+          "state_key": "tuning.chopper_diag0_pin_y",
+          "condition": "tuning.chopper_tuning_enabled",
+          "help": "Optional - enables hardware stall detection during tuning (e.g., PG9 or ^!PG9)"
+        }
+      ]
+    },
+
+    "tmc_autotune": {
+      "id": "tmc_autotune",
+      "title": "4.4 TMC Autotune",
+      "state_prefix": "tuning",
+      "help": "Automatic TMC driver optimization using motor specifications. Motor selections inherit: XY→X,Y,X1,Y1 | Z→Z,Z1,Z2,Z3 | Extruder→all extruders",
+      "fields": [
+        {
+          "id": "tmc_autotune_enabled",
+          "type": "bool",
+          "label": "Enable TMC Autotune",
+          "state_key": "tuning.tmc_autotune.enabled",
+          "default": false,
+          "help": "Enable automatic TMC driver tuning based on motor specifications"
+        },
+        {
+          "id": "tmc_autotune_voltage",
+          "type": "choice",
+          "label": "Voltage",
+          "state_key": "tuning.tmc_autotune.voltage",
+          "options": [
+            { "value": 24, "label": "24V" },
+            { "value": 48, "label": "48V" }
+          ],
+          "default": 24,
+          "condition": "tuning.tmc_autotune.enabled",
+          "help": "Motor supply voltage"
+        },
+        {
+          "id": "tmc_autotune_motor_xy",
+          "type": "choice",
+          "label": "XY Motor (applies to X, Y, X1, Y1)",
+          "state_key": "tuning.tmc_autotune.motor_xy",
+          "source": "templates/motors/motors.json",
+          "grouped_by": "vendor",
+          "condition": "tuning.tmc_autotune.enabled",
+          "required": true,
+          "help": "Select motor for XY axes (CoreXY/Cartesian) or X/Y (AWD). Settings inherit to all XY motors."
+        },
+        {
+          "id": "tmc_autotune_motor_z",
+          "type": "choice",
+          "label": "Z Motor (applies to Z, Z1, Z2, Z3)",
+          "state_key": "tuning.tmc_autotune.motor_z",
+          "source": "templates/motors/motors.json",
+          "grouped_by": "vendor",
+          "condition": "tuning.tmc_autotune.enabled",
+          "required": true,
+          "help": "Select motor for Z axis. Settings inherit to all Z motors."
+        },
+        {
+          "id": "tmc_autotune_motor_extruder",
+          "type": "choice",
+          "label": "Extruder Motor (applies to all extruders)",
+          "state_key": "tuning.tmc_autotune.motor_extruder",
+          "source": "templates/motors/motors.json",
+          "grouped_by": "vendor",
+          "condition": "tuning.tmc_autotune.enabled",
+          "required": true,
+          "help": "Select motor for extruder(s). Settings inherit to all extruders."
+        },
+        {
+          "id": "tmc_autotune_tuning_goal",
+          "type": "choice",
+          "label": "Tuning Goal",
+          "state_key": "tuning.tmc_autotune.tuning_goal",
+          "options": [
+            { "value": "auto", "label": "Auto (balance silent/performance)" },
+            { "value": "silent", "label": "Silent (prioritize quiet operation)" },
+            { "value": "performance", "label": "Performance (prioritize speed/accel)" },
+            { "value": "autoswitch", "label": "Auto-switch (silent at low speed, performance at high speed)" }
+          ],
+          "default": "auto",
+          "condition": "tuning.tmc_autotune.enabled",
+          "help": "Optimization target for TMC tuning"
+        }
+      ]
+    },
+
+    "firmware_retraction": {
+      "id": "firmware_retraction",
+      "title": "4.5 Firmware Retraction",
+      "state_prefix": "tuning",
+      "help": "Firmware-controlled retraction (G10/G11) instead of slicer retraction",
+      "fields": [
+        {
+          "id": "firmware_retraction_enabled",
+          "type": "bool",
+          "label": "Enable Firmware Retraction",
+          "state_key": "tuning.firmware_retraction.enabled",
+          "default": false,
+          "help": "Enable firmware retraction (G10/G11 commands)"
+        },
+        {
+          "id": "firmware_retraction_retract_length",
+          "type": "float",
+          "label": "Retract Length (mm)",
+          "state_key": "tuning.firmware_retraction.retract_length",
+          "default": 0.5,
+          "range": [0.0, 10.0],
+          "condition": "tuning.firmware_retraction.enabled",
+          "help": "Length to retract filament"
+        },
+        {
+          "id": "firmware_retraction_retract_speed",
+          "type": "float",
+          "label": "Retract Speed (mm/s)",
+          "state_key": "tuning.firmware_retraction.retract_speed",
+          "default": 35.0,
+          "range": [1.0, 200.0],
+          "condition": "tuning.firmware_retraction.enabled",
+          "help": "Speed for retraction"
+        },
+        {
+          "id": "firmware_retraction_unretract_extra_length",
+          "type": "float",
+          "label": "Unretract Extra Length (mm)",
+          "state_key": "tuning.firmware_retraction.unretract_extra_length",
+          "default": 0.0,
+          "range": [0.0, 5.0],
+          "condition": "tuning.firmware_retraction.enabled",
+          "help": "Extra length to push when unretracting (for ooze compensation)"
+        },
+        {
+          "id": "firmware_retraction_unretract_speed",
+          "type": "float",
+          "label": "Unretract Speed (mm/s)",
+          "state_key": "tuning.firmware_retraction.unretract_speed",
+          "default": 35.0,
+          "range": [1.0, 200.0],
+          "condition": "tuning.firmware_retraction.enabled",
+          "help": "Speed for unretraction"
+        }
+      ]
+    },
+
+    "heating_behavior": {
+      "id": "heating_behavior",
+      "title": "3.1.1 Heating Behavior",
+      "state_prefix": "macros",
+      "fields": [
+        {
+          "id": "extruder_preheat_temp",
+          "type": "int",
+          "label": "Extruder Preheat Temperature (C)",
+          "state_key": "macros.extruder_preheat_temp",
+          "default": 150,
+          "range": [100, 250],
+          "help": "Safe temperature for probing (prevents ooze during mesh)"
+        },
+        {
+          "id": "preheat_scale",
+          "type": "float",
+          "label": "Preheat Scale",
+          "state_key": "macros.preheat_scale",
+          "default": 0.75,
+          "range": [0.5, 1.0],
+          "help": "Preheat percentage of target temp (0.75 = 75%)"
+        },
+        {
+          "id": "heating_park_position",
+          "type": "choice",
+          "label": "Park Position During Heating",
+          "state_key": "macros.heating_park_position",
+          "options": [
+            { "value": "none", "label": "None (don't park)" },
+            { "value": "front", "label": "Front" },
+            { "value": "back", "label": "Back" },
+            { "value": "center", "label": "Center" },
+            { "value": "front_left", "label": "Front Left" },
+            { "value": "front_right", "label": "Front Right" },
+            { "value": "back_left", "label": "Back Left" },
+            { "value": "back_right", "label": "Back Right" }
+          ],
+          "default": "center",
+          "help": "Where to park toolhead during final extruder heating after mesh (uses exclude_object if available)"
+        }
+      ]
+    },
+
+    "heat_soak": {
+      "id": "heat_soak",
+      "title": "3.1.2 Heat Soak",
+      "state_prefix": "macros",
+      "fields": [
+        {
+          "id": "heat_soak_enabled",
+          "type": "bool",
+          "label": "Enable Heat Soak",
+          "state_key": "macros.heat_soak_enabled",
+          "default": false,
+          "help": "Wait for bed temperature to stabilize after reaching target"
+        },
+        {
+          "id": "heat_soak_time",
+          "type": "int",
+          "label": "Heat Soak Time (minutes)",
+          "state_key": "macros.heat_soak_time",
+          "default": 0,
+          "range": [0, 60],
+          "condition": "macros.heat_soak_enabled",
+          "help": "Minutes to soak after bed reaches target temp (0=disabled)"
+        },
+        {
+          "id": "heat_soak_interruptible",
+          "type": "bool",
+          "label": "Interruptible Heat Soak",
+          "state_key": "macros.heat_soak_interruptible",
+          "default": true,
+          "condition": "macros.heat_soak_enabled",
+          "help": "Allow skipping heat soak with button press"
+        },
+        {
+          "id": "heat_soak_threshold",
+          "type": "float",
+          "label": "Temperature Stability Threshold (C)",
+          "state_key": "macros.heat_soak_threshold",
+          "default": 0.5,
+          "range": [0.1, 2.0],
+          "condition": "macros.heat_soak_enabled",
+          "help": "How close to target before considered stable"
+        }
+      ]
+    },
+
+    "chamber_macro": {
+      "id": "chamber_macro",
+      "title": "3.1.3 Chamber Heating",
+      "state_prefix": "macros",
+      "fields": [
+        {
+          "id": "chamber_wait",
+          "type": "bool",
+          "label": "Wait for Chamber Temperature",
+          "state_key": "macros.chamber_wait",
+          "default": false,
+          "help": "Wait for chamber to reach target temperature before printing"
+        },
+        {
+          "id": "chamber_temp_default",
+          "type": "int",
+          "label": "Default Chamber Temperature (C)",
+          "state_key": "macros.chamber_temp_default",
+          "default": 0,
+          "range": [0, 100],
+          "condition": "macros.chamber_wait",
+          "help": "Default chamber temp (0=skip, use CHAMBER parameter)"
+        },
+        {
+          "id": "chamber_timeout",
+          "type": "int",
+          "label": "Chamber Timeout (minutes)",
+          "state_key": "macros.chamber_timeout",
+          "default": 30,
+          "range": [5, 120],
+          "condition": "macros.chamber_wait",
+          "help": "Maximum time to wait for chamber to heat"
+        }
+      ]
+    },
+
+    "bed_mesh_macro": {
+      "id": "bed_mesh_macro",
+      "title": "3.1.4 Bed Mesh",
+      "state_prefix": "macros",
+      "fields": [
+        {
+          "id": "bed_mesh_mode",
+          "type": "choice",
+          "label": "Bed Mesh Mode",
+          "state_key": "macros.bed_mesh_mode",
+          "options": [
+            { "value": "adaptive", "label": "Adaptive (mesh only print area)" },
+            { "value": "full", "label": "Full bed mesh" },
+            { "value": "saved", "label": "Load saved mesh" },
+            { "value": "none", "label": "Skip mesh" }
+          ],
+          "default": "adaptive",
+          "help": "How to generate bed mesh"
+        },
+        {
+          "id": "probe_temp_source",
+          "type": "choice",
+          "label": "Probe Temperature Source",
+          "state_key": "macros.probe_temp_source",
+          "options": [
+            { "value": "print", "label": "Print temperature (from slicer)" },
+            { "value": "initial_layer", "label": "Initial layer temperature" },
+            { "value": "fixed", "label": "Fixed temperature" }
+          ],
+          "default": "print",
+          "help": "Temperature to use for probing/meshing"
+        },
+        {
+          "id": "probe_bed_temp",
+          "type": "int",
+          "label": "Fixed Probe Bed Temperature (C)",
+          "state_key": "macros.probe_bed_temp",
+          "default": 60,
+          "range": [20, 120],
+          "condition": "macros.probe_temp_source == 'fixed'",
+          "help": "Fixed bed temperature for probing (only used if probe_temp_source=fixed)"
+        },
+        {
+          "id": "bed_stabilize_before_probe",
+          "type": "bool",
+          "label": "Wait for Bed Stabilization",
+          "state_key": "macros.bed_stabilize_before_probe",
+          "default": true,
+          "help": "Wait for bed temperature to stabilize before probing"
+        },
+        {
+          "id": "bed_stabilize_threshold",
+          "type": "float",
+          "label": "Bed Stabilization Threshold (C)",
+          "state_key": "macros.bed_stabilize_threshold",
+          "default": 2.0,
+          "range": [0.5, 5.0],
+          "condition": "macros.bed_stabilize_before_probe",
+          "help": "How close to target before considered stable"
+        },
+        {
+          "id": "bed_stabilize_dwell",
+          "type": "int",
+          "label": "Bed Stabilization Dwell (seconds)",
+          "state_key": "macros.bed_stabilize_dwell",
+          "default": 0,
+          "range": [0, 300],
+          "condition": "macros.bed_stabilize_before_probe",
+          "help": "Additional dwell time after stabilization for thermal equilibrium"
+        },
+        {
+          "id": "bed_off_during_probe",
+          "type": "bool",
+          "label": "Turn Off Bed During Probe",
+          "state_key": "macros.bed_off_during_probe",
+          "default": false,
+          "help": "Turn off bed heater during probing/meshing (recommended for eddy probes)"
+        },
+        {
+          "id": "bed_reheat_after_probe",
+          "type": "bool",
+          "label": "Reheat Bed After Probe",
+          "state_key": "macros.bed_reheat_after_probe",
+          "default": true,
+          "condition": "macros.bed_off_during_probe",
+          "help": "Reheat bed to print temperature after probing if it was turned off"
+        }
+      ]
+    },
+
+    "nozzle_cleaning": {
+      "id": "nozzle_cleaning",
+      "title": "3.1.5 Nozzle Cleaning",
+      "state_prefix": "macros",
+      "fields": [
+        {
+          "id": "brush_enabled",
+          "type": "bool",
+          "label": "Enable Nozzle Brush",
+          "state_key": "macros.brush_enabled",
+          "default": false,
+          "help": "Clean nozzle at brush station before printing"
+        },
+        {
+          "id": "brush_x",
+          "type": "float",
+          "label": "Brush X Position (mm)",
+          "state_key": "macros.brush_x",
+          "default": 50.0,
+          "range": [0, 500],
+          "condition": "macros.brush_enabled"
+        },
+        {
+          "id": "brush_y",
+          "type": "float",
+          "label": "Brush Y Position (mm)",
+          "state_key": "macros.brush_y",
+          "default": 317.0,
+          "range": [0, 500],
+          "condition": "macros.brush_enabled"
+        },
+        {
+          "id": "brush_z",
+          "type": "float",
+          "label": "Brush Z Height (mm)",
+          "state_key": "macros.brush_z",
+          "default": 1.0,
+          "range": [0, 50],
+          "condition": "macros.brush_enabled"
+        },
+        {
+          "id": "brush_width",
+          "type": "float",
+          "label": "Brush Width (mm)",
+          "state_key": "macros.brush_width",
+          "default": 30.0,
+          "range": [10, 100],
+          "condition": "macros.brush_enabled",
+          "help": "Width of wipe motion across brush"
+        },
+        {
+          "id": "wipe_count",
+          "type": "int",
+          "label": "Wipe Count",
+          "state_key": "macros.wipe_count",
+          "default": 3,
+          "range": [1, 10],
+          "condition": "macros.brush_enabled",
+          "help": "Number of wipe passes across brush"
+        },
+        {
+          "id": "wipe_speed",
+          "type": "int",
+          "label": "Wipe Speed (mm/s)",
+          "state_key": "macros.wipe_speed",
+          "default": 100,
+          "range": [50, 500],
+          "condition": "macros.brush_enabled"
+        }
+      ]
+    },
+
+    "purge_settings": {
+      "id": "purge_settings",
+      "title": "3.1.6 Purge Settings",
+      "state_prefix": "macros",
+      "fields": [
+        {
+          "id": "purge_style",
+          "type": "choice",
+          "label": "Purge Style",
+          "state_key": "macros.purge_style",
+          "options": [
+            { "value": "line", "label": "Line (simple purge line along bed edge)" },
+            { "value": "blob", "label": "Blob (purge into bucket)" },
+            { "value": "adaptive", "label": "Adaptive (purge near print area, requires slicer PRINT_MIN/PRINT_MAX)" },
+            { "value": "voron", "label": "VORON (bucket purge + brush wipe)" },
+            { "value": "none", "label": "None (skip purging)" }
+          ],
+          "default": "line",
+          "help": "How to purge filament before printing"
+        },
+        {
+          "id": "purge_amount",
+          "type": "float",
+          "label": "Purge Amount (mm)",
+          "state_key": "macros.purge_amount",
+          "default": 30.0,
+          "range": [10, 100],
+          "condition": "macros.purge_style != 'none'",
+          "help": "Amount of filament to purge"
+        },
+        {
+          "id": "purge_x",
+          "type": "float",
+          "label": "Purge Line X Start (mm)",
+          "state_key": "macros.purge_x",
+          "default": 5.0,
+          "range": [0, 500],
+          "condition": "macros.purge_style in ['line', 'adaptive']",
+          "help": "X start position for line purge"
+        },
+        {
+          "id": "purge_y",
+          "type": "float",
+          "label": "Purge Line Y Start (mm)",
+          "state_key": "macros.purge_y",
+          "default": 5.0,
+          "range": [0, 500],
+          "condition": "macros.purge_style in ['line', 'adaptive']",
+          "help": "Y start position for line purge"
+        },
+        {
+          "id": "bucket_x",
+          "type": "float",
+          "label": "Bucket X Position (mm)",
+          "state_key": "macros.bucket_x",
+          "default": 165.0,
+          "range": [0, 500],
+          "condition": "macros.purge_style in ['blob', 'voron']",
+          "help": "Bucket X position for blob/voron purge"
+        },
+        {
+          "id": "bucket_y",
+          "type": "float",
+          "label": "Bucket Y Position (mm)",
+          "state_key": "macros.bucket_y",
+          "default": 317.0,
+          "range": [0, 500],
+          "condition": "macros.purge_style in ['blob', 'voron']",
+          "help": "Bucket Y position (usually past bed max)"
+        },
+        {
+          "id": "bucket_z",
+          "type": "float",
+          "label": "Bucket Z Height (mm)",
+          "state_key": "macros.bucket_z",
+          "default": 5.0,
+          "range": [0, 50],
+          "condition": "macros.purge_style in ['blob', 'voron']"
+        }
+      ]
+    },
+
+    "end_print": {
+      "id": "end_print",
+      "title": "3.2 END_PRINT Settings",
+      "state_prefix": "macros",
+      "fields": [
+        {
+          "id": "end_retract_length",
+          "type": "float",
+          "label": "End Retract Length (mm)",
+          "state_key": "macros.end_retract_length",
+          "default": 10.0,
+          "range": [0, 50],
+          "help": "Amount of filament to retract at end of print"
+        },
+        {
+          "id": "end_retract_speed",
+          "type": "float",
+          "label": "End Retract Speed (mm/s)",
+          "state_key": "macros.end_retract_speed",
+          "default": 30.0,
+          "range": [10, 100],
+          "help": "Retraction speed"
+        },
+        {
+          "id": "park_position",
+          "type": "choice",
+          "label": "Park Position",
+          "state_key": "macros.park_position",
+          "options": [
+            { "value": "front", "label": "Front" },
+            { "value": "back", "label": "Back" },
+            { "value": "center", "label": "Center" },
+            { "value": "front_left", "label": "Front Left" },
+            { "value": "front_right", "label": "Front Right" },
+            { "value": "back_left", "label": "Back Left" },
+            { "value": "back_right", "label": "Back Right" }
+          ],
+          "default": "front",
+          "help": "Where to park toolhead after print"
+        },
+        {
+          "id": "park_z_hop",
+          "type": "float",
+          "label": "Park Z Hop (mm)",
+          "state_key": "macros.park_z_hop",
+          "default": 10.0,
+          "range": [0, 100],
+          "help": "Z hop before parking"
+        },
+        {
+          "id": "park_z_max",
+          "type": "float",
+          "label": "Park Z Max (mm)",
+          "state_key": "macros.park_z_max",
+          "default": 335.0,
+          "range": [50, 500],
+          "help": "Maximum Z height for parking"
+        },
+        {
+          "id": "park_speed",
+          "type": "int",
+          "label": "Park Speed (mm/s)",
+          "state_key": "macros.park_speed",
+          "default": 150,
+          "range": [50, 500],
+          "help": "Speed for parking movement"
+        },
+        {
+          "id": "turn_off_bed",
+          "type": "bool",
+          "label": "Turn Off Bed Heater",
+          "state_key": "macros.turn_off_bed",
+          "default": true,
+          "help": "Turn off bed heater at end of print"
+        },
+        {
+          "id": "turn_off_extruder",
+          "type": "bool",
+          "label": "Turn Off Extruder Heater",
+          "state_key": "macros.turn_off_extruder",
+          "default": true,
+          "help": "Turn off extruder heater at end of print"
+        },
+        {
+          "id": "turn_off_fans",
+          "type": "bool",
+          "label": "Turn Off Fans",
+          "state_key": "macros.turn_off_fans",
+          "default": false,
+          "help": "Turn off part cooling fan at end of print"
+        },
+        {
+          "id": "fan_off_delay",
+          "type": "int",
+          "label": "Fan Off Delay (seconds)",
+          "state_key": "macros.fan_off_delay",
+          "default": 0,
+          "range": [0, 600],
+          "condition": "macros.turn_off_fans",
+          "help": "Seconds to wait before turning off fans"
+        },
+        {
+          "id": "motor_off_delay",
+          "type": "int",
+          "label": "Motor Off Delay (seconds)",
+          "state_key": "macros.motor_off_delay",
+          "default": 300,
+          "range": [0, 3600],
+          "help": "Seconds to wait before disabling motors (0=immediate)"
+        }
+      ]
+    },
+
+    "pause_resume": {
+      "id": "pause_resume",
+      "title": "3.3 PAUSE/RESUME",
+      "state_prefix": "macros",
+      "fields": [
+        {
+          "id": "pause_position",
+          "type": "choice",
+          "label": "Pause Park Position",
+          "state_key": "macros.pause_position",
+          "options": [
+            { "value": "front", "label": "Front" },
+            { "value": "back", "label": "Back" },
+            { "value": "center", "label": "Center" },
+            { "value": "front_left", "label": "Front Left" },
+            { "value": "front_right", "label": "Front Right" },
+            { "value": "back_left", "label": "Back Left" },
+            { "value": "back_right", "label": "Back Right" }
+          ],
+          "default": "front",
+          "help": "Where to park toolhead when pausing"
+        },
+        {
+          "id": "pause_z_hop",
+          "type": "float",
+          "label": "Pause Z Hop (mm)",
+          "state_key": "macros.pause_z_hop",
+          "default": 10.0,
+          "range": [0, 100],
+          "help": "Z hop when pausing"
+        },
+        {
+          "id": "pause_retract",
+          "type": "float",
+          "label": "Pause Retract Length (mm)",
+          "state_key": "macros.pause_retract",
+          "default": 1.0,
+          "range": [0, 10],
+          "help": "Filament retraction when pausing"
+        },
+        {
+          "id": "pause_heater_off",
+          "type": "bool",
+          "label": "Turn Off Heaters When Paused",
+          "state_key": "macros.pause_heater_off",
+          "default": false,
+          "help": "Turn off heaters during pause (saves power, may cause ooze)"
+        },
+        {
+          "id": "pause_timeout",
+          "type": "int",
+          "label": "Pause Timeout (seconds)",
+          "state_key": "macros.pause_timeout",
+          "default": 43200,
+          "range": [60, 86400],
+          "help": "Auto-resume after this many seconds (43200 = 12 hours)"
+        },
+        {
+          "id": "resume_prime",
+          "type": "float",
+          "label": "Resume Prime Length (mm)",
+          "state_key": "macros.resume_prime",
+          "default": 1.0,
+          "range": [0, 10],
+          "help": "Filament prime when resuming"
+        },
+        {
+          "id": "resume_speed",
+          "type": "int",
+          "label": "Resume Speed (mm/s)",
+          "state_key": "macros.resume_speed",
+          "default": 100,
+          "range": [50, 500],
+          "help": "Speed for resume movement"
+        }
+      ]
+    },
+
+    "filament_load": {
+      "id": "filament_load",
+      "title": "3.4 Filament Load/Unload",
+      "state_prefix": "macros",
+      "fields": [
+        {
+          "id": "load_temp",
+          "type": "int",
+          "label": "Load Temperature (C)",
+          "state_key": "macros.load_temp",
+          "default": 220,
+          "range": [150, 300],
+          "help": "Temperature for loading filament"
+        },
+        {
+          "id": "load_length",
+          "type": "float",
+          "label": "Load Length (mm)",
+          "state_key": "macros.load_length",
+          "default": 100,
+          "range": [50, 500],
+          "help": "Amount of filament to load"
+        },
+        {
+          "id": "load_speed",
+          "type": "int",
+          "label": "Load Speed (mm/s)",
+          "state_key": "macros.load_speed",
+          "default": 5,
+          "range": [1, 100],
+          "help": "Speed for loading filament (5-10 typical)"
+        },
+        {
+          "id": "load_prime",
+          "type": "float",
+          "label": "Load Prime Amount (mm)",
+          "state_key": "macros.load_prime",
+          "default": 50,
+          "range": [0, 200],
+          "help": "Additional prime after loading"
+        },
+        {
+          "id": "load_prime_speed",
+          "type": "int",
+          "label": "Load Prime Speed (mm/s)",
+          "state_key": "macros.load_prime_speed",
+          "default": 3,
+          "range": [1, 50],
+          "help": "Speed for priming after load (slower for clean prime)"
+        },
+        {
+          "id": "unload_temp",
+          "type": "int",
+          "label": "Unload Temperature (C)",
+          "state_key": "macros.unload_temp",
+          "default": 220,
+          "range": [150, 300],
+          "help": "Temperature for unloading filament"
+        },
+        {
+          "id": "unload_length",
+          "type": "float",
+          "label": "Unload Length (mm)",
+          "state_key": "macros.unload_length",
+          "default": 100,
+          "range": [50, 500],
+          "help": "Amount of filament to unload"
+        },
+        {
+          "id": "unload_speed",
+          "type": "int",
+          "label": "Unload Speed (mm/s)",
+          "state_key": "macros.unload_speed",
+          "default": 25,
+          "range": [1, 100],
+          "help": "Speed for unloading filament (can be faster than load)"
+        },
+        {
+          "id": "unload_tip_shape",
+          "type": "bool",
+          "label": "Unload Tip Shape",
+          "state_key": "macros.unload_tip_shape",
+          "default": true,
+          "help": "Create tip shape when unloading (prevents blob)"
+        }
+      ]
+    },
+
+    "led_status": {
+      "id": "led_status",
+      "title": "3.5 LED Status",
+      "state_prefix": "macros",
+      "fields": [
+        {
+          "id": "led_enabled",
+          "type": "bool",
+          "label": "Enable LED Status Updates",
+          "state_key": "macros.led_enabled",
+          "default": false,
+          "help": "Update LED colors during print phases"
+        },
+        {
+          "id": "led_name",
+          "type": "text",
+          "label": "LED Section Name",
+          "state_key": "macros.led_name",
+          "default": "status_led",
+          "condition": "macros.led_enabled",
+          "help": "Name of your [neopixel] section"
+        },
+        {
+          "id": "led_heating",
+          "type": "text",
+          "label": "Heating Color (R,G,B)",
+          "state_key": "macros.led_heating",
+          "default": "1.0, 0.2, 0.0",
+          "condition": "macros.led_enabled",
+          "help": "RGB values 0.0-1.0 (orange)"
+        },
+        {
+          "id": "led_printing",
+          "type": "text",
+          "label": "Printing Color (R,G,B)",
+          "state_key": "macros.led_printing",
+          "default": "0.0, 1.0, 0.0",
+          "condition": "macros.led_enabled",
+          "help": "RGB values 0.0-1.0 (green)"
+        },
+        {
+          "id": "led_paused",
+          "type": "text",
+          "label": "Paused Color (R,G,B)",
+          "state_key": "macros.led_paused",
+          "default": "1.0, 1.0, 0.0",
+          "condition": "macros.led_enabled",
+          "help": "RGB values 0.0-1.0 (yellow)"
+        },
+        {
+          "id": "led_error",
+          "type": "text",
+          "label": "Error Color (R,G,B)",
+          "state_key": "macros.led_error",
+          "default": "1.0, 0.0, 0.0",
+          "condition": "macros.led_enabled",
+          "help": "RGB values 0.0-1.0 (red)"
+        },
+        {
+          "id": "led_complete",
+          "type": "text",
+          "label": "Complete Color (R,G,B)",
+          "state_key": "macros.led_complete",
+          "default": "0.0, 0.5, 1.0",
+          "condition": "macros.led_enabled",
+          "help": "RGB values 0.0-1.0 (blue)"
+        }
+      ]
+    }
+  },
+
+  "conflicts": {
+    "pin_conflicts": {
+      "type": "dynamic",
+      "handler": "PinManager",
+      "description": "Pin conflicts are detected at runtime by PinManager"
+    },
+
+    "logical_conflicts": [
+      {
+        "id": "eddy_probe_preheat_warning",
+        "type": "warning",
+        "condition": "probe.probe_type == 'beacon' and probe.homing_mode == 'contact' and macros.extruder_preheat_temp >= probe.contact_max_hotend_temperature - 5",
+        "message": "Preheat temp is too close to Beacon contact limit. PID overshoot may cause probing rejection."
+      },
+      {
+        "id": "qgl_requires_4_motors",
+        "type": "error",
+        "condition": "bed_leveling.leveling_type == 'qgl' and stepper_z.z_motor_count != 4",
+        "message": "Quad Gantry Level requires exactly 4 Z motors."
+      },
+      {
+        "id": "z_tilt_requires_2_3_motors",
+        "type": "error",
+        "condition": "bed_leveling.leveling_type == 'z_tilt' and (stepper_z.z_motor_count < 2 or stepper_z.z_motor_count > 3)",
+        "message": "Z Tilt Adjust requires 2 or 3 Z motors."
+      },
+      {
+        "id": "sensorless_needs_stallguard",
+        "type": "error",
+        "condition": "stepper_x.endstop_type == 'sensorless' and stepper_x.driver_type not in ['TMC2209', 'TMC2240', 'TMC5160']",
+        "message": "Sensorless homing requires a TMC driver with StallGuard support."
+      },
+      {
+        "id": "toolboard_features_need_toolboard",
+        "type": "error",
+        "condition": "(extruder.location == 'toolboard' or fans.part_cooling.location == 'toolboard') and not mcu.toolboard.enabled",
+        "message": "Toolboard features require a toolboard to be enabled."
+      },
+      {
+        "id": "tmc_autotune_motors_required",
+        "type": "error",
+        "condition": "tuning.tmc_autotune.enabled and (not tuning.tmc_autotune.motor_xy or not tuning.tmc_autotune.motor_z or not tuning.tmc_autotune.motor_extruder)",
+        "message": "TMC Autotune is enabled but motor selections are missing. Please select motors for XY, Z, and Extruder, or disable TMC Autotune."
+      }
+    ]
+  },
+
+  "implications": {
+    "probe_type_tap": {
+      "condition": "probe.probe_type == 'tap'",
+      "set": {
+        "probe.x_offset": 0,
+        "probe.y_offset": 0
+      }
+    },
+    "probe_type_beacon_contact": {
+      "condition": "probe.probe_type == 'beacon' and probe.homing_mode == 'contact'",
+      "set": {
+        "homing.homing_method": "beacon_contact"
+      }
+    },
+    "probe_type_beacon_proximity": {
+      "condition": "probe.probe_type == 'beacon' and probe.homing_mode == 'proximity'",
+      "set": {
+        "homing.homing_method": "safe_z_home"
+      }
+    },
+    "probe_type_cartographer_touch": {
+      "condition": "probe.probe_type == 'cartographer' and probe.homing_mode == 'touch'",
+      "set": {
+        "homing.homing_method": "cartographer_touch"
+      }
+    },
+    "probe_type_cartographer_scan": {
+      "condition": "probe.probe_type == 'cartographer' and probe.homing_mode == 'scan'",
+      "set": {
+        "homing.homing_method": "safe_z_home"
+      }
+    },
+    "kinematics_awd": {
+      "condition": "printer.kinematics == 'corexy-awd'",
+      "set": {
+        "printer.awd_enabled": true
+      }
+    }
+  }
+}

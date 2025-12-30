@@ -1,0 +1,12 @@
+{
+  "id": "lgx-lite",
+  "name": "LGX Lite",
+  "manufacturer": "Bondtech",
+  "type": "direct_drive",
+  "gear_ratio": "44:8",
+  "rotation_distance": 8,
+  "microsteps": 16,
+  "full_steps_per_rotation": 200,
+  "pressure_advance": 0.04,
+  "notes": "Compact Bondtech dual-drive extruder"
+}

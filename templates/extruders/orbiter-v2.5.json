@@ -1,0 +1,13 @@
+{
+  "id": "orbiter-v2.5",
+  "name": "Orbiter v2.5",
+  "manufacturer": "Orbiter Projects / LDO",
+  "type": "direct_drive",
+  "gear_ratio": "7.5:1",
+  "rotation_distance": 4.637,
+  "microsteps": 16,
+  "full_steps_per_rotation": 200,
+  "pressure_advance": 0.025,
+  "run_current": 0.85,
+  "notes": "Updated version with improved gears. Same rotation_distance as v2.0"
+}

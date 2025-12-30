@@ -29,13 +29,37 @@ PROFILES_DIR = TEMPLATES_DIR / "profiles"
 
 HARDWARE_STATE_FILE = REPO_ROOT / ".hardware-state.json"
 WIZARD_STATE_FILE = REPO_ROOT / ".wizard-state"
+# New wizard state location (preferred)
+GSCHPOOZI_STATE_FILE = Path.home() / "printer_data" / "config" / ".gschpoozi_state.json"
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # STATE LOADING
 # ═══════════════════════════════════════════════════════════════════════════════
 
+def load_gschpoozi_state() -> Optional[Dict]:
+    """Load state from new wizard format (.gschpoozi_state.json)."""
+    if GSCHPOOZI_STATE_FILE.exists():
+        with open(GSCHPOOZI_STATE_FILE) as f:
+            return json.load(f)
+    return None
+
 def load_hardware_state() -> Dict:
-    """Load hardware state from JSON."""
+    """Load hardware state from JSON (legacy or extracted from wizard state)."""
+    # Try new wizard state first
+    gschpoozi_state = load_gschpoozi_state()
+    if gschpoozi_state:
+        config = gschpoozi_state.get('config', {})
+        mcu = config.get('mcu', {})
+        main = mcu.get('main', {})
+        # Extract board_id from new format
+        if main.get('board_type'):
+            return {
+                'board_id': main.get('board_type'),
+                'serial': main.get('serial'),
+                'connection_type': main.get('connection_type'),
+                'toolboard': mcu.get('toolboard', {}),
+            }
+    # Fallback to legacy file
     if HARDWARE_STATE_FILE.exists():
         with open(HARDWARE_STATE_FILE) as f:
             return json.load(f)
@@ -52,7 +76,12 @@ def load_profile(profile_id: str) -> Optional[Dict]:
     return None
 
 def load_wizard_state() -> Dict:
-    """Load wizard state from key=value file."""
+    """Load wizard state (new JSON format or legacy key=value)."""
+    # Try new wizard state first
+    gschpoozi_state = load_gschpoozi_state()
+    if gschpoozi_state:
+        return gschpoozi_state.get('config', {})
+    # Fallback to legacy file
     state = {}
     if WIZARD_STATE_FILE.exists():
         with open(WIZARD_STATE_FILE) as f:
@@ -99,13 +128,13 @@ def load_motor_mapping() -> Dict:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def get_motor_pins(board: Dict, port_name: str) -> Dict[str, str]:
-    """Get motor pins for a given port."""
+    """Get motor pins for a given port. Returns None for missing pins."""
     motor_ports = board.get('motor_ports', {})
     port = motor_ports.get(port_name, {})
     return {
-        'step_pin': port.get('step_pin', 'REPLACE_PIN'),
-        'dir_pin': port.get('dir_pin', 'REPLACE_PIN'),
-        'enable_pin': port.get('enable_pin', 'REPLACE_PIN'),
+        'step_pin': port.get('step_pin'),
+        'dir_pin': port.get('dir_pin'),
+        'enable_pin': port.get('enable_pin'),
         'uart_pin': port.get('uart_pin'),
         'cs_pin': port.get('cs_pin'),
         'diag_pin': port.get('diag_pin'),
@@ -152,26 +181,26 @@ def get_spi_pins(board: Dict, spi_bus_name: str = None) -> Dict[str, str]:
 
     return {'mosi': None, 'miso': None, 'sck': None, 'bus': None}
 
-def get_heater_pin(board: Dict, port_name: str) -> str:
-    """Get heater pin for a given port."""
+def get_heater_pin(board: Dict, port_name: str) -> Optional[str]:
+    """Get heater pin for a given port. Returns None if not found."""
     heater_ports = board.get('heater_ports', {})
     port = heater_ports.get(port_name, {})
-    return port.get('pin', 'REPLACE_PIN')
+    return port.get('pin')
 
-def get_thermistor_pin(board: Dict, port_name: str) -> str:
-    """Get thermistor pin for a given port."""
+def get_thermistor_pin(board: Dict, port_name: str) -> Optional[str]:
+    """Get thermistor pin for a given port. Returns None if not found."""
     therm_ports = board.get('thermistor_ports', {})
     port = therm_ports.get(port_name, {})
-    return port.get('pin', 'REPLACE_PIN')
+    return port.get('pin')
 
-def get_fan_pin(board: Dict, port_name: str) -> str:
-    """Get fan pin for a given port."""
+def get_fan_pin(board: Dict, port_name: str) -> Optional[str]:
+    """Get fan pin for a given port. Returns None if not found."""
     fan_ports = board.get('fan_ports', {})
     port = fan_ports.get(port_name, {})
-    return port.get('pin', 'REPLACE_PIN')
+    return port.get('pin')
 
-def get_endstop_pin(board: Dict, port_name: str) -> str:
-    """Get endstop pin for a given port.
+def get_endstop_pin(board: Dict, port_name: str) -> Optional[str]:
+    """Get endstop pin for a given port. Returns None if not found.
 
     Handles different naming conventions between boards:
     - BTT style: STOP_0, STOP_1, STOP_2...
@@ -181,25 +210,38 @@ def get_endstop_pin(board: Dict, port_name: str) -> str:
 
     # Direct lookup first
     if port_name in endstop_ports:
-        return endstop_ports[port_name].get('pin', 'REPLACE_PIN')
+        return endstop_ports[port_name].get('pin')
 
     # Try mapping STOP_x -> IOx (BTT to Mellow)
     if port_name.startswith('STOP_'):
         io_name = f"IO{port_name[5:]}"
         if io_name in endstop_ports:
-            return endstop_ports[io_name].get('pin', 'REPLACE_PIN')
+            return endstop_ports[io_name].get('pin')
 
     # Try mapping IOx -> STOP_x (Mellow to BTT)
     if port_name.startswith('IO') and port_name[2:].isdigit():
         stop_name = f"STOP_{port_name[2:]}"
         if stop_name in endstop_ports:
-            return endstop_ports[stop_name].get('pin', 'REPLACE_PIN')
+            return endstop_ports[stop_name].get('pin')
 
     # If port_name looks like a pin (e.g., PG12), use it directly
     if len(port_name) >= 2 and port_name[0] == 'P' and port_name[1].isalpha():
         return port_name
 
-    return 'REPLACE_PIN'
+    return None
+
+def validate_motor_pins(pins: Dict[str, str], stepper_name: str, port_name: str) -> None:
+    """Validate that required motor pins are present. Raises ValueError if missing."""
+    required = ['step_pin', 'dir_pin', 'enable_pin']
+    missing = [p for p in required if not pins.get(p)]
+    if missing:
+        raise ValueError(f"Stepper '{stepper_name}' on port '{port_name}' is missing required pins: {', '.join(missing)}")
+
+def validate_pin(pin: Optional[str], description: str) -> str:
+    """Validate that a pin is present. Raises ValueError if missing."""
+    if not pin:
+        raise ValueError(f"Missing required pin for {description}")
+    return pin
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # CONFIG GENERATION
@@ -231,6 +273,22 @@ def apply_dir_invert(dir_pin: str, stepper_name: str, motor_mapping: Dict, hardw
     return dir_pin
 
 
+def get_probe_type_from_state(wizard_state: Dict) -> str:
+    """Get probe type from wizard state, handling nested and flat formats.
+
+    Checks in order:
+    1. wizard_state['probe']['probe_type'] (nested format)
+    2. wizard_state['probe.probe_type'] (flat dot notation)
+    3. wizard_state['probe_type'] (legacy format)
+    """
+    # Try nested format first: wizard_state['probe']['probe_type']
+    probe_config = wizard_state.get('probe', {})
+    if isinstance(probe_config, dict) and probe_config.get('probe_type'):
+        return probe_config.get('probe_type', '')
+    # Try flat format: wizard_state['probe.probe_type']
+    return wizard_state.get('probe.probe_type', '') or wizard_state.get('probe_type', '')
+
+
 def generate_hardware_cfg(
     wizard_state: Dict,
     hardware_state: Dict,
@@ -239,22 +297,61 @@ def generate_hardware_cfg(
 ) -> str:
     """Generate hardware.cfg content."""
 
+    # Support both old (hardware_state.port_assignments) and new (wizard_state.stepper_x.motor_port) formats
     assignments = hardware_state.get('port_assignments', {})
-    board_name = hardware_state.get('board_name', 'Unknown')
+    board_name = hardware_state.get('board_name', board.get('name', 'Unknown'))
+
+    # Helper to get stepper config from new format
+    def get_stepper_config(stepper_name: str) -> Dict:
+        return wizard_state.get(stepper_name, {})
+
+    # Helper to get port from new or old format
+    def get_stepper_port(stepper_name: str, default: str) -> str:
+        config = get_stepper_config(stepper_name)
+        return config.get('motor_port') or assignments.get(stepper_name, default)
+
+    # Helper to get endstop from new or old format
+    def get_endstop_port(stepper_name: str, default: str = '') -> str:
+        config = get_stepper_config(stepper_name)
+        return config.get('endstop_port') or assignments.get(f'endstop_{stepper_name.split("_")[-1]}', default)
+
+    # Helper to get probe config (uses global helper)
+    def get_probe_type() -> str:
+        return get_probe_type_from_state(wizard_state)
+
+    # Helper to get endstop pin prefix based on pullup setting
+    def get_endstop_prefix(stepper_name: str) -> str:
+        config = get_stepper_config(stepper_name)
+        # Default is True (pull-up enabled) per skeleton.json
+        pullup = config.get('endstop_pullup', True)
+        # Handle string 'true'/'false' values
+        if isinstance(pullup, str):
+            pullup = pullup.lower() == 'true'
+        return '^' if pullup else ''
+
+    # MCU config from new format
+    mcu_config = wizard_state.get('mcu', {})
+    main_mcu = mcu_config.get('main', {})
+    toolboard_mcu = mcu_config.get('toolboard', {})
 
     # Load motor mapping for direction inversion settings
     motor_mapping = load_motor_mapping()
 
-    # Get values from wizard state
-    kinematics = wizard_state.get('kinematics', 'corexy')
-    bed_x = wizard_state.get('bed_size_x', '300')
-    bed_y = wizard_state.get('bed_size_y', '300')
-    bed_z = wizard_state.get('bed_size_z', '350')
-    z_count = int(wizard_state.get('z_stepper_count', '1'))
-    hotend_therm = wizard_state.get('hotend_thermistor', 'Generic 3950')
-    hotend_pullup = wizard_state.get('hotend_pullup_resistor', '')
-    bed_therm = wizard_state.get('bed_thermistor', 'Generic 3950')
-    bed_pullup = wizard_state.get('bed_pullup_resistor', '')
+    # Get values from wizard state - support both old and new formats
+    printer_config = wizard_state.get('printer', {})
+    stepper_z_config = wizard_state.get('stepper_z', {})
+    extruder_cfg = wizard_state.get('extruder', {})
+    heater_bed_cfg = wizard_state.get('heater_bed', {})
+
+    kinematics = printer_config.get('kinematics') or wizard_state.get('kinematics', 'corexy')
+    bed_x = printer_config.get('bed_size_x') or wizard_state.get('bed_size_x', '300')
+    bed_y = printer_config.get('bed_size_y') or wizard_state.get('bed_size_y', '300')
+    bed_z = printer_config.get('bed_size_z') or wizard_state.get('bed_size_z', '350')
+    z_count = int(stepper_z_config.get('z_motor_count') or wizard_state.get('z_stepper_count', '1'))
+    hotend_therm = extruder_cfg.get('sensor_type') or wizard_state.get('hotend_thermistor', 'Generic 3950')
+    hotend_pullup = extruder_cfg.get('pullup_resistor') or wizard_state.get('hotend_pullup_resistor', '')
+    bed_therm = heater_bed_cfg.get('sensor_type') or wizard_state.get('bed_thermistor', 'Generic 3950')
+    bed_pullup = heater_bed_cfg.get('pullup_resistor') or wizard_state.get('bed_pullup_resistor', '')
 
     # Get per-axis stepper settings (step angle, microsteps, rotation distance)
     # Use 'or' to handle empty strings in wizard state
@@ -296,8 +393,8 @@ def generate_hardware_cfg(
     lines.append("# " + "─" * 77)
     lines.append("[mcu]")
 
-    # MCU serial - check wizard_state first, then hardware_state
-    mcu_serial = wizard_state.get('mcu_serial') or hardware_state.get('mcu_serial')
+    # MCU serial - new format: mcu.main.serial, old format: wizard_state.mcu_serial
+    mcu_serial = main_mcu.get('serial') or wizard_state.get('mcu_serial') or hardware_state.get('mcu_serial')
     if mcu_serial:
         lines.append(f"serial: {mcu_serial}")
     else:
@@ -308,22 +405,23 @@ def generate_hardware_cfg(
 
     # Toolboard MCU if present
     if toolboard:
-        tb_name = hardware_state.get('toolboard_name', 'Toolboard')
-        # Get toolboard connection from wizard/hardware state first, fallback to board definition
-        tb_connection = (wizard_state.get('toolboard_connection') or 
-                        hardware_state.get('toolboard_connection') or 
+        tb_name = toolboard_mcu.get('board_type') or hardware_state.get('toolboard_name', 'Toolboard')
+        # Get toolboard connection from new format first, then old format, then board definition
+        tb_connection = (toolboard_mcu.get('connection_type') or
+                        wizard_state.get('toolboard_connection') or
+                        hardware_state.get('toolboard_connection') or
                         toolboard.get('connection', 'USB')).upper()
         lines.append(f"[mcu toolboard]")
 
         if tb_connection == 'CAN':
-            canbus_uuid = wizard_state.get('toolboard_canbus_uuid') or hardware_state.get('toolboard_canbus_uuid')
+            canbus_uuid = toolboard_mcu.get('canbus_uuid') or wizard_state.get('toolboard_canbus_uuid') or hardware_state.get('toolboard_canbus_uuid')
             if canbus_uuid:
                 lines.append(f"canbus_uuid: {canbus_uuid}")
             else:
                 lines.append("canbus_uuid: SET_YOUR_CANBUS_UUID_HERE")
                 lines.append("# ^^^ Run: ~/klippy-env/bin/python ~/klipper/scripts/canbus_query.py can0")
         else:
-            tb_serial = wizard_state.get('toolboard_serial') or hardware_state.get('toolboard_serial')
+            tb_serial = toolboard_mcu.get('serial') or wizard_state.get('toolboard_serial') or hardware_state.get('toolboard_serial')
             if tb_serial:
                 lines.append(f"serial: {tb_serial}")
             else:
@@ -352,8 +450,9 @@ def generate_hardware_cfg(
     lines.append("# STEPPERS")
     lines.append("# " + "─" * 77)
 
-    x_port = assignments.get('stepper_x', 'MOTOR_0')
+    x_port = get_stepper_port('stepper_x', 'MOTOR_0')
     x_pins = get_motor_pins(board, x_port)
+    validate_motor_pins(x_pins, 'stepper_x', x_port)
     x_dir_pin = apply_dir_invert(x_pins['dir_pin'], 'stepper_x', motor_mapping, hardware_state)
     lines.append(f"[stepper_x]")
     lines.append(f"step_pin: {x_pins['step_pin']}      # {x_port}")
@@ -366,18 +465,22 @@ def generate_hardware_cfg(
 
     # Endstop - check for toolboard, sensorless, or physical on mainboard
     tb_assignments = hardware_state.get('toolboard_assignments', {}) if toolboard else {}
-    x_endstop_tb = tb_assignments.get('endstop_x', '')
-    x_endstop = assignments.get('endstop_x', '')
+    stepper_x_config = get_stepper_config('stepper_x')
+    x_endstop_location = stepper_x_config.get('endstop_location') or stepper_x_config.get('endstop_source', '')
+    x_endstop_tb = stepper_x_config.get('endstop_port_toolboard') or tb_assignments.get('endstop_x', '')
+    x_endstop = stepper_x_config.get('endstop_port') or assignments.get('endstop_x', '')
 
-    if x_endstop_tb and x_endstop_tb not in ('', 'none'):
+    x_endstop_type = stepper_x_config.get('endstop_type', '')
+    x_pullup = get_endstop_prefix('stepper_x')
+    if x_endstop_location == 'toolboard' and x_endstop_tb and x_endstop_tb not in ('', 'none'):
         # X endstop on toolboard
         endstop_pin = get_endstop_pin(toolboard, x_endstop_tb)
-        lines.append(f"endstop_pin: ^toolboard:{endstop_pin}  # {x_endstop_tb} on toolboard")
-    elif x_endstop == 'sensorless':
+        lines.append(f"endstop_pin: {x_pullup}toolboard:{endstop_pin}  # {x_endstop_tb} on toolboard")
+    elif x_endstop_type == 'sensorless' or x_endstop == 'sensorless':
         lines.append(f"endstop_pin: tmc2209_stepper_x:virtual_endstop  # Sensorless homing")
     elif x_endstop:
         endstop_pin = get_endstop_pin(board, x_endstop)
-        lines.append(f"endstop_pin: ^{endstop_pin}  # {x_endstop}")
+        lines.append(f"endstop_pin: {x_pullup}{endstop_pin}  # {x_endstop}")
     # If no endstop assigned, Klipper will error - user must configure in Hardware Setup
 
     # Homing position - use configured values or defaults based on home direction
@@ -397,8 +500,9 @@ def generate_hardware_cfg(
     lines.append("")
 
     # Stepper Y
-    y_port = assignments.get('stepper_y', 'MOTOR_1')
+    y_port = get_stepper_port('stepper_y', 'MOTOR_1')
     y_pins = get_motor_pins(board, y_port)
+    validate_motor_pins(y_pins, 'stepper_y', y_port)
     y_dir_pin = apply_dir_invert(y_pins['dir_pin'], 'stepper_y', motor_mapping, hardware_state)
     lines.append(f"[stepper_y]")
     lines.append(f"step_pin: {y_pins['step_pin']}      # {y_port}")
@@ -409,12 +513,15 @@ def generate_hardware_cfg(
     if y_full_steps != '200':
         lines.append(f"full_steps_per_rotation: {y_full_steps}  # 0.9° stepper")
 
-    y_endstop = assignments.get('endstop_y', '')
-    if y_endstop == 'sensorless':
+    stepper_y_config = get_stepper_config('stepper_y')
+    y_endstop_type = stepper_y_config.get('endstop_type', '')
+    y_endstop = stepper_y_config.get('endstop_port') or assignments.get('endstop_y', '')
+    y_pullup = get_endstop_prefix('stepper_y')
+    if y_endstop_type == 'sensorless' or y_endstop == 'sensorless':
         lines.append(f"endstop_pin: tmc2209_stepper_y:virtual_endstop  # Sensorless homing")
     elif y_endstop:
         endstop_pin = get_endstop_pin(board, y_endstop)
-        lines.append(f"endstop_pin: ^{endstop_pin}  # {y_endstop}")
+        lines.append(f"endstop_pin: {y_pullup}{endstop_pin}  # {y_endstop}")
     # If no endstop assigned, Klipper will error - user must configure in Hardware Setup
 
     # Homing position - use configured values or defaults based on home direction
@@ -435,8 +542,9 @@ def generate_hardware_cfg(
 
     # AWD: Add X1 and Y1 steppers
     if kinematics == 'corexy-awd':
-        x1_port = assignments.get('stepper_x1', 'MOTOR_2')
+        x1_port = get_stepper_port('stepper_x1', 'MOTOR_2')
         x1_pins = get_motor_pins(board, x1_port)
+        validate_motor_pins(x1_pins, 'stepper_x1', x1_port)
         x1_dir_pin = apply_dir_invert(x1_pins['dir_pin'], 'stepper_x1', motor_mapping, hardware_state)
         lines.append(f"[stepper_x1]")
         lines.append(f"step_pin: {x1_pins['step_pin']}      # {x1_port}")
@@ -448,8 +556,9 @@ def generate_hardware_cfg(
             lines.append(f"full_steps_per_rotation: {x_full_steps}  # 0.9° stepper")
         lines.append("")
 
-        y1_port = assignments.get('stepper_y1', 'MOTOR_3')
+        y1_port = get_stepper_port('stepper_y1', 'MOTOR_3')
         y1_pins = get_motor_pins(board, y1_port)
+        validate_motor_pins(y1_pins, 'stepper_y1', y1_port)
         y1_dir_pin = apply_dir_invert(y1_pins['dir_pin'], 'stepper_y1', motor_mapping, hardware_state)
         lines.append(f"[stepper_y1]")
         lines.append(f"step_pin: {y1_pins['step_pin']}      # {y1_port}")
@@ -465,8 +574,9 @@ def generate_hardware_cfg(
     for z_idx in range(z_count):
         suffix = "" if z_idx == 0 else str(z_idx)
         z_key = f"stepper_z{suffix}" if suffix else "stepper_z"
-        z_port = assignments.get(z_key, f'MOTOR_{2 + z_idx}')
+        z_port = get_stepper_port(z_key, f'MOTOR_{2 + z_idx}')
         z_pins = get_motor_pins(board, z_port)
+        validate_motor_pins(z_pins, z_key, z_port)
         z_dir_pin = apply_dir_invert(z_pins['dir_pin'], z_key, motor_mapping, hardware_state)
 
         section_name = f"stepper_z{suffix}"
@@ -482,30 +592,33 @@ def generate_hardware_cfg(
         if z_idx == 0:
             # Use correct virtual endstop based on probe type
             # All probes register as 'probe' chip, NOT their MCU name
-            probe_type = wizard_state.get('probe_type', '')
-            if probe_type == 'beacon':
-                # Beacon registers as 'probe' chip (NOT 'beacon' - that's the MCU)
-                lines.append("endstop_pin: probe:z_virtual_endstop")
-                lines.append("homing_retract_dist: 0  # Beacon requires this")
-            elif probe_type == 'cartographer':
-                # Cartographer registers as 'probe' chip
-                lines.append("endstop_pin: probe:z_virtual_endstop")
-                lines.append("homing_retract_dist: 0  # Cartographer requires this")
-            elif probe_type == 'btt-eddy':
-                # BTT Eddy registers as 'probe' chip
+            probe_type = get_probe_type()
+            stepper_z_cfg = get_stepper_config('stepper_z')
+            z_endstop_type = stepper_z_cfg.get('endstop_type', '')
+
+            if probe_type in ('beacon', 'cartographer', 'btt-eddy', 'btt_eddy'):
+                # Eddy current probes require homing_retract_dist: 0
                 lines.append("endstop_pin: probe:z_virtual_endstop")
                 lines.append("homing_retract_dist: 0  # Eddy probe requires this")
-            elif probe_type in ('bltouch', 'klicky', 'inductive'):
+            elif probe_type in ('bltouch', 'klicky', 'inductive', 'tap'):
+                # Contact/touch probes use virtual endstop with retract
                 lines.append("endstop_pin: probe:z_virtual_endstop")
                 lines.append("homing_retract_dist: 5")
-            elif probe_type == 'endstop':
+            elif probe_type == 'none' or z_endstop_type in ('physical_mainboard', 'physical_toolboard', 'physical'):
                 # Physical Z endstop - check for assignment
-                z_endstop = assignments.get('endstop_z', '')
+                z_endstop = stepper_z_cfg.get('endstop_port') or assignments.get('endstop_z', '')
+                z_pullup = get_endstop_prefix('stepper_z')
                 if z_endstop:
                     z_endstop_pin = get_endstop_pin(board, z_endstop)
-                    lines.append(f"endstop_pin: ^{z_endstop_pin}  # {z_endstop}")
-                # If no assignment, Klipper will error - user must configure
+                    lines.append(f"endstop_pin: {z_pullup}{z_endstop_pin}  # {z_endstop}")
+                else:
+                    # No Z endstop configured but probe_type is 'none' - provide placeholder
+                    lines.append("endstop_pin: # TODO: Configure Z endstop in wizard")
                 lines.append("position_endstop: 0  # Adjust after homing")
+                lines.append("homing_retract_dist: 5")
+            else:
+                # Unknown probe type but something is set - assume probe-based homing
+                lines.append("endstop_pin: probe:z_virtual_endstop")
                 lines.append("homing_retract_dist: 5")
             lines.append("position_min: -5")
             lines.append(f"position_max: {bed_z}")
@@ -548,11 +661,8 @@ def generate_hardware_cfg(
                 tmc_lines.append(f"spi_software_mosi_pin: {spi_pins['mosi']}")
                 tmc_lines.append(f"spi_software_sclk_pin: {spi_pins['sck']}")
             else:
-                # No SPI config found - add comment for manual config
-                tmc_lines.append("# SPI pins not found in board config - configure manually:")
-                tmc_lines.append("# spi_software_miso_pin: REPLACE_MISO")
-                tmc_lines.append("# spi_software_mosi_pin: REPLACE_MOSI")
-                tmc_lines.append("# spi_software_sclk_pin: REPLACE_SCLK")
+                # No SPI config found - this is an error for SPI drivers
+                raise ValueError(f"TMC SPI driver {driver_type} requires SPI configuration but board has no SPI pins defined")
         else:
             tmc_lines.append(f"uart_pin: {prefix}{motor_pins.get('uart_pin')}")
 
@@ -575,22 +685,22 @@ def generate_hardware_cfg(
 
     # Stepper Y TMC
     driver_y_type = wizard_state.get('driver_Y', default_driver)
-    y_port = assignments.get('stepper_y', 'MOTOR_1')
-    y_pins_tmc = get_motor_pins(board, y_port)
+    y_port_tmc = get_stepper_port('stepper_y', 'MOTOR_1')
+    y_pins_tmc = get_motor_pins(board, y_port_tmc)
     if driver_y_type and (y_pins_tmc.get('uart_pin') or y_pins_tmc.get('cs_pin')):
         lines.extend(generate_tmc_section('stepper_y', driver_y_type, y_pins_tmc))
 
     # AWD: X1 and Y1 TMC
     if kinematics == 'corexy-awd':
         driver_x1_type = wizard_state.get('driver_X1', default_driver)
-        x1_port = assignments.get('stepper_x1', 'MOTOR_2')
-        x1_pins_tmc = get_motor_pins(board, x1_port)
+        x1_port_tmc = get_stepper_port('stepper_x1', 'MOTOR_2')
+        x1_pins_tmc = get_motor_pins(board, x1_port_tmc)
         if driver_x1_type and (x1_pins_tmc.get('uart_pin') or x1_pins_tmc.get('cs_pin')):
             lines.extend(generate_tmc_section('stepper_x1', driver_x1_type, x1_pins_tmc))
 
         driver_y1_type = wizard_state.get('driver_Y1', default_driver)
-        y1_port = assignments.get('stepper_y1', 'MOTOR_3')
-        y1_pins_tmc = get_motor_pins(board, y1_port)
+        y1_port_tmc = get_stepper_port('stepper_y1', 'MOTOR_3')
+        y1_pins_tmc = get_motor_pins(board, y1_port_tmc)
         if driver_y1_type and (y1_pins_tmc.get('uart_pin') or y1_pins_tmc.get('cs_pin')):
             lines.extend(generate_tmc_section('stepper_y1', driver_y1_type, y1_pins_tmc))
 
@@ -601,22 +711,24 @@ def generate_hardware_cfg(
         driver_key = f"driver_Z{suffix}" if suffix else "driver_Z"
         driver_z_type = wizard_state.get(driver_key, default_driver)
         z_port_name = f"stepper_z{suffix}" if suffix else "stepper_z"
-        z_port_tmc = assignments.get(z_port_name, f'MOTOR_{4 + z_idx}')
+        z_port_tmc = get_stepper_port(z_port_name, f'MOTOR_{4 + z_idx}')
         z_pins_tmc = get_motor_pins(board, z_port_tmc)
         if driver_z_type and (z_pins_tmc.get('uart_pin') or z_pins_tmc.get('cs_pin')):
             lines.extend(generate_tmc_section(stepper_name, driver_z_type, z_pins_tmc, "0.8"))
 
     # Extruder TMC (on mainboard or toolboard)
     driver_e_type = wizard_state.get('driver_E', default_driver)
+    extruder_config_tmc = wizard_state.get('extruder', {})
+    extruder_motor_loc = extruder_config_tmc.get('motor_location') or extruder_config_tmc.get('location', '')
     tb_extruder = hardware_state.get('toolboard_assignments', {}).get('extruder', '') if toolboard else ''
-    extruder_on_tb = toolboard and tb_extruder not in ('', 'none')
+    extruder_on_tb = toolboard and (extruder_motor_loc == 'toolboard' or tb_extruder not in ('', 'none'))
     if extruder_on_tb:
-        e_port_tmc = hardware_state.get('toolboard_assignments', {}).get('extruder', 'EXTRUDER')
+        e_port_tmc = extruder_config_tmc.get('motor_port_toolboard') or extruder_config_tmc.get('motor_port') or hardware_state.get('toolboard_assignments', {}).get('extruder', 'EXTRUDER')
         e_pins_tmc = get_motor_pins(toolboard, e_port_tmc)
         if driver_e_type and (e_pins_tmc.get('uart_pin') or e_pins_tmc.get('cs_pin')):
             lines.extend(generate_tmc_section('extruder', driver_e_type, e_pins_tmc, "0.5", "toolboard"))
     else:
-        e_port_tmc = assignments.get('extruder', 'MOTOR_5')
+        e_port_tmc = extruder_config_tmc.get('motor_port') or assignments.get('extruder', 'MOTOR_5')
         e_pins_tmc = get_motor_pins(board, e_port_tmc)
         if driver_e_type and (e_pins_tmc.get('uart_pin') or e_pins_tmc.get('cs_pin')):
             lines.extend(generate_tmc_section('extruder', driver_e_type, e_pins_tmc, "0.5"))
@@ -626,26 +738,48 @@ def generate_hardware_cfg(
     lines.append("# EXTRUDER")
     lines.append("# " + "─" * 77)
 
-    # Check if extruder is on toolboard (not 'none')
+    # Check if extruder is on toolboard - support both old and new state formats
     tb_assignments = hardware_state.get('toolboard_assignments', {}) if toolboard else {}
-    extruder_on_toolboard = toolboard and tb_assignments.get('extruder', '') not in ('', 'none')
-    heater_on_toolboard = toolboard and tb_assignments.get('heater_extruder', '') not in ('', 'none')
-    therm_on_toolboard = toolboard and tb_assignments.get('thermistor_extruder', '') not in ('', 'none')
+    extruder_config = wizard_state.get('extruder', {})
+
+    # New format uses extruder.location, extruder.heater_location, extruder.sensor_location
+    extruder_on_toolboard = toolboard and (
+        tb_assignments.get('extruder', '') not in ('', 'none') or
+        extruder_config.get('location') == 'toolboard' or
+        extruder_config.get('motor_location') == 'toolboard'
+    )
+    heater_on_toolboard = toolboard and (
+        tb_assignments.get('heater_extruder', '') not in ('', 'none') or
+        extruder_config.get('heater_location') == 'toolboard'
+    )
+    therm_on_toolboard = toolboard and (
+        tb_assignments.get('thermistor_extruder', '') not in ('', 'none') or
+        extruder_config.get('sensor_location') == 'toolboard'
+    )
 
     lines.append("[extruder]")
 
     if extruder_on_toolboard:
         # Extruder motor on toolboard
-        e_port = tb_assignments.get('extruder', 'EXTRUDER')
+        # New format: extruder.motor_port_toolboard, old format: tb_assignments.extruder
+        e_port = extruder_config.get('motor_port_toolboard') or extruder_config.get('motor_port') or tb_assignments.get('extruder', 'EXTRUDER')
         e_pins = get_motor_pins(toolboard, e_port)
+        validate_motor_pins(e_pins, 'extruder', e_port)
         e_dir_pin = apply_dir_invert(e_pins['dir_pin'], 'extruder', motor_mapping, hardware_state)
         lines.append(f"step_pin: toolboard:{e_pins['step_pin']}      # {e_port}")
         lines.append(f"dir_pin: toolboard:{e_dir_pin}       # {e_port}")
         lines.append(f"enable_pin: !toolboard:{e_pins['enable_pin']}  # {e_port}")
     else:
         # Extruder motor on main board
-        e_port = assignments.get('extruder', 'MOTOR_5')
+        # New format: extruder.motor_port, old format: assignments.extruder
+        # Note: If motor_port has toolboard-style name (e.g., EXTRUDER), fall back to board default
+        e_port = extruder_config.get('motor_port') or assignments.get('extruder', 'MOTOR_5')
         e_pins = get_motor_pins(board, e_port)
+        if not e_pins.get('step_pin'):
+            # Port not found on mainboard - try board's default extruder assignment
+            e_port = assignments.get('extruder', 'MOTOR_5')
+            e_pins = get_motor_pins(board, e_port)
+        validate_motor_pins(e_pins, 'extruder', e_port)
         e_dir_pin = apply_dir_invert(e_pins['dir_pin'], 'extruder', motor_mapping, hardware_state)
         lines.append(f"step_pin: {e_pins['step_pin']}      # {e_port}")
         lines.append(f"dir_pin: {e_dir_pin}       # {e_port}")
@@ -659,12 +793,16 @@ def generate_hardware_cfg(
     lines.append("filament_diameter: 1.750")
 
     if heater_on_toolboard:
-        he_port = tb_assignments.get('heater_extruder', 'HE')
+        # New format: extruder.heater_port_toolboard, old format: tb_assignments.heater_extruder
+        he_port = extruder_config.get('heater_port_toolboard') or extruder_config.get('heater_port') or tb_assignments.get('heater_extruder', 'HE')
         he_pin = get_heater_pin(toolboard, he_port)
+        validate_pin(he_pin, f"extruder heater on toolboard port {he_port}")
         lines.append(f"heater_pin: toolboard:{he_pin}  # {he_port}")
     else:
-        he_port = assignments.get('heater_extruder', 'HE0')
+        # New format: extruder.heater_port, old format: assignments.heater_extruder
+        he_port = extruder_config.get('heater_port') or assignments.get('heater_extruder', 'HE0')
         he_pin = get_heater_pin(board, he_port)
+        validate_pin(he_pin, f"extruder heater on port {he_port}")
         lines.append(f"heater_pin: {he_pin}  # {he_port}")
 
     # Handle special sensor types (MAX31865 for PT100/PT1000)
@@ -687,16 +825,21 @@ def generate_hardware_cfg(
         lines.append(f"sensor_type: {hotend_therm}")
 
         if therm_on_toolboard:
-            th_port = tb_assignments.get('thermistor_extruder', 'TH0')
+            # New format: extruder.sensor_port_toolboard, old format: tb_assignments.thermistor_extruder
+            th_port = extruder_config.get('sensor_port_toolboard') or extruder_config.get('sensor_port') or tb_assignments.get('thermistor_extruder', 'TH0')
             th_pin = get_thermistor_pin(toolboard, th_port)
+            validate_pin(th_pin, f"extruder thermistor on toolboard port {th_port}")
             lines.append(f"sensor_pin: toolboard:{th_pin}  # {th_port}")
         else:
-            th_port = assignments.get('thermistor_extruder', 'T0')
+            # New format: extruder.sensor_port, old format: assignments.thermistor_extruder
+            th_port = extruder_config.get('sensor_port') or assignments.get('thermistor_extruder', 'T0')
             th_pin = get_thermistor_pin(board, th_port)
+            validate_pin(th_pin, f"extruder thermistor on port {th_port}")
             lines.append(f"sensor_pin: {th_pin}  # {th_port}")
 
-        # Add pullup_resistor if specified (important for PT1000 direct)
-        if hotend_pullup:
+        # Add pullup_resistor if specified (required for PT1000 direct and some thermistors)
+        # Only add if not using MAX31865 (which handles pullup internally) and not set to "none"
+        if hotend_pullup and str(hotend_pullup).lower() != 'none' and 'MAX31865' not in hotend_therm:
             lines.append(f"pullup_resistor: {hotend_pullup}  # Board-specific pullup value")
 
     lines.append("min_temp: 0")
@@ -734,17 +877,22 @@ def generate_hardware_cfg(
     lines.append("# HEATED BED")
     lines.append("# " + "─" * 77)
 
-    hb_port = assignments.get('heater_bed', 'HB')
+    # Support both old (assignments) and new (heater_bed.*) formats
+    heater_bed_config = wizard_state.get('heater_bed', {})
+    hb_port = heater_bed_config.get('heater_port') or assignments.get('heater_bed', 'BED')
     hb_pin = get_heater_pin(board, hb_port)
-    tb_port = assignments.get('thermistor_bed', 'TB')
+    validate_pin(hb_pin, f"heater bed on port {hb_port}")
+    tb_port = heater_bed_config.get('sensor_port') or assignments.get('thermistor_bed', 'TB')
     tb_pin = get_thermistor_pin(board, tb_port)
+    validate_pin(tb_pin, f"bed thermistor on port {tb_port}")
 
     lines.append("[heater_bed]")
     lines.append(f"heater_pin: {hb_pin}  # {hb_port}")
     lines.append(f"sensor_type: {bed_therm}")
     lines.append(f"sensor_pin: {tb_pin}  # {tb_port}")
-    # Add pullup_resistor if specified
-    if bed_pullup:
+    # Add pullup_resistor if specified (required for PT1000 direct and some thermistors)
+    # Only add if not using MAX31865 (which handles pullup internally) and not set to "none"
+    if bed_pullup and str(bed_pullup).lower() != 'none' and 'MAX31865' not in bed_therm:
         lines.append(f"pullup_resistor: {bed_pullup}  # Board-specific pullup value")
     lines.append("control: pid")
     lines.append("pid_kp: 54.027  # Run PID_CALIBRATE HEATER=heater_bed TARGET=60")
@@ -898,13 +1046,16 @@ def generate_hardware_cfg(
                 lines.append(f"heater_temp: {hf_heater_temp}.0")
             elif fan_hotend_type == 'temperature':
                 hf_sensor = wizard_state.get('fan_hotend_sensor_type', '')
+                hf_sensor_pin = wizard_state.get('fan_hotend_sensor_pin', '')
                 hf_target = wizard_state.get('fan_hotend_target_temp', '40')
                 lines.append("[temperature_fan hotend_fan]")
                 lines.append(f"pin: {hf_pin}  # {hf_port}")
                 add_fan_settings(lines, hf_settings, {'max_power': '1.0', 'kick_start': '0.5', 'shutdown_speed': '0'})
                 if hf_sensor and hf_sensor != 'chamber':
+                    if not hf_sensor_pin:
+                        raise ValueError("Hotend fan temperature control requires sensor_pin when using custom sensor")
                     lines.append(f"sensor_type: {hf_sensor}")
-                    lines.append("sensor_pin: REPLACE_PIN  # Connect temperature sensor")
+                    lines.append(f"sensor_pin: {hf_sensor_pin}")
                 else:
                     lines.append("sensor_type: temperature_combined")
                     lines.append("sensor_list: temperature_sensor chamber")
@@ -1123,13 +1274,16 @@ def generate_hardware_cfg(
             lines.append("# Recirculating active carbon/HEPA filter")
         elif fan_rscs_type == 'temperature':
             rs_sensor = wizard_state.get('fan_rscs_sensor_type', '')
+            rs_sensor_pin = wizard_state.get('fan_rscs_sensor_pin', '')
             rs_target = wizard_state.get('fan_rscs_target_temp', '45')
             lines.append("[temperature_fan rscs_fan]")
             lines.append(f"pin: {rs_pin_str}")
             add_fan_settings(lines, rs_settings, {'max_power': '1.0', 'shutdown_speed': '0', 'kick_start': '0.5'})
             if rs_sensor and rs_sensor != 'chamber':
+                if not rs_sensor_pin:
+                    raise ValueError("RSCS fan temperature control requires sensor_pin when using custom sensor")
                 lines.append(f"sensor_type: {rs_sensor}")
-                lines.append("sensor_pin: REPLACE_PIN  # Connect temperature sensor")
+                lines.append(f"sensor_pin: {rs_sensor_pin}")
             else:
                 lines.append("sensor_type: temperature_combined")
                 lines.append("sensor_list: temperature_sensor chamber")
@@ -1215,8 +1369,12 @@ def generate_hardware_cfg(
         lines.append("")
 
     # Probe configuration
-    probe_type = wizard_state.get('probe_type', '')
-    probe_mode = wizard_state.get('probe_mode', 'proximity')  # Default to proximity
+    probe_type = get_probe_type_from_state(wizard_state)
+    # probe.homing_mode: 'contact'/'proximity' for Beacon, 'touch'/'scan' for Cartographer
+    probe_config = wizard_state.get('probe', {})
+    probe_mode = probe_config.get('homing_mode', '') if isinstance(probe_config, dict) else ''
+    if not probe_mode:
+        probe_mode = wizard_state.get('probe.homing_mode', '') or wizard_state.get('probe_mode', 'proximity')
     # Get probe serial/CAN - check wizard state first, then hardware state as fallback
     probe_serial = wizard_state.get('probe_serial') or hardware_state.get('probe_serial')
     probe_canbus_uuid = wizard_state.get('probe_canbus_uuid') or hardware_state.get('probe_canbus_uuid')
@@ -1251,8 +1409,8 @@ def generate_hardware_cfg(
             lines.append("mesh_main_direction: x")
             lines.append("mesh_runs: 2")
 
-            # Contact/Touch mode configuration for Beacon
-            if probe_mode == 'touch':
+            # Contact mode configuration for Beacon
+            if probe_mode == 'contact':
                 lines.append("")
                 lines.append("# Contact mode settings (Beacon Rev H+ required)")
                 lines.append("home_method: contact")
@@ -1381,9 +1539,12 @@ def generate_hardware_cfg(
         # ─────────────────────────────────────────────────────────────────────
         # SAFE Z HOME - Required unless probe handles homing itself
         # ─────────────────────────────────────────────────────────────────────
-        # Beacon touch mode handles Z homing via home_method: contact
-        # and has its own home_xy_position, so safe_z_home would conflict
-        skip_safe_z_home = (probe_type == 'beacon' and probe_mode == 'touch')
+        # Beacon contact mode and Cartographer touch mode handle Z homing internally
+        # with home_xy_position in their own section, so safe_z_home would conflict
+        skip_safe_z_home = (
+            (probe_type == 'beacon' and probe_mode == 'contact') or
+            (probe_type == 'cartographer' and probe_mode == 'touch')
+        )
 
         if not skip_safe_z_home:
             lines.append("# " + "─" * 77)
@@ -1544,7 +1705,7 @@ def generate_hardware_cfg(
         # Status LEDs (toolhead neopixels)
         if has_leds == 'yes' or lighting_type == 'neopixel':
             # Priority: 1) User-selected toolboard pin, 2) User-selected mainboard pin,
-            #           3) Toolboard RGB from template, 4) REPLACE_PIN
+            #           3) Toolboard RGB from template, 4) Skip if no pin
             if tb_lighting_pin:
                 # User selected a toolboard pin
                 # Extract just the pin from format like "RGB:gpio7" or "manual:PD15"
@@ -1670,6 +1831,10 @@ def generate_hardware_cfg(
     # Chamber temperature sensor
     has_chamber_sensor = wizard_state.get('has_chamber_sensor', '')
     chamber_sensor_type = wizard_state.get('chamber_sensor_type') or 'Generic 3950'
+    # Get chamber pullup from temperature_sensors.chamber config
+    temp_sensors = wizard_state.get('temperature_sensors', {})
+    chamber_config = temp_sensors.get('chamber', {}) if isinstance(temp_sensors, dict) else {}
+    chamber_pullup = chamber_config.get('pullup_resistor') or wizard_state.get('chamber_pullup_resistor', '')
     # Try hardware assignments first, then wizard state
     chamber_port = assignments.get('thermistor_chamber', '')
     if chamber_port:
@@ -1685,11 +1850,124 @@ def generate_hardware_cfg(
         lines.append("[temperature_sensor chamber]")
         lines.append(f"sensor_type: {chamber_sensor_type}")
         lines.append(f"sensor_pin: {chamber_sensor_pin}  # {chamber_port or 'direct pin'}")
+        # Add pullup_resistor if specified and not "none" (MAX31865 handles pullup internally)
+        if chamber_pullup and chamber_pullup.lower() != 'none' and 'MAX31865' not in chamber_sensor_type:
+            lines.append(f"pullup_resistor: {chamber_pullup}  # Board-specific pullup value")
         lines.append("min_temp: 0")
         lines.append("max_temp: 80")
         lines.append("gcode_id: C")
         lines.append("")
     # If has_chamber_sensor but no pin, skip section - user must assign in Hardware Setup
+
+    # ─────────────────────────────────────────────────────────────────────────────
+    # BUILT-IN MCU TEMPERATURE SENSORS
+    # ─────────────────────────────────────────────────────────────────────────────
+    mcu_main_enabled = temp_sensors.get('mcu_main', {}).get('enabled', True) if isinstance(temp_sensors, dict) else True
+    host_enabled = temp_sensors.get('host', {}).get('enabled', True) if isinstance(temp_sensors, dict) else True
+    toolboard_temp_enabled = temp_sensors.get('toolboard', {}).get('enabled', False) if isinstance(temp_sensors, dict) else False
+
+    # Check if toolboard is configured
+    mcu_config = wizard_state.get('mcu', {})
+    toolboard_mcu = mcu_config.get('toolboard', {}) if isinstance(mcu_config, dict) else {}
+    has_toolboard = toolboard_mcu.get('enabled', False) if isinstance(toolboard_mcu, dict) else False
+
+    has_mcu_sensors = mcu_main_enabled or host_enabled or (has_toolboard and toolboard_temp_enabled)
+
+    if has_mcu_sensors:
+        lines.append("# " + "─" * 77)
+        lines.append("# MCU TEMPERATURE SENSORS")
+        lines.append("# " + "─" * 77)
+
+        # Host (Raspberry Pi) temperature
+        if host_enabled:
+            lines.append("[temperature_sensor raspberry_pi]")
+            lines.append("sensor_type: temperature_host")
+            lines.append("min_temp: 0")
+            lines.append("max_temp: 100")
+            lines.append("")
+
+        # Main MCU temperature
+        if mcu_main_enabled:
+            lines.append("[temperature_sensor mcu_temp]")
+            lines.append("sensor_type: temperature_mcu")
+            lines.append("min_temp: 0")
+            lines.append("max_temp: 100")
+            lines.append("")
+
+        # Toolboard MCU temperature
+        if has_toolboard and toolboard_temp_enabled:
+            lines.append("[temperature_sensor toolboard]")
+            lines.append("sensor_type: temperature_mcu")
+            lines.append("sensor_mcu: toolboard")
+            lines.append("min_temp: 0")
+            lines.append("max_temp: 100")
+            lines.append("")
+
+    # ─────────────────────────────────────────────────────────────────────────────
+    # ADDITIONAL TEMPERATURE SENSORS (user-defined)
+    # ─────────────────────────────────────────────────────────────────────────────
+    additional_sensors = temp_sensors.get('additional', []) if isinstance(temp_sensors, dict) else []
+
+    if additional_sensors:
+        lines.append("# " + "─" * 77)
+        lines.append("# ADDITIONAL TEMPERATURE SENSORS")
+        lines.append("# " + "─" * 77)
+
+        for sensor in additional_sensors:
+            if not isinstance(sensor, dict):
+                continue
+
+            sensor_name = sensor.get('name', '').strip()
+            sensor_type = sensor.get('type', 'Generic 3950')
+
+            if not sensor_name:
+                continue
+
+            # Sanitize name for Klipper (replace spaces with underscores)
+            safe_name = sensor_name.replace(' ', '_').lower()
+
+            lines.append(f"[temperature_sensor {safe_name}]")
+
+            if sensor_type == 'temperature_mcu':
+                # MCU temperature sensor
+                sensor_mcu = sensor.get('mcu', 'mcu')
+                lines.append("sensor_type: temperature_mcu")
+                if sensor_mcu and sensor_mcu != 'mcu':
+                    lines.append(f"sensor_mcu: {sensor_mcu}")
+            elif sensor_type in ['BME280', 'AHT10']:
+                # I2C sensors
+                lines.append(f"sensor_type: {sensor_type}")
+                i2c_address = sensor.get('i2c_address', '')
+                i2c_bus = sensor.get('i2c_bus', '')
+                location = sensor.get('location', 'mainboard')
+
+                if i2c_address:
+                    lines.append(f"i2c_address: {i2c_address}")
+                if i2c_bus:
+                    lines.append(f"i2c_bus: {i2c_bus}")
+                elif location == 'rpi':
+                    lines.append("i2c_mcu: rpi")
+                    lines.append("i2c_bus: i2c.1")
+            elif sensor_type == 'DS18B20':
+                # 1-wire digital sensor
+                lines.append("sensor_type: DS18B20")
+                sensor_pin = sensor.get('sensor_pin', '')
+                if sensor_pin:
+                    lines.append(f"sensor_pin: {sensor_pin}")
+                lines.append("ds18_report_time: 2.0")
+            else:
+                # Thermistor types (Generic 3950, NTC 100K beta 3950, PT1000)
+                lines.append(f"sensor_type: {sensor_type}")
+                sensor_pin = sensor.get('sensor_pin', '')
+                if sensor_pin:
+                    lines.append(f"sensor_pin: {sensor_pin}")
+                pullup = sensor.get('pullup_resistor', '')
+                if pullup and str(pullup).lower() != 'none':
+                    lines.append(f"pullup_resistor: {pullup}")
+
+            lines.append("min_temp: 0")
+            lines.append("max_temp: 100")
+            lines.append("")
 
     return "\n".join(lines)
 
@@ -2085,6 +2363,679 @@ def generate_calibration_cfg(wizard_state: Dict, hardware_state: Dict) -> str:
     return "\n".join(lines)
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# TMC AUTOTUNE GENERATION
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def generate_tmc_autotune_cfg(wizard_state: Dict) -> Optional[str]:
+    """Generate tmc-autotune.cfg with [autotune_tmc] sections.
+
+    Only generated if tuning.tmc_autotune.enabled is True.
+    Returns None if disabled (no file should be generated).
+    """
+    # Check if enabled - handle both nested and flat state formats
+    tuning = wizard_state.get('tuning', {})
+    if isinstance(tuning, str):
+        enabled = wizard_state.get('tuning.tmc_autotune.enabled', 'false')
+        if isinstance(enabled, str):
+            enabled = enabled.lower() == 'true'
+        voltage = wizard_state.get('tuning.tmc_autotune.voltage', 24)
+        motor_xy = wizard_state.get('tuning.tmc_autotune.motor_xy', '')
+        motor_z = wizard_state.get('tuning.tmc_autotune.motor_z', '')
+        motor_extruder = wizard_state.get('tuning.tmc_autotune.motor_extruder', '')
+        tuning_goal = wizard_state.get('tuning.tmc_autotune.tuning_goal', 'auto')
+    else:
+        tmc_autotune = tuning.get('tmc_autotune', {})
+        enabled = tmc_autotune.get('enabled', False)
+        voltage = tmc_autotune.get('voltage', 24)
+        motor_xy = tmc_autotune.get('motor_xy', '')
+        motor_z = tmc_autotune.get('motor_z', '')
+        motor_extruder = tmc_autotune.get('motor_extruder', '')
+        tuning_goal = tmc_autotune.get('tuning_goal', 'auto')
+
+    if not enabled:
+        return None
+
+    # Check required motors are selected
+    if not motor_xy or not motor_z or not motor_extruder:
+        return None
+
+    lines = []
+    lines.append("# ═══════════════════════════════════════════════════════════════════════════════")
+    lines.append("# TMC AUTOTUNE CONFIGURATION")
+    lines.append("# Generated by gschpoozi - https://github.com/gschpoozi")
+    lines.append("# ═══════════════════════════════════════════════════════════════════════════════")
+    lines.append("# Requires: https://github.com/andrewmcgr/klipper_tmc_autotune")
+    lines.append("#")
+    lines.append(f"# Motor XY: {motor_xy}")
+    lines.append(f"# Motor Z: {motor_z}")
+    lines.append(f"# Motor Extruder: {motor_extruder}")
+    lines.append(f"# Voltage: {voltage}V")
+    lines.append(f"# Tuning Goal: {tuning_goal}")
+    lines.append("# ═══════════════════════════════════════════════════════════════════════════════")
+    lines.append("")
+
+    # Get kinematics and motor configuration
+    kinematics = wizard_state.get('kinematics', 'corexy')
+    is_awd = wizard_state.get('awd_enabled', False)
+    z_count = wizard_state.get('z_motor_count', 1)
+    try:
+        z_count = int(z_count)
+    except (ValueError, TypeError):
+        z_count = 1
+
+    # XY steppers (always stepper_x and stepper_y)
+    lines.append("[autotune_tmc stepper_x]")
+    lines.append(f"motor: {motor_xy}")
+    lines.append(f"voltage: {voltage}")
+    lines.append(f"tuning_goal: {tuning_goal}")
+    lines.append("")
+
+    lines.append("[autotune_tmc stepper_y]")
+    lines.append(f"motor: {motor_xy}")
+    lines.append(f"voltage: {voltage}")
+    lines.append(f"tuning_goal: {tuning_goal}")
+    lines.append("")
+
+    # AWD adds stepper_x1 and stepper_y1
+    if is_awd:
+        lines.append("[autotune_tmc stepper_x1]")
+        lines.append(f"motor: {motor_xy}")
+        lines.append(f"voltage: {voltage}")
+        lines.append(f"tuning_goal: {tuning_goal}")
+        lines.append("")
+
+        lines.append("[autotune_tmc stepper_y1]")
+        lines.append(f"motor: {motor_xy}")
+        lines.append(f"voltage: {voltage}")
+        lines.append(f"tuning_goal: {tuning_goal}")
+        lines.append("")
+
+    # Z steppers - typically use 24V and silent for Z
+    z_voltage = 24  # Z motors usually run at 24V even on 48V systems
+    z_goal = "silent"  # Z benefits from silent operation
+
+    lines.append("[autotune_tmc stepper_z]")
+    lines.append(f"motor: {motor_z}")
+    lines.append(f"voltage: {z_voltage}")
+    lines.append(f"tuning_goal: {z_goal}")
+    lines.append("")
+
+    for i in range(1, z_count):
+        lines.append(f"[autotune_tmc stepper_z{i}]")
+        lines.append(f"motor: {motor_z}")
+        lines.append(f"voltage: {z_voltage}")
+        lines.append(f"tuning_goal: {z_goal}")
+        lines.append("")
+
+    # Extruder - typically 24V and performance for reliable extrusion
+    lines.append("[autotune_tmc extruder]")
+    lines.append(f"motor: {motor_extruder}")
+    lines.append("voltage: 24")
+    lines.append("tuning_goal: performance")
+    lines.append("")
+
+    return "\n".join(lines)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CHOPPER TUNING GENERATION
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def generate_chopper_tuning_cfg(wizard_state: Dict) -> Optional[str]:
+    """Generate chopper-tuning.cfg with TMC chopper auto-tuning macros.
+
+    Only generated if:
+    - chopper_tuning_enabled is True
+    - Accelerometer is configured
+    - TMC5160 or TMC2240 drivers are used on X/Y
+    """
+    # Check if enabled
+    tuning = wizard_state.get('tuning', {})
+    if isinstance(tuning, str):
+        # Handle flat state format (tuning.chopper_tuning_enabled)
+        enabled = wizard_state.get('tuning.chopper_tuning_enabled', 'false').lower() == 'true'
+        safety_level = wizard_state.get('tuning.chopper_safety_level', 'high')
+        diag0_pin_x = wizard_state.get('tuning.chopper_diag0_pin_x', '')
+        diag0_pin_y = wizard_state.get('tuning.chopper_diag0_pin_y', '')
+    else:
+        enabled = tuning.get('chopper_tuning_enabled', False)
+        safety_level = tuning.get('chopper_safety_level', 'high')
+        diag0_pin_x = tuning.get('chopper_diag0_pin_x', '')
+        diag0_pin_y = tuning.get('chopper_diag0_pin_y', '')
+
+    if not enabled:
+        return None
+
+    # Check for accelerometer
+    input_shaper = wizard_state.get('input_shaper', {})
+    if isinstance(input_shaper, str):
+        accel_chip = wizard_state.get('input_shaper.accel_chip', 'none')
+    else:
+        accel_chip = input_shaper.get('accel_chip', 'none')
+
+    if accel_chip == 'none':
+        return None  # Requires accelerometer
+
+    # Determine accelerometer chip name for macros
+    accel_chip_name = {
+        'beacon': 'beacon',
+        'cartographer': 'cartographer',
+        'btt_eddy': 'btt_eddy',
+        'adxl345': 'adxl345',
+        'lis2dw': 'lis2dw',
+        'mpu9250': 'mpu9250',
+    }.get(accel_chip, 'adxl345')
+
+    # Check for compatible TMC drivers
+    driver_x = wizard_state.get('driver_X', wizard_state.get('stepper_driver', ''))
+    driver_y = wizard_state.get('driver_Y', wizard_state.get('stepper_driver', ''))
+    has_compatible_driver = driver_x in ['TMC5160', 'TMC2240'] or driver_y in ['TMC5160', 'TMC2240']
+
+    if not has_compatible_driver:
+        return None  # Requires TMC5160 or TMC2240
+
+    kinematics = wizard_state.get('kinematics', 'corexy')
+    is_awd = kinematics == 'corexy-awd'
+    gschpoozi_path = '~/gschpoozi'
+
+    lines = []
+    lines.append("# " + "═" * 77)
+    lines.append("# TMC CHOPPER AUTO-TUNING SYSTEM")
+    lines.append(f"# Generated by gschpoozi - {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    lines.append("# " + "═" * 77)
+    lines.append("#")
+    lines.append("# Automatically finds optimal TMC5160/TMC2240 chopper settings to reduce")
+    lines.append("# mid-range resonance and vibration using accelerometer data.")
+    lines.append("#")
+    lines.append("# Usage:")
+    lines.append("#   TMC_CHOPPER_TUNE STEPPER=stepper_x           # Full auto-tune")
+    lines.append("#   TMC_CHOPPER_TUNE MODE=find_resonance         # Find problem speeds only")
+    lines.append('#   TMC_CHOPPER_TUNE MODE=optimize SPEEDS="45,90" # Optimize at specific speeds')
+    lines.append("#   CHOPPER_ANALYZE                              # Run analysis on collected data")
+    lines.append("#")
+    lines.append("# Reference: https://github.com/gm-tc-collaborators/gschpoozi")
+    lines.append("# " + "═" * 77)
+    lines.append("")
+
+    # Shell command for analyzer
+    lines.append("# " + "─" * 77)
+    lines.append("# SHELL COMMAND FOR PYTHON ANALYZER")
+    lines.append("# " + "─" * 77)
+    lines.append("")
+    lines.append("[gcode_shell_command chopper_analyze]")
+    lines.append(f"command: python3 {gschpoozi_path}/scripts/tools/chopper_analyze.py")
+    lines.append("timeout: 120.0")
+    lines.append("verbose: True")
+    lines.append("")
+
+    # Safety limits macro
+    lines.append("# " + "─" * 77)
+    lines.append("# SAFETY INFRASTRUCTURE")
+    lines.append("# " + "─" * 77)
+    lines.append("")
+    lines.append("[gcode_macro _CHOPPER_SAFETY_LIMITS]")
+    lines.append("description: Apply reduced velocity limits during chopper tuning")
+    lines.append(f'variable_safety_level: "{safety_level}"')
+    lines.append("variable_original_velocity: 0")
+    lines.append("variable_original_accel: 0")
+    lines.append("variable_limits_active: False")
+    lines.append("gcode:")
+    lines.append("    {% set levels = {'high': 0.5, 'medium': 0.7, 'low': 0.9} %}")
+    lines.append('    {% set pct = levels[printer["gcode_macro _CHOPPER_SAFETY_LIMITS"].safety_level] %}')
+    lines.append("")
+    lines.append("    # Store original values")
+    lines.append("    SET_GCODE_VARIABLE MACRO=_CHOPPER_SAFETY_LIMITS VARIABLE=original_velocity VALUE={printer.toolhead.max_velocity}")
+    lines.append("    SET_GCODE_VARIABLE MACRO=_CHOPPER_SAFETY_LIMITS VARIABLE=original_accel VALUE={printer.toolhead.max_accel}")
+    lines.append("    SET_GCODE_VARIABLE MACRO=_CHOPPER_SAFETY_LIMITS VARIABLE=limits_active VALUE=True")
+    lines.append("")
+    lines.append("    # Apply reduced limits")
+    lines.append("    {% set safe_vel = (printer.toolhead.max_velocity * pct)|int %}")
+    lines.append("    {% set safe_accel = (printer.toolhead.max_accel * pct)|int %}")
+    lines.append("    SET_VELOCITY_LIMIT VELOCITY={safe_vel} ACCEL={safe_accel}")
+    lines.append("    M118 Chopper tuning: Limits set to {safe_vel}mm/s, {safe_accel}mm/s² ({(pct * 100)|int}%)")
+    lines.append("")
+
+    lines.append("[gcode_macro _CHOPPER_RESTORE_LIMITS]")
+    lines.append("description: Restore original velocity limits after tuning")
+    lines.append("gcode:")
+    lines.append('    {% set state = printer["gcode_macro _CHOPPER_SAFETY_LIMITS"] %}')
+    lines.append("    {% if state.limits_active %}")
+    lines.append("        SET_VELOCITY_LIMIT VELOCITY={state.original_velocity} ACCEL={state.original_accel}")
+    lines.append("        SET_GCODE_VARIABLE MACRO=_CHOPPER_SAFETY_LIMITS VARIABLE=limits_active VALUE=False")
+    lines.append("        M118 Velocity limits restored")
+    lines.append("    {% endif %}")
+    lines.append("")
+
+    # Hardware stall detection (optional DIAG0 pins)
+    if diag0_pin_x or diag0_pin_y:
+        lines.append("# " + "─" * 77)
+        lines.append("# HARDWARE STALL DETECTION (DIAG0)")
+        lines.append("# " + "─" * 77)
+        lines.append("")
+
+        if diag0_pin_x:
+            lines.append("[gcode_button stall_monitor_x]")
+            lines.append(f"pin: {diag0_pin_x}")
+            lines.append("press_gcode:")
+            lines.append("    _ON_STALL_DETECTED STEPPER=stepper_x")
+            lines.append("release_gcode:")
+            lines.append("    # Stall cleared")
+            lines.append("")
+
+        if diag0_pin_y:
+            lines.append("[gcode_button stall_monitor_y]")
+            lines.append(f"pin: {diag0_pin_y}")
+            lines.append("press_gcode:")
+            lines.append("    _ON_STALL_DETECTED STEPPER=stepper_y")
+            lines.append("release_gcode:")
+            lines.append("    # Stall cleared")
+            lines.append("")
+
+        lines.append("[gcode_macro _ON_STALL_DETECTED]")
+        lines.append("variable_tuning_active: False")
+        lines.append("gcode:")
+        lines.append('    {% set stepper = params.STEPPER|default("unknown") %}')
+        lines.append('    {% if printer["gcode_macro _ON_STALL_DETECTED"].tuning_active %}')
+        lines.append("        M118 !!! STALL DETECTED on {stepper} - aborting chopper test !!!")
+        lines.append('        {% if printer["gcode_macro _CHOPPER_TUNE_STATE"] is defined %}')
+        lines.append('            SET_GCODE_VARIABLE MACRO=_CHOPPER_TUNE_STATE VARIABLE=last_result VALUE="STALL"')
+        lines.append("        {% endif %}")
+        lines.append("        _CHOPPER_ABORT")
+        lines.append("    {% else %}")
+        lines.append("        M118 WARNING: Stall detected on {stepper}")
+        lines.append("    {% endif %}")
+        lines.append("")
+
+    # Helper macros
+    lines.append("# " + "─" * 77)
+    lines.append("# HELPER MACROS")
+    lines.append("# " + "─" * 77)
+    lines.append("")
+
+    lines.append("[gcode_macro _CHOPPER_SAFE_POSITION]")
+    lines.append("description: Move to center of bed with Z clearance for safe testing")
+    lines.append("gcode:")
+    lines.append("    {% set x_center = printer.toolhead.axis_maximum.x / 2 %}")
+    lines.append("    {% set y_center = printer.toolhead.axis_maximum.y / 2 %}")
+    lines.append("    {% set z_safe = [50, printer.toolhead.axis_maximum.z - 10]|min %}")
+    lines.append("")
+    lines.append("    G90  # Absolute positioning")
+    lines.append("    G0 Z{z_safe} F1200")
+    lines.append("    G0 X{x_center} Y{y_center} F6000")
+    lines.append("    M118 At safe position: X{x_center|round(1)} Y{y_center|round(1)} Z{z_safe}")
+    lines.append("")
+
+    lines.append("[gcode_macro _CHOPPER_CHECK_DRIVER]")
+    lines.append("description: Check TMC driver for errors before/during testing")
+    lines.append("gcode:")
+    lines.append("    {% set stepper = params.STEPPER %}")
+    lines.append('    {% set tmc = none %}')
+    lines.append("")
+    lines.append('    {% if printer["tmc5160 " ~ stepper] is defined %}')
+    lines.append('        {% set tmc = "tmc5160 " ~ stepper %}')
+    lines.append('    {% elif printer["tmc2240 " ~ stepper] is defined %}')
+    lines.append('        {% set tmc = "tmc2240 " ~ stepper %}')
+    lines.append("    {% endif %}")
+    lines.append("")
+    lines.append("    {% if tmc %}")
+    lines.append("        {% set drv = printer[tmc] %}")
+    lines.append("        {% if drv.drv_status is defined %}")
+    lines.append("            {% if drv.drv_status.ot %}")
+    lines.append('                { action_raise_error("ABORT: " ~ stepper ~ " driver overtemperature!") }')
+    lines.append("            {% endif %}")
+    lines.append("            {% if drv.drv_status.ola or drv.drv_status.olb %}")
+    lines.append('                { action_raise_error("ABORT: " ~ stepper ~ " open load - check motor") }')
+    lines.append("            {% endif %}")
+    lines.append("            {% if drv.drv_status.s2ga or drv.drv_status.s2gb %}")
+    lines.append('                { action_raise_error("ABORT: " ~ stepper ~ " short to ground!") }')
+    lines.append("            {% endif %}")
+    lines.append("        {% endif %}")
+    lines.append("    {% endif %}")
+    lines.append("")
+
+    lines.append("[gcode_macro _CHOPPER_TUNE_STATE]")
+    lines.append("description: Track chopper tuning state for debugging and analysis")
+    lines.append('variable_last_result: "none"')
+    lines.append('variable_current_phase: "idle"')
+    lines.append("variable_tests_completed: 0")
+    lines.append("gcode:")
+    lines.append("    # State tracking macro - variables can be set by other macros")
+    lines.append("    # This macro exists to prevent runtime errors when setting state variables")
+    lines.append("")
+
+    lines.append("[gcode_macro _CHOPPER_ABORT]")
+    lines.append("description: Emergency abort chopper tuning")
+    lines.append("gcode:")
+    lines.append("    M118 !!! CHOPPER TUNING ABORTED !!!")
+    if diag0_pin_x or diag0_pin_y:
+        lines.append('    {% if printer["gcode_macro _ON_STALL_DETECTED"] is defined %}')
+        lines.append("        SET_GCODE_VARIABLE MACRO=_ON_STALL_DETECTED VARIABLE=tuning_active VALUE=False")
+        lines.append("    {% endif %}")
+    lines.append('    {% if printer["gcode_macro _CHOPPER_TUNE_STATE"] is defined %}')
+    lines.append('        SET_GCODE_VARIABLE MACRO=_CHOPPER_TUNE_STATE VARIABLE=last_result VALUE="ABORTED"')
+    lines.append("    {% endif %}")
+    lines.append("    _CHOPPER_RESTORE_LIMITS")
+    lines.append("    M84  # Disable motors")
+    lines.append("")
+
+    # Main entry point
+    lines.append("# " + "─" * 77)
+    lines.append("# MAIN ENTRY POINT")
+    lines.append("# " + "─" * 77)
+    lines.append("")
+
+    lines.append("[gcode_macro TMC_CHOPPER_TUNE]")
+    lines.append("description: Auto-tune TMC chopper settings to reduce vibration")
+    lines.append('variable_state: "idle"')
+    lines.append("gcode:")
+    lines.append('    {% set stepper = params.STEPPER|default("stepper_x") %}')
+    lines.append('    {% set mode = params.MODE|default("full") %}')
+    lines.append('    {% set speeds = params.SPEEDS|default("50,100") %}')
+    lines.append(f'    {{% set safety = params.SAFETY|default("{safety_level}") %}}')
+    lines.append("")
+    lines.append("    # Validate stepper has compatible driver")
+    lines.append('    {% set has_tmc5160 = printer.configfile.config["tmc5160 " ~ stepper] is defined %}')
+    lines.append('    {% set has_tmc2240 = printer.configfile.config["tmc2240 " ~ stepper] is defined %}')
+    lines.append("")
+    lines.append("    {% if not has_tmc5160 and not has_tmc2240 %}")
+    lines.append('        { action_raise_error("TMC_CHOPPER_TUNE requires TMC5160 or TMC2240 on " ~ stepper) }')
+    lines.append("    {% endif %}")
+    lines.append("")
+    lines.append("    M118 ════════════════════════════════════════════════════════════════════")
+    lines.append("    M118 TMC CHOPPER TUNING - {stepper}")
+    lines.append("    M118 Mode: {mode} | Safety: {safety}")
+    lines.append("    M118 ════════════════════════════════════════════════════════════════════")
+    lines.append("")
+    lines.append('    {% if printer.toolhead.homed_axes != "xyz" %}')
+    lines.append("        M118 Homing required...")
+    lines.append("        G28")
+    lines.append("    {% endif %}")
+    lines.append("")
+    lines.append('    SET_GCODE_VARIABLE MACRO=_CHOPPER_SAFETY_LIMITS VARIABLE=safety_level VALUE=\'"{safety}"\'')
+    lines.append("    _CHOPPER_SAFETY_LIMITS")
+    lines.append("")
+    if diag0_pin_x or diag0_pin_y:
+        lines.append('    {% if printer["gcode_macro _ON_STALL_DETECTED"] is defined %}')
+        lines.append("        SET_GCODE_VARIABLE MACRO=_ON_STALL_DETECTED VARIABLE=tuning_active VALUE=True")
+        lines.append("    {% endif %}")
+        lines.append("")
+    lines.append("    _CHOPPER_SAFE_POSITION")
+    lines.append("    _CHOPPER_CHECK_DRIVER STEPPER={stepper}")
+    lines.append("")
+    lines.append('    {% if mode == "find_resonance" or mode == "full" %}')
+    lines.append("        M118 === Phase 1: Finding resonant speeds ===")
+    lines.append("        _CHOPPER_FIND_RESONANCE STEPPER={stepper}")
+    lines.append("    {% endif %}")
+    lines.append("")
+    lines.append('    {% if mode == "optimize" or mode == "full" %}')
+    lines.append("        M118 === Phase 2: Optimizing chopper parameters ===")
+    lines.append('        _CHOPPER_OPTIMIZE STEPPER={stepper} SPEEDS="{speeds}"')
+    lines.append("    {% endif %}")
+    lines.append("")
+    lines.append('    {% if mode == "test" %}')
+    lines.append("        {% set tpfd = params.TPFD|default(0)|int %}")
+    lines.append("        {% set tbl = params.TBL|default(2)|int %}")
+    lines.append("        {% set toff = params.TOFF|default(3)|int %}")
+    lines.append("        {% set hstrt = params.HSTRT|default(5)|int %}")
+    lines.append("        {% set hend = params.HEND|default(3)|int %}")
+    lines.append('        _CHOPPER_TEST_COMBO STEPPER={stepper} SPEEDS="{speeds}" TPFD={tpfd} TBL={tbl} TOFF={toff} HSTRT={hstrt} HEND={hend}')
+    lines.append("    {% endif %}")
+    lines.append("")
+    if diag0_pin_x or diag0_pin_y:
+        lines.append('    {% if printer["gcode_macro _ON_STALL_DETECTED"] is defined %}')
+        lines.append("        SET_GCODE_VARIABLE MACRO=_ON_STALL_DETECTED VARIABLE=tuning_active VALUE=False")
+        lines.append("    {% endif %}")
+    lines.append("    _CHOPPER_RESTORE_LIMITS")
+    lines.append("")
+    lines.append("    M118 ════════════════════════════════════════════════════════════════════")
+    lines.append("    M118 Chopper tuning complete!")
+    lines.append("    M118 Run CHOPPER_ANALYZE to generate recommendations")
+    lines.append("    M118 ════════════════════════════════════════════════════════════════════")
+    lines.append("")
+
+    # Find resonance macro
+    lines.append("# " + "─" * 77)
+    lines.append("# RESONANCE FINDING PHASE")
+    lines.append("# " + "─" * 77)
+    lines.append("")
+
+    lines.append("[gcode_macro _CHOPPER_FIND_RESONANCE]")
+    lines.append("description: Sweep speeds to identify resonant frequencies")
+    lines.append("gcode:")
+    lines.append("    {% set stepper = params.STEPPER %}")
+    lines.append("    {% set min_speed = params.MIN_SPEED|default(20)|int %}")
+    lines.append("    {% set max_speed = params.MAX_SPEED|default(150)|int %}")
+    lines.append("    {% set step = params.STEP|default(10)|int %}")
+    lines.append("")
+    lines.append("    M118 Sweeping {min_speed} to {max_speed} mm/s in {step}mm/s increments")
+    lines.append("")
+    lines.append('    {% set axis = "X" if "x" in stepper else "Y" %}')
+    lines.append("    {% set distance = 50 %}")
+    lines.append("    {% set center = printer.toolhead.axis_maximum[axis|lower] / 2 %}")
+    lines.append("")
+    lines.append(f"    ACCELEROMETER_MEASURE CHIP={accel_chip_name}")
+    lines.append("")
+    lines.append("    {% for speed in range(min_speed, max_speed + 1, step) %}")
+    lines.append("        M118 Testing {speed} mm/s...")
+    lines.append("        G1 {axis}{center + distance} F{speed * 60}")
+    lines.append("        G1 {axis}{center - distance} F{speed * 60}")
+    lines.append("        G1 {axis}{center} F{speed * 60}")
+    lines.append("        G4 P200")
+    lines.append("    {% endfor %}")
+    lines.append("")
+    lines.append(f"    ACCELEROMETER_MEASURE CHIP={accel_chip_name} NAME=resonance_sweep_{{axis|lower}}")
+    lines.append("")
+    lines.append("    M118 Resonance sweep complete for {axis} axis")
+    lines.append("    M118 Run: CHOPPER_ANALYZE --mode find_resonance")
+    lines.append("")
+
+    # Optimization macro
+    lines.append("# " + "─" * 77)
+    lines.append("# PARAMETER OPTIMIZATION PHASE")
+    lines.append("# " + "─" * 77)
+    lines.append("")
+
+    lines.append("[gcode_macro _CHOPPER_OPTIMIZE]")
+    lines.append("description: Iterate through chopper parameters at target speeds (phased optimization)")
+    lines.append("variable_current_test: 0")
+    lines.append("variable_total_tests: 0")
+    lines.append("variable_best_tpfd: 8")
+    lines.append("variable_best_tbl: 2")
+    lines.append("variable_best_toff: 3")
+    lines.append("gcode:")
+    lines.append("    {% set stepper = params.STEPPER %}")
+    lines.append('    {% set speeds = params.SPEEDS|default("50,100") %}')
+    lines.append('    {% set phase = params.PHASE|default("all") %}')
+    lines.append("")
+    lines.append("    # Phase A: TPFD values (most impactful for mid-range resonance)")
+    lines.append("    {% set tpfd_values = [0, 4, 8, 12] %}")
+    lines.append("")
+    lines.append("    # Phase B: TBL/TOFF combinations (affects chopper frequency)")
+    lines.append("    {% set tbl_values = [1, 2] %}")
+    lines.append("    {% set toff_values = [3, 4] %}")
+    lines.append("")
+    lines.append("    # Phase C: Hysteresis fine-tuning")
+    lines.append("    {% set hstrt_values = [4, 5, 6] %}")
+    lines.append("    {% set hend_values = [2, 3, 4, 5] %}")
+    lines.append("")
+    lines.append("    M118 Starting parameter optimization for {stepper}")
+    lines.append("    M118 Target speeds: {speeds} mm/s")
+    lines.append("")
+    lines.append('    {% if phase == "all" or phase == "a" %}')
+    lines.append("        # Phase A: Find best TPFD")
+    lines.append("        M118 === Phase A: TPFD optimization ===")
+    lines.append('        M118 Testing TPFD values: {{tpfd_values|join(", ")}}')
+    lines.append('        {% if printer["gcode_macro _CHOPPER_TUNE_STATE"] is defined %}')
+    lines.append('            SET_GCODE_VARIABLE MACRO=_CHOPPER_TUNE_STATE VARIABLE=current_phase VALUE="phase_a_tpfd"')
+    lines.append("        {% endif %}")
+    lines.append("        {% for tpfd in tpfd_values %}")
+    lines.append("            M118 Phase A: Testing TPFD={tpfd}")
+    lines.append('            _CHOPPER_TEST_COMBO STEPPER={stepper} SPEEDS="{speeds}" TPFD={tpfd} TBL=2 TOFF=3 HSTRT=5 HEND=3')
+    lines.append("        {% endfor %}")
+    lines.append("        M118 Phase A complete. Run: CHOPPER_ANALYZE --mode optimize --phase a")
+    lines.append("        M118 Then continue with: _CHOPPER_OPTIMIZE STEPPER={stepper} SPEEDS=\"{speeds}\" PHASE=b TPFD=<best_tpfd>")
+    lines.append("    {% endif %}")
+    lines.append("")
+    lines.append('    {% if phase == "all" or phase == "b" %}')
+    lines.append("        # Phase B: Optimize TBL/TOFF with best TPFD")
+    lines.append('        {% set phase_b_tpfd = params.TPFD|default(printer["gcode_macro _CHOPPER_OPTIMIZE"].best_tpfd|default(8))|int %}')
+    lines.append("        M118 === Phase B: TBL/TOFF optimization (TPFD={phase_b_tpfd}) ===")
+    lines.append("        M118 Testing TBL/TOFF combinations")
+    lines.append('        {% if printer["gcode_macro _CHOPPER_TUNE_STATE"] is defined %}')
+    lines.append('            SET_GCODE_VARIABLE MACRO=_CHOPPER_TUNE_STATE VARIABLE=current_phase VALUE="phase_b_tbl_toff"')
+    lines.append("        {% endif %}")
+    lines.append("        {% for tbl in tbl_values %}")
+    lines.append("            {% for toff in toff_values %}")
+    lines.append("                M118 Phase B: Testing TBL={tbl} TOFF={toff}")
+    lines.append('                _CHOPPER_TEST_COMBO STEPPER={stepper} SPEEDS="{speeds}" TPFD={phase_b_tpfd} TBL={tbl} TOFF={toff} HSTRT=5 HEND=3')
+    lines.append("            {% endfor %}")
+    lines.append("        {% endfor %}")
+    lines.append("        M118 Phase B complete. Run: CHOPPER_ANALYZE --mode optimize --phase b")
+    lines.append("        M118 Then continue with: _CHOPPER_OPTIMIZE STEPPER={stepper} SPEEDS=\"{speeds}\" PHASE=c TPFD={phase_b_tpfd} TBL=<best_tbl> TOFF=<best_toff>")
+    lines.append("    {% endif %}")
+    lines.append("")
+    lines.append('    {% if phase == "all" or phase == "c" %}')
+    lines.append("        # Phase C: Fine-tune HSTRT/HEND with best from previous phases")
+    lines.append('        {% set phase_c_tpfd = params.TPFD|default(printer["gcode_macro _CHOPPER_OPTIMIZE"].best_tpfd|default(8))|int %}')
+    lines.append('        {% set phase_c_tbl = params.TBL|default(printer["gcode_macro _CHOPPER_OPTIMIZE"].best_tbl|default(2))|int %}')
+    lines.append('        {% set phase_c_toff = params.TOFF|default(printer["gcode_macro _CHOPPER_OPTIMIZE"].best_toff|default(3))|int %}')
+    lines.append("        M118 === Phase C: Hysteresis fine-tuning ===")
+    lines.append("        M118 Using TPFD={phase_c_tpfd} TBL={phase_c_tbl} TOFF={phase_c_toff}")
+    lines.append('        {% if printer["gcode_macro _CHOPPER_TUNE_STATE"] is defined %}')
+    lines.append('            SET_GCODE_VARIABLE MACRO=_CHOPPER_TUNE_STATE VARIABLE=current_phase VALUE="phase_c_hysteresis"')
+    lines.append("        {% endif %}")
+    lines.append("        {% for hstrt in hstrt_values %}")
+    lines.append("            {% for hend in hend_values %}")
+    lines.append("                M118 Phase C: Testing HSTRT={hstrt} HEND={hend}")
+    lines.append('                _CHOPPER_TEST_COMBO STEPPER={stepper} SPEEDS="{speeds}" TPFD={phase_c_tpfd} TBL={phase_c_tbl} TOFF={phase_c_toff} HSTRT={hstrt} HEND={hend}')
+    lines.append("            {% endfor %}")
+    lines.append("        {% endfor %}")
+    lines.append("        M118 Phase C complete. Run: CHOPPER_ANALYZE --mode optimize --phase c")
+    lines.append("    {% endif %}")
+    lines.append("")
+    lines.append('    {% if phase == "all" %}')
+    lines.append("        M118 ════════════════════════════════════════════════════════════════════")
+    lines.append("        M118 All optimization phases complete!")
+    lines.append("        M118 Run: CHOPPER_ANALYZE --mode optimize")
+    lines.append("        M118 ════════════════════════════════════════════════════════════════════")
+    lines.append("    {% else %}")
+    lines.append("        M118 Phase {phase|upper} complete")
+    lines.append("    {% endif %}")
+    lines.append("")
+
+    lines.append("[gcode_macro _CHOPPER_TEST_COMBO]")
+    lines.append("description: Test a single parameter combination")
+    lines.append("gcode:")
+    lines.append("    {% set stepper = params.STEPPER %}")
+    lines.append('    {% set speeds = params.SPEEDS|default("50,100") %}')
+    lines.append("    {% set tpfd = params.TPFD|int %}")
+    lines.append("    {% set tbl = params.TBL|int %}")
+    lines.append("    {% set toff = params.TOFF|int %}")
+    lines.append("    {% set hstrt = params.HSTRT|int %}")
+    lines.append("    {% set hend = params.HEND|int %}")
+    lines.append("")
+    lines.append("    M118 Testing: TPFD={tpfd} TBL={tbl} TOFF={toff} HSTRT={hstrt} HEND={hend}")
+    lines.append("")
+    lines.append("    SET_TMC_FIELD STEPPER={stepper} FIELD=tpfd VALUE={tpfd}")
+    lines.append("    SET_TMC_FIELD STEPPER={stepper} FIELD=tbl VALUE={tbl}")
+    lines.append("    SET_TMC_FIELD STEPPER={stepper} FIELD=toff VALUE={toff}")
+    lines.append("    SET_TMC_FIELD STEPPER={stepper} FIELD=hstrt VALUE={hstrt}")
+    lines.append("    SET_TMC_FIELD STEPPER={stepper} FIELD=hend VALUE={hend}")
+    lines.append("")
+    lines.append("    G4 P100  # Wait for settings to stabilize")
+    lines.append("    _CHOPPER_CHECK_DRIVER STEPPER={stepper}")
+    lines.append("")
+    lines.append('    {% set axis = "X" if "x" in stepper else "Y" %}')
+    lines.append("    {% set distance = 40 %}")
+    lines.append("    {% set center = printer.toolhead.axis_maximum[axis|lower] / 2 %}")
+    lines.append('    {% set test_name = "chopper_" ~ axis|lower ~ "_tpfd" ~ tpfd ~ "_tbl" ~ tbl ~ "_toff" ~ toff %}')
+    lines.append("")
+    lines.append('    {% for speed in speeds.split(",") %}')
+    lines.append("        {% set speed_int = speed|int %}")
+    lines.append("")
+    lines.append(f"        ACCELEROMETER_MEASURE CHIP={accel_chip_name}")
+    lines.append("")
+    lines.append("        G1 {axis}{center + distance} F{speed_int * 60}")
+    lines.append("        G1 {axis}{center - distance} F{speed_int * 60}")
+    lines.append("        G1 {axis}{center} F{speed_int * 60}")
+    lines.append("")
+    lines.append(f"        ACCELEROMETER_MEASURE CHIP={accel_chip_name} NAME={{test_name}}_s{{speed_int}}")
+    lines.append("        G4 P200")
+    lines.append("    {% endfor %}")
+    lines.append("")
+
+    # Analysis wrapper
+    lines.append("# " + "─" * 77)
+    lines.append("# ANALYSIS WRAPPER")
+    lines.append("# " + "─" * 77)
+    lines.append("")
+
+    lines.append("[gcode_macro CHOPPER_ANALYZE]")
+    lines.append("description: Run Python analysis on collected chopper tuning data")
+    lines.append("gcode:")
+    lines.append('    {% set mode = params.MODE|default("report") %}')
+    lines.append('    {% set axis = params.AXIS|default("both") %}')
+    lines.append("")
+    lines.append("    M118 Running chopper analysis...")
+    lines.append("    M118 Mode: {mode} | Axis: {axis}")
+    lines.append("")
+    lines.append('    RUN_SHELL_COMMAND CMD=chopper_analyze PARAMS="--mode {mode} --axis {axis}"')
+    lines.append("")
+    lines.append("    M118 Analysis complete! Check ~/printer_data/config/chopper_results/")
+    lines.append("")
+
+    # AWD support (if CoreXY AWD)
+    if is_awd:
+        lines.append("# " + "─" * 77)
+        lines.append("# AWD SUPPORT")
+        lines.append("# " + "─" * 77)
+        lines.append("")
+
+        lines.append("[gcode_macro TMC_CHOPPER_TUNE_AWD]")
+        lines.append("description: Auto-tune chopper settings for AWD setups (tests motor pairs separately)")
+        lines.append("gcode:")
+        lines.append('    {% set pair = params.PAIR|default("ALL") %}')
+        lines.append(f'    {{% set safety = params.SAFETY|default("{safety_level}") %}}')
+        lines.append('    {% set speeds = params.SPEEDS|default("50,100") %}')
+        lines.append("")
+        lines.append("    M118 ════════════════════════════════════════════════════════════════════")
+        lines.append("    M118 AWD CHOPPER TUNING")
+        lines.append("    M118 Testing motor pairs separately for safety")
+        lines.append("    M118 ════════════════════════════════════════════════════════════════════")
+        lines.append("")
+        lines.append('    {% if pair == "A" or pair == "ALL" %}')
+        lines.append("        M118 --- Testing Pair A (stepper_x + stepper_y) ---")
+        lines.append("        SET_STEPPER_ENABLE STEPPER=stepper_x1 ENABLE=0")
+        lines.append("        SET_STEPPER_ENABLE STEPPER=stepper_y1 ENABLE=0")
+        lines.append("")
+        lines.append('        TMC_CHOPPER_TUNE STEPPER=stepper_x SAFETY={safety} SPEEDS="{speeds}"')
+        lines.append('        TMC_CHOPPER_TUNE STEPPER=stepper_y SAFETY={safety} SPEEDS="{speeds}"')
+        lines.append("")
+        lines.append("        SET_STEPPER_ENABLE STEPPER=stepper_x1 ENABLE=1")
+        lines.append("        SET_STEPPER_ENABLE STEPPER=stepper_y1 ENABLE=1")
+        lines.append("    {% endif %}")
+        lines.append("")
+        lines.append('    {% if pair == "B" or pair == "ALL" %}')
+        lines.append("        M118 --- Testing Pair B (stepper_x1 + stepper_y1) ---")
+        lines.append("        SET_STEPPER_ENABLE STEPPER=stepper_x ENABLE=0")
+        lines.append("        SET_STEPPER_ENABLE STEPPER=stepper_y ENABLE=0")
+        lines.append("")
+        lines.append('        TMC_CHOPPER_TUNE STEPPER=stepper_x1 SAFETY={safety} SPEEDS="{speeds}"')
+        lines.append('        TMC_CHOPPER_TUNE STEPPER=stepper_y1 SAFETY={safety} SPEEDS="{speeds}"')
+        lines.append("")
+        lines.append("        SET_STEPPER_ENABLE STEPPER=stepper_x ENABLE=1")
+        lines.append("        SET_STEPPER_ENABLE STEPPER=stepper_y ENABLE=1")
+        lines.append("    {% endif %}")
+        lines.append("")
+        lines.append("    M118 ════════════════════════════════════════════════════════════════════")
+        lines.append("    M118 AWD tuning complete!")
+        lines.append("    M118 Compare results between pairs - if different, check belt tension!")
+        lines.append("    M118 ════════════════════════════════════════════════════════════════════")
+        lines.append("")
+
+    return "\n".join(lines)
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # MACROS CONFIG GENERATION
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -2096,7 +3047,7 @@ def generate_macros_config_cfg(wizard_state: Dict) -> str:
     bed_y = int(wizard_state.get('bed_size_y', '300'))
     bed_z = int(wizard_state.get('bed_size_z', '350'))
     z_count = int(wizard_state.get('z_stepper_count', '1'))
-    probe_type = wizard_state.get('probe_type', 'none')
+    probe_type = get_probe_type_from_state(wizard_state) or 'none'
 
     # Determine leveling method
     leveling_method = "none"
@@ -2265,7 +3216,7 @@ def generate_macros_cfg(wizard_state: Dict) -> str:
     # Get configuration from wizard state
     bed_x = int(wizard_state.get('bed_size_x', '300'))
     bed_y = int(wizard_state.get('bed_size_y', '300'))
-    probe_type = wizard_state.get('probe_type', 'none')
+    probe_type = get_probe_type_from_state(wizard_state) or 'none'
     z_count = int(wizard_state.get('z_stepper_count', '1'))
 
     lines = []
@@ -2915,15 +3866,22 @@ def main():
         print(f"Error: Board template not found: {board_id}", file=sys.stderr)
         sys.exit(1)
 
-    toolboard_id = hardware_state.get('toolboard_id')
-    toolboard = load_toolboard_template(toolboard_id)
+    # Support both old format (toolboard_id) and new format (toolboard.board_type)
+    toolboard_info = hardware_state.get('toolboard', {})
+    toolboard_id = hardware_state.get('toolboard_id') or toolboard_info.get('board_type')
+    toolboard = load_toolboard_template(toolboard_id) if toolboard_info.get('enabled', True) else None
 
     # Generate hardware.cfg (unless calibration-only or macros-only)
     if not args.calibration_only and not args.macros_only:
-        hardware_cfg = generate_hardware_cfg(wizard_state, hardware_state, board, toolboard)
+        try:
+            hardware_cfg = generate_hardware_cfg(wizard_state, hardware_state, board, toolboard)
+        except Exception as e:
+            import traceback
+            print(f"Error generating hardware.cfg:\n{traceback.format_exc()}", file=sys.stderr)
+            raise
 
         output_file = output_dir / "hardware.cfg"
-        with open(output_file, 'w') as f:
+        with open(output_file, 'w', encoding='utf-8') as f:
             f.write(hardware_cfg)
 
         print(f"Generated: {output_file}")
@@ -2933,7 +3891,7 @@ def main():
         calibration_cfg = generate_calibration_cfg(wizard_state, hardware_state)
 
         output_file = output_dir / "calibration.cfg"
-        with open(output_file, 'w') as f:
+        with open(output_file, 'w', encoding='utf-8') as f:
             f.write(calibration_cfg)
 
         print(f"Generated: {output_file}")
@@ -2943,17 +3901,70 @@ def main():
         # Generate macros-config.cfg (user-editable variables)
         macros_config_cfg = generate_macros_config_cfg(wizard_state)
         output_file = output_dir / "macros-config.cfg"
-        with open(output_file, 'w') as f:
+        with open(output_file, 'w', encoding='utf-8') as f:
             f.write(macros_config_cfg)
         print(f"Generated: {output_file}")
 
         # Generate macros.cfg (the actual macros)
         macros_cfg = generate_macros_cfg(wizard_state)
         output_file = output_dir / "macros.cfg"
-        with open(output_file, 'w') as f:
+        with open(output_file, 'w', encoding='utf-8') as f:
             f.write(macros_cfg)
         print(f"Generated: {output_file}")
 
+        # Generate chopper-tuning.cfg (if enabled and conditions met)
+        chopper_tuning_cfg = generate_chopper_tuning_cfg(wizard_state)
+        if chopper_tuning_cfg:
+            output_file = output_dir / "chopper-tuning.cfg"
+            with open(output_file, 'w', encoding='utf-8') as f:
+                f.write(chopper_tuning_cfg)
+            print(f"Generated: {output_file}")
+
+        # Generate tmc-autotune.cfg (if enabled)
+        tmc_autotune_cfg = generate_tmc_autotune_cfg(wizard_state)
+        if tmc_autotune_cfg:
+            output_file = output_dir / "tmc-autotune.cfg"
+            with open(output_file, 'w', encoding='utf-8') as f:
+                f.write(tmc_autotune_cfg)
+            print(f"Generated: {output_file}")
+        else:
+            # Remove old tmc-autotune.cfg if it exists but autotune is now disabled
+            old_autotune = output_dir / "tmc-autotune.cfg"
+            if old_autotune.exists():
+                old_autotune.unlink()
+                print(f"Removed (disabled): {old_autotune}")
+
+        # Clean up old [autotune_tmc] sections from tuning.cfg (legacy cleanup)
+        # These sections may exist from a previous generator or manual additions
+        tuning_cfg_path = output_dir / "tuning.cfg"
+        if tuning_cfg_path.exists():
+            try:
+                with open(tuning_cfg_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+
+                if '[autotune_tmc' in content:
+                    import re
+                    # Remove all [autotune_tmc ...] sections (section header + following lines until next section or EOF)
+                    cleaned = re.sub(
+                        r'\[autotune_tmc[^\]]*\][^\[]*',
+                        '',
+                        content,
+                        flags=re.MULTILINE
+                    )
+                    # Clean up excess blank lines
+                    cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
+
+                    with open(tuning_cfg_path, 'w', encoding='utf-8') as f:
+                        f.write(cleaned)
+                    print(f"Cleaned [autotune_tmc] sections from: {tuning_cfg_path}")
+            except Exception as e:
+                print(f"Warning: Could not clean tuning.cfg: {e}", file=sys.stderr)
+
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception as e:
+        import traceback
+        print(f"Generator failed:\n\n{traceback.format_exc()}", file=sys.stderr)
+        sys.exit(1)
 

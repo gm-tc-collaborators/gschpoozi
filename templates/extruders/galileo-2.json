@@ -1,0 +1,12 @@
+{
+  "id": "galileo-2",
+  "name": "Galileo 2",
+  "manufacturer": "JaredC01",
+  "type": "direct_drive",
+  "gear_ratio": "9:1",
+  "rotation_distance": 47.088,
+  "microsteps": 16,
+  "full_steps_per_rotation": 200,
+  "pressure_advance": 0.035,
+  "notes": "High-torque planetary extruder"
+}

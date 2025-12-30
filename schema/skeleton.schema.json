@@ -1,0 +1,308 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/gschpoozi/schema/skeleton.schema.json",
+  "title": "gschpoozi Skeleton Schema",
+  "description": "Schema for validating the gschpoozi configuration wizard skeleton",
+  "type": "object",
+  "required": ["version", "metadata", "field_types", "exclusive_groups", "menus", "sections"],
+  "additionalProperties": false,
+
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference"
+    },
+
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Semantic version of the skeleton"
+    },
+
+    "metadata": {
+      "type": "object",
+      "required": ["name", "description"],
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "author": { "type": "string" }
+      }
+    },
+
+    "field_types": {
+      "type": "object",
+      "description": "Definitions of available field types",
+      "additionalProperties": {
+        "$ref": "#/definitions/field_type"
+      }
+    },
+
+    "exclusive_groups": {
+      "type": "object",
+      "description": "Mutually exclusive option groups",
+      "additionalProperties": {
+        "$ref": "#/definitions/exclusive_group"
+      }
+    },
+
+    "menus": {
+      "type": "object",
+      "description": "Menu definitions",
+      "additionalProperties": {
+        "$ref": "#/definitions/menu"
+      }
+    },
+
+    "sections": {
+      "type": "object",
+      "description": "Configuration section definitions",
+      "additionalProperties": {
+        "$ref": "#/definitions/section"
+      }
+    },
+
+    "conflicts": {
+      "type": "object",
+      "description": "Conflict detection rules",
+      "properties": {
+        "pin_conflicts": {
+          "type": "object",
+          "properties": {
+            "type": { "const": "dynamic" },
+            "handler": { "type": "string" },
+            "description": { "type": "string" }
+          }
+        },
+        "logical_conflicts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/logical_conflict"
+          }
+        }
+      }
+    },
+
+    "implications": {
+      "type": "object",
+      "description": "Auto-set values based on conditions",
+      "additionalProperties": {
+        "$ref": "#/definitions/implication"
+      }
+    }
+  },
+
+  "definitions": {
+    "field_type": {
+      "type": "object",
+      "required": ["description", "ui_widget"],
+      "properties": {
+        "description": { "type": "string" },
+        "ui_widget": {
+          "type": "string",
+          "enum": ["inputbox", "yesno", "radiolist", "checklist", "serial_picker", "can_picker", "mcu_picker", "port_picker", "multi_port_picker", "board_picker", "action_button"]
+        },
+        "validation": { "type": "string" }
+      }
+    },
+
+    "exclusive_group": {
+      "type": "object",
+      "required": ["description", "options"],
+      "properties": {
+        "description": { "type": "string" },
+        "state_key": { "type": "string" },
+        "options": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/group_option"
+          }
+        }
+      }
+    },
+
+    "group_option": {
+      "type": "object",
+      "required": ["value", "label"],
+      "properties": {
+        "value": { "type": ["string", "number", "boolean", "null"] },
+        "label": { "type": "string" },
+        "condition": { "type": "string" },
+        "klipper_section": { "type": ["string", "null"] },
+        "plugin_required": { "type": "string" },
+        "homing_modes": {
+          "type": ["array", "null"],
+          "items": { "type": "string" }
+        },
+        "bed_mesh_method": { "type": ["string", "null"] },
+        "z_calibrate_method": { "type": "string" },
+        "requires_serial": { "type": "boolean" },
+        "requires_homing_retract_dist_0": { "type": "boolean" },
+        "safe_z_home_compatible": { "type": "boolean" },
+        "x_offset_fixed": { "type": ["number", "null"] },
+        "y_offset_fixed": { "type": ["number", "null"] },
+        "sample_retract_dist": { "type": "number" },
+        "requires_driver": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "protocol": { "type": "string" },
+        "no_stallguard": { "type": "boolean" },
+        "auto_select": { "type": "boolean" },
+        "mode_implications": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          }
+        }
+      }
+    },
+
+    "menu": {
+      "type": "object",
+      "required": ["id", "title", "items"],
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/menu_item"
+          }
+        }
+      }
+    },
+
+    "menu_item": {
+      "type": "object",
+      "required": ["id", "label"],
+      "properties": {
+        "id": { "type": "string" },
+        "label": { "type": "string" },
+        "description": { "type": "string" },
+        "section": { "type": "string" },
+        "action": { "type": "string" },
+        "status_key": { "type": "string" },
+        "condition": { "type": "string" }
+      }
+    },
+
+    "section": {
+      "type": "object",
+      "required": ["id", "title"],
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "state_prefix": { "type": "string" },
+        "klipper_section": { "type": "string" },
+        "condition": { "type": "string" },
+        "required": { "type": "boolean" },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/field"
+          }
+        },
+        "subsections": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/subsection"
+          }
+        }
+      }
+    },
+
+    "subsection": {
+      "type": "object",
+      "required": ["id", "title"],
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "klipper_section": { "type": "string" },
+        "condition": { "type": "string" },
+        "required": { "type": "boolean" },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/field"
+          }
+        }
+      }
+    },
+
+    "field": {
+      "type": "object",
+      "required": ["id", "type", "label"],
+      "properties": {
+        "id": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["text", "int", "float", "bool", "choice", "exclusive_choice", "multi_select", "serial_select", "can_select", "mcu_select", "port_select", "multi_port_select", "board_select", "action"]
+        },
+        "label": { "type": "string" },
+        "state_key": { "type": "string" },
+        "action": { "type": "string" },
+        "group": { "type": "string" },
+        "source": { "type": "string" },
+        "grouped_by": { "type": "string" },
+        "required": { "type": "boolean" },
+        "default": {},
+        "condition": { "type": "string" },
+        "range": {
+          "type": "array",
+          "items": { "type": "number" },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "help": { "type": "string" },
+        "auto_detect_pattern": {},
+        "auto_calculate": { "type": "string" },
+        "auto_select_from_probe": { "type": "boolean" },
+        "auto_select_from_z_motors": { "type": "boolean" },
+        "port_type": { "type": "string" },
+        "options": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/field_option"
+          }
+        }
+      }
+    },
+
+    "field_option": {
+      "type": "object",
+      "required": ["value", "label"],
+      "properties": {
+        "value": {},
+        "label": { "type": "string" },
+        "condition": { "type": "string" }
+      }
+    },
+
+    "logical_conflict": {
+      "type": "object",
+      "required": ["id", "type", "condition", "message"],
+      "properties": {
+        "id": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["error", "warning"]
+        },
+        "condition": { "type": "string" },
+        "message": { "type": "string" }
+      }
+    },
+
+    "implication": {
+      "type": "object",
+      "required": ["condition", "set"],
+      "properties": {
+        "condition": { "type": "string" },
+        "set": {
+          "type": "object",
+          "additionalProperties": {}
+        }
+      }
+    }
+  }
+}

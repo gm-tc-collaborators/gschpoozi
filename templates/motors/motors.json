@@ -1,0 +1,1759 @@
+{
+  "LDO": [
+    {
+      "id": "ldo-36sth17-1004ahg",
+      "name": "Ldo 36Sth17 1004Ahg",
+      "resistance": 10.0,
+      "inductance": 0.006,
+      "holding_torque": 0.1,
+      "max_current": 1.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "ldo-36sth20-1004ahg-9T",
+      "name": "Ldo 36Sth20 1004Ahg 9T",
+      "resistance": 2.4,
+      "inductance": 0.0014,
+      "holding_torque": 0.1,
+      "max_current": 1.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "ldo-36sth20-0804ah(s22)",
+      "name": "Ldo 36Sth20 0804Ah(S22)",
+      "resistance": 1.85,
+      "inductance": 0.00105,
+      "holding_torque": 0.08,
+      "max_current": 0.8,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "ldo-36sth20-1004ahg",
+      "name": "Ldo 36Sth20 1004Ahg",
+      "resistance": 2.1,
+      "inductance": 0.0016,
+      "holding_torque": 0.1,
+      "max_current": 1.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "ldo-35sth52-1504ah",
+      "name": "Ldo 35Sth52 1504Ah",
+      "resistance": 2.8,
+      "inductance": 0.0038,
+      "holding_torque": 0.37,
+      "max_current": 1.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "ldo-35sth52-2004ah(S35)",
+      "name": "Ldo 35Sth52 2004Ah(S35)",
+      "resistance": 1.34,
+      "inductance": 0.0021,
+      "holding_torque": 0.4,
+      "max_current": 2.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "ldo-35sth48-1684ah",
+      "name": "Ldo 35Sth48 1684Ah",
+      "resistance": 1.65,
+      "inductance": 0.0028,
+      "holding_torque": 0.4,
+      "max_current": 1.68,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "ldo-35sth42-0504ah",
+      "name": "Ldo 35Sth42 0504Ah",
+      "resistance": 13.5,
+      "inductance": 0.016,
+      "holding_torque": 0.165,
+      "max_current": 0.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "ldo-36sth17-0354ahg",
+      "name": "Ldo 36Sth17 0354Ahg",
+      "resistance": 10.8,
+      "inductance": 0.006,
+      "holding_torque": 0.06,
+      "max_current": 0.35,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "fysetc-g36hsy4405-6d-1200",
+      "name": "Fysetc G36Hsy4405 6D 1200",
+      "resistance": 2.4,
+      "inductance": 0.0017,
+      "holding_torque": 0.11,
+      "max_current": 1.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "ldo-42sth40-1684cl350et",
+      "name": "Ldo 42Sth40 1684Cl350Et",
+      "resistance": 1.65,
+      "inductance": 0.0041,
+      "holding_torque": 0.45,
+      "max_current": 1.68,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "ldo-42sth40-1684l300e",
+      "name": "Ldo 42Sth40 1684L300E",
+      "resistance": 1.65,
+      "inductance": 0.0041,
+      "holding_torque": 0.45,
+      "max_current": 1.68,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "ldo-42sth40-1684ac",
+      "name": "Ldo 42Sth40 1684Ac",
+      "resistance": 1.65,
+      "inductance": 0.0036,
+      "holding_torque": 0.45,
+      "max_current": 1.68,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "ldo-42sth40-2004mah",
+      "name": "Ldo 42Sth40 2004Mah",
+      "resistance": 1.1,
+      "inductance": 0.0028,
+      "holding_torque": 0.35,
+      "max_current": 2.0,
+      "steps_per_revolution": 400
+    },
+    {
+      "id": "ldo-42sth48-1684mah",
+      "name": "Ldo 42Sth48 1684Mah",
+      "resistance": 1.65,
+      "inductance": 0.0028,
+      "holding_torque": 0.4,
+      "max_current": 1.68,
+      "steps_per_revolution": 400
+    },
+    {
+      "id": "ldo-42sth48-2804ah",
+      "name": "Ldo 42Sth48 2804Ah",
+      "resistance": 0.7,
+      "inductance": 0.0006,
+      "holding_torque": 0.42,
+      "max_current": 2.8,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "ldo-42sth48-2504ac",
+      "name": "Ldo 42Sth48 2504Ac",
+      "resistance": 1.2,
+      "inductance": 0.0015,
+      "holding_torque": 0.55,
+      "max_current": 2.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "ldo-42sth48-2504ah",
+      "name": "Ldo 42Sth48 2504Ah",
+      "resistance": 1.2,
+      "inductance": 0.0015,
+      "holding_torque": 0.55,
+      "max_current": 2.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "ldo-42sth48-2504macf",
+      "name": "Ldo 42Sth48 2504Macf",
+      "resistance": 1.2,
+      "inductance": 0.0015,
+      "holding_torque": 0.45,
+      "max_current": 2.5,
+      "steps_per_revolution": 400
+    },
+    {
+      "id": "ldo-42sth48-2004ac",
+      "name": "Ldo 42Sth48 2004Ac",
+      "resistance": 1.6,
+      "inductance": 0.003,
+      "holding_torque": 0.59,
+      "max_current": 2.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "ldo-42sth48-2004mah",
+      "name": "Ldo 42Sth48 2004Mah",
+      "resistance": 1.4,
+      "inductance": 0.002,
+      "holding_torque": 0.44,
+      "max_current": 2.0,
+      "steps_per_revolution": 400
+    },
+    {
+      "id": "ldo-42sth40-1004a",
+      "name": "Ldo 42Sth40 1004A",
+      "resistance": 6.5,
+      "inductance": 0.013,
+      "holding_torque": 0.49,
+      "max_current": 1,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "ldo-42sth34-1004l321e",
+      "name": "Ldo 42Sth34 1004L321E",
+      "resistance": 8.0,
+      "inductance": 0.0095,
+      "holding_torque": 107.7,
+      "max_current": 1.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "ldo-42sth34-1004l321e(prusa-z)",
+      "name": "Ldo 42Sth34 1004L321E(Prusa Z)",
+      "resistance": 8,
+      "inductance": 0.0095,
+      "holding_torque": 0.59,
+      "max_current": 1.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "ldo-42sth40-1004mah",
+      "name": "Ldo 42Sth40 1004Mah",
+      "resistance": 4.1,
+      "inductance": 0.0115,
+      "holding_torque": 0.39,
+      "max_current": 1,
+      "steps_per_revolution": 400
+    },
+    {
+      "id": "ldo-42sth20-1004ash",
+      "name": "Ldo 42Sth20 1004Ash",
+      "resistance": 7.2,
+      "inductance": 0.007,
+      "holding_torque": 0.18,
+      "max_current": 1,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "ldo-42sth20-1004mah",
+      "name": "Ldo 42Sth20 1004Mah",
+      "resistance": 7.2,
+      "inductance": 0.0122,
+      "holding_torque": 0.16,
+      "max_current": 1,
+      "steps_per_revolution": 400
+    },
+    {
+      "id": "ldo-42sth25-1004cl200et",
+      "name": "Ldo 42Sth25 1004Cl200Et",
+      "resistance": 5.5,
+      "inductance": 0.007,
+      "holding_torque": 0.24,
+      "max_current": 1,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "ldo-42sth25-1404mac",
+      "name": "Ldo 42Sth25 1404Mac",
+      "resistance": 2.4,
+      "inductance": 0.0055,
+      "holding_torque": 0.2,
+      "max_current": 1.4,
+      "steps_per_revolution": 400
+    },
+    {
+      "id": "ldo-42sth25-1004acg",
+      "name": "Ldo 42Sth25 1004Acg",
+      "resistance": 5.5,
+      "inductance": 0.007,
+      "holding_torque": 0.2,
+      "max_current": 1,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "ldo-42sth60-2004ac",
+      "name": "Ldo 42Sth60 2004Ac",
+      "resistance": 2.1,
+      "inductance": 0.0041,
+      "holding_torque": 0.85,
+      "max_current": 2,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "ldo-42sth60-2004mah",
+      "name": "Ldo 42Sth60 2004Mah",
+      "resistance": 1.4,
+      "inductance": 0.003,
+      "holding_torque": 0.6,
+      "max_current": 2,
+      "steps_per_revolution": 400
+    },
+    {
+      "id": "ldo-42sth25-1404ac",
+      "name": "Ldo 42Sth25 1404Ac",
+      "resistance": 2.4,
+      "inductance": 0.0055,
+      "holding_torque": 0.23,
+      "max_current": 1.4,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "ldo-42sth25-1404mah",
+      "name": "Ldo 42Sth25 1404Mah",
+      "resistance": 2.4,
+      "inductance": 0.0055,
+      "holding_torque": 0.18,
+      "max_current": 1.4,
+      "steps_per_revolution": 400
+    },
+    {
+      "id": "ldo-42sth48-2004mac(s46)",
+      "name": "Ldo 42Sth48 2004Mac(S46)",
+      "resistance": 1.4,
+      "inductance": 0.0028,
+      "holding_torque": 0.49,
+      "max_current": 2.0,
+      "steps_per_revolution": 400
+    },
+    {
+      "id": "ldo-42sth47-1684a",
+      "name": "Ldo 42Sth47 1684A",
+      "resistance": 1.65,
+      "inductance": 0.0028,
+      "holding_torque": 0.5,
+      "max_current": 1.68,
+      "steps_per_revolution": 200
+    }
+  ],
+  "Moons": [
+    {
+      "id": "moons-ms14hs5p4200",
+      "name": "Moons Ms14Hs5P4200",
+      "resistance": 1.34,
+      "inductance": 0.0021,
+      "holding_torque": 0.4,
+      "max_current": 2.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "moons-ms14hs5p4150",
+      "name": "Moons Ms14Hs5P4150",
+      "resistance": 2.2,
+      "inductance": 0.0036,
+      "holding_torque": 0.4,
+      "max_current": 1.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "moons-cse14hra1l410a",
+      "name": "Moons Cse14Hra1L410A",
+      "resistance": 1.9,
+      "inductance": 0.00141,
+      "holding_torque": 0.1,
+      "max_current": 1.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "moons-cse14hra2l410a",
+      "name": "Moons Cse14Hra2L410A",
+      "resistance": 3.6,
+      "inductance": 0.0038,
+      "holding_torque": 0.19,
+      "max_current": 1.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "moons-ms17hdbp4200",
+      "name": "Moons Ms17Hdbp4200",
+      "resistance": 1.49,
+      "inductance": 0.0038,
+      "holding_torque": 0.83,
+      "max_current": 2.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "moons-ms17hd2p4150",
+      "name": "Moons Ms17Hd2P4150",
+      "resistance": 1.98,
+      "inductance": 0.0043,
+      "holding_torque": 0.5,
+      "max_current": 1.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "moons-ms17hd6p4200",
+      "name": "Moons Ms17Hd6P4200",
+      "resistance": 1.3,
+      "inductance": 0.0029,
+      "holding_torque": 0.63,
+      "max_current": 2.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "moons-ms17hd6p4150",
+      "name": "Moons Ms17Hd6P4150",
+      "resistance": 2.2,
+      "inductance": 0.0049,
+      "holding_torque": 0.62,
+      "max_current": 1.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "moons-le174s-t0804-300-ar3-s-150",
+      "name": "Moons Le174S T0804 300 Ar3 S 150",
+      "resistance": 1.75,
+      "inductance": 0.0028,
+      "holding_torque": 0.29,
+      "max_current": 1.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "moons-le174s-t0808-200-ar3-s-065",
+      "name": "Moons Le174S T0808 200 Ar3 S 065",
+      "resistance": 8.7,
+      "inductance": 0.0152,
+      "holding_torque": 0.054,
+      "max_current": 0.65,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "moons-le172s-t0804-300-cn-01-200",
+      "name": "Moons Le172S T0804 300 Cn 01 200",
+      "resistance": 1.04,
+      "inductance": 0.0025,
+      "holding_torque": 0.48,
+      "max_current": 2.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "moons-ms17hd6p420I-04",
+      "name": "Moons Ms17Hd6P420I 04",
+      "resistance": 1.3,
+      "inductance": 0.0027,
+      "holding_torque": 0.67,
+      "max_current": 2.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "moons-ms17hd6p420I-05",
+      "name": "Moons Ms17Hd6P420I 05",
+      "resistance": 1.3,
+      "inductance": 0.0027,
+      "holding_torque": 0.67,
+      "max_current": 2.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "moons-c17hd2024n-01n",
+      "name": "Moons C17Hd2024N 01N",
+      "resistance": 4.1,
+      "inductance": 0.0085,
+      "holding_torque": 0.39,
+      "max_current": 1.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "moons-ml23hs8l4550-20",
+      "name": "Moons Ml23Hs8L4550 20",
+      "resistance": 0.28,
+      "inductance": 0.00103,
+      "holding_torque": 1.5,
+      "max_current": 5.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "moons-ml23hs0l4350-000",
+      "name": "Moons Ml23Hs0L4350 000",
+      "resistance": 0.56,
+      "inductance": 0.0013,
+      "holding_torque": 0.82,
+      "max_current": 3.5,
+      "steps_per_revolution": 200
+    }
+  ],
+  "OMC Stepperonline": [
+    {
+      "id": "omc-14ms20-1504s",
+      "name": "Omc 14Ms20 1504S",
+      "resistance": 2.8,
+      "inductance": 0.0038,
+      "holding_torque": 0.4,
+      "max_current": 1.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "omc-14hs20-1504s-c19",
+      "name": "Omc 14Hs20 1504S C19",
+      "resistance": 2.0,
+      "inductance": 0.0028,
+      "holding_torque": 0.4,
+      "max_current": 1.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "omc-14hs20-1504s",
+      "name": "Omc 14Hs20 1504S",
+      "resistance": 2.8,
+      "inductance": 0.0038,
+      "holding_torque": 0.4,
+      "max_current": 1.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "omc-14hs11-1004s",
+      "name": "Omc 14Hs11 1004S",
+      "resistance": 3.5,
+      "inductance": 0.0035,
+      "holding_torque": 0.125,
+      "max_current": 1.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "omc-14hr07-1004vrn",
+      "name": "Omc 14Hr07 1004Vrn",
+      "resistance": 3.9,
+      "inductance": 0.002,
+      "holding_torque": 0.09,
+      "max_current": 1.0,
+      "steps_per_revolution": 400
+    },
+    {
+      "id": "omc-14hs17-0504s",
+      "name": "Omc 14Hs17 0504S",
+      "resistance": 15.0,
+      "inductance": 0.026,
+      "holding_torque": 0.23,
+      "max_current": 0.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "omc-14hs10-0404s",
+      "name": "Omc 14Hs10 0404S",
+      "resistance": 30.0,
+      "inductance": 0.03,
+      "holding_torque": 0.14,
+      "max_current": 0.4,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "omc-14re08-1004s-h",
+      "name": "Omc 14Re08 1004S H",
+      "resistance": 2.1,
+      "inductance": 0.0011,
+      "holding_torque": 0.1,
+      "max_current": 1.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "omc-17he24-2104s",
+      "name": "Omc 17He24 2104S",
+      "resistance": 1.7,
+      "inductance": 0.0031,
+      "holding_torque": 0.6,
+      "max_current": 2.1,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "omc-17he08-1004s",
+      "name": "Omc 17He08 1004S",
+      "resistance": 3.6,
+      "inductance": 0.004,
+      "holding_torque": 0.17,
+      "max_current": 1.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "omc-17he12-1204s",
+      "name": "Omc 17He12 1204S",
+      "resistance": 2.5,
+      "inductance": 0.0033,
+      "holding_torque": 0.26,
+      "max_current": 1.2,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "omc-17he19-2004s",
+      "name": "Omc 17He19 2004S",
+      "resistance": 1.3,
+      "inductance": 0.0024,
+      "holding_torque": 0.55,
+      "max_current": 2.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "omc-17he15-1504s",
+      "name": "Omc 17He15 1504S",
+      "resistance": 2.3,
+      "inductance": 0.004,
+      "holding_torque": 0.42,
+      "max_current": 1.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "omc-17hs15-1504s",
+      "name": "Omc 17Hs15 1504S",
+      "resistance": 2.3,
+      "inductance": 0.0044,
+      "holding_torque": 0.45,
+      "max_current": 1.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "omc-17hs15-1584s-mg10",
+      "name": "Omc 17Hs15 1584S Mg10",
+      "resistance": 1.65,
+      "inductance": 0.0032,
+      "holding_torque": 0.36,
+      "max_current": 1.58,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "omc-17hm19-1684S",
+      "name": "Omc 17Hm19 1684S",
+      "resistance": 1.65,
+      "inductance": 0.0041,
+      "holding_torque": 0.44,
+      "max_current": 1.68,
+      "steps_per_revolution": 400
+    },
+    {
+      "id": "omc-17hm19-2004s",
+      "name": "Omc 17Hm19 2004S",
+      "resistance": 1.45,
+      "inductance": 0.004,
+      "holding_torque": 0.46,
+      "max_current": 2.0,
+      "steps_per_revolution": 400
+    },
+    {
+      "id": "omc-17hs19-2504s-h",
+      "name": "Omc 17Hs19 2504S H",
+      "resistance": 1.1,
+      "inductance": 0.0016,
+      "holding_torque": 0.55,
+      "max_current": 2.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "omc-17hs24-2104s",
+      "name": "Omc 17Hs24 2104S",
+      "resistance": 1.6,
+      "inductance": 0.003,
+      "holding_torque": 0.65,
+      "max_current": 2.1,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "omc-17hs16-2004s1",
+      "name": "Omc 17Hs16 2004S1",
+      "resistance": 1.1,
+      "inductance": 0.0026,
+      "holding_torque": 0.45,
+      "max_current": 2,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "omc-17hs19-2004s1-h",
+      "name": "Omc 17Hs19 2004S1 H",
+      "resistance": 1.5,
+      "inductance": 0.003,
+      "holding_torque": 0.59,
+      "max_current": 2.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "omc-17hs19-2004s1",
+      "name": "Omc 17Hs19 2004S1",
+      "resistance": 1.4,
+      "inductance": 0.003,
+      "holding_torque": 0.59,
+      "max_current": 2,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "omc-17hs08-1004s",
+      "name": "Omc 17Hs08 1004S",
+      "resistance": 3.7,
+      "inductance": 0.0045,
+      "holding_torque": 0.16,
+      "max_current": 1.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "omc-17me15-1504s",
+      "name": "Omc 17Me15 1504S",
+      "resistance": 2.0,
+      "inductance": 0.0052,
+      "holding_torque": 0.3,
+      "max_current": 1.5,
+      "steps_per_revolution": 400
+    }
+  ],
+  "Trinamic (yes, they also make stepper)": [
+    {
+      "id": "tmc-qsh4218-35-10-027",
+      "name": "Tmc Qsh4218 35 10 027",
+      "resistance": 5.3,
+      "inductance": 0.0066,
+      "holding_torque": 0.27,
+      "max_current": 1.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "tmc-qsh4218-41-10-035",
+      "name": "Tmc Qsh4218 41 10 035",
+      "resistance": 4.5,
+      "inductance": 0.0075,
+      "holding_torque": 0.35,
+      "max_current": 1.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "tmc-qsh4218-51-10-049",
+      "name": "Tmc Qsh4218 51 10 049",
+      "resistance": 5.0,
+      "inductance": 0.008,
+      "holding_torque": 0.49,
+      "max_current": 1.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "tmc-qsh4218-47-28-040",
+      "name": "Tmc Qsh4218 47 28 040",
+      "resistance": 0.5,
+      "inductance": 0.0006,
+      "holding_torque": 0.4,
+      "max_current": 2.8,
+      "steps_per_revolution": 200
+    }
+  ],
+  "Fysetc": [
+    {
+      "id": "fysetc-g36hsy4405-6d-80a",
+      "name": "Fysetc G36Hsy4405 6D 80A",
+      "resistance": 2.4,
+      "inductance": 0.0017,
+      "holding_torque": 0.11,
+      "max_current": 1.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "fysetc-g36hsy4407-6d-1200a",
+      "name": "Fysetc G36Hsy4407 6D 1200A",
+      "resistance": 13,
+      "inductance": 0.01,
+      "holding_torque": 0.12,
+      "max_current": 0.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "fysetc-g36hsy4405-6d-30",
+      "name": "Fysetc G36Hsy4405 6D 30",
+      "resistance": 2.4,
+      "inductance": 0.0017,
+      "holding_torque": 0.11,
+      "max_current": 1.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "fysetc-35hsh7402-24b-60a",
+      "name": "Fysetc 35Hsh7402 24B 60A",
+      "resistance": 2.8,
+      "inductance": 0.0055,
+      "holding_torque": 0.42,
+      "max_current": 1.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "fysetc-35hsh7402-24b-60b",
+      "name": "Fysetc 35Hsh7402 24B 60B",
+      "resistance": 2.8,
+      "inductance": 0.0055,
+      "holding_torque": 0.42,
+      "max_current": 1.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "fysetc-42hsc1433b-200n8",
+      "name": "Fysetc 42Hsc1433B 200N8",
+      "resistance": 8,
+      "inductance": 0.01,
+      "holding_torque": 0.35,
+      "max_current": 1,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "fysetc-42hsc1404b-200n8",
+      "name": "Fysetc 42Hsc1404B 200N8",
+      "resistance": 29,
+      "inductance": 0.0038,
+      "holding_torque": 0.32,
+      "max_current": 0.4,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "TB-3544",
+      "name": "Tb 3544",
+      "resistance": 1.8,
+      "inductance": 0.0038,
+      "holding_torque": 0.5,
+      "max_current": 1.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "fysetc-17HS19-2004S-C",
+      "name": "Fysetc 17Hs19 2004S C",
+      "resistance": 1.4,
+      "inductance": 0.003,
+      "holding_torque": 0.59,
+      "max_current": 2.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "fysetc-17HS19-2004S-AB",
+      "name": "Fysetc 17Hs19 2004S Ab",
+      "resistance": 1.3,
+      "inductance": 0.0027,
+      "holding_torque": 0.67,
+      "max_current": 2.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "fysetc-42HC40-204A-300N84",
+      "name": "Fysetc 42Hc40 204A 300N84",
+      "resistance": 1.1,
+      "inductance": 0.0026,
+      "holding_torque": 0.45,
+      "max_current": 2.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "fysetc-17D2201Z-22B-500",
+      "name": "Fysetc 17D2201Z 22B 500",
+      "resistance": 6.5,
+      "inductance": 0.013,
+      "holding_torque": 0.49,
+      "max_current": 1.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "dfh-14mcrn-1848",
+      "name": "Dfh 14Mcrn 1848",
+      "resistance": 2.8,
+      "inductance": 0.0055,
+      "holding_torque": 0.42,
+      "max_current": 1.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "dfh-14mcrn-1815",
+      "name": "Dfh 14Mcrn 1815",
+      "resistance": 13.0,
+      "inductance": 0.001,
+      "holding_torque": 0.12,
+      "max_current": 0.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "zyltech-17hd48002h-22b",
+      "name": "Zyltech 17Hd48002H 22B",
+      "resistance": 1.8,
+      "inductance": 0.0038,
+      "holding_torque": 0.59,
+      "max_current": 1.7,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "siboor-14sth20-1004a",
+      "name": "Siboor 14Sth20 1004A",
+      "resistance": 1.7,
+      "inductance": 0.0015,
+      "holding_torque": 0.12,
+      "max_current": 1.88,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "siboor-35sth52-1204a",
+      "name": "Siboor 35Sth52 1204A",
+      "resistance": 2.3,
+      "inductance": 0.0035,
+      "holding_torque": 0.4,
+      "max_current": 1.2,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "siboor-35hbx904-22b",
+      "name": "Siboor 35Hbx904 22B",
+      "resistance": 2.5,
+      "inductance": 0.0043,
+      "holding_torque": 0.4,
+      "max_current": 1.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "siboor-42sth26-0804a",
+      "name": "Siboor 42Sth26 0804A",
+      "resistance": 5.5,
+      "inductance": 0.0066,
+      "holding_torque": 0.26,
+      "max_current": 1.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "siboor-42sth40-1684a-300",
+      "name": "Siboor 42Sth40 1684A 300",
+      "resistance": 1.65,
+      "inductance": 0.0032,
+      "holding_torque": 0.36,
+      "max_current": 1.68,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "siboor-42sth40-2004a",
+      "name": "Siboor 42Sth40 2004A",
+      "resistance": 1.1,
+      "inductance": 0.0026,
+      "holding_torque": 0.45,
+      "max_current": 2.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "siboor-42sth48-2504(s45)",
+      "name": "Siboor 42Sth48 2504(S45)",
+      "resistance": 0.9,
+      "inductance": 0.0016,
+      "holding_torque": 0.6,
+      "max_current": 2.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "siboor-42sth28-0804a",
+      "name": "Siboor 42Sth28 0804A",
+      "resistance": 5.5,
+      "inductance": 0.0066,
+      "holding_torque": 0.26,
+      "max_current": 1.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "wantai-42byghw811",
+      "name": "Wantai 42Byghw811",
+      "resistance": 1.25,
+      "inductance": 0.0018,
+      "holding_torque": 0.48,
+      "max_current": 2.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "wantai-42byghm810",
+      "name": "Wantai 42Byghm810",
+      "resistance": 1.0,
+      "inductance": 0.0018,
+      "holding_torque": 0.48,
+      "max_current": 2.4,
+      "steps_per_revolution": 400
+    },
+    {
+      "id": "wantai-42byghm208",
+      "name": "Wantai 42Byghm208",
+      "resistance": 2.1,
+      "inductance": 0.0059,
+      "holding_torque": 0.21,
+      "max_current": 1.2,
+      "steps_per_revolution": 400
+    },
+    {
+      "id": "ldo-42sth60-3004ac",
+      "name": "Ldo 42Sth60 3004Ac",
+      "resistance": 1.1,
+      "inductance": 0.0023,
+      "holding_torque": 0.9,
+      "max_current": 3.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "ldo-42sth60-3004mac",
+      "name": "Ldo 42Sth60 3004Mac",
+      "resistance": 1.1,
+      "inductance": 0.0035,
+      "holding_torque": 0.8,
+      "max_current": 3.0,
+      "steps_per_revolution": 400
+    },
+    {
+      "id": "ldo-42sth60-3004ah",
+      "name": "Ldo 42Sth60 3004Ah",
+      "resistance": 1.0,
+      "inductance": 0.0016,
+      "holding_torque": 0.8,
+      "max_current": 3.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "ldo-42sth60-3004mah",
+      "name": "Ldo 42Sth60 3004Mah",
+      "resistance": 1.0,
+      "inductance": 0.0023,
+      "holding_torque": 0.72,
+      "max_current": 3.0,
+      "steps_per_revolution": 400
+    }
+  ],
+  "QIDI": [
+    {
+      "id": "qidi-BJ42D29-28V07",
+      "name": "Qidi Bj42D29 28V07",
+      "resistance": 1.4,
+      "inductance": 0.0026,
+      "holding_torque": 0.41,
+      "max_current": 1.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "qidi-BJ42D29-22V08",
+      "name": "Qidi Bj42D29 22V08",
+      "resistance": 4.7,
+      "inductance": 0.011,
+      "holding_torque": 0.6,
+      "max_current": 1.2,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "qidi-BJY36D12-04V13",
+      "name": "Qidi Bjy36D12 04V13",
+      "resistance": 2.0,
+      "inductance": 0.0012,
+      "holding_torque": 0.09,
+      "max_current": 1.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "qidi-BJ42D29-28V17",
+      "name": "Qidi Bj42D29 28V17",
+      "resistance": 1.4,
+      "inductance": 0.0026,
+      "holding_torque": 0.41,
+      "max_current": 1.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "qidi-BJ42D29-28V09",
+      "name": "Qidi Bj42D29 28V09",
+      "resistance": 1.4,
+      "inductance": 0.0026,
+      "holding_torque": 0.41,
+      "max_current": 1.5,
+      "steps_per_revolution": 200
+    }
+  ],
+  "Creality": [
+    {
+      "id": "creality-42-34",
+      "name": "Creality 42 34",
+      "resistance": 6.0,
+      "inductance": 0.006,
+      "holding_torque": 0.4,
+      "max_current": 1.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "creality-42-40",
+      "name": "Creality 42 40",
+      "resistance": 3.6,
+      "inductance": 0.008,
+      "holding_torque": 0.48,
+      "max_current": 1.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "creality-42-48",
+      "name": "Creality 42 48",
+      "resistance": 5,
+      "inductance": 0.011,
+      "holding_torque": 0.57,
+      "max_current": 1.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "creality-42-60",
+      "name": "Creality 42 60",
+      "resistance": 1.2,
+      "inductance": 0.0034,
+      "holding_torque": 0.76,
+      "max_current": 2.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "BJ42D15-26V",
+      "name": "Bj42D15 26V",
+      "resistance": 6.0,
+      "inductance": 0.0088,
+      "holding_torque": 0.28,
+      "max_current": 0.84,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "BJ42D22-23V01",
+      "name": "Bj42D22 23V01",
+      "resistance": 2.8,
+      "inductance": 0.0069,
+      "holding_torque": 0.37,
+      "max_current": 1.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "BJ42D09-20V02",
+      "name": "Bj42D09 20V02",
+      "resistance": 1.75,
+      "inductance": 0.003,
+      "holding_torque": 0.15,
+      "max_current": 0.84,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "kelimotor-bj42d15-26v09",
+      "name": "Kelimotor Bj42D15 26V09",
+      "resistance": 6.0,
+      "inductance": 0.0088,
+      "holding_torque": 0.28,
+      "max_current": 0.84,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "kelimotor-bj42d41-14v19",
+      "name": "Kelimotor Bj42D41 14V19",
+      "resistance": 1.1,
+      "inductance": 0.0028,
+      "holding_torque": 0.65,
+      "max_current": 2.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "kelimotor-bj42d22-25v04",
+      "name": "Kelimotor Bj42D22 25V04",
+      "resistance": 2.9,
+      "inductance": 0.006,
+      "holding_torque": 0.4,
+      "max_current": 1.2,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "kelimotor-bjy36d13-04v28",
+      "name": "Kelimotor Bjy36D13 04V28",
+      "resistance": 2.0,
+      "inductance": 0.0012,
+      "holding_torque": 0.1,
+      "max_current": 1.2,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "bondtech-42H025H-0704A-005",
+      "name": "Bondtech 42H025H 0704A 005",
+      "resistance": 4.4,
+      "inductance": 0.0055,
+      "holding_torque": 0.16,
+      "max_current": 0.7,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "bondtech-36H020H-1004A-001",
+      "name": "Bondtech 36H020H 1004A 001",
+      "resistance": 2.37,
+      "inductance": 0.0012,
+      "holding_torque": 0.09,
+      "max_current": 1.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "bondtech-acc01stm41280",
+      "name": "Bondtech Acc01Stm41280",
+      "resistance": 2.37,
+      "inductance": 0.0012,
+      "holding_torque": 0.09,
+      "max_current": 1.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "bondtech-acc04stm41213",
+      "name": "Bondtech Acc04Stm41213",
+      "resistance": 2.1,
+      "inductance": 0.0015,
+      "holding_torque": 0.09,
+      "max_current": 1.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "orientalmotor-PKP245D23A",
+      "name": "Orientalmotor Pkp245D23A",
+      "resistance": 1.12,
+      "inductance": 0.0029,
+      "holding_torque": 0.58,
+      "max_current": 2.3,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "orientalmotor-PKP245D15A",
+      "name": "Orientalmotor Pkp245D15A",
+      "resistance": 2.4,
+      "inductance": 0.0066,
+      "holding_torque": 0.58,
+      "max_current": 1.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "orientalmotor-PKP235D23A",
+      "name": "Orientalmotor Pkp235D23A",
+      "resistance": 0.97,
+      "inductance": 0.0012,
+      "holding_torque": 0.37,
+      "max_current": 2.3,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "orientalmotor-PKP235D15A",
+      "name": "Orientalmotor Pkp235D15A",
+      "resistance": 2.4,
+      "inductance": 0.0026,
+      "holding_torque": 0.37,
+      "max_current": 1.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "flsun-v400-42",
+      "name": "Flsun V400 42",
+      "resistance": 18.0,
+      "inductance": 0.023,
+      "holding_torque": 0.284,
+      "max_current": 0.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "flsun-v400-36",
+      "name": "Flsun V400 36",
+      "resistance": 13.0,
+      "inductance": 0.01,
+      "holding_torque": 0.12,
+      "max_current": 0.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "honeybadger-42hs48-25044a",
+      "name": "Honeybadger 42Hs48 25044A",
+      "resistance": 1.6,
+      "inductance": 0.0018,
+      "holding_torque": 0.49,
+      "max_current": 2.5,
+      "steps_per_revolution": 200
+    }
+  ],
+  "Motech": [
+    {
+      "id": "motech-mt-1701hsm140ae",
+      "name": "Motech Mt 1701Hsm140Ae",
+      "resistance": 1.9,
+      "inductance": 0.002,
+      "holding_torque": 0.127,
+      "max_current": 1.4,
+      "steps_per_revolution": 400
+    },
+    {
+      "id": "motech-mt-1702e133g6-365e",
+      "name": "Motech Mt 1702E133G6 365E",
+      "resistance": 2.1,
+      "inductance": 0.0025,
+      "holding_torque": 0.314,
+      "max_current": 1.33,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "motech-mt-1703hs120ag518e",
+      "name": "Motech Mt 1703Hs120Ag518E",
+      "resistance": 3.0,
+      "inductance": 0.006,
+      "holding_torque": 0.431,
+      "max_current": 1.2,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "motech-mt-1703hsm168re",
+      "name": "Motech Mt 1703Hsm168Re",
+      "resistance": 1.65,
+      "inductance": 0.0036,
+      "holding_torque": 0.343,
+      "max_current": 1.68,
+      "steps_per_revolution": 400
+    },
+    {
+      "id": "motech-mt-1704hsm168re",
+      "name": "Motech Mt 1704Hsm168Re",
+      "resistance": 1.65,
+      "inductance": 0.0028,
+      "holding_torque": 0.431,
+      "max_current": 1.68,
+      "steps_per_revolution": 400
+    },
+    {
+      "id": "motech-mt-1705hs200ae",
+      "name": "Motech Mt 1705Hs200Ae",
+      "resistance": 2.0,
+      "inductance": 0.0033,
+      "holding_torque": 0.804,
+      "max_current": 2.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "motech-mt-1703hs168a",
+      "name": "Motech Mt 1703Hs168A",
+      "resistance": 1.65,
+      "inductance": 0.0036,
+      "holding_torque": 0.45,
+      "max_current": 1.68,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "motech-mt-1702hs133a",
+      "name": "Motech Mt 1702Hs133A",
+      "resistance": 2.1,
+      "inductance": 0.0025,
+      "holding_torque": 0.31,
+      "max_current": 1.33,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "motech-mt-1704hs168a",
+      "name": "Motech Mt 1704Hs168A",
+      "resistance": 1.65,
+      "inductance": 0.0028,
+      "holding_torque": 0.55,
+      "max_current": 1.68,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "BTT-17H4401S",
+      "name": "Btt 17H4401S",
+      "resistance": 2.4,
+      "inductance": 0.0037,
+      "holding_torque": 0.42,
+      "max_current": 1.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "ok42sth34-044e-200g",
+      "name": "Ok42Sth34 044E 200G",
+      "resistance": 30.0,
+      "inductance": 0.037,
+      "holding_torque": 0.28,
+      "max_current": 0.4,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "jinkong-jk42hs34-1334",
+      "name": "Jinkong Jk42Hs34 1334",
+      "resistance": 2.1,
+      "inductance": 0.0025,
+      "holding_torque": 0.2549729,
+      "max_current": 1.33,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "monoprice-42hb34f08ab",
+      "name": "Monoprice 42Hb34F08Ab",
+      "resistance": 2.2,
+      "inductance": 0.0025,
+      "holding_torque": 0.22,
+      "max_current": 1.33,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "monoprice-17hs4401s",
+      "name": "Monoprice 17Hs4401S",
+      "resistance": 1.5,
+      "inductance": 0.0028,
+      "holding_torque": 0.4,
+      "max_current": 1.7,
+      "steps_per_revolution": 200
+    }
+  ],
+  "Oukeda": [
+    {
+      "id": "oukeda-ok35sth52-1504a",
+      "name": "Oukeda Ok35Sth52 1504A",
+      "resistance": 2.8,
+      "inductance": 0.0038,
+      "holding_torque": 0.4,
+      "max_current": 1.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "oukeda-ok42sth34-044e",
+      "name": "Oukeda Ok42Sth34 044E",
+      "resistance": 2.8,
+      "inductance": 0.0038,
+      "holding_torque": 0.4,
+      "max_current": 1.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "oukeda-ok42hc40-204a306n84",
+      "name": "Oukeda Ok42Hc40 204A306N84",
+      "resistance": 1.1,
+      "inductance": 0.0026,
+      "holding_torque": 0.45,
+      "max_current": 2.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "oukeda-ok42hc40-1684a-xh",
+      "name": "Oukeda Ok42Hc40 1684A Xh",
+      "resistance": 1.95,
+      "inductance": 0.0044,
+      "holding_torque": 0.45,
+      "max_current": 1.68,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "oukeda-17hs4401",
+      "name": "Oukeda 17Hs4401",
+      "resistance": 1.5,
+      "inductance": 0.0028,
+      "holding_torque": 0.4,
+      "max_current": 1.7,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "trianglelab-tl-42bygh20",
+      "name": "Trianglelab Tl 42Bygh20",
+      "resistance": 6.8,
+      "inductance": 0.0071,
+      "holding_torque": 0.21,
+      "max_current": 1.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "bj42d41-14v06",
+      "name": "Bj42D41 14V06",
+      "resistance": 1.1,
+      "inductance": 0.0028,
+      "holding_torque": 0.65,
+      "max_current": 2,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "bj42d29-30v00",
+      "name": "Bj42D29 30V00",
+      "resistance": 1.35,
+      "inductance": 0.003,
+      "holding_torque": 0.44,
+      "max_current": 1.8,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "bj42d22-44v26",
+      "name": "Bj42D22 44V26",
+      "resistance": 3.6,
+      "inductance": 0.008,
+      "holding_torque": 0.4,
+      "max_current": 1,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "bjd42d22-53v02",
+      "name": "Bjd42D22 53V02",
+      "resistance": 2.1,
+      "inductance": 0.0046,
+      "holding_torque": 0.4,
+      "max_current": 1.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "geetech-d42hs3418-24b22",
+      "name": "Geetech D42Hs3418 24B22",
+      "resistance": 1.65,
+      "inductance": 0.0032,
+      "holding_torque": 0.4,
+      "max_current": 1.68,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "usongshine-17hs4401",
+      "name": "Usongshine 17Hs4401",
+      "resistance": 2.4,
+      "inductance": 0.0037,
+      "holding_torque": 0.42,
+      "max_current": 1.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "usongshine-17hs4401S",
+      "name": "Usongshine 17Hs4401S",
+      "resistance": 1.5,
+      "inductance": 0.0028,
+      "holding_torque": 0.42,
+      "max_current": 1.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "usongshine-17HS8401",
+      "name": "Usongshine 17Hs8401",
+      "resistance": 2,
+      "inductance": 0.0049,
+      "holding_torque": 0.2,
+      "max_current": 1.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "usongshine-17HS8401S",
+      "name": "Usongshine 17Hs8401S",
+      "resistance": 1.8,
+      "inductance": 0.0032,
+      "holding_torque": 0.52,
+      "max_current": 1.7,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "usongshine-17hs4023",
+      "name": "Usongshine 17Hs4023",
+      "resistance": 4,
+      "inductance": 0.0032,
+      "holding_torque": 0.14,
+      "max_current": 0.7,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "mercury-42byg011-25",
+      "name": "Mercury 42Byg011 25",
+      "resistance": 3.4,
+      "inductance": 0.046,
+      "holding_torque": 0.23,
+      "max_current": 0.33,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "cloudray-17CS07A-180E",
+      "name": "Cloudray 17Cs07A 180E",
+      "resistance": 1.94,
+      "inductance": 0.00496,
+      "holding_torque": 0.71,
+      "max_current": 1.8,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "act-17hs4417",
+      "name": "Act 17Hs4417",
+      "resistance": 1.5,
+      "inductance": 0.0028,
+      "holding_torque": 0.4,
+      "max_current": 1.7,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "jkong-jk42hS40-1704",
+      "name": "Jkong Jk42Hs40 1704",
+      "resistance": 1.65,
+      "inductance": 0.0032,
+      "holding_torque": 0.4,
+      "max_current": 1.7,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "jkong-jk42hs48-1684",
+      "name": "Jkong Jk42Hs48 1684",
+      "resistance": 1.65,
+      "inductance": 0.0028,
+      "holding_torque": 0.44,
+      "max_current": 1.68,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "biqu-35BYGF0713-A-10HZT",
+      "name": "Biqu 35Bygf0713 A 10Hzt",
+      "resistance": 2.3,
+      "inductance": 0.002,
+      "holding_torque": 0.11,
+      "max_current": 1.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "jkong-jk42hw20-10041-04a",
+      "name": "Jkong Jk42Hw20 10041 04A",
+      "resistance": 6.8,
+      "inductance": 0.007,
+      "holding_torque": 0.18,
+      "max_current": 1.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "hanpose-17HS6401S-0.9",
+      "name": "Hanpose 17Hs6401S 0.9",
+      "resistance": 1.5,
+      "inductance": 0.0028,
+      "holding_torque": 0.7,
+      "max_current": 1.7,
+      "steps_per_revolution": 400
+    },
+    {
+      "id": "lkd-42sth48-2004mah",
+      "name": "Lkd 42Sth48 2004Mah",
+      "resistance": 1.45,
+      "inductance": 0.002,
+      "holding_torque": 0.4,
+      "max_current": 2.0,
+      "steps_per_revolution": 400
+    },
+    {
+      "id": "lkd-42sth48-2004ac",
+      "name": "Lkd 42Sth48 2004Ac",
+      "resistance": 1.65,
+      "inductance": 0.003,
+      "holding_torque": 0.59,
+      "max_current": 2.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "toa-35hsh7402-24b-400",
+      "name": "Toa 35Hsh7402 24B 400",
+      "resistance": 2.8,
+      "inductance": 0.0055,
+      "holding_torque": 0.42,
+      "max_current": 1.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "kingroon-kp3s-42-23-titan",
+      "name": "Kingroon Kp3S 42 23 Titan",
+      "resistance": 4.0,
+      "inductance": 0.004,
+      "holding_torque": 0.13,
+      "max_current": 1.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "kingroon-kp3s-4232-b01943",
+      "name": "Kingroon Kp3S 4232 B01943",
+      "resistance": 5.6,
+      "inductance": 0.008,
+      "holding_torque": 0.36,
+      "max_current": 1.0,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "kingroon-kp3s-42-40",
+      "name": "Kingroon Kp3S 42 40",
+      "resistance": 2.4,
+      "inductance": 0.0037,
+      "holding_torque": 0.42,
+      "max_current": 1.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "shengyang-42bygh2904-a-24nq1",
+      "name": "Shengyang 42Bygh2904 A 24Nq1",
+      "resistance": 1.0,
+      "inductance": 0.002,
+      "holding_torque": 0.42,
+      "max_current": 1.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "shengyang-42bygh1603-a-20dnt",
+      "name": "Shengyang 42Bygh1603 A 20Dnt",
+      "resistance": 6.0,
+      "inductance": 0.0087,
+      "holding_torque": 0.28,
+      "max_current": 0.8,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "shengyang-36byg1510-1m-6qt",
+      "name": "Shengyang 36Byg1510 1M 6Qt",
+      "resistance": 1.8,
+      "inductance": 0.0012,
+      "holding_torque": 0.135,
+      "max_current": 1.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "rattm-17HS8401",
+      "name": "Rattm 17Hs8401",
+      "resistance": 1.8,
+      "inductance": 0.0032,
+      "holding_torque": 0.52,
+      "max_current": 1.8,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "motionking-17H2A8417",
+      "name": "Motionking 17H2A8417",
+      "resistance": 1.8,
+      "inductance": 0.0032,
+      "holding_torque": 0.52,
+      "max_current": 1.7,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "wantai-36HS2418",
+      "name": "Wantai 36Hs2418",
+      "resistance": 1.85,
+      "inductance": 0.00105,
+      "holding_torque": 0.13,
+      "max_current": 1.8,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "hanpose-17hs3401",
+      "name": "Hanpose 17Hs3401",
+      "resistance": 2.4,
+      "inductance": 0.0028,
+      "holding_torque": 0.28,
+      "max_current": 1.3,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "hanpose-17hs4401",
+      "name": "Hanpose 17Hs4401",
+      "resistance": 1.5,
+      "inductance": 0.0028,
+      "holding_torque": 0.4,
+      "max_current": 1.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "th3d-nema17-pancake",
+      "name": "Th3D Nema17 Pancake",
+      "resistance": 4.1,
+      "inductance": 0.0041,
+      "holding_torque": 0.13,
+      "max_current": 1.0,
+      "steps_per_revolution": 200
+    }
+  ],
+  "Guangzhou Bozu Digital Technology": [
+    {
+      "id": "bozu-42SHDC3025-24B",
+      "name": "Bozu 42Shdc3025 24B",
+      "resistance": 4.4,
+      "inductance": 0.00697,
+      "holding_torque": 0.4,
+      "max_current": 0.9,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "leisai-42cm06d",
+      "name": "Leisai 42Cm06D",
+      "resistance": 0.9,
+      "inductance": 0.0016,
+      "holding_torque": 0.6,
+      "max_current": 2.5,
+      "steps_per_revolution": 200
+    },
+    {
+      "id": "leadshine-42cm08",
+      "name": "Leadshine 42Cm08",
+      "resistance": 1.0,
+      "inductance": 0.0024,
+      "holding_torque": 0.8,
+      "max_current": 2.5,
+      "steps_per_revolution": 200
+    }
+  ]
+}

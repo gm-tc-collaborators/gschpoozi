@@ -1,0 +1,12 @@
+{
+  "id": "sherpa-mini",
+  "name": "Sherpa Mini",
+  "manufacturer": "Annex Engineering",
+  "type": "direct_drive",
+  "gear_ratio": "50:10",
+  "rotation_distance": 22.67895,
+  "microsteps": 32,
+  "full_steps_per_rotation": 200,
+  "pressure_advance": 0.04,
+  "notes": "Calibrate rotation_distance for your specific unit"
+}
