@@ -808,10 +808,12 @@ def generate_hardware_cfg(
     lines.append("# HEATED BED")
     lines.append("# " + "─" * 77)
 
-    hb_port = assignments.get('heater_bed', 'HB')
+    # Support both old (assignments) and new (heater_bed.*) formats
+    heater_bed_config = wizard_state.get('heater_bed', {})
+    hb_port = heater_bed_config.get('heater_port') or assignments.get('heater_bed', 'BED')
     hb_pin = get_heater_pin(board, hb_port)
     validate_pin(hb_pin, f"heater bed on port {hb_port}")
-    tb_port = assignments.get('thermistor_bed', 'TB')
+    tb_port = heater_bed_config.get('sensor_port') or assignments.get('thermistor_bed', 'TB')
     tb_pin = get_thermistor_pin(board, tb_port)
     validate_pin(tb_pin, f"bed thermistor on port {tb_port}")
 
@@ -3480,8 +3482,10 @@ def main():
         print(f"Error: Board template not found: {board_id}", file=sys.stderr)
         sys.exit(1)
 
-    toolboard_id = hardware_state.get('toolboard_id')
-    toolboard = load_toolboard_template(toolboard_id)
+    # Support both old format (toolboard_id) and new format (toolboard.board_type)
+    toolboard_info = hardware_state.get('toolboard', {})
+    toolboard_id = hardware_state.get('toolboard_id') or toolboard_info.get('board_type')
+    toolboard = load_toolboard_template(toolboard_id) if toolboard_info.get('enabled', True) else None
 
     # Generate hardware.cfg (unless calibration-only or macros-only)
     if not args.calibration_only and not args.macros_only:

@@ -404,11 +404,15 @@ class FieldRenderer:
                 return result
             return None
 
-        # Build selection items
+        # Build selection items - use display_name as tag for cleaner UI
+        # Map display_name back to full path
+        path_map = {}
         items: List[Tuple[str, str, bool]] = []
         for path, display_name in devices:
             is_selected = (path == current)
-            items.append((path, display_name, is_selected))
+            # Use display_name as tag (shown in radiolist), empty description
+            items.append((display_name, "", is_selected))
+            path_map[display_name] = path
 
         # Add manual entry option
         items.append(("manual", "Enter manually...", False))
@@ -421,6 +425,9 @@ class FieldRenderer:
                 default=current or "/dev/serial/by-id/",
                 title=title
             )
+        elif result and result in path_map:
+            # Map display name back to full path
+            result = path_map[result]
 
         if result and result != "manual":
             self._set_state_value(state_key, result)
