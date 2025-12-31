@@ -187,10 +187,15 @@ function getMcuPrefix(pin: string): string {
  * Hook to track which board ports are already assigned in the wizard state.
  * Returns a map of portId -> "used by X" for display in selectors.
  * Also detects pin conflicts across all assigned pins.
+ * 
+ * @param wizardState - The current wizard state
+ * @param boardData - Mainboard data (optional)
+ * @param toolboardData - Toolboard data (optional)
  */
 export function usePortRegistry(
   wizardState: Record<string, any>,
-  boardData?: Record<string, any> | null
+  boardData?: Record<string, any> | null,
+  toolboardData?: Record<string, any> | null
 ): PortRegistry {
   const registry = useMemo(() => {
     const usedPorts = new Map<string, string>();
@@ -276,7 +281,7 @@ export function usePortRegistry(
         return pinConflicts.find(c => c.pin === basePin || c.pin.endsWith(':' + basePin));
       },
     };
-  }, [wizardState, boardData]);
+  }, [wizardState, boardData, toolboardData]);
 
   return registry;
 }

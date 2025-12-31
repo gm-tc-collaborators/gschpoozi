@@ -1,11 +1,11 @@
 import { ConfigPanel } from './ConfigPanel';
 import useWizardStore from '../../stores/wizardStore';
-import { useBoard } from '../../hooks/useTemplates';
+import { useBoard, useToolboard } from '../../hooks/useTemplates';
 import { usePortRegistry } from '../../hooks/usePortRegistry';
 import { PortSelector } from '../ui/PortSelector';
 import { PinEditor } from '../ui/PinEditor';
 import type { MotorPort, SimplePort, ProbePort } from '../ui/PortSelector';
-import { Settings, Info } from 'lucide-react';
+import { Settings, Info, Cpu, CircuitBoard } from 'lucide-react';
 
 interface StepperPanelProps {
   stepperName: string;
@@ -29,10 +29,16 @@ export function StepperPanel({ stepperName }: StepperPanelProps) {
   const setField = useWizardStore((state) => state.setField);
   const state = useWizardStore((state) => state.state);
 
-  // Get board data for port selection
+  // Get mainboard data for port selection
   const selectedBoard = state['mcu.main.board_type'];
   const { data: boardData } = useBoard(selectedBoard);
-  const portRegistry = usePortRegistry(state, boardData);
+
+  // Get toolboard data
+  const toolboardEnabled = state['mcu.toolboard.enabled'] ?? false;
+  const selectedToolboard = state['mcu.toolboard.board_type'];
+  const { data: toolboardData } = useToolboard(selectedToolboard);
+
+  const portRegistry = usePortRegistry(state, boardData, toolboardData);
 
   const prefix = stepperName;
   const displayName = stepperName.replace('stepper_', '').toUpperCase();
@@ -112,6 +118,18 @@ export function StepperPanel({ stepperName }: StepperPanelProps) {
     }
   };
 
+  // Track which board endstop is connected to
+  const endstopLocation = getValue('endstop_location') ?? 'mainboard';
+  const activeEndstopBoardData = endstopLocation === 'toolboard' && toolboardData ? toolboardData : boardData;
+
+  // Handle endstop location change
+  const handleEndstopLocationChange = (location: 'mainboard' | 'toolboard') => {
+    setValue('endstop_location', location);
+    // Clear port selection when switching boards
+    setValue('endstop_port', undefined);
+    setValue('endstop_pin', undefined);
+  };
+
   // Handle endstop port selection
   const handleEndstopPortChange = (portId: string, portData?: MotorPort | SimplePort | ProbePort) => {
     if (!portId) {
@@ -121,9 +139,11 @@ export function StepperPanel({ stepperName }: StepperPanelProps) {
     }
 
     setValue('endstop_port', portId);
+    setValue('endstop_location', endstopLocation);
     if (portData && 'pin' in portData) {
+      const prefix = endstopLocation === 'toolboard' ? 'toolboard:' : '';
       // Endstops typically need pullup
-      setValue('endstop_pin', `^${(portData as SimplePort).pin}`);
+      setValue('endstop_pin', `^${prefix}${(portData as SimplePort).pin}`);
     }
   };
 
@@ -274,17 +294,50 @@ export function StepperPanel({ stepperName }: StepperPanelProps) {
           </p>
         </div>
 
-        {/* Endstop Port Selection */}
-        <PortSelector
-          label="Endstop Port"
-          portType="endstop"
-          value={getValue('endstop_port') || ''}
-          onChange={handleEndstopPortChange}
-          boardData={boardData}
-          usedPorts={portRegistry.getUsedByType('endstop')}
-          placeholder="Select endstop port..."
-          allowClear={true}
-        />
+        {/* Endstop Configuration */}
+        <div className="space-y-3">
+          <label className="block text-sm font-medium text-slate-300">
+            Endstop Port
+          </label>
+
+          {/* Board selector for endstop (if toolboard enabled) */}
+          {toolboardEnabled && toolboardData && (
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              <button
+                onClick={() => handleEndstopLocationChange('mainboard')}
+                className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  endstopLocation === 'mainboard'
+                    ? 'bg-cyan-600 text-white'
+                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                }`}
+              >
+                <Cpu size={16} />
+                Mainboard
+              </button>
+              <button
+                onClick={() => handleEndstopLocationChange('toolboard')}
+                className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  endstopLocation === 'toolboard'
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                }`}
+              >
+                <CircuitBoard size={16} />
+                Toolboard
+              </button>
+            </div>
+          )}
+
+          <PortSelector
+            portType="endstop"
+            value={getValue('endstop_port') || ''}
+            onChange={handleEndstopPortChange}
+            boardData={activeEndstopBoardData}
+            usedPorts={portRegistry.getUsedByType('endstop')}
+            placeholder={`Select endstop port from ${endstopLocation}...`}
+            allowClear={true}
+          />
+        </div>
 
         {/* Endstop pin display with pullup/invert toggles */}
         {getValue('endstop_pin') && (
