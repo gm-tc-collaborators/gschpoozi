@@ -4105,7 +4105,7 @@ class GschpooziWizard:
             z_count: Number of Z motors (2-4)
         """
         # Get board data for motor port selection
-        board_id = self.state.get("mcu.mainboard.board_type", "")
+        board_id = self.state.get("mcu.main.board_type", "")
         board_data = self._load_board_data(board_id, "boards") if board_id else {}
         motor_ports = board_data.get("motor_ports", {})
 

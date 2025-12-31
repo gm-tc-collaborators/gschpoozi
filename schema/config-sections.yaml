@@ -607,8 +607,8 @@ beacon:
     home_method: {{ probe.homing_mode | default('contact') }}
     home_method_when_homed: proximity
     home_autocalibrate: {{ probe.home_autocalibrate | default('unhomed') }}
-    mesh_main_direction: {{ probe.bed_mesh.mesh_main_direction | default('x') }}
-    mesh_runs: {{ probe.bed_mesh.mesh_runs | default(2) }}
+    mesh_main_direction: {{ probe.bed_mesh.mesh_main_direction | default('x') if probe.bed_mesh else 'x' }}
+    mesh_runs: {{ probe.bed_mesh.mesh_runs | default(2) if probe.bed_mesh else 2 }}
 
 cartographer:
   condition: "probe.probe_type == 'cartographer'"
@@ -659,51 +659,55 @@ safe_z_home:
 # Bed Mesh (in Probe section - mesh is probe-dependent)
 # -----------------------------------------------------------------------------
 bed_mesh:
-  condition: "probe.bed_mesh.enabled"
+  condition: "probe.bed_mesh and probe.bed_mesh.enabled"
   template: |
     [bed_mesh]
     {% if probe.probe_type in ['beacon', 'btt_eddy'] %}
     # Eddy probes: faster speed, lower horizontal_move_z (must be ≤2mm for valid readings)
-    speed: {{ probe.bed_mesh.speed | default(300) }}
-    horizontal_move_z: {{ probe.bed_mesh.horizontal_move_z | default(2) }}
+    speed: {{ probe.bed_mesh.speed | default(300) if probe.bed_mesh else 300 }}
+    horizontal_move_z: {{ probe.bed_mesh.horizontal_move_z | default(2) if probe.bed_mesh else 2 }}
     {% elif probe.probe_type == 'cartographer' %}
     # Cartographer: fast scanning with zero reference at bed center
-    speed: {{ probe.bed_mesh.speed | default(300) }}
-    horizontal_move_z: {{ probe.bed_mesh.horizontal_move_z | default(2) }}
+    speed: {{ probe.bed_mesh.speed | default(300) if probe.bed_mesh else 300 }}
+    horizontal_move_z: {{ probe.bed_mesh.horizontal_move_z | default(2) if probe.bed_mesh else 2 }}
     zero_reference_position: {{ (printer.bed_size_x / 2) | int }}, {{ (printer.bed_size_y / 2) | int }}
     {% else %}
-    speed: {{ probe.bed_mesh.speed | default(200) }}
-    horizontal_move_z: {{ probe.bed_mesh.horizontal_move_z | default(5) }}
+    speed: {{ probe.bed_mesh.speed | default(200) if probe.bed_mesh else 200 }}
+    horizontal_move_z: {{ probe.bed_mesh.horizontal_move_z | default(5) if probe.bed_mesh else 5 }}
     {% endif %}
-    {% if probe.bed_mesh.mesh_min == 'auto' %}
+    {% if probe.bed_mesh and probe.bed_mesh.mesh_min == 'auto' %}
     mesh_min: {{ (probe.x_offset | abs + 10) | int }}, {{ (probe.y_offset | abs + 10) | int }}
-    {% else %}
+    {% elif probe.bed_mesh and probe.bed_mesh.mesh_min %}
     mesh_min: {{ probe.bed_mesh.mesh_min }}
-    {% endif %}
-    {% if probe.bed_mesh.mesh_max == 'auto' %}
-    mesh_max: {{ (printer.bed_size_x - probe.x_offset | abs - 10) | int }}, {{ (printer.bed_size_y - probe.y_offset | abs - 10) | int }}
     {% else %}
+    mesh_min: {{ (probe.x_offset | abs + 10) | int }}, {{ (probe.y_offset | abs + 10) | int }}
+    {% endif %}
+    {% if probe.bed_mesh and probe.bed_mesh.mesh_max == 'auto' %}
+    mesh_max: {{ (printer.bed_size_x - probe.x_offset | abs - 10) | int }}, {{ (printer.bed_size_y - probe.y_offset | abs - 10) | int }}
+    {% elif probe.bed_mesh and probe.bed_mesh.mesh_max %}
     mesh_max: {{ probe.bed_mesh.mesh_max }}
+    {% else %}
+    mesh_max: {{ (printer.bed_size_x - probe.x_offset | abs - 10) | int }}, {{ (printer.bed_size_y - probe.y_offset | abs - 10) | int }}
     {% endif %}
     # Probe count: eddy probes are fast, use higher density for better mesh
     {% if probe.probe_type == 'cartographer' %}
-    probe_count: {{ probe.bed_mesh.probe_count | default('20, 20', true) }}
+    probe_count: {{ probe.bed_mesh.probe_count | default('20, 20', true) if probe.bed_mesh else '20, 20' }}
     {% elif probe.probe_type in ['beacon', 'btt_eddy'] %}
-    probe_count: {{ probe.bed_mesh.probe_count | default('9, 9', true) }}
+    probe_count: {{ probe.bed_mesh.probe_count | default('9, 9', true) if probe.bed_mesh else '9, 9' }}
     {% else %}
-    probe_count: {{ probe.bed_mesh.probe_count | default('5, 5', true) }}
+    probe_count: {{ probe.bed_mesh.probe_count | default('5, 5', true) if probe.bed_mesh else '5, 5' }}
     {% endif %}
     algorithm: bicubic
     {% if probe.probe_type in ['beacon', 'cartographer', 'btt_eddy'] %}
     # scan_overshoot: required for rapid_scan/scan path optimization
-    scan_overshoot: {{ probe.bed_mesh.scan_overshoot | default(8) }}
+    scan_overshoot: {{ probe.bed_mesh.scan_overshoot | default(8) if probe.bed_mesh else 8 }}
     {% endif %}
     {% if probe.probe_type == 'cartographer' %}
     # mesh_pps: disable interpolation for scan mode (Cartographer recommendation)
     mesh_pps: 0, 0
     {% endif %}
-    fade_start: {{ probe.bed_mesh.fade_start | default(0.6) }}
-    fade_end: {{ probe.bed_mesh.fade_end | default(10.0) }}
+    fade_start: {{ probe.bed_mesh.fade_start | default(0.6) if probe.bed_mesh else 0.6 }}
+    fade_end: {{ probe.bed_mesh.fade_end | default(10.0) if probe.bed_mesh else 10.0 }}
 
 # -----------------------------------------------------------------------------
 # Bed Leveling (Z Tilt / QGL)
@@ -1751,10 +1755,10 @@ common:
       variable_eddy_mesh_method: "beacon"
       {% elif probe.probe_type == 'cartographer' %}
       # Cartographer: scan method (touch mode uses scan for mesh)
-      variable_eddy_mesh_method: "{{ probe.bed_mesh.mesh_method | default('scan') }}"
+      variable_eddy_mesh_method: "{{ probe.bed_mesh.mesh_method | default('scan') if probe.bed_mesh else 'scan' }}"
       {% elif probe.probe_type == 'btt_eddy' %}
       # BTT Eddy: rapid_scan by default for fastest scanning
-      variable_eddy_mesh_method: "{{ probe.bed_mesh.mesh_method | default('rapid_scan') }}"
+      variable_eddy_mesh_method: "{{ probe.bed_mesh.mesh_method | default('rapid_scan') if probe.bed_mesh else 'rapid_scan' }}"
       {% else %}
       variable_eddy_mesh_method: "none"
       {% endif %}
