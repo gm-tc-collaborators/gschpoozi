@@ -3,16 +3,33 @@ API endpoints for board, toolboard, probe, extruder, and motor templates.
 """
 
 import json
+import os
 from pathlib import Path
 from typing import List, Optional, Any
 from fastapi import APIRouter, HTTPException
 
 router = APIRouter()
 
-# Paths relative to project root
-BACKEND_DIR = Path(__file__).parent.parent
-PROJECT_ROOT = BACKEND_DIR.parent.parent
-TEMPLATES_DIR = PROJECT_ROOT / "templates"
+# Templates directory - configurable via environment variable for Docker
+# In Docker: /project/templates (set via TEMPLATES_DIR env var or default)
+# In development: ../../templates (relative to this file)
+def get_templates_dir() -> Path:
+    """Get the templates directory path, checking environment variable first."""
+    env_path = os.environ.get("TEMPLATES_DIR")
+    if env_path:
+        return Path(env_path)
+    
+    # Check if /project/templates exists (Docker container)
+    docker_path = Path("/project/templates")
+    if docker_path.exists():
+        return docker_path
+    
+    # Fall back to relative path (development)
+    backend_dir = Path(__file__).parent.parent
+    project_root = backend_dir.parent.parent
+    return project_root / "templates"
+
+TEMPLATES_DIR = get_templates_dir()
 
 
 def load_json_file(filepath: Path) -> dict:
