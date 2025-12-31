@@ -187,7 +187,7 @@ function getMcuPrefix(pin: string): string {
  * Hook to track which board ports are already assigned in the wizard state.
  * Returns a map of portId -> "used by X" for display in selectors.
  * Also detects pin conflicts across all assigned pins.
- * 
+ *
  * @param wizardState - The current wizard state
  * @param boardData - Mainboard data (optional)
  * @param toolboardData - Toolboard data (optional)

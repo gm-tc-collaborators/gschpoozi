@@ -12,14 +12,14 @@ interface StepperPanelProps {
 }
 
 const DRIVER_TYPES = [
-  { id: 'tmc2209', name: 'TMC2209', description: 'UART, StealthChop, great for most builds', sensorless: true },
-  { id: 'tmc2208', name: 'TMC2208', description: 'UART, StealthChop, quieter but less features', sensorless: false },
-  { id: 'tmc2226', name: 'TMC2226', description: 'UART, StealthChop, improved TMC2209', sensorless: true },
-  { id: 'tmc5160', name: 'TMC5160', description: 'SPI, high current capability, premium choice', sensorless: true },
-  { id: 'tmc2130', name: 'TMC2130', description: 'SPI, StealthChop, classic choice', sensorless: true },
-  { id: 'tmc2240', name: 'TMC2240', description: 'SPI/UART, newest generation', sensorless: true },
-  { id: 'a4988', name: 'A4988', description: 'Basic stepper driver, no UART/SPI', sensorless: false },
-  { id: 'drv8825', name: 'DRV8825', description: 'Basic driver, higher microstepping', sensorless: false },
+  { id: 'tmc2209', name: 'TMC2209', description: 'UART, StealthChop, great for most builds', sensorless: true, interface: 'uart' },
+  { id: 'tmc2208', name: 'TMC2208', description: 'UART, StealthChop, quieter but less features', sensorless: false, interface: 'uart' },
+  { id: 'tmc2226', name: 'TMC2226', description: 'UART, StealthChop, improved TMC2209', sensorless: true, interface: 'uart' },
+  { id: 'tmc5160', name: 'TMC5160', description: 'SPI, high current capability, premium choice', sensorless: true, interface: 'spi' },
+  { id: 'tmc2130', name: 'TMC2130', description: 'SPI, StealthChop, classic choice', sensorless: true, interface: 'spi' },
+  { id: 'tmc2240', name: 'TMC2240', description: 'SPI/UART, newest generation', sensorless: true, interface: 'spi' },
+  { id: 'a4988', name: 'A4988', description: 'Basic stepper driver, no UART/SPI', sensorless: false, interface: 'none' },
+  { id: 'drv8825', name: 'DRV8825', description: 'Basic driver, higher microstepping', sensorless: false, interface: 'none' },
 ];
 
 const MICROSTEP_OPTIONS = [16, 32, 64, 128, 256];
@@ -216,6 +216,109 @@ export function StepperPanel({ stepperName }: StepperPanelProps) {
             </p>
           )}
         </div>
+
+        {/* Diag Pin Configuration for SPI/UART drivers */}
+        {selectedDriver && selectedDriver.interface !== 'none' && (
+          <div className="bg-slate-800/50 rounded-lg border border-slate-700 p-4 space-y-3">
+            <div className="flex items-start gap-2">
+              <Info size={16} className="text-amber-400 shrink-0 mt-0.5" />
+              <div>
+                <div className="text-sm font-medium text-slate-300">
+                  Diag Pin {selectedDriver.interface === 'spi' ? '(Required for SPI)' : '(Optional)'}
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  {selectedDriver.interface === 'spi' 
+                    ? 'SPI drivers need the diag pin for sensorless homing AND TMC chopper tuning (StallGuard).'
+                    : 'UART drivers can use diag pin for sensorless homing. Connect to an endstop input.'}
+                </p>
+              </div>
+            </div>
+
+            {/* Diag pin from motor port */}
+            {motorPortData?.diag_pin && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-slate-400">diag_pin (from motor port):</span>
+                  <code className="text-sm font-mono text-emerald-400 bg-slate-900/50 px-2 py-0.5 rounded">
+                    {getValue('diag_pin') || motorPortData.diag_pin}
+                  </code>
+                </div>
+
+                {/* For SPI drivers, show diag0 and diag1 options */}
+                {selectedDriver.interface === 'spi' && (
+                  <div className="mt-3 pt-3 border-t border-slate-700">
+                    <p className="text-xs text-slate-400 mb-2">
+                      SPI drivers have two diag outputs. Configure which to use:
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-xs font-medium text-slate-400 mb-1">
+                          diag0_pin (StallGuard)
+                        </label>
+                        <input
+                          type="text"
+                          value={getValue('diag0_pin') || ''}
+                          onChange={(e) => setValue('diag0_pin', e.target.value || undefined)}
+                          placeholder={motorPortData.diag_pin || 'e.g., PG6'}
+                          className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1.5 text-sm text-white placeholder-slate-500 font-mono focus:border-cyan-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-slate-400 mb-1">
+                          diag1_pin (optional)
+                        </label>
+                        <input
+                          type="text"
+                          value={getValue('diag1_pin') || ''}
+                          onChange={(e) => setValue('diag1_pin', e.target.value || undefined)}
+                          placeholder="Leave empty if not used"
+                          className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1.5 text-sm text-white placeholder-slate-500 font-mono focus:border-cyan-500"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-2">
+                      <strong>diag0:</strong> Used for StallGuard/sensorless homing and chopper tuning.
+                      <br />
+                      <strong>diag1:</strong> Can be used for index pulse or additional diagnostics.
+                    </p>
+                  </div>
+                )}
+
+                {/* For UART drivers, simpler diag pin setup */}
+                {selectedDriver.interface === 'uart' && selectedDriver.sensorless && (
+                  <div className="mt-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!!getValue('use_diag_pin')}
+                        onChange={(e) => {
+                          setValue('use_diag_pin', e.target.checked || undefined);
+                          if (e.target.checked && motorPortData?.diag_pin) {
+                            setValue('diag_pin', motorPortData.diag_pin);
+                          } else if (!e.target.checked) {
+                            setValue('diag_pin', undefined);
+                          }
+                        }}
+                        className="w-4 h-4 rounded border-slate-600 bg-slate-700 text-cyan-500 focus:ring-cyan-500"
+                      />
+                      <span className="text-sm text-slate-300">
+                        Enable diag pin for sensorless homing
+                      </span>
+                    </label>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* No diag pin available warning */}
+            {!motorPortData?.diag_pin && (
+              <div className="text-xs text-amber-400">
+                ⚠️ Selected motor port doesn't have a diag pin defined. 
+                You may need to wire the diag output to a free GPIO.
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Run Current */}
         <div>
