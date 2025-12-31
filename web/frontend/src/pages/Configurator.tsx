@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PrinterScene } from '../components/three/PrinterScene';
 import useWizardStore from '../stores/wizardStore';
+import { stateApi } from '../services/api';
 import {
   MCUPanel,
   ToolboardPanel,
@@ -32,6 +33,9 @@ import {
   X,
   ArrowDown,
   Wrench,
+  Loader2,
+  Check,
+  AlertCircle,
 } from 'lucide-react';
 
 interface SidebarItem {
@@ -74,6 +78,11 @@ export function Configurator() {
 
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [previewOpen, setPreviewOpen] = useState(true);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  const [statusMessage, setStatusMessage] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const wizardState = useWizardStore((state) => state.state);
+  const loadState = useWizardStore((state) => state.loadState);
 
   if (!kinematics) {
     return (
@@ -149,6 +158,114 @@ export function Configurator() {
     }
   };
 
+  // Save state to server (creates .gschpoozi_state.json)
+  const handleSaveState = async () => {
+    setSaveStatus('saving');
+    setStatusMessage('');
+    try {
+      const result = await stateApi.save(wizardState);
+      if (result.success) {
+        setSaveStatus('success');
+        setStatusMessage(`Saved to ${result.path}`);
+        setTimeout(() => setSaveStatus('idle'), 3000);
+      } else {
+        throw new Error(result.message || 'Save failed');
+      }
+    } catch (err) {
+      setSaveStatus('error');
+      setStatusMessage(err instanceof Error ? err.message : 'Save failed');
+      setTimeout(() => setSaveStatus('idle'), 5000);
+    }
+  };
+
+  // Export state as downloadable JSON file
+  const handleExportState = () => {
+    // Build the same format as CLI wizard expects
+    const exportData = {
+      wizard: {
+        version: '3.0',
+        created: new Date().toISOString(),
+        last_modified: new Date().toISOString(),
+      },
+      config: {} as Record<string, any>,
+    };
+
+    // Convert flat dot-notation to nested structure
+    for (const [key, value] of Object.entries(wizardState)) {
+      if (value === undefined || value === null || value === '') continue;
+      const parts = key.split('.');
+      let current = exportData.config;
+      for (let i = 0; i < parts.length - 1; i++) {
+        if (!current[parts[i]]) current[parts[i]] = {};
+        current = current[parts[i]];
+      }
+      current[parts[parts.length - 1]] = value;
+    }
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '.gschpoozi_state.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    setSaveStatus('success');
+    setStatusMessage('State exported! Place in ~/printer_data/config/ to use with CLI wizard.');
+    setTimeout(() => setSaveStatus('idle'), 5000);
+  };
+
+  // Import state from JSON file
+  const handleImportState = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target?.result as string);
+        
+        // Handle both flat and nested formats
+        let flatState: Record<string, any> = {};
+        
+        if (data.config) {
+          // Nested format from CLI wizard - flatten it
+          const flatten = (obj: Record<string, any>, prefix = '') => {
+            for (const [key, value] of Object.entries(obj)) {
+              const fullKey = prefix ? `${prefix}.${key}` : key;
+              if (value && typeof value === 'object' && !Array.isArray(value)) {
+                flatten(value, fullKey);
+              } else {
+                flatState[fullKey] = value;
+              }
+            }
+          };
+          flatten(data.config);
+        } else {
+          // Already flat format
+          flatState = data;
+        }
+
+        loadState(flatState);
+        setSaveStatus('success');
+        setStatusMessage('State imported successfully!');
+        setTimeout(() => setSaveStatus('idle'), 3000);
+      } catch (err) {
+        setSaveStatus('error');
+        setStatusMessage('Invalid state file format');
+        setTimeout(() => setSaveStatus('idle'), 5000);
+      }
+    };
+    reader.readAsText(file);
+    
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   // Group sidebar items by section
   const sections = SIDEBAR_ITEMS.reduce((acc, item) => {
     const section = item.section || 'Other';
@@ -214,19 +331,52 @@ export function Configurator() {
 
         {/* Actions */}
         <div className="p-2 border-t border-slate-700">
+          {/* Hidden file input for import */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleImportState}
+            className="hidden"
+          />
+
+          {/* Status message */}
+          {saveStatus !== 'idle' && sidebarOpen && (
+            <div className={`mb-2 px-3 py-2 rounded-lg text-xs flex items-center gap-2 ${
+              saveStatus === 'saving' ? 'bg-blue-900/30 text-blue-300' :
+              saveStatus === 'success' ? 'bg-emerald-900/30 text-emerald-300' :
+              'bg-red-900/30 text-red-300'
+            }`}>
+              {saveStatus === 'saving' && <Loader2 size={12} className="animate-spin" />}
+              {saveStatus === 'success' && <Check size={12} />}
+              {saveStatus === 'error' && <AlertCircle size={12} />}
+              <span className="truncate">{statusMessage || (saveStatus === 'saving' ? 'Saving...' : '')}</span>
+            </div>
+          )}
+
           {sidebarOpen ? (
             <div className="space-y-1">
-              <button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-400 hover:bg-slate-700/50 hover:text-white rounded-lg transition-colors">
-                <Save size={16} />
+              <button
+                onClick={handleSaveState}
+                disabled={saveStatus === 'saving'}
+                className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-400 hover:bg-slate-700/50 hover:text-white rounded-lg transition-colors disabled:opacity-50"
+              >
+                {saveStatus === 'saving' ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                 Save State
               </button>
-              <button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-400 hover:bg-slate-700/50 hover:text-white rounded-lg transition-colors">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-400 hover:bg-slate-700/50 hover:text-white rounded-lg transition-colors"
+              >
                 <Upload size={16} />
-                Import Config
+                Import State
               </button>
-              <button className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-400 hover:bg-slate-700/50 hover:text-white rounded-lg transition-colors">
+              <button
+                onClick={handleExportState}
+                className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-400 hover:bg-slate-700/50 hover:text-white rounded-lg transition-colors"
+              >
                 <Download size={16} />
-                Export Config
+                Export State
               </button>
               <button
                 onClick={handleReset}
@@ -238,17 +388,31 @@ export function Configurator() {
             </div>
           ) : (
             <div className="flex flex-col items-center gap-1">
-              <button className="p-2 text-slate-400 hover:bg-slate-700/50 hover:text-white rounded-lg">
-                <Save size={16} />
+              <button
+                onClick={handleSaveState}
+                disabled={saveStatus === 'saving'}
+                title="Save State"
+                className="p-2 text-slate-400 hover:bg-slate-700/50 hover:text-white rounded-lg disabled:opacity-50"
+              >
+                {saveStatus === 'saving' ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
               </button>
-              <button className="p-2 text-slate-400 hover:bg-slate-700/50 hover:text-white rounded-lg">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                title="Import State"
+                className="p-2 text-slate-400 hover:bg-slate-700/50 hover:text-white rounded-lg"
+              >
                 <Upload size={16} />
               </button>
-              <button className="p-2 text-slate-400 hover:bg-slate-700/50 hover:text-white rounded-lg">
+              <button
+                onClick={handleExportState}
+                title="Export State"
+                className="p-2 text-slate-400 hover:bg-slate-700/50 hover:text-white rounded-lg"
+              >
                 <Download size={16} />
               </button>
               <button
                 onClick={handleReset}
+                title="Reset"
                 className="p-2 text-red-400 hover:bg-red-900/20 hover:text-red-300 rounded-lg"
               >
                 <RotateCcw size={16} />

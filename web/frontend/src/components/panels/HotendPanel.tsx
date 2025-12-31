@@ -206,7 +206,7 @@ export function HotendPanel() {
             <div>
               <div className="text-sm font-medium text-slate-300">Pullup Resistor</div>
               <p className="text-xs text-slate-500 mt-1">
-                {hotendLocation === 'toolboard' 
+                {hotendLocation === 'toolboard'
                   ? 'Toolboards often use 2.2kΩ pullup instead of the standard 4.7kΩ. Check your toolboard documentation.'
                   : 'Most mainboards use 4.7kΩ pullup. Only change if you know your board uses a different value.'}
               </p>
