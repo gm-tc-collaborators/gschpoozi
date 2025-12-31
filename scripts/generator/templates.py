@@ -244,9 +244,15 @@ class TemplateRenderer:
             ('tmc_stepper_y', None),
             ('stepper_y1', None),
             ('tmc_stepper_y1', None),
-            # Z stepper
+            # Z steppers (multi-Z for Z Tilt / QGL)
             ('stepper_z', None),
             ('tmc_stepper_z', None),
+            ('stepper_z1', None),
+            ('tmc_stepper_z1', None),
+            ('stepper_z2', None),
+            ('tmc_stepper_z2', None),
+            ('stepper_z3', None),
+            ('tmc_stepper_z3', None),
             # Extruder
             ('extruder', None),
             ('tmc_extruder', None),
