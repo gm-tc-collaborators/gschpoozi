@@ -1,16 +1,17 @@
 # Frontend build stage
+# Build context should be the repository root (not web/)
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
 # Copy package files
-COPY frontend/package*.json ./
+COPY web/frontend/package*.json ./
 
 # Install dependencies
 RUN npm ci
 
 # Copy source
-COPY frontend/ ./
+COPY web/frontend/ ./
 
 # Build for production
 RUN npm run build
@@ -22,7 +23,7 @@ FROM nginx:alpine
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Copy nginx config
-COPY nginx.frontend.conf /etc/nginx/conf.d/default.conf
+COPY web/nginx.frontend.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 
