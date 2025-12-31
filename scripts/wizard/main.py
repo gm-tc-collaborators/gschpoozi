@@ -3961,6 +3961,7 @@ class GschpooziWizard:
         current_endstop = self.state.get("stepper_z.endstop_type", "probe")
         current_position_max = self.state.get("stepper_z.position_max", None)
         current_run_current = self.state.get("stepper_z.run_current", 0.8)
+        current_driver_type = self.state.get("stepper_z.driver_type", "TMC2209")
 
         # Number of Z motors
         z_count = self.ui.radiolist(
@@ -3975,6 +3976,25 @@ class GschpooziWizard:
         )
         if z_count is None:
             return
+
+        # Driver type
+        driver_type = self.ui.radiolist(
+            "TMC driver type for Z motors:",
+            [
+                ("TMC2209", "TMC2209 (UART)", current_driver_type == "TMC2209"),
+                ("TMC2208", "TMC2208 (UART)", current_driver_type == "TMC2208"),
+                ("TMC2226", "TMC2226 (UART)", current_driver_type == "TMC2226"),
+                ("TMC5160", "TMC5160 (SPI)", current_driver_type == "TMC5160"),
+                ("TMC2130", "TMC2130 (SPI)", current_driver_type == "TMC2130"),
+            ],
+            title="Z Axis - Driver Type"
+        )
+        if driver_type is None:
+            return
+
+        # Determine driver protocol based on driver type
+        spi_drivers = ["TMC5160", "TMC2130", "TMC2160"]
+        driver_protocol = "spi" if driver_type in spi_drivers else "uart"
 
         # Drive type
         drive_type = self.ui.radiolist(
@@ -4036,14 +4056,37 @@ class GschpooziWizard:
         if run_current is None:
             return
 
-        # Save
-        self.state.set("stepper_z.z_motor_count", int(z_count or 4))
+        # Motor port selection for primary Z stepper
+        pin_manager = self._get_pin_manager()
+        current_z_port = self.state.get("stepper_z.motor_port", "")
+        if current_z_port:
+            pin_manager.mark_unused("mainboard", current_z_port)
+
+        z_motor_port = pin_manager.select_motor_port(
+            location="mainboard",
+            purpose="Z Axis (primary)",
+            current_port=current_z_port,
+            title="Z Axis - Motor Port"
+        )
+        if z_motor_port is None:
+            return
+
+        # Save basic Z config
+        z_count_int = int(z_count or 4)
+        self.state.set("stepper_z.z_motor_count", z_count_int)
+        self.state.set("stepper_z.driver_type", driver_type)
+        self.state.set("stepper_z.driver_protocol", driver_protocol)
         self.state.set("stepper_z.drive_type", drive_type)
         self.state.set("stepper_z.leadscrew_pitch", int(pitch or 8))
         self.state.set("stepper_z.endstop_type", endstop_type)
         self.state.set("stepper_z.position_max", int(position_max or bed_z))
         self.state.set("stepper_z.run_current", float(run_current or 0.8))
+        self.state.set("stepper_z.motor_port", z_motor_port)
         self.state.save()
+
+        # Configure motor ports for additional Z steppers
+        if z_count_int >= 2:
+            self._configure_z_motor_ports(z_count_int)
 
         self.ui.msgbox(
             f"Z Axis configured!\n\n"
@@ -4054,6 +4097,97 @@ class GschpooziWizard:
             f"Current: {run_current}A",
             title="Configuration Saved"
         )
+
+    def _configure_z_motor_ports(self, z_count: int) -> None:
+        """Configure motor ports for additional Z steppers (Z1, Z2, Z3).
+
+        Args:
+            z_count: Number of Z motors (2-4)
+        """
+        # Get board data for motor port selection
+        board_id = self.state.get("mcu.mainboard.board_type", "")
+        board_data = self._load_board_data(board_id, "boards") if board_id else {}
+        motor_ports = board_data.get("motor_ports", {})
+
+        if not motor_ports:
+            self.ui.msgbox(
+                "No board selected or board has no motor port definitions.\n\n"
+                "Please select a mainboard first, then configure Z motors.",
+                title="Motor Ports Not Available"
+            )
+            return
+
+        # Get already used motor ports
+        used_ports = set()
+        for stepper in ["stepper_x", "stepper_y", "stepper_z", "stepper_x1", "stepper_y1"]:
+            port = self.state.get(f"{stepper}.motor_port")
+            if port:
+                used_ports.add(port)
+
+        # Also check extruder if on mainboard
+        if self.state.get("extruder.location") == "mainboard":
+            ext_port = self.state.get("extruder.motor_port_mainboard")
+            if ext_port:
+                used_ports.add(ext_port)
+
+        # Configure each additional Z motor
+        z_steppers = []
+        if z_count >= 2:
+            z_steppers.append("stepper_z1")
+        if z_count >= 3:
+            z_steppers.append("stepper_z2")
+        if z_count >= 4:
+            z_steppers.append("stepper_z3")
+
+        for stepper_name in z_steppers:
+            current_port = self.state.get(f"{stepper_name}.motor_port", "")
+
+            # Build available ports list
+            options = []
+            for port_id, port_info in motor_ports.items():
+                if port_id in used_ports and port_id != current_port:
+                    continue  # Skip already used ports (except current selection)
+
+                if isinstance(port_info, dict):
+                    label = port_info.get("label", port_id)
+                    step_pin = port_info.get("step_pin", "")
+                    if step_pin:
+                        label = f"{label} (step: {step_pin})"
+                else:
+                    label = port_id
+
+                is_selected = (port_id == current_port)
+                options.append((port_id, label, is_selected))
+
+            if not options:
+                self.ui.msgbox(
+                    f"No available motor ports for {stepper_name}.\n\n"
+                    "All motor ports are already assigned.",
+                    title="No Ports Available"
+                )
+                continue
+
+            # Ensure something is selected
+            if not any(x[2] for x in options):
+                options[0] = (options[0][0], options[0][1], True)
+
+            # Display name for UI
+            display_name = stepper_name.replace("stepper_", "").upper()
+
+            port = self.ui.radiolist(
+                f"Select motor port for {display_name}:",
+                options,
+                title=f"Z Motor - {display_name}"
+            )
+
+            if port is None:
+                continue
+
+            # Save the selection
+            self.state.set(f"{stepper_name}.motor_port", port)
+            used_ports.add(port)
+
+        self.state.save()
 
     def _extruder_setup(self) -> None:
         """Configure extruder motor and hotend per schema 2.6.
