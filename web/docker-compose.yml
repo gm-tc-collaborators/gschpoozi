@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - gschpoozi
+
+  backend:
+    build:
+      context: ..
+      dockerfile: web/Dockerfile.backend
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount templates for live updates in development
+      - ../templates:/project/templates:ro
+      - ../schema:/project/schema:ro
+      - ../scripts:/project/scripts:ro
+    environment:
+      - PYTHONDONTWRITEBYTECODE=1
+    networks:
+      - gschpoozi
+
+networks:
+  gschpoozi:
+    driver: bridge
+

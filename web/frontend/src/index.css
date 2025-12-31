@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+/* Custom source paths for Tailwind v4 */
+@source "../src/**/*.{js,ts,jsx,tsx}";
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

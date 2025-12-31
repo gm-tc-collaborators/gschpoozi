@@ -1,0 +1,395 @@
+import { ConfigPanel } from './ConfigPanel';
+import useWizardStore from '../../stores/wizardStore';
+import { useBoard } from '../../hooks/useTemplates';
+import { usePortRegistry } from '../../hooks/usePortRegistry';
+import { PortSelector } from '../ui/PortSelector';
+import { PinEditor } from '../ui/PinEditor';
+import type { MotorPort, SimplePort, ProbePort } from '../ui/PortSelector';
+import { Settings, Info } from 'lucide-react';
+
+interface StepperPanelProps {
+  stepperName: string;
+}
+
+const DRIVER_TYPES = [
+  { id: 'tmc2209', name: 'TMC2209', description: 'UART, StealthChop, great for most builds', sensorless: true },
+  { id: 'tmc2208', name: 'TMC2208', description: 'UART, StealthChop, quieter but less features', sensorless: false },
+  { id: 'tmc2226', name: 'TMC2226', description: 'UART, StealthChop, improved TMC2209', sensorless: true },
+  { id: 'tmc5160', name: 'TMC5160', description: 'SPI, high current capability, premium choice', sensorless: true },
+  { id: 'tmc2130', name: 'TMC2130', description: 'SPI, StealthChop, classic choice', sensorless: true },
+  { id: 'tmc2240', name: 'TMC2240', description: 'SPI/UART, newest generation', sensorless: true },
+  { id: 'a4988', name: 'A4988', description: 'Basic stepper driver, no UART/SPI', sensorless: false },
+  { id: 'drv8825', name: 'DRV8825', description: 'Basic driver, higher microstepping', sensorless: false },
+];
+
+const MICROSTEP_OPTIONS = [16, 32, 64, 128, 256];
+
+export function StepperPanel({ stepperName }: StepperPanelProps) {
+  const setActivePanel = useWizardStore((state) => state.setActivePanel);
+  const setField = useWizardStore((state) => state.setField);
+  const state = useWizardStore((state) => state.state);
+
+  // Get board data for port selection
+  const selectedBoard = state['mcu.main.board_type'];
+  const { data: boardData } = useBoard(selectedBoard);
+  const portRegistry = usePortRegistry(state, boardData);
+
+  const prefix = stepperName;
+  const displayName = stepperName.replace('stepper_', '').toUpperCase();
+  const isZAxis = stepperName.includes('z');
+
+  const getValue = (key: string, defaultVal?: any) => {
+    const val = state[`${prefix}.${key}`];
+    // Return undefined if not set (not default values for optional fields)
+    return val !== undefined ? val : defaultVal;
+  };
+
+  const setValue = (key: string, value: any) => setField(`${prefix}.${key}`, value);
+
+  // Get currently selected motor port data
+  const selectedMotorPort = getValue('motor_port');
+  const motorPortData = boardData?.motor_ports?.[selectedMotorPort] as MotorPort | undefined;
+
+  // Get all GPIO pins from board for advanced override
+  const availablePins = boardData?.all_pins || [];
+
+  // Current pin values from state
+  const currentPins = {
+    step_pin: getValue('step_pin'),
+    dir_pin: getValue('dir_pin'),
+    enable_pin: getValue('enable_pin'),
+    uart_pin: getValue('uart_pin'),
+    cs_pin: getValue('cs_pin'),
+    diag_pin: getValue('diag_pin'),
+  };
+
+  // Handle motor port selection - auto-fill related pins
+  const handleMotorPortChange = (portId: string, portData?: MotorPort | SimplePort | ProbePort) => {
+    if (!portId) {
+      // Clear port and all associated pins
+      setValue('motor_port', undefined);
+      setValue('step_pin', undefined);
+      setValue('dir_pin', undefined);
+      setValue('enable_pin', undefined);
+      setValue('uart_pin', undefined);
+      setValue('cs_pin', undefined);
+      setValue('diag_pin', undefined);
+      return;
+    }
+
+    setValue('motor_port', portId);
+
+    if (portData && 'step_pin' in portData) {
+      const motor = portData as MotorPort;
+      setValue('step_pin', motor.step_pin);
+      setValue('dir_pin', motor.dir_pin);
+      // Enable is typically active-low in Klipper
+      setValue('enable_pin', '!' + motor.enable_pin);
+      if (motor.uart_pin) {
+        setValue('uart_pin', motor.uart_pin);
+      } else {
+        setValue('uart_pin', undefined);
+      }
+      if (motor.cs_pin) {
+        setValue('cs_pin', motor.cs_pin);
+      } else {
+        setValue('cs_pin', undefined);
+      }
+      if (motor.diag_pin) {
+        setValue('diag_pin', motor.diag_pin);
+      } else {
+        setValue('diag_pin', undefined);
+      }
+    }
+  };
+
+  // Handle individual pin changes from PinEditor
+  const handlePinChange = (pinType: string, value: string) => {
+    if (!value) {
+      setValue(pinType, undefined);
+    } else {
+      setValue(pinType, value);
+    }
+  };
+
+  // Handle endstop port selection
+  const handleEndstopPortChange = (portId: string, portData?: MotorPort | SimplePort | ProbePort) => {
+    if (!portId) {
+      setValue('endstop_port', undefined);
+      setValue('endstop_pin', undefined);
+      return;
+    }
+
+    setValue('endstop_port', portId);
+    if (portData && 'pin' in portData) {
+      // Endstops typically need pullup
+      setValue('endstop_pin', `^${(portData as SimplePort).pin}`);
+    }
+  };
+
+  const selectedDriver = DRIVER_TYPES.find((d) => d.id === getValue('driver_type', 'tmc2209'));
+
+  return (
+    <ConfigPanel title={`Stepper ${displayName}`} onClose={() => setActivePanel(null)}>
+      <div className="space-y-6">
+        {/* Info Banner */}
+        <div className="bg-blue-900/30 border border-blue-700 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <Settings className="text-blue-400 shrink-0 mt-0.5" size={20} />
+            <div>
+              <div className="text-sm font-medium text-blue-300">{displayName} Axis Stepper</div>
+              <p className="text-xs text-blue-200/70 mt-1">
+                {isZAxis
+                  ? 'Configure Z-axis motor. Typically uses lower current and lead screw rotation distance.'
+                  : 'Configure XY motion motor. Select the driver port and set appropriate current.'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Motor Port Selection */}
+        <PortSelector
+          label="Motor Port"
+          portType="motor"
+          value={getValue('motor_port') || ''}
+          onChange={handleMotorPortChange}
+          boardData={boardData}
+          usedPorts={portRegistry.getUsedByType('motor')}
+          placeholder="Select motor driver port..."
+          allowClear={true}
+        />
+
+        {/* Editable Pin Configuration */}
+        {motorPortData && (
+          <PinEditor
+            portData={motorPortData}
+            pins={currentPins}
+            onPinChange={handlePinChange}
+            availablePins={availablePins}
+            showAdvanced={true}
+          />
+        )}
+
+        {/* Driver Type */}
+        <div>
+          <label className="block text-sm font-medium text-slate-300 mb-2">
+            Driver Type
+          </label>
+          <select
+            value={getValue('driver_type') || ''}
+            onChange={(e) => setValue('driver_type', e.target.value || undefined)}
+            className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+          >
+            <option value="">Select driver type...</option>
+            {DRIVER_TYPES.map((driver) => (
+              <option key={driver.id} value={driver.id}>
+                {driver.name}
+              </option>
+            ))}
+          </select>
+          {selectedDriver && (
+            <p className="text-xs text-slate-500 mt-1">
+              {selectedDriver.description}
+              {selectedDriver.sensorless && (
+                <span className="ml-2 text-cyan-400">• Supports sensorless homing</span>
+              )}
+            </p>
+          )}
+        </div>
+
+        {/* Run Current */}
+        <div>
+          <label className="block text-sm font-medium text-slate-300 mb-2">
+            Run Current (A)
+          </label>
+          <input
+            type="number"
+            step="0.1"
+            min="0.1"
+            max="2.5"
+            value={getValue('run_current') ?? ''}
+            onChange={(e) => {
+              const val = e.target.value;
+              setValue('run_current', val ? parseFloat(val) : undefined);
+            }}
+            placeholder={isZAxis ? '0.6' : '0.8'}
+            className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+          />
+          <div className="flex justify-between text-xs text-slate-500 mt-1">
+            <span>0.1A (quiet)</span>
+            <span>Typical: {isZAxis ? '0.6A' : '0.8A'}</span>
+            <span>2.5A (max)</span>
+          </div>
+        </div>
+
+        {/* Microsteps */}
+        <div>
+          <label className="block text-sm font-medium text-slate-300 mb-2">
+            Microsteps
+          </label>
+          <div className="grid grid-cols-5 gap-2">
+            {MICROSTEP_OPTIONS.map((ms) => (
+              <button
+                key={ms}
+                onClick={() => setValue('microsteps', ms)}
+                className={`py-2 rounded-lg text-sm font-medium transition-colors ${
+                  getValue('microsteps') === ms
+                    ? 'bg-cyan-600 text-white'
+                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                }`}
+              >
+                {ms}
+              </button>
+            ))}
+          </div>
+          {!getValue('microsteps') && (
+            <p className="text-xs text-slate-500 mt-1">
+              <Info size={12} className="inline mr-1" />
+              Select microsteps (16 is common default)
+            </p>
+          )}
+        </div>
+
+        {/* Rotation Distance */}
+        <div>
+          <label className="block text-sm font-medium text-slate-300 mb-2">
+            Rotation Distance (mm)
+          </label>
+          <input
+            type="number"
+            step="0.001"
+            min="0.1"
+            value={getValue('rotation_distance') ?? ''}
+            onChange={(e) => {
+              const val = e.target.value;
+              setValue('rotation_distance', val ? parseFloat(val) : undefined);
+            }}
+            placeholder={isZAxis ? '8' : '40'}
+            className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+          />
+          <p className="text-xs text-slate-500 mt-1">
+            {isZAxis
+              ? 'Common: 8 (T8 lead screw), 4 (T8 2-start), 40 (belt Z)'
+              : 'Common: 40 (GT2 20T), 32 (GT2 16T)'}
+          </p>
+        </div>
+
+        {/* Endstop Port Selection */}
+        <PortSelector
+          label="Endstop Port"
+          portType="endstop"
+          value={getValue('endstop_port') || ''}
+          onChange={handleEndstopPortChange}
+          boardData={boardData}
+          usedPorts={portRegistry.getUsedByType('endstop')}
+          placeholder="Select endstop port..."
+          allowClear={true}
+        />
+
+        {/* Endstop pin display with pullup/invert toggles */}
+        {getValue('endstop_pin') && (
+          <div className="bg-slate-800/50 rounded-lg border border-slate-700 p-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-400">endstop_pin:</span>
+                <code className="text-sm font-mono text-emerald-400">
+                  {getValue('endstop_pin')}
+                </code>
+              </div>
+              <div className="flex items-center gap-2">
+                {/* Pullup toggle */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const pin = getValue('endstop_pin') || '';
+                    const hasInvert = pin.startsWith('!');
+                    const hasPullup = pin.includes('^');
+                    const base = pin.replace(/^[!^]+/, '');
+
+                    if (hasPullup) {
+                      setValue('endstop_pin', hasInvert ? '!' + base : base);
+                    } else {
+                      setValue('endstop_pin', hasInvert ? '!^' + base : '^' + base);
+                    }
+                  }}
+                  className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
+                    (getValue('endstop_pin') || '').includes('^')
+                      ? 'bg-cyan-500/20 text-cyan-400'
+                      : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
+                  }`}
+                >
+                  Pullup
+                </button>
+                {/* Invert toggle */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const pin = getValue('endstop_pin') || '';
+                    if (pin.startsWith('!')) {
+                      setValue('endstop_pin', pin.slice(1));
+                    } else {
+                      setValue('endstop_pin', '!' + pin);
+                    }
+                  }}
+                  className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
+                    (getValue('endstop_pin') || '').startsWith('!')
+                      ? 'bg-amber-500/20 text-amber-400'
+                      : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
+                  }`}
+                >
+                  Invert
+                </button>
+              </div>
+            </div>
+            <p className="text-xs text-slate-500 mt-2">
+              Use <code className="bg-slate-800 px-1 rounded">probe:z_virtual_endstop</code> for Z with probe homing.
+            </p>
+          </div>
+        )}
+
+        {/* Position Max */}
+        <div>
+          <label className="block text-sm font-medium text-slate-300 mb-2">
+            Position Max (mm)
+          </label>
+          <input
+            type="number"
+            step="1"
+            min="1"
+            value={getValue('position_max') ?? ''}
+            onChange={(e) => {
+              const val = e.target.value;
+              setValue('position_max', val ? parseInt(val) : undefined);
+            }}
+            placeholder={isZAxis ? '250' : '235'}
+            className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+          />
+        </div>
+
+        {/* Homing Direction for non-Z */}
+        {!isZAxis && (
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">
+              Homing Direction
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {['min', 'max'].map((dir) => (
+                <button
+                  key={dir}
+                  onClick={() => setValue('homing_direction', dir)}
+                  className={`py-2 rounded-lg text-sm font-medium transition-colors ${
+                    getValue('homing_direction') === dir
+                      ? 'bg-cyan-600 text-white'
+                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                  }`}
+                >
+                  {dir === 'min' ? 'Min (0)' : 'Max (Position Max)'}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </ConfigPanel>
+  );
+}

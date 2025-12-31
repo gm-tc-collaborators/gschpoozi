@@ -299,7 +299,7 @@ class ConfigGenerator:
         board_file = self.templates_dir / "boards" / f"{board_type}.json"
         if board_file.exists():
             try:
-                with open(board_file) as f:
+                with open(board_file, encoding='utf-8') as f:
                     board_data = json.load(f)
                 return self._transform_board_data(board_data)
             except (json.JSONDecodeError, IOError):
@@ -315,7 +315,7 @@ class ConfigGenerator:
         board_file = self.templates_dir / "toolboards" / f"{board_type}.json"
         if board_file.exists():
             try:
-                with open(board_file) as f:
+                with open(board_file, encoding='utf-8') as f:
                     board_data = json.load(f)
                 return self._transform_board_data(board_data)
             except (json.JSONDecodeError, IOError):
@@ -1209,7 +1209,7 @@ class ConfigGenerator:
             if file_path == 'user-overrides.cfg' and full_path.exists():
                 continue
 
-            with open(full_path, 'w') as f:
+            with open(full_path, 'w', encoding='utf-8') as f:
                 f.write(content)
 
             written.append(full_path)

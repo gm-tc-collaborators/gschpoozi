@@ -51,7 +51,7 @@ class TemplateRenderer:
 
     def _load_templates(self) -> None:
         """Load templates from YAML file."""
-        with open(self.templates_file, 'r') as f:
+        with open(self.templates_file, 'r', encoding='utf-8') as f:
             data = yaml.safe_load(f)
 
         self.templates = data
