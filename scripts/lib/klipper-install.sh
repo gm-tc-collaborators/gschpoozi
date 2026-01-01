@@ -877,7 +877,8 @@ do_install_host_mcu() {
 
     # Build linux-process MCU without clobbering main MCU build artifacts
     local host_cfg="${KLIPPER_DIR}/.config-hostmcu"
-    local host_out="${KLIPPER_DIR}/out-hostmcu"
+    # IMPORTANT: Klipper Makefile expects OUT to end with '/' (it concatenates paths like $(OUT)autoconf.h).
+    local host_out="${KLIPPER_DIR}/out-hostmcu/"
 
     status_msg "Configuring Linux-process MCU build..."
     cat > "${host_cfg}" <<'EOF'
