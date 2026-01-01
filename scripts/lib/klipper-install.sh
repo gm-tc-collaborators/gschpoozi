@@ -955,9 +955,7 @@ do_install_mainsail() {
     setup_nginx "mainsail" "$port" || return 1
 
     # Add update manager entry
-    if is_moonraker_installed; then
-        add_update_manager_entry "mainsail" "web" "${MAINSAIL_DIR}" "repo: mainsail-crew/mainsail"
-    fi
+    add_update_manager_entry "mainsail" "web" "~/mainsail" "repo: mainsail-crew/mainsail"
 
     # Build access URL
     local ip_addr=$(hostname -I | awk '{print $1}')
@@ -1042,9 +1040,7 @@ do_install_fluidd() {
     setup_nginx "fluidd" "$port" || return 1
 
     # Add update manager entry
-    if is_moonraker_installed; then
-        add_update_manager_entry "fluidd" "web" "${FLUIDD_DIR}" "repo: fluidd-core/fluidd"
-    fi
+    add_update_manager_entry "fluidd" "web" "~/fluidd" "repo: fluidd-core/fluidd"
 
     # Build access URL
     local ip_addr=$(hostname -I | awk '{print $1}')
@@ -1107,10 +1103,8 @@ do_install_crowsnest() {
     fi
 
     # Add update manager entry
-    if is_moonraker_installed; then
-        add_update_manager_entry "crowsnest" "git_repo" "${CROWSNEST_DIR}" "origin: https://github.com/mainsail-crew/crowsnest.git
+    add_update_manager_entry "crowsnest" "git_repo" "~/crowsnest" "origin: https://github.com/mainsail-crew/crowsnest.git
 managed_services: crowsnest"
-    fi
 
     echo ""
     echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
@@ -1164,10 +1158,8 @@ do_install_sonar() {
     fi
 
     # Add update manager entry
-    if is_moonraker_installed; then
-        add_update_manager_entry "sonar" "git_repo" "${SONAR_DIR}" "origin: https://github.com/mainsail-crew/sonar.git
+    add_update_manager_entry "sonar" "git_repo" "~/sonar" "origin: https://github.com/mainsail-crew/sonar.git
 managed_services: sonar"
-    fi
 
     echo ""
     echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
@@ -1242,7 +1234,7 @@ do_install_timelapse() {
     fi
 
     # Add update manager entry
-    add_update_manager_entry "timelapse" "git_repo" "${TIMELAPSE_DIR}" "origin: https://github.com/mainsail-crew/moonraker-timelapse.git
+    add_update_manager_entry "timelapse" "git_repo" "~/moonraker-timelapse" "origin: https://github.com/mainsail-crew/moonraker-timelapse.git
 primary_branch: main"
 
     # Add timelapse config to moonraker.conf if not present
