@@ -7145,6 +7145,21 @@ class GschpooziWizard:
                     print("Running install script...")
                     print("=" * 60 + "\n")
 
+                    # Heads-up: some KlipperScreen installs can restart services/networking (or even reboot),
+                    # which may drop an active SSH session. This is expected on some images.
+                    self.ui.msgbox(
+                        "KlipperScreen installation may temporarily close your SSH session.\n\n"
+                        "If that happens:\n"
+                        "- Reconnect via SSH\n"
+                        "- Re-run: ~/gschpoozi/scripts/configure.sh\n\n"
+                        "You can then verify:\n"
+                        "- systemctl status KlipperScreen\n"
+                        "- Mainsail/Fluidd access in browser",
+                        title="Note",
+                        height=16,
+                        width=70,
+                    )
+
                     exit_code = self._run_shell_interactive(f"bash {install_script}")
 
                     # Check if service file was created
