@@ -9624,20 +9624,48 @@ read -r _
         def _configure_filament() -> None:
             """Configure LOAD/UNLOAD filament macros."""
             while True:
+                def _norm_filament_speed_mm_s(v: object, default: float) -> float:
+                    """Return speed in mm/s. Legacy values (wizard previously stored feedrates) are auto-converted."""
+                    try:
+                        f = float(v)
+                    except Exception:
+                        return float(default)
+                    return (f / 60.0) if f > 100 else f
+
+                def _maybe_int(f: float):
+                    return int(f) if float(f).is_integer() else float(f)
+
                 load_temp = self.state.get("macros.load_temp", 220)
                 load_len = self.state.get("macros.load_length", 100)
-                load_speed = self.state.get("macros.load_speed", 300)
+                load_speed = self.state.get("macros.load_speed", 5.0)
                 unload_len = self.state.get("macros.unload_length", 100)
-                unload_speed = self.state.get("macros.unload_speed", 1800)
+                unload_speed = self.state.get("macros.unload_speed", 30.0)
                 tip_shape = self.state.get("macros.unload_tip_shape", True)
+
+                # Normalize legacy persisted values so menu + defaults show consistent units (mm/s)
+                load_speed_mm_s = _norm_filament_speed_mm_s(load_speed, 5.0)
+                unload_speed_mm_s = _norm_filament_speed_mm_s(unload_speed, 30.0)
+                # Guard against non-numeric values in state
+                normalized_any = False
+                try:
+                    if float(load_speed) > 100:
+                        self.state.set("macros.load_speed", _maybe_int(load_speed_mm_s))
+                        normalized_any = True
+                    if float(unload_speed) > 100:
+                        self.state.set("macros.unload_speed", _maybe_int(unload_speed_mm_s))
+                        normalized_any = True
+                except Exception:
+                    pass
+                if normalized_any:
+                    self.state.save()
 
                 choice = self.ui.menu(
                     "Filament Macros (LOAD / UNLOAD)\n\n"
                     f"  Load temp:        {load_temp}C\n"
                     f"  Load length:      {load_len}mm\n"
-                    f"  Load speed:       {load_speed} mm/min\n"
+                    f"  Load speed:       {load_speed_mm_s:g} mm/s\n"
                     f"  Unload length:    {unload_len}mm\n"
-                    f"  Unload speed:     {unload_speed} mm/min\n"
+                    f"  Unload speed:     {unload_speed_mm_s:g} mm/s\n"
                     f"  Tip shaping:      {'Enabled' if tip_shape else 'Disabled'}\n",
                     [
                         ("load", "LOAD_FILAMENT Settings"),
@@ -9672,14 +9700,15 @@ read -r _
                         except ValueError:
                             pass
                     ls = self.ui.inputbox(
-                        "Load speed (mm/min):\n\n"
-                        "Feedrate for loading move. Typical: 300",
-                        default=str(load_speed),
+                        "Load speed (mm/s):\n\n"
+                        "Speed for loading move. Typical: 5",
+                        default=str(load_speed_mm_s),
                         title="Load Speed",
                     )
                     if ls:
                         try:
-                            self.state.set("macros.load_speed", int(float(ls)))
+                            f = float(ls)
+                            self.state.set("macros.load_speed", _maybe_int(f))
                         except ValueError:
                             pass
 
@@ -9698,14 +9727,15 @@ read -r _
                         except ValueError:
                             pass
                     us = self.ui.inputbox(
-                        "Unload speed (mm/min):\n\n"
-                        "Feedrate for unload move. Typical: 1800",
-                        default=str(unload_speed),
+                        "Unload speed (mm/s):\n\n"
+                        "Speed for unload move. Typical: 30",
+                        default=str(unload_speed_mm_s),
                         title="Unload Speed",
                     )
                     if us:
                         try:
-                            self.state.set("macros.unload_speed", int(float(us)))
+                            f = float(us)
+                            self.state.set("macros.unload_speed", _maybe_int(f))
                         except ValueError:
                             pass
                     ts = self.ui.yesno(
@@ -9723,13 +9753,30 @@ read -r _
                     if ts:
                         # Defaults match current macro behavior
                         prime_len = self.state.get("macros.unload_tip_prime_length", 10.0)
-                        prime_spd = self.state.get("macros.unload_tip_prime_speed", 300)
+                        prime_spd = self.state.get("macros.unload_tip_prime_speed", 5.0)
                         qr_len = self.state.get("macros.unload_tip_quick_retract_length", 10.0)
-                        qr_spd = self.state.get("macros.unload_tip_quick_retract_speed", 3600)
+                        qr_spd = self.state.get("macros.unload_tip_quick_retract_speed", 60.0)
                         ram_len = self.state.get("macros.unload_tip_ram_length", 5.0)
-                        ram_spd = self.state.get("macros.unload_tip_ram_speed", 300)
+                        ram_spd = self.state.get("macros.unload_tip_ram_speed", 5.0)
                         sr_len = self.state.get("macros.unload_tip_short_retract_length", 15.0)
-                        sr_spd = self.state.get("macros.unload_tip_short_retract_speed", 3600)
+                        sr_spd = self.state.get("macros.unload_tip_short_retract_speed", 60.0)
+
+                        # Normalize legacy persisted speeds (raw feedrates) to mm/s for display + save
+                        prime_spd_mm_s = _norm_filament_speed_mm_s(prime_spd, 5.0)
+                        qr_spd_mm_s = _norm_filament_speed_mm_s(qr_spd, 60.0)
+                        ram_spd_mm_s = _norm_filament_speed_mm_s(ram_spd, 5.0)
+                        sr_spd_mm_s = _norm_filament_speed_mm_s(sr_spd, 60.0)
+                        try:
+                            if float(prime_spd) > 100:
+                                self.state.set("macros.unload_tip_prime_speed", _maybe_int(prime_spd_mm_s))
+                            if float(qr_spd) > 100:
+                                self.state.set("macros.unload_tip_quick_retract_speed", _maybe_int(qr_spd_mm_s))
+                            if float(ram_spd) > 100:
+                                self.state.set("macros.unload_tip_ram_speed", _maybe_int(ram_spd_mm_s))
+                            if float(sr_spd) > 100:
+                                self.state.set("macros.unload_tip_short_retract_speed", _maybe_int(sr_spd_mm_s))
+                        except Exception:
+                            pass
 
                         tl = self.ui.inputbox(
                             "Tip shaping: prime length (mm):\n\nTypical: 10",
@@ -9739,8 +9786,8 @@ read -r _
                         if tl is None:
                             continue
                         tspeed = self.ui.inputbox(
-                            "Tip shaping: prime speed (mm/min):\n\nTypical: 300",
-                            default=str(prime_spd),
+                            "Tip shaping: prime speed (mm/s):\n\nTypical: 5",
+                            default=str(prime_spd_mm_s),
                             title="Tip Shaping - Prime Speed",
                         )
                         if tspeed is None:
@@ -9754,8 +9801,8 @@ read -r _
                         if ql is None:
                             continue
                         qspeed = self.ui.inputbox(
-                            "Tip shaping: quick retract speed (mm/min):\n\nTypical: 3600",
-                            default=str(qr_spd),
+                            "Tip shaping: quick retract speed (mm/s):\n\nTypical: 60",
+                            default=str(qr_spd_mm_s),
                             title="Tip Shaping - Quick Retract Speed",
                         )
                         if qspeed is None:
@@ -9769,8 +9816,8 @@ read -r _
                         if rl is None:
                             continue
                         rspeed = self.ui.inputbox(
-                            "Tip shaping: ram speed (mm/min):\n\nTypical: 300",
-                            default=str(ram_spd),
+                            "Tip shaping: ram speed (mm/s):\n\nTypical: 5",
+                            default=str(ram_spd_mm_s),
                             title="Tip Shaping - Ram Speed",
                         )
                         if rspeed is None:
@@ -9784,8 +9831,8 @@ read -r _
                         if sl is None:
                             continue
                         sspeed = self.ui.inputbox(
-                            "Tip shaping: short retract speed (mm/min):\n\nTypical: 3600",
-                            default=str(sr_spd),
+                            "Tip shaping: short retract speed (mm/s):\n\nTypical: 60",
+                            default=str(sr_spd_mm_s),
                             title="Tip Shaping - Short Retract Speed",
                         )
                         if sspeed is None:
@@ -9793,13 +9840,13 @@ read -r _
 
                         try:
                             self.state.set("macros.unload_tip_prime_length", float(tl))
-                            self.state.set("macros.unload_tip_prime_speed", int(float(tspeed)))
+                            self.state.set("macros.unload_tip_prime_speed", _maybe_int(float(tspeed)))
                             self.state.set("macros.unload_tip_quick_retract_length", float(ql))
-                            self.state.set("macros.unload_tip_quick_retract_speed", int(float(qspeed)))
+                            self.state.set("macros.unload_tip_quick_retract_speed", _maybe_int(float(qspeed)))
                             self.state.set("macros.unload_tip_ram_length", float(rl))
-                            self.state.set("macros.unload_tip_ram_speed", int(float(rspeed)))
+                            self.state.set("macros.unload_tip_ram_speed", _maybe_int(float(rspeed)))
                             self.state.set("macros.unload_tip_short_retract_length", float(sl))
-                            self.state.set("macros.unload_tip_short_retract_speed", int(float(sspeed)))
+                            self.state.set("macros.unload_tip_short_retract_speed", _maybe_int(float(sspeed)))
                         except ValueError:
                             # Keep previous values if user entered something invalid
                             pass

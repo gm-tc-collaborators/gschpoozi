@@ -4623,7 +4623,7 @@
           "type": "int",
           "label": "Unload Speed (mm/s)",
           "state_key": "macros.unload_speed",
-          "default": 25,
+          "default": 30,
           "range": [1, 100],
           "help": "Speed for unloading filament (can be faster than load)"
         },
@@ -4647,11 +4647,11 @@
         {
           "id": "unload_tip_prime_speed",
           "type": "int",
-          "label": "Tip Shape: Prime Speed (mm/min)",
+          "label": "Tip Shape: Prime Speed (mm/s)",
           "state_key": "macros.unload_tip_prime_speed",
-          "default": 300,
-          "range": [10, 20000],
-          "help": "Feedrate for tip-shape prime"
+          "default": 5,
+          "range": [1, 100],
+          "help": "Speed for tip-shape prime"
         },
         {
           "id": "unload_tip_quick_retract_length",
@@ -4665,11 +4665,11 @@
         {
           "id": "unload_tip_quick_retract_speed",
           "type": "int",
-          "label": "Tip Shape: Quick Retract Speed (mm/min)",
+          "label": "Tip Shape: Quick Retract Speed (mm/s)",
           "state_key": "macros.unload_tip_quick_retract_speed",
-          "default": 3600,
-          "range": [10, 60000],
-          "help": "Feedrate for quick retract"
+          "default": 60,
+          "range": [1, 200],
+          "help": "Speed for quick retract"
         },
         {
           "id": "unload_tip_ram_length",
@@ -4683,11 +4683,11 @@
         {
           "id": "unload_tip_ram_speed",
           "type": "int",
-          "label": "Tip Shape: Ram Speed (mm/min)",
+          "label": "Tip Shape: Ram Speed (mm/s)",
           "state_key": "macros.unload_tip_ram_speed",
-          "default": 300,
-          "range": [10, 20000],
-          "help": "Feedrate for ram move"
+          "default": 5,
+          "range": [1, 100],
+          "help": "Speed for ram move"
         },
         {
           "id": "unload_tip_short_retract_length",
@@ -4701,11 +4701,11 @@
         {
           "id": "unload_tip_short_retract_speed",
           "type": "int",
-          "label": "Tip Shape: Short Retract Speed (mm/min)",
+          "label": "Tip Shape: Short Retract Speed (mm/s)",
           "state_key": "macros.unload_tip_short_retract_speed",
-          "default": 3600,
-          "range": [10, 60000],
-          "help": "Feedrate for short retract"
+          "default": 60,
+          "range": [1, 200],
+          "help": "Speed for short retract"
         }
       ]
     },
