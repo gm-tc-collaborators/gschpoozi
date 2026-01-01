@@ -724,6 +724,8 @@ setup_nginx() {
 }
 
 # Add update manager entry to moonraker.conf
+# Usage: add_update_manager_entry "name" "type" "path" ["extra_lines"]
+# path should use ~ notation (e.g. ~/crowsnest) for Moonraker compatibility
 add_update_manager_entry() {
     local name="$1"
     local type="$2"
@@ -731,6 +733,12 @@ add_update_manager_entry() {
     local extra="${4:-}"
 
     local conf_file="${PRINTER_DATA}/config/moonraker.conf"
+
+    # Ensure moonraker.conf exists
+    if [[ ! -f "$conf_file" ]]; then
+        warn_msg "moonraker.conf not found at $conf_file - skipping update_manager entry"
+        return 0
+    fi
 
     if ! grep -q "\[update_manager ${name}\]" "$conf_file" 2>/dev/null; then
         status_msg "Adding update_manager entry for $name..."
@@ -1094,15 +1102,15 @@ do_install_crowsnest() {
     cd "$CROWSNEST_DIR"
 
     if [[ -f "tools/install.sh" ]]; then
-        # Run in non-interactive mode
-        sudo make install
+        # Run in non-interactive mode; don't let set -e kill us if installer returns non-zero
+        sudo make install || warn_msg "Crowsnest make install returned non-zero (continuing anyway)"
     else
         error_msg "Crowsnest installer not found"
         wait_for_key
         return 1
     fi
 
-    # Add update manager entry
+    # Add update manager entry (always attempt, even if installer had warnings)
     add_update_manager_entry "crowsnest" "git_repo" "~/crowsnest" "origin: https://github.com/mainsail-crew/crowsnest.git
 managed_services: crowsnest"
 
@@ -1149,15 +1157,15 @@ do_install_sonar() {
     cd "$SONAR_DIR"
 
     if [[ -f "tools/install.sh" ]]; then
-        # Run installer
-        bash tools/install.sh
+        # Run installer; don't let set -e kill us if installer returns non-zero
+        bash tools/install.sh || warn_msg "Sonar install.sh returned non-zero (continuing anyway)"
     else
         error_msg "Sonar installer not found"
         wait_for_key
         return 1
     fi
 
-    # Add update manager entry
+    # Add update manager entry (always attempt, even if installer had warnings)
     add_update_manager_entry "sonar" "git_repo" "~/sonar" "origin: https://github.com/mainsail-crew/sonar.git
 managed_services: sonar"
 

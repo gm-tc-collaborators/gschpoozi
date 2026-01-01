@@ -7141,6 +7141,10 @@ class GschpooziWizard:
                         # Try lowercase
                         service_file = Path("/etc/systemd/system/klipperscreen.service")
 
+                    # Always add update_manager entry if directory exists (even if install had issues)
+                    if ks_dir.exists() and update_mgr:
+                        self._ensure_moonraker_update_manager_entry("KlipperScreen", update_mgr)
+
                     if exit_code == 0 and service_file.exists():
                         # Ensure service is enabled and started
                         print("\n" + "=" * 60)
@@ -7175,8 +7179,6 @@ class GschpooziWizard:
                         except Exception as e:
                             self._log_wizard(f"klipperscreen_install nginx self-heal failed: {type(e).__name__}:{e}")
 
-                        if update_mgr:
-                            self._ensure_moonraker_update_manager_entry("KlipperScreen", update_mgr)
                         self.ui.msgbox(
                             "KlipperScreen installed successfully!\n\n"
                             "Service has been enabled and started.",
