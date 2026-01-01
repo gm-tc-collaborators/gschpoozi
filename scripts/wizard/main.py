@@ -206,7 +206,7 @@ class GschpooziWizard:
             return
 
         # Module not installed - offer to install
-        if not self.ui.yesno(
+        install_now = self.ui.yesno(
             f"{module_name} Klipper module is NOT installed.\n\n"
             f"The {module_name} probe requires a Klipper module to function.\n\n"
             f"Would you like to install it now?\n\n"
@@ -218,7 +218,11 @@ class GschpooziWizard:
             default_no=False,
             height=18,
             width=70
-        ):
+        )
+        if install_now is None:
+            # Esc/cancel: return to caller without changing flow.
+            return
+        if not install_now:
             self.ui.msgbox(
                 f"{module_name} module NOT installed.\n\n"
                 f"You can install it later from:\n"
@@ -236,7 +240,8 @@ class GschpooziWizard:
         self.ui.infobox(f"Installing {module_name} module...\n\nThis may take a moment.", title="Installing")
 
         try:
-            exit_code = self._run_in_terminal([str(tool), "install", probe_type])
+            # Use the same TTY runner as the component manager menu.
+            exit_code = self._run_tty_command(["bash", str(tool), "install", probe_type])
             if exit_code == 0:
                 self.ui.msgbox(
                     f"{module_name} module installed successfully!\n\n"
@@ -251,8 +256,12 @@ class GschpooziWizard:
                     title="Installation Issue"
                 )
         except Exception as e:
+            # Ensure we never show a blank error dialog (some exceptions stringify to "").
+            self._log_wizard(f"probe_module_install failed: {type(e).__name__}:{e}")
             self.ui.msgbox(
-                f"Failed to run installer:\n\n{e}",
+                "Failed to run installer.\n\n"
+                f"{type(e).__name__}: {e}\n\n"
+                f"Debug log: {self._wizard_log_path()}",
                 title="Error"
             )
 
@@ -5714,6 +5723,8 @@ class GschpooziWizard:
             [(k, v, k == current_probe_type) for k, v in probe_types],
             title="Probe - Type"
         )
+        if probe_type is None:
+            return
 
         if probe_type == "none":
             self.state.delete("probe")
@@ -5742,6 +5753,8 @@ class GschpooziWizard:
                 default=default_y,
                 title="Probe - Y Offset"
             )
+            if x_offset is None or y_offset is None:
+                return
         else:
             x_offset = "0"
             y_offset = "0"
@@ -5797,6 +5810,8 @@ class GschpooziWizard:
                     device_items,
                     title="Probe - Serial"
                 )
+                if selected is None:
+                    return
 
                 # Map selection back to full path
                 if selected and selected in serial_map:
@@ -5806,6 +5821,8 @@ class GschpooziWizard:
                         "Enter serial path:",
                         default=current_serial or "/dev/serial/by-id/usb-"
                     )
+                    if serial is None:
+                        return
                 else:
                     serial = None
             else:
@@ -5814,6 +5831,8 @@ class GschpooziWizard:
                     "(No devices auto-detected)",
                     default=current_serial or "/dev/serial/by-id/usb-"
                 )
+                if serial is None:
+                    return
 
             # Homing mode selection
             current_homing_mode = self.state.get("probe.homing_mode", "")
@@ -5826,6 +5845,8 @@ class GschpooziWizard:
                     ],
                     title="Beacon - Homing Mode"
                 )
+                if homing_mode is None:
+                    return
 
                 if homing_mode == "contact":
                     current_contact_temp = self.state.get("probe.contact_max_hotend_temperature", 180)
@@ -5835,6 +5856,8 @@ class GschpooziWizard:
                         default=str(current_contact_temp),
                         title="Beacon - Contact Temp"
                     )
+                    if contact_max_temp is None:
+                        return
 
             elif probe_type == "cartographer":
                 homing_mode = self.ui.radiolist(
@@ -5845,6 +5868,8 @@ class GschpooziWizard:
                     ],
                     title="Cartographer - Homing Mode"
                 )
+                if homing_mode is None:
+                    return
 
             elif probe_type == "btt_eddy":
                 current_mesh_method = self.state.get("probe.bed_mesh.mesh_method", "rapid_scan")
@@ -5856,8 +5881,9 @@ class GschpooziWizard:
                     ],
                     title="BTT Eddy - Mesh Method"
                 )
-                if mesh_method:
-                    self.state.set("probe.bed_mesh.mesh_method", mesh_method)
+                if mesh_method is None:
+                    return
+                self.state.set("probe.bed_mesh.mesh_method", mesh_method)
                 # BTT Eddy doesn't have separate homing mode, so don't set homing_mode
                 homing_mode = None
 
@@ -5874,8 +5900,9 @@ class GschpooziWizard:
                     ],
                     title="Cartographer - Mesh Method"
                 )
-                if mesh_method:
-                    self.state.set("probe.bed_mesh.mesh_method", mesh_method)
+                if mesh_method is None:
+                    return
+                self.state.set("probe.bed_mesh.mesh_method", mesh_method)
 
             # Mesh direction for eddy probes
             current_mesh_direction = self.state.get("probe.bed_mesh.mesh_main_direction", "x")
@@ -5887,6 +5914,8 @@ class GschpooziWizard:
                 ],
                 title="Probe - Mesh Direction"
             )
+            if mesh_main_direction is None:
+                return
 
             current_mesh_runs = self.state.get("probe.bed_mesh.mesh_runs", 2)
             mesh_runs = self.ui.radiolist(
@@ -5898,6 +5927,8 @@ class GschpooziWizard:
                 ],
                 title="Probe - Mesh Runs"
             )
+            if mesh_runs is None:
+                return
 
         # Location for non-eddy probes
         has_toolboard = self.state.get("mcu.toolboard.connection_type")
@@ -5913,6 +5944,8 @@ class GschpooziWizard:
                     ],
                     title="Probe - Connection"
                 )
+                if location is None:
+                    return
             else:
                 location = "mainboard"
 
@@ -5975,6 +6008,8 @@ class GschpooziWizard:
             title="Probe - Bed Mesh",
             default_no=not current_mesh_enabled
         )
+        if enable_mesh is None:
+            return
 
         if not enable_mesh:
             self.state.set("probe.bed_mesh.enabled", False)
@@ -6043,6 +6078,8 @@ class GschpooziWizard:
                 default=str(current_overshoot),
                 title="Bed Mesh - Scan Overshoot"
             )
+            if scan_overshoot is None:
+                return
             if scan_overshoot:
                 self.state.set("probe.bed_mesh.scan_overshoot", int(scan_overshoot))
         else:
