@@ -233,6 +233,39 @@ clone_repo() {
     return $?
 }
 
+# Kalico compatibility hotfixes
+#
+# Kalico currently sets MAX_HEAT_TIME to 5.0s in klippy/extras/heaters.py.
+# On high clock-speed MCUs (e.g. 520MHz STM32H723), that duration overflows
+# Klipper's internal MAX_SCHEDULE_TICKS (2^31-1) when converted to ticks,
+# causing: "PWM pin max duration too large".
+#
+# Upstream Klipper uses 3.0s; we patch Kalico to 3.0s during install/update.
+apply_kalico_hotfixes() {
+    if [[ "${KLIPPER_VARIANT}" != "kalico" ]]; then
+        return 0
+    fi
+
+    local heaters_py="${KLIPPER_DIR}/klippy/extras/heaters.py"
+    if [[ ! -f "${heaters_py}" ]]; then
+        return 0
+    fi
+
+    if grep -qE '^[[:space:]]*MAX_HEAT_TIME[[:space:]]*=[[:space:]]*5\.0[[:space:]]*$' "${heaters_py}"; then
+        status_msg "Applying Kalico hotfix: MAX_HEAT_TIME 5.0s -> 3.0s (prevents PWM duration overflow on fast MCUs)..."
+        cp "${heaters_py}" "${heaters_py}.gschpoozi.bak" >/dev/null 2>&1 || true
+        sed -i -E 's/^[[:space:]]*MAX_HEAT_TIME[[:space:]]*=[[:space:]]*5\.0[[:space:]]*$/MAX_HEAT_TIME = 3.0/' "${heaters_py}" || true
+
+        if grep -qE '^[[:space:]]*MAX_HEAT_TIME[[:space:]]*=[[:space:]]*3\.0[[:space:]]*$' "${heaters_py}"; then
+            ok_msg "Kalico hotfix applied: MAX_HEAT_TIME is now 3.0s"
+        else
+            warn_msg "Kalico hotfix could not be verified (unexpected heaters.py format)."
+        fi
+    fi
+
+    return 0
+}
+
 # Create Python virtual environment
 create_virtualenv() {
     local venv_path="$1"
@@ -966,6 +999,9 @@ do_install_klipper() {
     # Clone repository
     clone_repo "$KLIPPER_REPO" "$KLIPPER_DIR" || return 1
 
+    # Kalico hotfixes (best-effort, idempotent)
+    apply_kalico_hotfixes
+
     # Create virtual environment
     create_virtualenv "$KLIPPY_ENV" || return 1
 
@@ -1692,6 +1728,9 @@ do_update_klipper() {
     status_msg "Pulling latest changes..."
     cd "$KLIPPER_DIR"
     git pull
+
+    # Kalico hotfixes (best-effort, idempotent)
+    apply_kalico_hotfixes
 
     # Update Python requirements
     status_msg "Updating Python dependencies..."
