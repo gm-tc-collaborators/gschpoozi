@@ -1114,6 +1114,12 @@ do_install_crowsnest() {
     add_update_manager_entry "crowsnest" "git_repo" "~/crowsnest" "origin: https://github.com/mainsail-crew/crowsnest.git
 managed_services: crowsnest"
 
+    # Ensure service is enabled and started
+    status_msg "Enabling and starting Crowsnest service..."
+    sudo systemctl daemon-reload
+    sudo systemctl enable crowsnest 2>/dev/null || true
+    sudo systemctl start crowsnest 2>/dev/null || true
+
     echo ""
     echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
     echo -e "${GREEN}  Crowsnest installation complete!${NC}"
@@ -1121,6 +1127,7 @@ managed_services: crowsnest"
     echo ""
     echo -e "  Config file: ${CYAN}${PRINTER_DATA}/config/crowsnest.conf${NC}"
     echo -e "  Edit this file to configure your webcam(s)"
+    echo -e "  Service status: ${CYAN}systemctl status crowsnest${NC}"
     echo ""
 
     wait_for_key
@@ -1169,12 +1176,19 @@ do_install_sonar() {
     add_update_manager_entry "sonar" "git_repo" "~/sonar" "origin: https://github.com/mainsail-crew/sonar.git
 managed_services: sonar"
 
+    # Ensure service is enabled and started
+    status_msg "Enabling and starting Sonar service..."
+    sudo systemctl daemon-reload
+    sudo systemctl enable sonar 2>/dev/null || true
+    sudo systemctl start sonar 2>/dev/null || true
+
     echo ""
     echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
     echo -e "${GREEN}  Sonar installation complete!${NC}"
     echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
     echo ""
     echo -e "  Config file: ${CYAN}${PRINTER_DATA}/config/sonar.conf${NC}"
+    echo -e "  Service status: ${CYAN}systemctl status sonar${NC}"
     echo ""
 
     wait_for_key
