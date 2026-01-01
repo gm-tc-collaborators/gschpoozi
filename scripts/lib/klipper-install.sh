@@ -2372,18 +2372,20 @@ do_remove_crowsnest() {
     if [[ -f "${CROWSNEST_DIR}/tools/uninstall.sh" ]]; then
         status_msg "Running Crowsnest uninstaller..."
         cd "$CROWSNEST_DIR"
-        bash tools/uninstall.sh
-    else
-        # Manual removal
-        status_msg "Stopping and disabling Crowsnest service..."
-        sudo systemctl stop crowsnest 2>/dev/null || true
-        sudo systemctl disable crowsnest 2>/dev/null || true
-        sudo rm -f "${SYSTEMD_DIR}/crowsnest.service"
-        sudo systemctl daemon-reload
-
-        status_msg "Removing Crowsnest files..."
-        rm -rf "$CROWSNEST_DIR"
+        bash tools/uninstall.sh || warn_msg "Crowsnest uninstaller returned non-zero (continuing anyway)"
     fi
+
+    # Always enforce full removal:
+    # - upstream uninstallers may leave the repo directory behind
+    # - service units may remain enabled/installed
+    status_msg "Stopping and disabling Crowsnest service..."
+    sudo systemctl stop crowsnest 2>/dev/null || true
+    sudo systemctl disable crowsnest 2>/dev/null || true
+    sudo rm -f "${SYSTEMD_DIR}/crowsnest.service"
+    sudo systemctl daemon-reload
+
+    status_msg "Removing Crowsnest files..."
+    rm -rf "$CROWSNEST_DIR"
 
     # Remove update manager entry
     if [[ -f "${PRINTER_DATA}/config/moonraker.conf" ]]; then
