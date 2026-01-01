@@ -953,6 +953,7 @@ categories:
             parameters:
               - name: "surface_type"
                 type: "choice"
+                description: "Primary surface type (backwards compatible). The wizard also stores heater_bed.surface_types as a multi-select list."
                 options:
                   - value: "pei_textured"
                     label: "PEI Textured"
@@ -968,6 +969,10 @@ categories:
                     label: "BuildTak"
                   - value: "other"
                     label: "Other"
+              - name: "surface_types"
+                type: "text"
+                required: false
+                description: "Multi-select list stored by the CLI wizard (comma-separated here for schema consumers). Example: pei_textured,fr4"
 
       # 2.8 Fans
       - id: "2.8"

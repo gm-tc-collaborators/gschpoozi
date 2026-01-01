@@ -4915,7 +4915,15 @@ class GschpooziWizard:
         current_min_temp = self.state.get("heater_bed.min_temp", 0)
         current_max_temp = self.state.get("heater_bed.max_temp", 120)
         current_control = self.state.get("heater_bed.control", "pid")
+        # Backwards compatible:
+        # - legacy: heater_bed.surface_type (single string)
+        # - new:    heater_bed.surface_types (list of strings)
         current_surface = self.state.get("heater_bed.surface_type", "")
+        current_surfaces = self.state.get("heater_bed.surface_types", [])
+        if not isinstance(current_surfaces, list):
+            current_surfaces = []
+        if not current_surfaces and isinstance(current_surface, str) and current_surface.strip():
+            current_surfaces = [current_surface.strip()]
 
         # Get pullup resistor current value
         bed_cfg = self.state.get_section("heater_bed")
@@ -5040,22 +5048,40 @@ class GschpooziWizard:
         )
 
         # === 2.7.5: Bed Surface ===
-        surface_type = self.ui.radiolist(
-            "Bed surface type:\n\n"
-            "(Used for macro hints and slicer recommendations)",
-            [
-                ("pei_textured", "PEI Textured", current_surface == "pei_textured"),
-                ("pei_smooth", "PEI Smooth", current_surface == "pei_smooth"),
-                ("glass", "Glass", current_surface == "glass"),
-                ("fr4", "FR4/G10", current_surface == "fr4"),
-                ("garolite", "Garolite", current_surface == "garolite"),
-                ("buildtak", "BuildTak", current_surface == "buildtak"),
-                ("other", "Other", current_surface == "other" or not current_surface),
-            ],
-            title="Heated Bed - Surface Type"
+        selected_surfaces = set([s for s in current_surfaces if isinstance(s, str)])
+        if not selected_surfaces:
+            selected_surfaces = {"other"}
+
+        surface_items = [
+            ("pei_textured", "PEI Textured", "pei_textured" in selected_surfaces),
+            ("pei_smooth", "PEI Smooth", "pei_smooth" in selected_surfaces),
+            ("glass", "Glass", "glass" in selected_surfaces),
+            ("fr4", "FR4/G10", "fr4" in selected_surfaces),
+            ("garolite", "Garolite", "garolite" in selected_surfaces),
+            ("buildtak", "BuildTak", "buildtak" in selected_surfaces),
+            ("other", "Other", "other" in selected_surfaces),
+        ]
+
+        surface_types = self.ui.checklist(
+            "Bed surface type(s):\n\n"
+            "(Used for macro hints and slicer recommendations)\n"
+            "(Select all that apply)",
+            surface_items,
+            title="Heated Bed - Surface Type",
+            height=18,
+            width=70,
+            list_height=10,
         )
-        if surface_type is None:
+        if surface_types is None:
             return
+
+        # Ensure stable list + at least one selection
+        surface_types = [s for s in surface_types if isinstance(s, str) and s.strip()]
+        if not surface_types:
+            surface_types = ["other"]
+
+        # Back-compat "primary"
+        surface_type = surface_types[0]
 
         # Save all settings
         self.state.set("heater_bed.heater_pin", heater_pin)
@@ -5072,6 +5098,7 @@ class GschpooziWizard:
         self.state.set("heater_bed.pid_Ki", 0.0)
         self.state.set("heater_bed.pid_Kd", 0.0)
         self.state.set("heater_bed.surface_type", surface_type)
+        self.state.set("heater_bed.surface_types", surface_types)
         self.state.save()
 
         pullup_text = f"\nPullup: {pullup_resistor}Ω" if pullup_resistor else ""
@@ -5083,7 +5110,7 @@ class GschpooziWizard:
             f"Thermistor type: {sensor_type}{pullup_text}\n"
             f"Temp range: {min_temp}°C - {max_temp}°C\n"
             f"Control: {control}\n"
-            f"Surface: {surface_type}\n\n"
+            f"Surface(s): {', '.join(surface_types)}\n\n"
             "Remember to run PID_CALIBRATE HEATER=heater_bed TARGET=60",
             title="Configuration Saved"
         )
