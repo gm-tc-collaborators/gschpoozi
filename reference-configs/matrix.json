@@ -1,0 +1,1804 @@
+{
+  "configs": [
+    {
+      "features": {
+        "has_tmc": false,
+        "idex": false,
+        "leveling": "none",
+        "multi_mcu": false,
+        "z_motors": 1
+      },
+      "file": "creality-ender3-v2.cfg",
+      "includes": [],
+      "line_count": 95,
+      "section_order": [
+        "stepper_x",
+        "stepper_y",
+        "stepper_z",
+        "extruder",
+        "heater_bed",
+        "fan",
+        "mcu",
+        "printer"
+      ],
+      "sections": {
+        "extruder": [
+          "control",
+          "dir_pin",
+          "enable_pin",
+          "filament_diameter",
+          "heater_pin",
+          "max_extrude_only_distance",
+          "max_temp",
+          "microsteps",
+          "min_temp",
+          "nozzle_diameter",
+          "pid_Kd",
+          "pid_Ki",
+          "pid_Kp",
+          "rotation_distance",
+          "sensor_pin",
+          "sensor_type",
+          "step_pin"
+        ],
+        "fan": [
+          "pin"
+        ],
+        "heater_bed": [
+          "control",
+          "heater_pin",
+          "max_temp",
+          "min_temp",
+          "pid_Kd",
+          "pid_Ki",
+          "pid_Kp",
+          "sensor_pin",
+          "sensor_type"
+        ],
+        "mcu": [
+          "restart_method",
+          "serial"
+        ],
+        "printer": [
+          "kinematics",
+          "max_accel",
+          "max_velocity",
+          "max_z_accel",
+          "max_z_velocity"
+        ],
+        "stepper_x": [
+          "dir_pin",
+          "enable_pin",
+          "endstop_pin",
+          "homing_speed",
+          "microsteps",
+          "position_endstop",
+          "position_max",
+          "rotation_distance",
+          "step_pin"
+        ],
+        "stepper_y": [
+          "dir_pin",
+          "enable_pin",
+          "endstop_pin",
+          "homing_speed",
+          "microsteps",
+          "position_endstop",
+          "position_max",
+          "rotation_distance",
+          "step_pin"
+        ],
+        "stepper_z": [
+          "dir_pin",
+          "enable_pin",
+          "endstop_pin",
+          "microsteps",
+          "position_endstop",
+          "position_max",
+          "rotation_distance",
+          "step_pin"
+        ]
+      }
+    },
+    {
+      "features": {
+        "has_tmc": false,
+        "idex": false,
+        "leveling": "none",
+        "multi_mcu": false,
+        "z_motors": 1
+      },
+      "file": "generic-btt-skr-3.cfg",
+      "includes": [],
+      "line_count": 185,
+      "section_order": [
+        "stepper_x",
+        "stepper_y",
+        "stepper_z",
+        "extruder",
+        "heater_bed",
+        "fan",
+        "mcu",
+        "printer",
+        "board_pins"
+      ],
+      "sections": {
+        "board_pins": [
+          "aliases"
+        ],
+        "extruder": [
+          "control",
+          "dir_pin",
+          "enable_pin",
+          "filament_diameter",
+          "heater_pin",
+          "max_temp",
+          "microsteps",
+          "min_temp",
+          "nozzle_diameter",
+          "pid_Kd",
+          "pid_Ki",
+          "pid_Kp",
+          "rotation_distance",
+          "sensor_pin",
+          "sensor_type",
+          "step_pin"
+        ],
+        "fan": [
+          "pin"
+        ],
+        "heater_bed": [
+          "control",
+          "heater_pin",
+          "max_temp",
+          "min_temp",
+          "sensor_pin",
+          "sensor_type"
+        ],
+        "mcu": [
+          "serial"
+        ],
+        "printer": [
+          "kinematics",
+          "max_accel",
+          "max_velocity",
+          "max_z_accel",
+          "max_z_velocity"
+        ],
+        "stepper_x": [
+          "dir_pin",
+          "enable_pin",
+          "endstop_pin",
+          "homing_speed",
+          "microsteps",
+          "position_endstop",
+          "position_max",
+          "rotation_distance",
+          "step_pin"
+        ],
+        "stepper_y": [
+          "dir_pin",
+          "enable_pin",
+          "endstop_pin",
+          "homing_speed",
+          "microsteps",
+          "position_endstop",
+          "position_max",
+          "rotation_distance",
+          "step_pin"
+        ],
+        "stepper_z": [
+          "dir_pin",
+          "enable_pin",
+          "endstop_pin",
+          "microsteps",
+          "position_endstop",
+          "position_max",
+          "rotation_distance",
+          "step_pin"
+        ]
+      }
+    },
+    {
+      "features": {
+        "has_tmc": true,
+        "idex": false,
+        "leveling": "z_tilt",
+        "multi_mcu": false,
+        "z_motors": 3
+      },
+      "file": "ratrig-vcore3-300-base.cfg",
+      "includes": [],
+      "line_count": 164,
+      "section_order": [
+        "stepper_x",
+        "stepper_y",
+        "stepper_z",
+        "bed_mesh",
+        "z_tilt",
+        "stepper_z1",
+        "stepper_z2",
+        "extruder",
+        "tmc2209 stepper_x",
+        "tmc2209 stepper_y",
+        "tmc2209 extruder",
+        "tmc2209 stepper_z",
+        "tmc2209 stepper_z1",
+        "tmc2209 stepper_z2",
+        "gcode_macro PAUSE",
+        "gcode_macro RESUME",
+        "gcode_macro CANCEL_PRINT"
+      ],
+      "sections": {
+        "bed_mesh": [
+          "algorithm",
+          "bicubic_tension",
+          "fade_end",
+          "fade_start",
+          "horizontal_move_z",
+          "mesh_max",
+          "mesh_min",
+          "mesh_pps",
+          "probe_count",
+          "speed"
+        ],
+        "extruder": [
+          "dir_pin",
+          "enable_pin",
+          "microsteps",
+          "step_pin"
+        ],
+        "gcode_macro CANCEL_PRINT": [
+          "gcode",
+          "rename_existing"
+        ],
+        "gcode_macro PAUSE": [
+          "default_parameter_E",
+          "default_parameter_Z",
+          "gcode",
+          "rename_existing"
+        ],
+        "gcode_macro RESUME": [
+          "default_parameter_E",
+          "gcode",
+          "rename_existing"
+        ],
+        "stepper_x": [
+          "dir_pin",
+          "enable_pin",
+          "homing_retract_dist",
+          "homing_speed",
+          "microsteps",
+          "position_max",
+          "rotation_distance",
+          "step_pin"
+        ],
+        "stepper_y": [
+          "dir_pin",
+          "enable_pin",
+          "homing_retract_dist",
+          "homing_speed",
+          "microsteps",
+          "position_max",
+          "rotation_distance",
+          "step_pin"
+        ],
+        "stepper_z": [
+          "dir_pin",
+          "enable_pin",
+          "endstop_pin",
+          "homing_speed",
+          "microsteps",
+          "position_max",
+          "position_min",
+          "rotation_distance",
+          "step_pin"
+        ],
+        "stepper_z1": [
+          "dir_pin",
+          "enable_pin",
+          "microsteps",
+          "rotation_distance",
+          "step_pin"
+        ],
+        "stepper_z2": [
+          "dir_pin",
+          "enable_pin",
+          "microsteps",
+          "rotation_distance",
+          "step_pin"
+        ],
+        "tmc2209 extruder": [
+          "hold_current",
+          "run_current",
+          "stealthchop_threshold",
+          "uart_pin"
+        ],
+        "tmc2209 stepper_x": [
+          "hold_current",
+          "run_current",
+          "stealthchop_threshold",
+          "uart_pin"
+        ],
+        "tmc2209 stepper_y": [
+          "hold_current",
+          "run_current",
+          "stealthchop_threshold",
+          "uart_pin"
+        ],
+        "tmc2209 stepper_z": [
+          "hold_current",
+          "run_current",
+          "stealthchop_threshold",
+          "uart_pin"
+        ],
+        "tmc2209 stepper_z1": [
+          "hold_current",
+          "run_current",
+          "stealthchop_threshold",
+          "uart_pin"
+        ],
+        "tmc2209 stepper_z2": [
+          "hold_current",
+          "run_current",
+          "stealthchop_threshold",
+          "uart_pin"
+        ],
+        "z_tilt": [
+          "horizontal_move_z",
+          "points",
+          "retries",
+          "retry_tolerance",
+          "speed",
+          "z_positions"
+        ]
+      }
+    },
+    {
+      "features": {
+        "has_tmc": false,
+        "idex": false,
+        "leveling": "none",
+        "multi_mcu": false,
+        "z_motors": 1
+      },
+      "file": "ratrig-vcore3-compiled.cfg",
+      "includes": [],
+      "line_count": 139,
+      "section_order": [
+        "mcu",
+        "board_pins",
+        "heater_bed",
+        "fan",
+        "heater_fan toolhead_cooling_fan",
+        "controller_fan controller_fan",
+        "printer",
+        "temperature_sensor raspberry_pi",
+        "temperature_sensor SKR_Pro",
+        "skew_correction",
+        "input_shaper",
+        "virtual_sdcard",
+        "display_status",
+        "pause_resume",
+        "extruder",
+        "probe",
+        "bltouch"
+      ],
+      "sections": {
+        "bltouch": [
+          "control_pin",
+          "pin_move_time",
+          "pin_up_reports_not_triggered",
+          "pin_up_touch_mode_reports_triggered",
+          "sample_retract_dist",
+          "sensor_pin",
+          "speed",
+          "x_offset",
+          "y_offset"
+        ],
+        "board_pins": [
+          "aliases"
+        ],
+        "controller_fan controller_fan": [
+          "pin"
+        ],
+        "display_status": [],
+        "extruder": [
+          "heater_pin",
+          "max_extrude_cross_section",
+          "max_extrude_only_distance",
+          "max_temp",
+          "min_extrude_temp",
+          "min_temp",
+          "nozzle_diameter",
+          "pressure_advance",
+          "sensor_pin",
+          "sensor_type"
+        ],
+        "fan": [
+          "pin"
+        ],
+        "heater_bed": [
+          "heater_pin",
+          "max_temp",
+          "min_temp",
+          "pwm_cycle_time",
+          "sensor_pin",
+          "sensor_type"
+        ],
+        "heater_fan toolhead_cooling_fan": [
+          "fan_speed",
+          "pin"
+        ],
+        "input_shaper": [],
+        "mcu": [
+          "baud",
+          "serial"
+        ],
+        "pause_resume": [],
+        "printer": [
+          "kinematics",
+          "max_accel",
+          "max_accel_to_decel",
+          "max_velocity",
+          "max_z_accel",
+          "max_z_velocity"
+        ],
+        "probe": [
+          "lift_speed",
+          "pin",
+          "sample_retract_dist",
+          "samples",
+          "samples_result",
+          "samples_tolerance",
+          "samples_tolerance_retries",
+          "speed",
+          "x_offset",
+          "y_offset",
+          "z_offset"
+        ],
+        "skew_correction": [],
+        "temperature_sensor SKR_Pro": [
+          "max_temp",
+          "min_temp",
+          "sensor_type"
+        ],
+        "temperature_sensor raspberry_pi": [
+          "sensor_type"
+        ],
+        "virtual_sdcard": [
+          "path"
+        ]
+      }
+    },
+    {
+      "features": {
+        "has_tmc": false,
+        "idex": true,
+        "leveling": "none",
+        "multi_mcu": false,
+        "z_motors": 1
+      },
+      "file": "sample-idex.cfg",
+      "includes": [],
+      "line_count": 132,
+      "section_order": [
+        "stepper_x",
+        "extruder",
+        "gcode_macro PARK_extruder",
+        "gcode_macro T0",
+        "dual_carriage",
+        "extruder1",
+        "gcode_macro PARK_extruder1",
+        "gcode_macro T1",
+        "gcode_macro ACTIVATE_COPY_MODE",
+        "gcode_macro ACTIVATE_MIRROR_MODE"
+      ],
+      "sections": {
+        "dual_carriage": [
+          "axis",
+          "dir_pin",
+          "enable_pin",
+          "endstop_pin",
+          "homing_speed",
+          "microsteps",
+          "position_endstop",
+          "position_max",
+          "rotation_distance",
+          "safe_distance",
+          "step_pin"
+        ],
+        "extruder": [
+          "control",
+          "dir_pin",
+          "enable_pin",
+          "filament_diameter",
+          "heater_pin",
+          "max_temp",
+          "microsteps",
+          "min_temp",
+          "nozzle_diameter",
+          "pid_Kd",
+          "pid_Ki",
+          "pid_Kp",
+          "rotation_distance",
+          "sensor_pin",
+          "sensor_type",
+          "step_pin"
+        ],
+        "extruder1": [
+          "control",
+          "dir_pin",
+          "enable_pin",
+          "filament_diameter",
+          "heater_pin",
+          "max_temp",
+          "microsteps",
+          "min_temp",
+          "nozzle_diameter",
+          "pid_Kd",
+          "pid_Ki",
+          "pid_Kp",
+          "rotation_distance",
+          "sensor_pin",
+          "sensor_type",
+          "step_pin"
+        ],
+        "gcode_macro ACTIVATE_COPY_MODE": [
+          "gcode"
+        ],
+        "gcode_macro ACTIVATE_MIRROR_MODE": [
+          "gcode"
+        ],
+        "gcode_macro PARK_extruder": [
+          "gcode"
+        ],
+        "gcode_macro PARK_extruder1": [
+          "gcode"
+        ],
+        "gcode_macro T0": [
+          "gcode"
+        ],
+        "gcode_macro T1": [
+          "gcode"
+        ],
+        "stepper_x": [
+          "dir_pin",
+          "enable_pin",
+          "endstop_pin",
+          "homing_speed",
+          "microsteps",
+          "position_endstop",
+          "position_max",
+          "rotation_distance",
+          "step_pin"
+        ]
+      }
+    },
+    {
+      "features": {
+        "has_tmc": true,
+        "idex": false,
+        "leveling": "none",
+        "multi_mcu": false,
+        "z_motors": 1
+      },
+      "file": "voron-0.2-skr-mini-e3-v3-raw.cfg",
+      "includes": [
+        "mainsail.cfg"
+      ],
+      "line_count": 417,
+      "section_order": [
+        "include mainsail.cfg",
+        "mcu",
+        "temperature_sensor mcu_temp",
+        "temperature_sensor host_temp",
+        "printer",
+        "stepper_x",
+        "tmc2209 stepper_x",
+        "stepper_y",
+        "tmc2209 stepper_y",
+        "stepper_z",
+        "tmc2209 stepper_z",
+        "extruder",
+        "tmc2209 extruder",
+        "heater_bed",
+        "heater_fan hotend_fan",
+        "fan",
+        "controller_fan controller_fan",
+        "idle_timeout",
+        "homing_override",
+        "bed_screws",
+        "gcode_macro PRINT_START",
+        "gcode_macro PRINT_END",
+        "gcode_macro LOAD_FILAMENT",
+        "gcode_macro UNLOAD_FILAMENT",
+        "gcode_macro _HOME_X",
+        "gcode_macro _HOME_Y",
+        "gcode_macro _HOME_Z"
+      ],
+      "sections": {
+        "bed_screws": [
+          "screw1",
+          "screw1_name",
+          "screw2",
+          "screw2_name",
+          "screw3",
+          "screw3_name"
+        ],
+        "controller_fan controller_fan": [
+          "cycle_time",
+          "kick_start_time",
+          "max_power",
+          "off_below",
+          "pin"
+        ],
+        "extruder": [
+          "control",
+          "dir_pin",
+          "enable_pin",
+          "filament_diameter",
+          "gear_ratio",
+          "heater_pin",
+          "max_extrude_cross_section",
+          "max_extrude_only_distance",
+          "max_temp",
+          "microsteps",
+          "min_extrude_temp",
+          "min_temp",
+          "nozzle_diameter",
+          "pid_Kd",
+          "pid_Ki",
+          "pid_Kp",
+          "pressure_advance",
+          "pressure_advance_smooth_time",
+          "rotation_distance",
+          "sensor_pin",
+          "step_pin"
+        ],
+        "fan": [
+          "cycle_time",
+          "kick_start_time",
+          "max_power",
+          "off_below",
+          "pin"
+        ],
+        "gcode_macro LOAD_FILAMENT": [
+          "gcode"
+        ],
+        "gcode_macro PRINT_END": [
+          "gcode"
+        ],
+        "gcode_macro PRINT_START": [
+          "gcode"
+        ],
+        "gcode_macro UNLOAD_FILAMENT": [
+          "gcode"
+        ],
+        "gcode_macro _HOME_X": [
+          "gcode"
+        ],
+        "gcode_macro _HOME_Y": [
+          "gcode"
+        ],
+        "gcode_macro _HOME_Z": [
+          "gcode"
+        ],
+        "heater_bed": [
+          "control",
+          "heater_pin",
+          "max_temp",
+          "min_temp",
+          "pid_kd",
+          "pid_ki",
+          "pid_kp",
+          "sensor_pin",
+          "smooth_time"
+        ],
+        "heater_fan hotend_fan": [
+          "heater",
+          "heater_temp",
+          "kick_start_time",
+          "max_power",
+          "pin"
+        ],
+        "homing_override": [
+          "axes",
+          "gcode",
+          "set_position_z"
+        ],
+        "idle_timeout": [
+          "timeout"
+        ],
+        "include mainsail.cfg": [],
+        "mcu": [
+          "serial"
+        ],
+        "printer": [
+          "kinematics",
+          "max_accel",
+          "max_velocity",
+          "max_z_accel",
+          "max_z_velocity",
+          "square_corner_velocity"
+        ],
+        "stepper_x": [
+          "dir_pin",
+          "enable_pin",
+          "endstop_pin",
+          "full_steps_per_rotation",
+          "homing_retract_dist",
+          "homing_speed",
+          "microsteps",
+          "position_endstop",
+          "position_max",
+          "rotation_distance",
+          "step_pin"
+        ],
+        "stepper_y": [
+          "dir_pin",
+          "enable_pin",
+          "endstop_pin",
+          "full_steps_per_rotation",
+          "homing_positive_dir",
+          "homing_retract_dist",
+          "homing_speed",
+          "microsteps",
+          "position_endstop",
+          "position_max",
+          "rotation_distance",
+          "step_pin"
+        ],
+        "stepper_z": [
+          "dir_pin",
+          "enable_pin",
+          "endstop_pin",
+          "homing_retract_dist",
+          "homing_speed",
+          "microsteps",
+          "position_endstop",
+          "position_max",
+          "position_min",
+          "rotation_distance",
+          "second_homing_speed",
+          "step_pin"
+        ],
+        "temperature_sensor host_temp": [
+          "max_temp",
+          "min_temp",
+          "sensor_type"
+        ],
+        "temperature_sensor mcu_temp": [
+          "max_temp",
+          "min_temp",
+          "sensor_type"
+        ],
+        "tmc2209 extruder": [
+          "interpolate",
+          "sense_resistor",
+          "stealthchop_threshold",
+          "tx_pin",
+          "uart_address",
+          "uart_pin"
+        ],
+        "tmc2209 stepper_x": [
+          "diag_pin",
+          "driver_SGTHRS",
+          "interpolate",
+          "sense_resistor",
+          "stealthchop_threshold",
+          "tx_pin",
+          "uart_address",
+          "uart_pin"
+        ],
+        "tmc2209 stepper_y": [
+          "diag_pin",
+          "driver_SGTHRS",
+          "interpolate",
+          "sense_resistor",
+          "stealthchop_threshold",
+          "tx_pin",
+          "uart_address",
+          "uart_pin"
+        ],
+        "tmc2209 stepper_z": [
+          "interpolate",
+          "sense_resistor",
+          "stealthchop_threshold",
+          "tx_pin",
+          "uart_address",
+          "uart_pin"
+        ]
+      }
+    },
+    {
+      "features": {
+        "has_tmc": true,
+        "idex": false,
+        "leveling": "qgl",
+        "multi_mcu": false,
+        "z_motors": 4
+      },
+      "file": "voron-2.4-octopus-raw.cfg",
+      "includes": [],
+      "line_count": 593,
+      "section_order": [
+        "mcu",
+        "printer",
+        "stepper_x",
+        "tmc2209 stepper_x",
+        "stepper_y",
+        "tmc2209 stepper_y",
+        "stepper_z",
+        "tmc2209 stepper_z",
+        "stepper_z1",
+        "tmc2209 stepper_z1",
+        "stepper_z2",
+        "tmc2209 stepper_z2",
+        "stepper_z3",
+        "tmc2209 stepper_z3",
+        "extruder",
+        "tmc2209 extruder",
+        "heater_bed",
+        "probe",
+        "fan",
+        "heater_fan hotend_fan",
+        "controller_fan controller_fan",
+        "idle_timeout",
+        "safe_z_home",
+        "quad_gantry_level",
+        "board_pins",
+        "gcode_macro PARK",
+        "gcode_macro G32",
+        "gcode_macro PRINT_START",
+        "gcode_macro PRINT_END"
+      ],
+      "sections": {
+        "board_pins": [
+          "aliases"
+        ],
+        "controller_fan controller_fan": [
+          "heater",
+          "kick_start_time",
+          "pin"
+        ],
+        "extruder": [
+          "control",
+          "dir_pin",
+          "enable_pin",
+          "filament_diameter",
+          "full_steps_per_rotation",
+          "gear_ratio",
+          "max_power",
+          "max_temp",
+          "microsteps",
+          "min_extrude_temp",
+          "min_temp",
+          "nozzle_diameter",
+          "pid_kd",
+          "pid_ki",
+          "pid_kp",
+          "rotation_distance",
+          "sensor_pin",
+          "step_pin"
+        ],
+        "fan": [
+          "kick_start_time",
+          "off_below",
+          "pin"
+        ],
+        "gcode_macro G32": [
+          "gcode"
+        ],
+        "gcode_macro PARK": [
+          "gcode"
+        ],
+        "gcode_macro PRINT_END": [
+          "gcode"
+        ],
+        "gcode_macro PRINT_START": [
+          "gcode"
+        ],
+        "heater_bed": [
+          "control",
+          "max_power",
+          "max_temp",
+          "min_temp",
+          "pid_kd",
+          "pid_ki",
+          "pid_kp",
+          "sensor_pin"
+        ],
+        "heater_fan hotend_fan": [
+          "heater",
+          "heater_temp",
+          "kick_start_time",
+          "max_power",
+          "pin"
+        ],
+        "idle_timeout": [
+          "timeout"
+        ],
+        "mcu": [
+          "restart_method",
+          "serial"
+        ],
+        "printer": [
+          "kinematics",
+          "max_accel",
+          "max_velocity",
+          "max_z_accel",
+          "max_z_velocity",
+          "square_corner_velocity"
+        ],
+        "probe": [
+          "sample_retract_dist",
+          "samples",
+          "samples_result",
+          "samples_tolerance",
+          "samples_tolerance_retries",
+          "speed",
+          "x_offset",
+          "y_offset",
+          "z_offset"
+        ],
+        "quad_gantry_level": [
+          "horizontal_move_z",
+          "max_adjust",
+          "retries",
+          "retry_tolerance",
+          "speed"
+        ],
+        "safe_z_home": [
+          "home_xy_position",
+          "speed",
+          "z_hop"
+        ],
+        "stepper_x": [
+          "dir_pin",
+          "enable_pin",
+          "endstop_pin",
+          "full_steps_per_rotation",
+          "homing_positive_dir",
+          "homing_retract_dist",
+          "homing_speed",
+          "microsteps",
+          "position_min",
+          "rotation_distance",
+          "step_pin"
+        ],
+        "stepper_y": [
+          "dir_pin",
+          "enable_pin",
+          "endstop_pin",
+          "full_steps_per_rotation",
+          "homing_positive_dir",
+          "homing_retract_dist",
+          "homing_speed",
+          "microsteps",
+          "position_min",
+          "rotation_distance",
+          "step_pin"
+        ],
+        "stepper_z": [
+          "dir_pin",
+          "enable_pin",
+          "endstop_pin",
+          "gear_ratio",
+          "homing_retract_dist",
+          "homing_speed",
+          "microsteps",
+          "position_endstop",
+          "position_min",
+          "rotation_distance",
+          "second_homing_speed",
+          "step_pin"
+        ],
+        "stepper_z1": [
+          "dir_pin",
+          "gear_ratio",
+          "microsteps",
+          "rotation_distance",
+          "step_pin"
+        ],
+        "stepper_z2": [
+          "dir_pin",
+          "enable_pin",
+          "gear_ratio",
+          "microsteps",
+          "rotation_distance",
+          "step_pin"
+        ],
+        "stepper_z3": [
+          "dir_pin",
+          "enable_pin",
+          "gear_ratio",
+          "microsteps",
+          "rotation_distance",
+          "step_pin"
+        ],
+        "tmc2209 extruder": [
+          "interpolate",
+          "run_current",
+          "sense_resistor",
+          "stealthchop_threshold",
+          "uart_pin"
+        ],
+        "tmc2209 stepper_x": [
+          "interpolate",
+          "run_current",
+          "sense_resistor",
+          "stealthchop_threshold",
+          "uart_pin"
+        ],
+        "tmc2209 stepper_y": [
+          "interpolate",
+          "run_current",
+          "sense_resistor",
+          "stealthchop_threshold",
+          "uart_pin"
+        ],
+        "tmc2209 stepper_z": [
+          "interpolate",
+          "run_current",
+          "sense_resistor",
+          "stealthchop_threshold",
+          "uart_pin"
+        ],
+        "tmc2209 stepper_z1": [
+          "interpolate",
+          "run_current",
+          "sense_resistor",
+          "stealthchop_threshold",
+          "uart_pin"
+        ],
+        "tmc2209 stepper_z2": [
+          "interpolate",
+          "run_current",
+          "sense_resistor",
+          "stealthchop_threshold",
+          "uart_pin"
+        ],
+        "tmc2209 stepper_z3": [
+          "interpolate",
+          "run_current",
+          "sense_resistor",
+          "stealthchop_threshold",
+          "uart_pin"
+        ]
+      }
+    },
+    {
+      "features": {
+        "has_tmc": true,
+        "idex": false,
+        "leveling": "z_tilt",
+        "multi_mcu": true,
+        "z_motors": 3
+      },
+      "file": "voron-trident-skr13-raw.cfg",
+      "includes": [],
+      "line_count": 611,
+      "section_order": [
+        "pause_resume",
+        "display_status",
+        "virtual_sdcard",
+        "printer",
+        "mcu",
+        "mcu xye",
+        "stepper_x",
+        "tmc2209 stepper_x",
+        "stepper_y",
+        "tmc2209 stepper_y",
+        "stepper_z",
+        "tmc2209 stepper_z",
+        "stepper_z1",
+        "tmc2209 stepper_z1",
+        "stepper_z2",
+        "tmc2209 stepper_z2",
+        "extruder",
+        "tmc2209 extruder",
+        "heater_bed",
+        "probe",
+        "heater_fan extruder_fan",
+        "fan",
+        "idle_timeout",
+        "homing_override",
+        "z_tilt",
+        "gcode_macro PRINT_START",
+        "gcode_macro PRINT_END"
+      ],
+      "sections": {
+        "display_status": [],
+        "extruder": [
+          "dir_pin",
+          "enable_pin",
+          "filament_diameter",
+          "full_steps_per_rotation",
+          "gear_ratio",
+          "heater_pin",
+          "max_extrude_only_distance",
+          "max_power",
+          "max_temp",
+          "microsteps",
+          "min_extrude_temp",
+          "min_temp",
+          "nozzle_diameter",
+          "pressure_advance_smooth_time",
+          "rotation_distance",
+          "sensor_pin",
+          "step_pin"
+        ],
+        "fan": [
+          "cycle_time",
+          "kick_start_time",
+          "pin"
+        ],
+        "gcode_macro PRINT_END": [
+          "gcode"
+        ],
+        "gcode_macro PRINT_START": [
+          "gcode"
+        ],
+        "heater_bed": [
+          "control",
+          "heater_pin",
+          "max_power",
+          "max_temp",
+          "min_temp",
+          "pid_kd",
+          "pid_ki",
+          "pid_kp",
+          "sensor_pin"
+        ],
+        "heater_fan extruder_fan": [
+          "heater",
+          "heater_temp",
+          "pin"
+        ],
+        "homing_override": [
+          "axes",
+          "gcode",
+          "set_position_z"
+        ],
+        "idle_timeout": [
+          "timeout"
+        ],
+        "mcu": [
+          "serial"
+        ],
+        "mcu xye": [
+          "serial"
+        ],
+        "pause_resume": [],
+        "printer": [
+          "kinematics",
+          "max_accel",
+          "max_velocity",
+          "max_z_accel",
+          "max_z_velocity",
+          "square_corner_velocity"
+        ],
+        "probe": [
+          "pin",
+          "sample_retract_dist",
+          "samples",
+          "samples_result",
+          "samples_tolerance",
+          "samples_tolerance_retries",
+          "x_offset",
+          "y_offset",
+          "z_offset"
+        ],
+        "stepper_x": [
+          "dir_pin",
+          "enable_pin",
+          "endstop_pin",
+          "full_steps_per_rotation",
+          "homing_positive_dir",
+          "homing_retract_dist",
+          "homing_speed",
+          "microsteps",
+          "position_min",
+          "rotation_distance",
+          "step_pin"
+        ],
+        "stepper_y": [
+          "dir_pin",
+          "enable_pin",
+          "endstop_pin",
+          "full_steps_per_rotation",
+          "homing_positive_dir",
+          "homing_retract_dist",
+          "homing_speed",
+          "microsteps",
+          "position_min",
+          "rotation_distance",
+          "step_pin"
+        ],
+        "stepper_z": [
+          "dir_pin",
+          "enable_pin",
+          "endstop_pin",
+          "full_steps_per_rotation",
+          "homing_retract_dist",
+          "homing_speed",
+          "microsteps",
+          "position_endstop",
+          "position_max",
+          "position_min",
+          "rotation_distance",
+          "second_homing_speed",
+          "step_pin"
+        ],
+        "stepper_z1": [
+          "dir_pin",
+          "enable_pin",
+          "full_steps_per_rotation",
+          "microsteps",
+          "rotation_distance",
+          "step_pin"
+        ],
+        "stepper_z2": [
+          "dir_pin",
+          "enable_pin",
+          "full_steps_per_rotation",
+          "microsteps",
+          "rotation_distance",
+          "step_pin"
+        ],
+        "tmc2209 extruder": [
+          "hold_current",
+          "run_current",
+          "sense_resistor",
+          "stealthchop_threshold",
+          "uart_pin"
+        ],
+        "tmc2209 stepper_x": [
+          "hold_current",
+          "interpolate",
+          "run_current",
+          "sense_resistor",
+          "stealthchop_threshold",
+          "uart_pin"
+        ],
+        "tmc2209 stepper_y": [
+          "hold_current",
+          "interpolate",
+          "run_current",
+          "sense_resistor",
+          "stealthchop_threshold",
+          "uart_pin"
+        ],
+        "tmc2209 stepper_z": [
+          "hold_current",
+          "interpolate",
+          "run_current",
+          "sense_resistor",
+          "stealthchop_threshold",
+          "uart_pin"
+        ],
+        "tmc2209 stepper_z1": [
+          "hold_current",
+          "interpolate",
+          "run_current",
+          "sense_resistor",
+          "stealthchop_threshold",
+          "uart_pin"
+        ],
+        "tmc2209 stepper_z2": [
+          "hold_current",
+          "interpolate",
+          "run_current",
+          "sense_resistor",
+          "stealthchop_threshold",
+          "uart_pin"
+        ],
+        "virtual_sdcard": [
+          "path"
+        ],
+        "z_tilt": [
+          "horizontal_move_z",
+          "retries",
+          "retry_tolerance",
+          "speed"
+        ]
+      }
+    }
+  ],
+  "summary": {
+    "config_count": 8,
+    "keys_by_section_frequency": {
+      "bed_mesh": {
+        "algorithm": 1,
+        "bicubic_tension": 1,
+        "fade_end": 1,
+        "fade_start": 1,
+        "horizontal_move_z": 1,
+        "mesh_max": 1,
+        "mesh_min": 1,
+        "mesh_pps": 1,
+        "probe_count": 1,
+        "speed": 1
+      },
+      "bed_screws": {
+        "screw1": 1,
+        "screw1_name": 1,
+        "screw2": 1,
+        "screw2_name": 1,
+        "screw3": 1,
+        "screw3_name": 1
+      },
+      "bltouch": {
+        "control_pin": 1,
+        "pin_move_time": 1,
+        "pin_up_reports_not_triggered": 1,
+        "pin_up_touch_mode_reports_triggered": 1,
+        "sample_retract_dist": 1,
+        "sensor_pin": 1,
+        "speed": 1,
+        "x_offset": 1,
+        "y_offset": 1
+      },
+      "board_pins": {
+        "aliases": 3
+      },
+      "controller_fan controller_fan": {
+        "cycle_time": 1,
+        "heater": 1,
+        "kick_start_time": 2,
+        "max_power": 1,
+        "off_below": 1,
+        "pin": 3
+      },
+      "display_status": {},
+      "dual_carriage": {
+        "axis": 1,
+        "dir_pin": 1,
+        "enable_pin": 1,
+        "endstop_pin": 1,
+        "homing_speed": 1,
+        "microsteps": 1,
+        "position_endstop": 1,
+        "position_max": 1,
+        "rotation_distance": 1,
+        "safe_distance": 1,
+        "step_pin": 1
+      },
+      "extruder": {
+        "control": 5,
+        "dir_pin": 7,
+        "enable_pin": 7,
+        "filament_diameter": 6,
+        "full_steps_per_rotation": 2,
+        "gear_ratio": 3,
+        "heater_pin": 6,
+        "max_extrude_cross_section": 2,
+        "max_extrude_only_distance": 4,
+        "max_power": 2,
+        "max_temp": 7,
+        "microsteps": 7,
+        "min_extrude_temp": 4,
+        "min_temp": 7,
+        "nozzle_diameter": 7,
+        "pid_Kd": 4,
+        "pid_Ki": 4,
+        "pid_Kp": 4,
+        "pid_kd": 1,
+        "pid_ki": 1,
+        "pid_kp": 1,
+        "pressure_advance": 2,
+        "pressure_advance_smooth_time": 2,
+        "rotation_distance": 6,
+        "sensor_pin": 7,
+        "sensor_type": 4,
+        "step_pin": 7
+      },
+      "extruder1": {
+        "control": 1,
+        "dir_pin": 1,
+        "enable_pin": 1,
+        "filament_diameter": 1,
+        "heater_pin": 1,
+        "max_temp": 1,
+        "microsteps": 1,
+        "min_temp": 1,
+        "nozzle_diameter": 1,
+        "pid_Kd": 1,
+        "pid_Ki": 1,
+        "pid_Kp": 1,
+        "rotation_distance": 1,
+        "sensor_pin": 1,
+        "sensor_type": 1,
+        "step_pin": 1
+      },
+      "fan": {
+        "cycle_time": 2,
+        "kick_start_time": 3,
+        "max_power": 1,
+        "off_below": 2,
+        "pin": 6
+      },
+      "gcode_macro ACTIVATE_COPY_MODE": {
+        "gcode": 1
+      },
+      "gcode_macro ACTIVATE_MIRROR_MODE": {
+        "gcode": 1
+      },
+      "gcode_macro CANCEL_PRINT": {
+        "gcode": 1,
+        "rename_existing": 1
+      },
+      "gcode_macro G32": {
+        "gcode": 1
+      },
+      "gcode_macro LOAD_FILAMENT": {
+        "gcode": 1
+      },
+      "gcode_macro PARK": {
+        "gcode": 1
+      },
+      "gcode_macro PARK_extruder": {
+        "gcode": 1
+      },
+      "gcode_macro PARK_extruder1": {
+        "gcode": 1
+      },
+      "gcode_macro PAUSE": {
+        "default_parameter_E": 1,
+        "default_parameter_Z": 1,
+        "gcode": 1,
+        "rename_existing": 1
+      },
+      "gcode_macro PRINT_END": {
+        "gcode": 3
+      },
+      "gcode_macro PRINT_START": {
+        "gcode": 3
+      },
+      "gcode_macro RESUME": {
+        "default_parameter_E": 1,
+        "gcode": 1,
+        "rename_existing": 1
+      },
+      "gcode_macro T0": {
+        "gcode": 1
+      },
+      "gcode_macro T1": {
+        "gcode": 1
+      },
+      "gcode_macro UNLOAD_FILAMENT": {
+        "gcode": 1
+      },
+      "gcode_macro _HOME_X": {
+        "gcode": 1
+      },
+      "gcode_macro _HOME_Y": {
+        "gcode": 1
+      },
+      "gcode_macro _HOME_Z": {
+        "gcode": 1
+      },
+      "heater_bed": {
+        "control": 5,
+        "heater_pin": 5,
+        "max_power": 2,
+        "max_temp": 6,
+        "min_temp": 6,
+        "pid_Kd": 1,
+        "pid_Ki": 1,
+        "pid_Kp": 1,
+        "pid_kd": 3,
+        "pid_ki": 3,
+        "pid_kp": 3,
+        "pwm_cycle_time": 1,
+        "sensor_pin": 6,
+        "sensor_type": 3,
+        "smooth_time": 1
+      },
+      "heater_fan extruder_fan": {
+        "heater": 1,
+        "heater_temp": 1,
+        "pin": 1
+      },
+      "heater_fan hotend_fan": {
+        "heater": 2,
+        "heater_temp": 2,
+        "kick_start_time": 2,
+        "max_power": 2,
+        "pin": 2
+      },
+      "heater_fan toolhead_cooling_fan": {
+        "fan_speed": 1,
+        "pin": 1
+      },
+      "homing_override": {
+        "axes": 2,
+        "gcode": 2,
+        "set_position_z": 2
+      },
+      "idle_timeout": {
+        "timeout": 3
+      },
+      "include mainsail.cfg": {},
+      "input_shaper": {},
+      "mcu": {
+        "baud": 1,
+        "restart_method": 2,
+        "serial": 6
+      },
+      "mcu xye": {
+        "serial": 1
+      },
+      "pause_resume": {},
+      "printer": {
+        "kinematics": 6,
+        "max_accel": 6,
+        "max_accel_to_decel": 1,
+        "max_velocity": 6,
+        "max_z_accel": 6,
+        "max_z_velocity": 6,
+        "square_corner_velocity": 3
+      },
+      "probe": {
+        "lift_speed": 1,
+        "pin": 2,
+        "sample_retract_dist": 3,
+        "samples": 3,
+        "samples_result": 3,
+        "samples_tolerance": 3,
+        "samples_tolerance_retries": 3,
+        "speed": 2,
+        "x_offset": 3,
+        "y_offset": 3,
+        "z_offset": 3
+      },
+      "quad_gantry_level": {
+        "horizontal_move_z": 1,
+        "max_adjust": 1,
+        "retries": 1,
+        "retry_tolerance": 1,
+        "speed": 1
+      },
+      "safe_z_home": {
+        "home_xy_position": 1,
+        "speed": 1,
+        "z_hop": 1
+      },
+      "skew_correction": {},
+      "stepper_x": {
+        "dir_pin": 7,
+        "enable_pin": 7,
+        "endstop_pin": 6,
+        "full_steps_per_rotation": 3,
+        "homing_positive_dir": 2,
+        "homing_retract_dist": 4,
+        "homing_speed": 7,
+        "microsteps": 7,
+        "position_endstop": 4,
+        "position_max": 5,
+        "position_min": 2,
+        "rotation_distance": 7,
+        "step_pin": 7
+      },
+      "stepper_y": {
+        "dir_pin": 6,
+        "enable_pin": 6,
+        "endstop_pin": 5,
+        "full_steps_per_rotation": 3,
+        "homing_positive_dir": 3,
+        "homing_retract_dist": 4,
+        "homing_speed": 6,
+        "microsteps": 6,
+        "position_endstop": 3,
+        "position_max": 4,
+        "position_min": 2,
+        "rotation_distance": 6,
+        "step_pin": 6
+      },
+      "stepper_z": {
+        "dir_pin": 6,
+        "enable_pin": 6,
+        "endstop_pin": 6,
+        "full_steps_per_rotation": 1,
+        "gear_ratio": 1,
+        "homing_retract_dist": 3,
+        "homing_speed": 4,
+        "microsteps": 6,
+        "position_endstop": 5,
+        "position_max": 5,
+        "position_min": 4,
+        "rotation_distance": 6,
+        "second_homing_speed": 3,
+        "step_pin": 6
+      },
+      "stepper_z1": {
+        "dir_pin": 3,
+        "enable_pin": 2,
+        "full_steps_per_rotation": 1,
+        "gear_ratio": 1,
+        "microsteps": 3,
+        "rotation_distance": 3,
+        "step_pin": 3
+      },
+      "stepper_z2": {
+        "dir_pin": 3,
+        "enable_pin": 3,
+        "full_steps_per_rotation": 1,
+        "gear_ratio": 1,
+        "microsteps": 3,
+        "rotation_distance": 3,
+        "step_pin": 3
+      },
+      "stepper_z3": {
+        "dir_pin": 1,
+        "enable_pin": 1,
+        "gear_ratio": 1,
+        "microsteps": 1,
+        "rotation_distance": 1,
+        "step_pin": 1
+      },
+      "temperature_sensor SKR_Pro": {
+        "max_temp": 1,
+        "min_temp": 1,
+        "sensor_type": 1
+      },
+      "temperature_sensor host_temp": {
+        "max_temp": 1,
+        "min_temp": 1,
+        "sensor_type": 1
+      },
+      "temperature_sensor mcu_temp": {
+        "max_temp": 1,
+        "min_temp": 1,
+        "sensor_type": 1
+      },
+      "temperature_sensor raspberry_pi": {
+        "sensor_type": 1
+      },
+      "tmc2209 extruder": {
+        "hold_current": 2,
+        "interpolate": 2,
+        "run_current": 3,
+        "sense_resistor": 3,
+        "stealthchop_threshold": 4,
+        "tx_pin": 1,
+        "uart_address": 1,
+        "uart_pin": 4
+      },
+      "tmc2209 stepper_x": {
+        "diag_pin": 1,
+        "driver_SGTHRS": 1,
+        "hold_current": 2,
+        "interpolate": 3,
+        "run_current": 3,
+        "sense_resistor": 3,
+        "stealthchop_threshold": 4,
+        "tx_pin": 1,
+        "uart_address": 1,
+        "uart_pin": 4
+      },
+      "tmc2209 stepper_y": {
+        "diag_pin": 1,
+        "driver_SGTHRS": 1,
+        "hold_current": 2,
+        "interpolate": 3,
+        "run_current": 3,
+        "sense_resistor": 3,
+        "stealthchop_threshold": 4,
+        "tx_pin": 1,
+        "uart_address": 1,
+        "uart_pin": 4
+      },
+      "tmc2209 stepper_z": {
+        "hold_current": 2,
+        "interpolate": 3,
+        "run_current": 3,
+        "sense_resistor": 3,
+        "stealthchop_threshold": 4,
+        "tx_pin": 1,
+        "uart_address": 1,
+        "uart_pin": 4
+      },
+      "tmc2209 stepper_z1": {
+        "hold_current": 2,
+        "interpolate": 2,
+        "run_current": 3,
+        "sense_resistor": 2,
+        "stealthchop_threshold": 3,
+        "uart_pin": 3
+      },
+      "tmc2209 stepper_z2": {
+        "hold_current": 2,
+        "interpolate": 2,
+        "run_current": 3,
+        "sense_resistor": 2,
+        "stealthchop_threshold": 3,
+        "uart_pin": 3
+      },
+      "tmc2209 stepper_z3": {
+        "interpolate": 1,
+        "run_current": 1,
+        "sense_resistor": 1,
+        "stealthchop_threshold": 1,
+        "uart_pin": 1
+      },
+      "virtual_sdcard": {
+        "path": 2
+      },
+      "z_tilt": {
+        "horizontal_move_z": 2,
+        "points": 1,
+        "retries": 2,
+        "retry_tolerance": 2,
+        "speed": 2,
+        "z_positions": 1
+      }
+    },
+    "sections_by_frequency": {
+      "bed_mesh": 1,
+      "bed_screws": 1,
+      "bltouch": 1,
+      "board_pins": 3,
+      "controller_fan controller_fan": 3,
+      "display_status": 2,
+      "dual_carriage": 1,
+      "extruder": 8,
+      "extruder1": 1,
+      "fan": 6,
+      "gcode_macro ACTIVATE_COPY_MODE": 1,
+      "gcode_macro ACTIVATE_MIRROR_MODE": 1,
+      "gcode_macro CANCEL_PRINT": 1,
+      "gcode_macro G32": 1,
+      "gcode_macro LOAD_FILAMENT": 1,
+      "gcode_macro PARK": 1,
+      "gcode_macro PARK_extruder": 1,
+      "gcode_macro PARK_extruder1": 1,
+      "gcode_macro PAUSE": 1,
+      "gcode_macro PRINT_END": 3,
+      "gcode_macro PRINT_START": 3,
+      "gcode_macro RESUME": 1,
+      "gcode_macro T0": 1,
+      "gcode_macro T1": 1,
+      "gcode_macro UNLOAD_FILAMENT": 1,
+      "gcode_macro _HOME_X": 1,
+      "gcode_macro _HOME_Y": 1,
+      "gcode_macro _HOME_Z": 1,
+      "heater_bed": 6,
+      "heater_fan extruder_fan": 1,
+      "heater_fan hotend_fan": 2,
+      "heater_fan toolhead_cooling_fan": 1,
+      "homing_override": 2,
+      "idle_timeout": 3,
+      "include mainsail.cfg": 1,
+      "input_shaper": 1,
+      "mcu": 6,
+      "mcu xye": 1,
+      "pause_resume": 2,
+      "printer": 6,
+      "probe": 3,
+      "quad_gantry_level": 1,
+      "safe_z_home": 1,
+      "skew_correction": 1,
+      "stepper_x": 7,
+      "stepper_y": 6,
+      "stepper_z": 6,
+      "stepper_z1": 3,
+      "stepper_z2": 3,
+      "stepper_z3": 1,
+      "temperature_sensor SKR_Pro": 1,
+      "temperature_sensor host_temp": 1,
+      "temperature_sensor mcu_temp": 1,
+      "temperature_sensor raspberry_pi": 1,
+      "tmc2209 extruder": 4,
+      "tmc2209 stepper_x": 4,
+      "tmc2209 stepper_y": 4,
+      "tmc2209 stepper_z": 4,
+      "tmc2209 stepper_z1": 3,
+      "tmc2209 stepper_z2": 3,
+      "tmc2209 stepper_z3": 1,
+      "virtual_sdcard": 2,
+      "z_tilt": 2
+    }
+  }
+}

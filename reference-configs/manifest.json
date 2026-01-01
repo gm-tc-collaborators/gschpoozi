@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "notes": "Reference configs are for structural comparison (sections/keys), not value-for-value equality.",
+  "configs": [
+    {
+      "file": "voron-2.4-octopus-raw.cfg",
+      "scenario_id": "corexy_qgl_4z",
+      "expected_features": { "leveling": "qgl", "z_motors": 4, "multi_mcu": false, "idex": false }
+    },
+    {
+      "file": "voron-trident-skr13-raw.cfg",
+      "scenario_id": "corexy_ztilt_3z_dual_mcu",
+      "expected_features": { "leveling": "z_tilt", "z_motors": 3, "multi_mcu": true, "idex": false }
+    },
+    {
+      "file": "voron-0.2-skr-mini-e3-v3-raw.cfg",
+      "scenario_id": "corexy_single_z",
+      "expected_features": { "leveling": "none", "z_motors": 1, "multi_mcu": false, "idex": false }
+    },
+    {
+      "file": "ratrig-vcore3-300-base.cfg",
+      "scenario_id": "corexy_ztilt_3z",
+      "expected_features": { "leveling": "z_tilt", "z_motors": 3, "multi_mcu": false, "idex": false }
+    },
+    {
+      "file": "creality-ender3-v2.cfg",
+      "scenario_id": "cartesian_basic",
+      "expected_features": { "leveling": "none", "z_motors": 1, "multi_mcu": false, "idex": false }
+    },
+    {
+      "file": "sample-idex.cfg",
+      "scenario_id": "idex_sample",
+      "expected_features": { "leveling": "none", "z_motors": 1, "multi_mcu": false, "idex": true },
+      "known_unsupported": ["dual_carriage", "toolchange_macros"]
+    },
+    {
+      "file": "generic-btt-skr-3.cfg",
+      "scenario_id": "board_reference_only",
+      "expected_features": { "leveling": "none", "z_motors": 1, "multi_mcu": false, "idex": false },
+      "known_unsupported": ["board_pins"]
+    },
+    {
+      "file": "ratrig-vcore3-compiled.cfg",
+      "scenario_id": "compiled_reference_only",
+      "expected_features": { "leveling": "none", "z_motors": 1, "multi_mcu": false, "idex": false }
+    }
+  ]
+}
+
