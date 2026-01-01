@@ -378,11 +378,23 @@ class GschpooziWizard:
         """
         conf = Path.home() / "printer_data" / "config" / "moonraker.conf"
         try:
-            conf.parent.mkdir(parents=True, exist_ok=True)
-            if conf.exists():
-                content = conf.read_text(encoding="utf-8", errors="ignore")
-            else:
-                content = ""
+            # IMPORTANT:
+            # Do NOT create moonraker.conf here. A partial file containing only
+            # [update_manager ...] sections will cause Moonraker to fail to start
+            # ("No section [server] in config"). moonraker.conf should be created
+            # by the Moonraker installer (or by the user), with a valid [server].
+            if not conf.exists():
+                return False
+
+            content = conf.read_text(encoding="utf-8", errors="ignore")
+
+            # If the file exists but is invalid/malformed, do not append entries.
+            # Let the installer repair/create a proper base config first.
+            if not re.search(r"(?m)^\[server\]\s*$", content):
+                self._log_wizard(
+                    f"Skipping update_manager entry for {name}: moonraker.conf missing [server]"
+                )
+                return False
 
             header = f"[update_manager {name}]"
             if header in content:
