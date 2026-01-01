@@ -718,19 +718,31 @@ z_tilt:
   template: |
     [z_tilt]
     # Z motor positions (outside bed, where steppers are located)
-    # Auto-generated defaults for 2-3 Z motor setup - adjust to match your hardware!
+    # Auto-generated defaults based on Z motor count - adjust to match your hardware!
     {% if bed_leveling.z_tilt and bed_leveling.z_tilt.z_positions %}
     z_positions: {{ bed_leveling.z_tilt.z_positions }}
-    {% else %}
+    {% elif stepper_z.z_motor_count == 2 %}
+    # 2 Z motors: Left-right pattern (common for dual-Z bed leveling)
     z_positions:
-        {{ (printer.bed_size_x / 2) | int }}, {{ printer.bed_size_y | int + 50 }}   # Front center (stepper)
+        -50, {{ (printer.bed_size_y / 2) | int }}                                    # Left (stepper)
+        {{ printer.bed_size_x | int + 50 }}, {{ (printer.bed_size_y / 2) | int }}    # Right (stepper)
+    {% else %}
+    # 3 Z motors: Triangle pattern (Voron Trident style)
+    z_positions:
+        {{ (printer.bed_size_x / 2) | int }}, {{ printer.bed_size_y | int + 50 }}    # Front center (stepper)
         -50, -50                                                                      # Back left (stepper)
         {{ printer.bed_size_x | int + 50 }}, -50                                     # Back right (stepper)
     {% endif %}
     # Probe points (inside bed, where nozzle/probe can reach)
     {% if bed_leveling.z_tilt and bed_leveling.z_tilt.points %}
     points: {{ bed_leveling.z_tilt.points }}
+    {% elif stepper_z.z_motor_count == 2 %}
+    # 2 probe points for 2 Z motors
+    points:
+        30, {{ (printer.bed_size_y / 2) | int }}                                     # Left
+        {{ (printer.bed_size_x - 30) | int }}, {{ (printer.bed_size_y / 2) | int }}  # Right
     {% else %}
+    # 3 probe points for 3 Z motors
     points:
         {{ (printer.bed_size_x / 2) | int }}, {{ (printer.bed_size_y - 30) | int }}  # Front center
         30, 30                                                                        # Back left
