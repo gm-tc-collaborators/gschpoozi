@@ -10449,16 +10449,16 @@ read -r _
                 # Fix nginx configuration and restart
                 import subprocess
                 import re
-                
+
                 # Test nginx config
                 self.ui.infobox("Testing nginx configuration...", title="Nginx Fix")
-                
+
                 test_result = subprocess.run(
                     ["sudo", "nginx", "-t"],
                     capture_output=True,
                     text=True,
                 )
-                
+
                 if test_result.returncode != 0:
                     # Check for duplicate default_server error
                     if "duplicate default server" in test_result.stderr:
@@ -10472,28 +10472,35 @@ read -r _
                         ):
                             self.ui.infobox("Fixing nginx configurations...", title="Auto-Fix")
                             
-                            # Find all enabled nginx sites
+                            # Remove default_server from ALL mainsail/fluidd sites
+                            # (nginx will auto-assign one as default)
                             sites_dir = Path("/etc/nginx/sites-available")
-                            for site_file in sites_dir.glob("mainsail-*"):
+                            fixed_count = 0
+                            
+                            for site_file in list(sites_dir.glob("mainsail*")) + list(sites_dir.glob("fluidd*")):
                                 try:
                                     content = site_file.read_text()
-                                    # Remove default_server from listen directives
+                                    # Remove default_server from ALL listen directives (both IPv4 and IPv6)
                                     fixed = re.sub(
-                                        r'(listen\s+\S+)\s+default_server',
-                                        r'\1',
+                                        r'(\s+)default_server(\s*;)',
+                                        r'\2',
                                         content
                                     )
                                     if fixed != content:
                                         # Write back with sudo
                                         import tempfile
-                                        with tempfile.NamedTemporaryFile(mode='w', delete=False) as tmp:
+                                        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.conf') as tmp:
                                             tmp.write(fixed)
                                             tmp_path = tmp.name
                                         subprocess.run(["sudo", "cp", tmp_path, str(site_file)], check=True)
                                         Path(tmp_path).unlink()
+                                        fixed_count += 1
                                 except Exception as e:
+                                    self._log_wizard(f"Failed to fix {site_file}: {e}")
                                     pass
                             
+                            self.ui.infobox(f"Fixed {fixed_count} nginx site(s)...", title="Auto-Fix")
+
                             # Retry nginx test
                             test_result = subprocess.run(["sudo", "nginx", "-t"], capture_output=True, text=True)
                             if test_result.returncode != 0:
@@ -10516,7 +10523,7 @@ read -r _
                             width=90,
                         )
                         continue
-                
+
                 # Config is OK or was fixed, try to start/restart nginx
                 if test_result.returncode == 0:
                     start_result = subprocess.run(
