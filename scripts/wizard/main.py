@@ -10124,26 +10124,17 @@ read -r _
                 return
 
             if choice == "LIST":
-                # Capture list output and display in msgbox
-                import subprocess
-                result = subprocess.run(
-                    ["bash", str(tool), "list"],
-                    capture_output=True,
-                    text=True,
-                    cwd=str(REPO_ROOT)
-                )
-
-                # Parse instances from home directory for display
+                # Build instance list directly in Python (avoid UTF-8 decode issues)
                 instances_info = []
-
+                
                 if (Path.home() / "printer_data").exists():
                     instances_info.append("default - ~/printer_data")
-
+                
                 for d in sorted(Path.home().glob("printer_data-*")):
                     if d.is_dir():
                         inst_id = d.name.replace("printer_data-", "")
                         instances_info.append(f"{inst_id} - ~/{d.name}")
-
+                
                 if not instances_info:
                     self.ui.msgbox(
                         "No instances found.\n\n"
@@ -10155,7 +10146,7 @@ read -r _
                 else:
                     instances_text = "\n".join(f"• {info}" for info in instances_info)
                     current = os.environ.get("GSCHPOOZI_INSTANCE", "default (~/printer_data)")
-
+                    
                     self.ui.msgbox(
                         f"Instances found:\n\n{instances_text}\n\n"
                         f"Currently active: {current}\n\n"
