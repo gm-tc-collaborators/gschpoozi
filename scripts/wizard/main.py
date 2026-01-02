@@ -10448,28 +10448,77 @@ read -r _
             elif choice == "FIXNGINX":
                 # Fix nginx configuration and restart
                 import subprocess
-
+                import re
+                
                 # Test nginx config
                 self.ui.infobox("Testing nginx configuration...", title="Nginx Fix")
-
+                
                 test_result = subprocess.run(
                     ["sudo", "nginx", "-t"],
                     capture_output=True,
                     text=True,
                 )
-
+                
                 if test_result.returncode != 0:
-                    # Config has errors
-                    self.ui.msgbox(
-                        f"Nginx configuration has errors:\n\n{test_result.stderr}\n\n"
-                        f"This usually means a site config is malformed.\n"
-                        f"You may need to recreate the instance.",
-                        title="Nginx Config Error",
-                        height=18,
-                        width=90,
-                    )
-                else:
-                    # Config is OK, try to start/restart nginx
+                    # Check for duplicate default_server error
+                    if "duplicate default server" in test_result.stderr:
+                        # Auto-fix: remove default_server from all but first site on each port
+                        if self.ui.yesno(
+                            "Nginx has duplicate default_server configuration.\n\n"
+                            "This happens when multiple instances use the same port.\n\n"
+                            "Auto-fix by removing duplicate default_server flags?",
+                            title="Nginx Auto-Fix",
+                            default_no=False,
+                        ):
+                            self.ui.infobox("Fixing nginx configurations...", title="Auto-Fix")
+                            
+                            # Find all enabled nginx sites
+                            sites_dir = Path("/etc/nginx/sites-available")
+                            for site_file in sites_dir.glob("mainsail-*"):
+                                try:
+                                    content = site_file.read_text()
+                                    # Remove default_server from listen directives
+                                    fixed = re.sub(
+                                        r'(listen\s+\S+)\s+default_server',
+                                        r'\1',
+                                        content
+                                    )
+                                    if fixed != content:
+                                        # Write back with sudo
+                                        import tempfile
+                                        with tempfile.NamedTemporaryFile(mode='w', delete=False) as tmp:
+                                            tmp.write(fixed)
+                                            tmp_path = tmp.name
+                                        subprocess.run(["sudo", "cp", tmp_path, str(site_file)], check=True)
+                                        Path(tmp_path).unlink()
+                                except Exception as e:
+                                    pass
+                            
+                            # Retry nginx test
+                            test_result = subprocess.run(["sudo", "nginx", "-t"], capture_output=True, text=True)
+                            if test_result.returncode != 0:
+                                self.ui.msgbox(
+                                    f"Auto-fix didn't resolve all issues:\n\n{test_result.stderr}",
+                                    title="Fix Failed",
+                                    height=16,
+                                    width=90,
+                                )
+                                continue
+                        else:
+                            continue
+                    else:
+                        # Other config error
+                        self.ui.msgbox(
+                            f"Nginx configuration has errors:\n\n{test_result.stderr}\n\n"
+                            f"You may need to recreate the affected instance.",
+                            title="Nginx Config Error",
+                            height=18,
+                            width=90,
+                        )
+                        continue
+                
+                # Config is OK or was fixed, try to start/restart nginx
+                if test_result.returncode == 0:
                     start_result = subprocess.run(
                         ["sudo", "systemctl", "restart", "nginx"],
                         capture_output=True,
