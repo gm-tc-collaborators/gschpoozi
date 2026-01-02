@@ -171,23 +171,23 @@ do_create_instance() {
     local webui_kind="$3"      # "mainsail" or "fluidd"
     local webui_port="$4"
     local skip_confirm="${5:-}"  # "yes" to skip confirmation (for wizard automation)
-    
+
     if [[ -z "$instance_id" ]] || [[ -z "$moonraker_port" ]] || [[ -z "$webui_kind" ]] || [[ -z "$webui_port" ]]; then
         error_msg "Usage: $0 create <instance_id> <moonraker_port> <webui> <webui_port> [yes]"
         error_msg "Example: $0 create vzbot1 7125 mainsail 80"
         error_msg "         $0 create vzbot1 7125 mainsail 80 yes  # skip confirmation"
         return 1
     fi
-    
+
     validate_instance_id "$instance_id" || return 1
-    
+
     local printer_data_path
     printer_data_path="$(get_instance_printer_data "$instance_id")"
     local klipper_service
     klipper_service="$(get_instance_klipper_service "$instance_id")"
     local moonraker_service
     moonraker_service="$(get_instance_moonraker_service "$instance_id")"
-    
+
     clear_screen
     print_header "Creating Klipper Instance: ${instance_id}"
     echo ""
@@ -199,7 +199,7 @@ do_create_instance() {
     echo ""
     print_footer
     echo ""
-    
+
     if [[ "$skip_confirm" != "yes" ]]; then
         if ! confirm "Create this instance?"; then
             return 1

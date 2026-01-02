@@ -10137,7 +10137,7 @@ read -r _
                     default_no=False,
                 ):
                     continue
-                
+
                 # Run instance creation (skip confirmation since we just confirmed)
                 self._run_tty_command([
                     "bash", str(tool), "create",
@@ -10305,6 +10305,34 @@ def main():
         help="Path to Klipper config directory (e.g. ~/printer_data-vzbot1/config).",
     )
     args = parser.parse_args()
+    
+    # Derive instance info for display
+    if args.instance:
+        instance_display = f"{args.instance} (~/printer_data-{args.instance})"
+        os.environ["GSCHPOOZI_INSTANCE"] = instance_display
+    elif args.config_dir:
+        instance_display = f"custom ({args.config_dir})"
+        os.environ["GSCHPOOZI_INSTANCE"] = instance_display
+    elif args.printer_data:
+        instance_display = f"custom ({args.printer_data})"
+        os.environ["GSCHPOOZI_INSTANCE"] = instance_display
+    else:
+        instance_display = "default (~/printer_data)"
+        os.environ["GSCHPOOZI_INSTANCE"] = instance_display
+    
+    # Set the global default config directory for WizardState
+    if args.instance:
+        config_dir = Path.home() / f"printer_data-{args.instance}" / "config"
+    elif args.printer_data:
+        config_dir = Path(args.printer_data).expanduser() / "config"
+    elif args.config_dir:
+        config_dir = Path(args.config_dir).expanduser()
+    else:
+        config_dir = Path.home() / "printer_data" / "config"
+    
+    # Import after argparse to avoid circular imports
+    from wizard.state import set_default_state_dir
+    set_default_state_dir(config_dir)
 
     # Set whiptail color theme via NEWT_COLORS environment variable
     # Default theme works well on dark terminals
