@@ -21,6 +21,98 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 INSTALL_LIB_DIR="${REPO_ROOT}/scripts/lib"
 
+# ------------------------------------------------------------------------------
+# UI helpers (copied from component manager for standalone usage)
+# ------------------------------------------------------------------------------
+
+# Colors (ANSI)
+RED="${RED:-$'\033[0;31m'}"
+GREEN="${GREEN:-$'\033[0;32m'}"
+YELLOW="${YELLOW:-$'\033[0;33m'}"
+BLUE="${BLUE:-$'\033[0;34m'}"
+CYAN="${CYAN:-$'\033[0;36m'}"
+WHITE="${WHITE:-$'\033[0;37m'}"
+
+BRED="${BRED:-$'\033[1;31m'}"
+BGREEN="${BGREEN:-$'\033[1;32m'}"
+BYELLOW="${BYELLOW:-$'\033[1;33m'}"
+BCYAN="${BCYAN:-$'\033[1;36m'}"
+BWHITE="${BWHITE:-$'\033[1;37m'}"
+
+NC="${NC:-$'\033[0m'}"
+
+# Box drawing
+BOX_TL="${BOX_TL:-"╔"}"
+BOX_TR="${BOX_TR:-"╗"}"
+BOX_BL="${BOX_BL:-"╚"}"
+BOX_BR="${BOX_BR:-"╝"}"
+BOX_H="${BOX_H:-"═"}"
+BOX_V="${BOX_V:-"║"}"
+
+clear_screen() {
+  command -v clear >/dev/null 2>&1 && clear || printf '\033c'
+}
+
+print_header() {
+  local title="${1:-}"
+  local width="${2:-60}"
+  local line
+  line="$(printf '%*s' "${width}" '' | tr ' ' "${BOX_H}")"
+  local padding
+  padding=$(( (width - ${#title} - 2) / 2 ))
+  if [[ "${padding}" -lt 0 ]]; then padding=0; fi
+  printf "%b\n" "${BCYAN}${BOX_TL}${line}${BOX_TR}${NC}"
+  printf "%b\n" "${BCYAN}${BOX_V}${NC}$(printf '%*s' "${padding}" "")${BWHITE} ${title} ${NC}$(printf '%*s' "$((width - padding - ${#title} - 2))" "")${BCYAN}${BOX_V}${NC}"
+  printf "%b\n" "${BCYAN}${BOX_V}$(printf '%*s' "${width}" '')${BOX_V}${NC}"
+}
+
+print_footer() {
+  local width="${1:-60}"
+  local line
+  line="$(printf '%*s' "${width}" '' | tr ' ' "${BOX_H}")"
+  printf "%b\n" "${BCYAN}${BOX_BL}${line}${BOX_BR}${NC}"
+}
+
+wait_for_key() {
+  printf "%b" "${WHITE}Press Enter to continue...${NC}"
+  read -r _ || true
+}
+
+confirm() {
+  local prompt="${1:-Are you sure?}"
+  local answer
+
+  if [[ "${prompt}" == *"Type 'yes'"* ]]; then
+    printf "%b" "${BYELLOW}${prompt}${NC}: "
+    read -r answer || answer=""
+    [[ "${answer}" == "yes" ]]
+    return $?
+  fi
+
+  printf "%b" "${BYELLOW}${prompt}${NC} [y/N]: "
+  read -r answer || answer=""
+  case "${answer}" in
+    [yY]|[yY][eE][sS]) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+status_msg() {
+    echo -e "${CYAN}###### $1${NC}"
+}
+
+ok_msg() {
+    echo -e "${GREEN}[OK] $1${NC}"
+}
+
+error_msg() {
+    echo -e "${RED}[ERROR] $1${NC}"
+}
+
+warn_msg() {
+    echo -e "${YELLOW}[WARN] $1${NC}"
+}
+
 # Source the klipper-install library for helper functions
 # shellcheck disable=SC1091
 source "${INSTALL_LIB_DIR}/klipper-install.sh"
@@ -78,22 +170,24 @@ do_create_instance() {
     local moonraker_port="$2"
     local webui_kind="$3"      # "mainsail" or "fluidd"
     local webui_port="$4"
-
+    local skip_confirm="${5:-}"  # "yes" to skip confirmation (for wizard automation)
+    
     if [[ -z "$instance_id" ]] || [[ -z "$moonraker_port" ]] || [[ -z "$webui_kind" ]] || [[ -z "$webui_port" ]]; then
-        error_msg "Usage: $0 create <instance_id> <moonraker_port> <webui> <webui_port>"
+        error_msg "Usage: $0 create <instance_id> <moonraker_port> <webui> <webui_port> [yes]"
         error_msg "Example: $0 create vzbot1 7125 mainsail 80"
+        error_msg "         $0 create vzbot1 7125 mainsail 80 yes  # skip confirmation"
         return 1
     fi
-
+    
     validate_instance_id "$instance_id" || return 1
-
+    
     local printer_data_path
     printer_data_path="$(get_instance_printer_data "$instance_id")"
     local klipper_service
     klipper_service="$(get_instance_klipper_service "$instance_id")"
     local moonraker_service
     moonraker_service="$(get_instance_moonraker_service "$instance_id")"
-
+    
     clear_screen
     print_header "Creating Klipper Instance: ${instance_id}"
     echo ""
@@ -105,9 +199,11 @@ do_create_instance() {
     echo ""
     print_footer
     echo ""
-
-    if ! confirm "Create this instance?"; then
-        return 1
+    
+    if [[ "$skip_confirm" != "yes" ]]; then
+        if ! confirm "Create this instance?"; then
+            return 1
+        fi
     fi
 
     echo ""
@@ -448,7 +544,8 @@ case "$ACTION" in
         MOONRAKER_PORT="${3:-}"
         WEBUI_KIND="${4:-}"
         WEBUI_PORT="${5:-}"
-        do_create_instance "$INSTANCE_ID" "$MOONRAKER_PORT" "$WEBUI_KIND" "$WEBUI_PORT"
+        SKIP_CONFIRM="${6:-}"
+        do_create_instance "$INSTANCE_ID" "$MOONRAKER_PORT" "$WEBUI_KIND" "$WEBUI_PORT" "$SKIP_CONFIRM"
         ;;
     list)
         do_list_instances

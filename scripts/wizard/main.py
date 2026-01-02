@@ -10126,10 +10126,22 @@ read -r _
                 if not webui_port:
                     continue
 
-                # Run instance creation
+                # Confirm before creation
+                if not self.ui.yesno(
+                    f"Create instance '{instance_id}'?\n\n"
+                    f"  printer_data: ~/printer_data-{instance_id}\n"
+                    f"  Moonraker port: {moonraker_port}\n"
+                    f"  Web UI: {webui} on port {webui_port}\n\n"
+                    f"This will create systemd services and nginx config.",
+                    title="Confirm Create Instance",
+                    default_no=False,
+                ):
+                    continue
+                
+                # Run instance creation (skip confirmation since we just confirmed)
                 self._run_tty_command([
                     "bash", str(tool), "create",
-                    instance_id, moonraker_port, webui, webui_port
+                    instance_id, moonraker_port, webui, webui_port, "yes"
                 ])
 
             elif choice == "START":
