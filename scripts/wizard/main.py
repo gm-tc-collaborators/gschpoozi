@@ -1812,9 +1812,25 @@ class GschpooziWizard:
                 ):
                     continue
 
-            exit_code = self._run_tty_command(["bash", str(tool), action, choice])
+            # Capture stdout/stderr for better error reporting
+            import subprocess
+            try:
+                # For install/update/remove, we need TTY for sudo prompts
+                # But we can still log to a file for debugging
+                result = subprocess.run(
+                    ["bash", str(tool), action, choice],
+                    stdin=open("/dev/tty", "r"),
+                    stdout=open("/dev/tty", "w"),
+                    stderr=subprocess.PIPE,
+                    text=True,
+                )
+                exit_code = result.returncode
+                stderr_output = result.stderr
+            except Exception as e:
+                exit_code = 1
+                stderr_output = str(e)
             
-            # Show result after TTY command completes
+            # Show result after operation completes
             if exit_code == 0:
                 self.ui.msgbox(
                     f"{comp_name} {action} completed successfully!\n\n"
@@ -1824,12 +1840,14 @@ class GschpooziWizard:
                     width=60,
                 )
             else:
+                error_msg = stderr_output[-500:] if stderr_output else "No error details available"
                 self.ui.msgbox(
                     f"{comp_name} {action} failed (exit code {exit_code}).\n\n"
-                    f"Check the console output for details.",
+                    f"Recent output:\n{error_msg}\n\n"
+                    f"Scroll up in your terminal to see full output.",
                     title=f"{action.title()} Failed",
-                    height=10,
-                    width=60,
+                    height=20,
+                    width=90,
                 )
 
     def _can_interface_setup(self) -> None:
