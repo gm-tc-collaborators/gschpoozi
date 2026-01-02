@@ -19,7 +19,7 @@ from typing import Optional, Union, Tuple
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from wizard.ui import WizardUI
-from wizard.state import get_state, WizardState
+from wizard.state import get_state, WizardState, set_default_state_dir
 from wizard.pins import PinManager
 from wizard.macro_defaults import (
     get_smart_defaults,
@@ -59,7 +59,7 @@ class GschpooziWizard:
 
     def _wizard_log_path(self) -> Path:
         # Keep logs next to the state file so users can find it easily.
-        return Path.home() / "printer_data" / "config" / ".gschpoozi_wizard.log"
+        return self.state.state_dir / ".gschpoozi_wizard.log"
 
     def _log_wizard(self, message: str) -> None:
         """Best-effort logging for diagnosing whiptail / control-flow issues."""
@@ -385,7 +385,7 @@ class GschpooziWizard:
         Ensure a [update_manager <name>] entry exists in moonraker.conf.
         Returns True if present/added, False if cannot write.
         """
-        conf = Path.home() / "printer_data" / "config" / "moonraker.conf"
+        conf = self.state.state_dir / "moonraker.conf"
         try:
             # IMPORTANT:
             # Do NOT create moonraker.conf here. A partial file containing only
@@ -441,9 +441,9 @@ class GschpooziWizard:
         Ensure gschpoozi is listed in Moonraker's Update Manager.
 
         Writes a [update_manager gschpoozi] stanza to:
-          ~/printer_data/config/moonraker.conf
+          <config_dir>/moonraker.conf (instance-aware)
         """
-        conf = Path.home() / "printer_data" / "config" / "moonraker.conf"
+        conf = self.state.state_dir / "moonraker.conf"
         header = "[update_manager gschpoozi]"
 
         try:
@@ -985,11 +985,11 @@ class GschpooziWizard:
     def _collect_cfg_files_for_scan(self) -> list:
         """Collect Klipper cfg files to scan (best-effort).
 
-        - Starts from ~/printer_data/config/printer.cfg (if it exists)
+        - Starts from <config_dir>/printer.cfg (if it exists)
         - Follows [include ...] directives recursively (best-effort, no crash on missing files)
-        - Also scans ~/printer_data/config/gschpoozi/*.cfg
+        - Also scans <config_dir>/gschpoozi/*.cfg
         """
-        base = Path.home() / "printer_data" / "config"
+        base = self.state.state_dir
         start = base / "printer.cfg"
 
         # Allow trailing comments after the closing bracket:
@@ -1310,6 +1310,7 @@ class GschpooziWizard:
                     ("1", "Klipper Setup         (Installation & verification)"),
                     ("2", "Hardware Setup        (Configure your printer)"),
                     ("3", "Tuning & Optimization (Macros, input shaper, etc.)"),
+                    ("I", "Manage Instances      (Multi-printer support)"),
                     ("G", "Generate Config       (Create printer.cfg)"),
                     ("C", "Clear Settings        (Reset all wizard settings)"),
                     ("Q", "Quit"),
@@ -1327,6 +1328,8 @@ class GschpooziWizard:
                 self.hardware_setup_menu()
             elif choice == "3":
                 self.tuning_menu()
+            elif choice == "I":
+                self._manage_instances_menu()
             elif choice == "G":
                 self.generate_config()
             elif choice == "C":
@@ -7549,7 +7552,7 @@ class GschpooziWizard:
         detected_mainsail = False
         detected_timelapse = False
         try:
-            cfg_path = Path.home() / "printer_data" / "config" / "printer.cfg"
+            cfg_path = self.state.state_dir / "printer.cfg"
             if cfg_path.exists():
                 txt = cfg_path.read_text(encoding="utf-8", errors="ignore")
                 detected_mainsail = "[include mainsail.cfg]" in txt
@@ -10046,6 +10049,123 @@ read -r _
                 self.ui.msgbox(f"Section {choice} coming soon!", title=f"Section {choice}")
 
     # -------------------------------------------------------------------------
+    # Multi-Instance Management
+    # -------------------------------------------------------------------------
+
+    def _manage_instances_menu(self) -> None:
+        """Multi-instance management menu."""
+        tool = REPO_ROOT / "scripts" / "tools" / "klipper_instance_manager.sh"
+        if not tool.exists():
+            self.ui.msgbox(f"Missing tool: {tool}", title="Error")
+            return
+
+        while True:
+            choice = self.ui.menu(
+                "Manage Klipper Instances\n\n"
+                "Run multiple printers on one host with separate printer_data\n"
+                "directories, systemd services, and Moonraker/web ports.\n\n"
+                "Current instance: " + (os.environ.get("GSCHPOOZI_INSTANCE", "default (~/printer_data)")),
+                [
+                    ("LIST", "List all instances"),
+                    ("CREATE", "Create new instance"),
+                    ("START", "Start instance"),
+                    ("STOP", "Stop instance"),
+                    ("RESTART", "Restart instance"),
+                    ("REMOVE", "Remove instance"),
+                    ("B", "Back"),
+                ],
+                title="Manage Instances",
+                height=24,
+                width=100,
+            )
+
+            if choice is None or choice == "B":
+                return
+
+            if choice == "LIST":
+                self._run_tty_command(["bash", str(tool), "list"])
+
+            elif choice == "CREATE":
+                instance_id = self.ui.inputbox(
+                    "Enter instance ID:\n\n"
+                    "(e.g., vzbot1, vzbot2, voron, ender3)\n"
+                    "Must be alphanumeric + dashes/underscores only.",
+                    title="Instance ID"
+                )
+                if not instance_id:
+                    continue
+
+                moonraker_port = self.ui.inputbox(
+                    "Enter Moonraker port:\n\n"
+                    "Default: 7125\n"
+                    "Additional instances: 7126, 7127, etc.",
+                    default="7126",
+                    title="Moonraker Port"
+                )
+                if not moonraker_port:
+                    continue
+
+                webui = self.ui.radiolist(
+                    "Select web UI:",
+                    [
+                        ("mainsail", "Mainsail", True),
+                        ("fluidd", "Fluidd", False),
+                    ],
+                    title="Web UI"
+                )
+                if not webui:
+                    continue
+
+                webui_port = self.ui.inputbox(
+                    "Enter web UI port:\n\n"
+                    "Default: 80\n"
+                    "Additional instances: 81, 82, etc.",
+                    default="81",
+                    title="Web UI Port"
+                )
+                if not webui_port:
+                    continue
+
+                # Run instance creation
+                self._run_tty_command([
+                    "bash", str(tool), "create",
+                    instance_id, moonraker_port, webui, webui_port
+                ])
+
+            elif choice == "START":
+                instance_id = self.ui.inputbox(
+                    "Enter instance ID to start:",
+                    title="Start Instance"
+                )
+                if instance_id:
+                    self._run_tty_command(["bash", str(tool), "start", instance_id])
+
+            elif choice == "STOP":
+                instance_id = self.ui.inputbox(
+                    "Enter instance ID to stop:",
+                    title="Stop Instance"
+                )
+                if instance_id:
+                    self._run_tty_command(["bash", str(tool), "stop", instance_id])
+
+            elif choice == "RESTART":
+                instance_id = self.ui.inputbox(
+                    "Enter instance ID to restart:",
+                    title="Restart Instance"
+                )
+                if instance_id:
+                    self._run_tty_command(["bash", str(tool), "restart", instance_id])
+
+            elif choice == "REMOVE":
+                instance_id = self.ui.inputbox(
+                    "Enter instance ID to remove:\n\n"
+                    "WARNING: This will stop services and optionally delete all data.",
+                    title="Remove Instance"
+                )
+                if instance_id:
+                    self._run_tty_command(["bash", str(tool), "remove", instance_id])
+
+    # -------------------------------------------------------------------------
     # Generate Config
     # -------------------------------------------------------------------------
 
@@ -10152,6 +10272,26 @@ def main():
         action="store_true",
         help="Use light color theme (default, better for dark terminal backgrounds)"
     )
+    parser.add_argument(
+        "--instance",
+        default="",
+        help=(
+            "Instance ID to target (multi-instance). "
+            "Uses ~/printer_data-<instance>/config unless overridden by --printer-data/--config-dir."
+        ),
+    )
+    parser.add_argument(
+        "--printer-data",
+        dest="printer_data",
+        default="",
+        help="Path to printer_data directory (e.g. ~/printer_data-vzbot1).",
+    )
+    parser.add_argument(
+        "--config-dir",
+        dest="config_dir",
+        default="",
+        help="Path to Klipper config directory (e.g. ~/printer_data-vzbot1/config).",
+    )
     args = parser.parse_args()
 
     # Set whiptail color theme via NEWT_COLORS environment variable
@@ -10179,6 +10319,26 @@ def main():
             "helpline=white,black:"
             "roottext=white,black"
         )
+
+    # Multi-instance targeting: set the default state dir for this process.
+    # This isolates wizard state + config generation to the selected instance.
+    config_dir: Optional[Path] = None
+    try:
+        if getattr(args, "config_dir", ""):
+            config_dir = Path(args.config_dir).expanduser()
+        elif getattr(args, "printer_data", ""):
+            pd = Path(args.printer_data).expanduser()
+            config_dir = pd if pd.name == "config" else (pd / "config")
+        elif getattr(args, "instance", ""):
+            instance_id = str(args.instance).strip()
+            if instance_id:
+                config_dir = Path.home() / f"printer_data-{instance_id}" / "config"
+    except Exception:
+        # Best-effort only; fall back to legacy default.
+        config_dir = None
+
+    if config_dir is not None:
+        set_default_state_dir(config_dir)
 
     wizard = GschpooziWizard()
     sys.exit(wizard.run())

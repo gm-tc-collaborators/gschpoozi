@@ -42,7 +42,14 @@ class ConfigGenerator:
         templates_dir: Path = None
     ):
         self.state = state or get_state()
-        self.output_dir = output_dir or Path.home() / "printer_data" / "config"
+        if output_dir is not None:
+            self.output_dir = Path(output_dir)
+        else:
+            # Default output to the selected wizard state directory (instance-aware).
+            # WizardState.state_dir points at the Klipper config dir (e.g. ~/printer_data/config).
+            # Fall back to the legacy single-instance default if state_dir is missing.
+            state_dir = getattr(self.state, "state_dir", None)
+            self.output_dir = Path(state_dir) if state_dir else (Path.home() / "printer_data" / "config")
         self.renderer = renderer or TemplateRenderer()
         self.templates_dir = templates_dir or self._find_templates_dir()
 

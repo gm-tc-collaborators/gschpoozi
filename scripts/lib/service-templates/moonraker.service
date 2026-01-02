@@ -17,6 +17,6 @@ SupplementaryGroups=moonraker-admin
 RemainAfterExit=yes
 ExecStart=%HOME%/moonraker-env/bin/python \
     %HOME%/moonraker/moonraker/moonraker.py \
-    -d %HOME%/printer_data
+    -d %PRINTER_DATA%
 Restart=always
 RestartSec=10

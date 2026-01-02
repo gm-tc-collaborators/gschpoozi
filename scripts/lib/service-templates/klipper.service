@@ -17,9 +17,9 @@ User=%USER%
 RemainAfterExit=yes
 ExecStart=%HOME%/klippy-env/bin/python \
     %HOME%/klipper/klippy/klippy.py \
-    %HOME%/printer_data/config/printer.cfg \
-    -l %HOME%/printer_data/logs/klippy.log \
-    -I %HOME%/printer_data/comms/klippy.serial \
-    -a %HOME%/printer_data/comms/klippy.sock
+    %PRINTER_DATA%/config/printer.cfg \
+    -l %PRINTER_DATA%/logs/klippy.log \
+    -I %PRINTER_DATA%/comms/klippy.serial \
+    -a %PRINTER_DATA%/comms/klippy.sock
 Restart=always
 RestartSec=10

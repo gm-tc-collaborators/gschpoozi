@@ -438,20 +438,50 @@ class WizardState:
 
 # Global state instance (lazy loaded)
 _state: Optional[WizardState] = None
+_default_state_dir: Optional[Path] = None
 
 
-def get_state() -> WizardState:
-    """Get the global wizard state instance."""
+def set_default_state_dir(state_dir: Optional[Path]) -> None:
+    """
+    Set the default wizard state directory for this process.
+
+    This enables running multiple gschpoozi instances in parallel by pointing each
+    wizard process at a different config directory (e.g. ~/printer_data-vzbot1/config).
+    """
+    global _default_state_dir, _state
+    _default_state_dir = Path(state_dir) if state_dir else None
+    # Reset cached state so subsequent get_state() uses the new default.
+    _state = None
+
+
+def get_default_state_dir() -> Path:
+    """Return the current default state directory for this process."""
+    return _default_state_dir or WizardState.DEFAULT_STATE_DIR
+
+
+def get_state(state_dir: Optional[Path] = None) -> WizardState:
+    """Get the global wizard state instance.
+
+    Args:
+        state_dir: Optional explicit state directory. If provided, it overrides the
+                  process default for this call, and updates the cached instance.
+    """
     global _state
+    if state_dir is not None:
+        desired = Path(state_dir)
+        if _state is None or getattr(_state, "state_dir", None) != desired:
+            _state = WizardState(state_dir=desired)
+        return _state
+
     if _state is None:
-        _state = WizardState()
+        _state = WizardState(state_dir=get_default_state_dir())
     return _state
 
 
 def reset_state() -> WizardState:
     """Reset and return a fresh state instance."""
     global _state
-    _state = WizardState()
+    _state = WizardState(state_dir=get_default_state_dir())
     _state.clear()
     return _state
 

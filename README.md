@@ -128,6 +128,55 @@ Need to change something? Just run the wizard again:
 
 Your previous selections are saved, so you can quickly adjust and regenerate.
 
+## Multi-Instance Support
+
+Run multiple printers on a single host with completely independent instances (separate `printer_data` directories, systemd services, and web ports).
+
+### Creating Instances
+
+From the wizard main menu, select **"Manage Instances"** to:
+- **Create** new instances with custom Moonraker/web ports
+- **List** all instances and their service status
+- **Start/Stop/Restart** individual instances
+- **Remove** instances
+
+Or use the instance manager directly:
+
+```bash
+# Create a new instance
+~/gschpoozi/scripts/tools/klipper_instance_manager.sh create vzbot1 7125 mainsail 80
+~/gschpoozi/scripts/tools/klipper_instance_manager.sh create vzbot2 7126 mainsail 81
+
+# List all instances
+~/gschpoozi/scripts/tools/klipper_instance_manager.sh list
+
+# Control instances
+~/gschpoozi/scripts/tools/klipper_instance_manager.sh start vzbot1
+~/gschpoozi/scripts/tools/klipper_instance_manager.sh stop vzbot2
+~/gschpoozi/scripts/tools/klipper_instance_manager.sh restart vzbot1
+```
+
+### Configuring Instances
+
+Each instance gets its own:
+- **printer_data directory**: `~/printer_data-<id>/`
+- **systemd services**: `klipper-<id>.service`, `moonraker-<id>.service`
+- **Moonraker port**: (e.g., 7125, 7126, 7127...)
+- **Web UI port**: (e.g., 80, 81, 82...)
+
+Target a specific instance with the wizard:
+
+```bash
+# Configure instance "vzbot1"
+~/gschpoozi/scripts/configure.sh --instance vzbot1
+
+# Or explicitly specify paths
+~/gschpoozi/scripts/configure.sh --printer-data ~/printer_data-vzbot2
+~/gschpoozi/scripts/configure.sh --config-dir ~/printer_data-custom/config
+```
+
+Each instance maintains its own wizard state and generates configs to its own directory.
+
 ## Customization
 
 Add your customizations to `printer.cfg` after the includes:
