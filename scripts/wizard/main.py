@@ -10126,19 +10126,45 @@ read -r _
                 if not webui_port:
                     continue
 
-                # Show instructions for manual creation (requires sudo, better outside wizard)
-                cmd = f"~/gschpoozi/scripts/tools/klipper_instance_manager.sh create {instance_id} {moonraker_port} {webui} {webui_port}"
-
+                # Run instance creation via TTY (handles sudo prompts properly)
                 self.ui.msgbox(
-                    f"To create instance '{instance_id}', run this command in your terminal:\n\n"
-                    f"{cmd}\n\n"
-                    f"This requires sudo access for systemd/nginx configuration.\n\n"
-                    f"After creation, configure the instance with:\n"
-                    f"  ~/gschpoozi/scripts/configure.sh --instance {instance_id}",
-                    title="Instance Creation Command",
-                    height=16,
-                    width=100,
+                    f"Creating instance '{instance_id}'...\n\n"
+                    f"This will install Klipper/Moonraker if not present,\n"
+                    f"then create instance directories and services.\n\n"
+                    f"You may be prompted for sudo password.\n\n"
+                    f"Press OK to continue.",
+                    title="Create Instance",
+                    height=14,
+                    width=70,
                 )
+                
+                exit_code = self._run_tty_command([
+                    "bash", str(tool), "create",
+                    instance_id, moonraker_port, webui, webui_port, "yes"
+                ])
+                
+                if exit_code == 0:
+                    self.ui.msgbox(
+                        f"Instance '{instance_id}' created successfully!\n\n"
+                        f"Services: klipper-{instance_id}.service, moonraker-{instance_id}.service\n"
+                        f"Web UI: http://localhost:{webui_port}\n"
+                        f"Config: ~/printer_data-{instance_id}/config/\n\n"
+                        f"Configure it with:\n"
+                        f"  ~/gschpoozi/scripts/configure.sh --instance {instance_id}",
+                        title="Instance Created",
+                        height=16,
+                        width=80,
+                    )
+                else:
+                    self.ui.msgbox(
+                        f"Instance creation failed (exit code {exit_code}).\n\n"
+                        f"Check the console output for details.\n\n"
+                        f"You may need to install Klipper/Moonraker first from:\n"
+                        f"Main menu → Klipper Setup → Manage Components",
+                        title="Creation Failed",
+                        height=14,
+                        width=70,
+                    )
 
             elif choice == "START":
                 instance_id = self.ui.inputbox(
