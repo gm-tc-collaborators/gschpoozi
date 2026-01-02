@@ -211,25 +211,69 @@ do_create_instance() {
     # Preflight checks
     check_not_root || return 1
     check_sudo_access || return 1
-
-    # Ensure Klipper and Moonraker are installed (shared)
+    
+    # Ensure Klipper is installed (shared by all instances)
     if ! is_klipper_installed; then
-        error_msg "Klipper not installed. Install Klipper first."
-        return 1
+        warn_msg "Klipper not installed - installing shared Klipper first..."
+        echo ""
+        echo "Multi-instance setup requires a shared Klipper installation."
+        echo "Installing Klipper to ~/klipper/ (used by all instances)..."
+        echo ""
+        if ! confirm "Install Klipper now?"; then
+            error_msg "Klipper installation required. Exiting."
+            return 1
+        fi
+        do_install_klipper || {
+            error_msg "Klipper installation failed"
+            return 1
+        }
+        echo ""
     fi
+    
+    # Ensure Moonraker is installed (shared by all instances)
     if ! is_moonraker_installed; then
-        error_msg "Moonraker not installed. Install Moonraker first."
-        return 1
+        warn_msg "Moonraker not installed - installing shared Moonraker first..."
+        echo ""
+        echo "Multi-instance setup requires a shared Moonraker installation."
+        echo "Installing Moonraker to ~/moonraker/ (used by all instances)..."
+        echo ""
+        if ! confirm "Install Moonraker now?"; then
+            error_msg "Moonraker installation required. Exiting."
+            return 1
+        fi
+        do_install_moonraker || {
+            error_msg "Moonraker installation failed"
+            return 1
+        }
+        echo ""
     fi
-
-    # Check if web UI is installed
+    
+    # Ensure web UI is installed (shared by all instances)
     if [[ "$webui_kind" == "mainsail" ]] && ! is_mainsail_installed; then
-        error_msg "Mainsail not installed. Install Mainsail first."
-        return 1
+        warn_msg "Mainsail not installed - installing shared Mainsail first..."
+        echo ""
+        if ! confirm "Install Mainsail now?"; then
+            error_msg "Mainsail installation required. Exiting."
+            return 1
+        fi
+        do_install_mainsail || {
+            error_msg "Mainsail installation failed"
+            return 1
+        }
+        echo ""
     fi
     if [[ "$webui_kind" == "fluidd" ]] && ! is_fluidd_installed; then
-        error_msg "Fluidd not installed. Install Fluidd first."
-        return 1
+        warn_msg "Fluidd not installed - installing shared Fluidd first..."
+        echo ""
+        if ! confirm "Install Fluidd now?"; then
+            error_msg "Fluidd installation required. Exiting."
+            return 1
+        fi
+        do_install_fluidd || {
+            error_msg "Fluidd installation failed"
+            return 1
+        }
+        echo ""
     fi
 
     # 1. Create printer_data directory structure

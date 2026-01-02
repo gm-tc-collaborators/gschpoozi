@@ -10126,23 +10126,19 @@ read -r _
                 if not webui_port:
                     continue
 
-                # Confirm before creation
-                if not self.ui.yesno(
-                    f"Create instance '{instance_id}'?\n\n"
-                    f"  printer_data: ~/printer_data-{instance_id}\n"
-                    f"  Moonraker port: {moonraker_port}\n"
-                    f"  Web UI: {webui} on port {webui_port}\n\n"
-                    f"This will create systemd services and nginx config.",
-                    title="Confirm Create Instance",
-                    default_no=False,
-                ):
-                    continue
+                # Show instructions for manual creation (requires sudo, better outside wizard)
+                cmd = f"~/gschpoozi/scripts/tools/klipper_instance_manager.sh create {instance_id} {moonraker_port} {webui} {webui_port}"
 
-                # Run instance creation (skip confirmation since we just confirmed)
-                self._run_tty_command([
-                    "bash", str(tool), "create",
-                    instance_id, moonraker_port, webui, webui_port, "yes"
-                ])
+                self.ui.msgbox(
+                    f"To create instance '{instance_id}', run this command in your terminal:\n\n"
+                    f"{cmd}\n\n"
+                    f"This requires sudo access for systemd/nginx configuration.\n\n"
+                    f"After creation, configure the instance with:\n"
+                    f"  ~/gschpoozi/scripts/configure.sh --instance {instance_id}",
+                    title="Instance Creation Command",
+                    height=16,
+                    width=100,
+                )
 
             elif choice == "START":
                 instance_id = self.ui.inputbox(
@@ -10305,7 +10301,7 @@ def main():
         help="Path to Klipper config directory (e.g. ~/printer_data-vzbot1/config).",
     )
     args = parser.parse_args()
-    
+
     # Derive instance info for display
     if args.instance:
         instance_display = f"{args.instance} (~/printer_data-{args.instance})"
@@ -10319,7 +10315,7 @@ def main():
     else:
         instance_display = "default (~/printer_data)"
         os.environ["GSCHPOOZI_INSTANCE"] = instance_display
-    
+
     # Set the global default config directory for WizardState
     if args.instance:
         config_dir = Path.home() / f"printer_data-{args.instance}" / "config"
@@ -10329,7 +10325,7 @@ def main():
         config_dir = Path(args.config_dir).expanduser()
     else:
         config_dir = Path.home() / "printer_data" / "config"
-    
+
     # Import after argparse to avoid circular imports
     from wizard.state import set_default_state_dir
     set_default_state_dir(config_dir)
