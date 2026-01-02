@@ -1829,7 +1829,7 @@ class GschpooziWizard:
             except Exception as e:
                 exit_code = 1
                 stderr_output = str(e)
-            
+
             # Show result after operation completes
             if exit_code == 0:
                 self.ui.msgbox(
