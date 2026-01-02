@@ -1812,7 +1812,25 @@ class GschpooziWizard:
                 ):
                     continue
 
-            self._run_tty_command(["bash", str(tool), action, choice])
+            exit_code = self._run_tty_command(["bash", str(tool), action, choice])
+            
+            # Show result after TTY command completes
+            if exit_code == 0:
+                self.ui.msgbox(
+                    f"{comp_name} {action} completed successfully!\n\n"
+                    f"Services have been restarted.",
+                    title=f"{action.title()} Complete",
+                    height=10,
+                    width=60,
+                )
+            else:
+                self.ui.msgbox(
+                    f"{comp_name} {action} failed (exit code {exit_code}).\n\n"
+                    f"Check the console output for details.",
+                    title=f"{action.title()} Failed",
+                    height=10,
+                    width=60,
+                )
 
     def _can_interface_setup(self) -> None:
         """
