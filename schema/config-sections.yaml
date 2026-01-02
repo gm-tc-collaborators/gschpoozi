@@ -128,7 +128,7 @@ stepper_z:
     {% if stepper_z.drive_type == 'leadscrew' %}
     rotation_distance: {{ stepper_z.leadscrew_pitch }}
     {% else %}
-    rotation_distance: {{ stepper_z.belt_pitch * stepper_z.pulley_teeth }}
+    rotation_distance: {{ (stepper_z.belt_pitch | default(2)) * (stepper_z.pulley_teeth | default(20)) }}
     {% endif %}
     {% if stepper_z.gear_ratio %}
     gear_ratio: {{ stepper_z.gear_ratio }}
@@ -152,7 +152,7 @@ stepper_z1:
     {% if stepper_z.drive_type == 'leadscrew' %}
     rotation_distance: {{ stepper_z.leadscrew_pitch }}
     {% else %}
-    rotation_distance: {{ stepper_z.belt_pitch * stepper_z.pulley_teeth }}
+    rotation_distance: {{ (stepper_z.belt_pitch | default(2)) * (stepper_z.pulley_teeth | default(20)) }}
     {% endif %}
     {% if stepper_z.gear_ratio %}
     gear_ratio: {{ stepper_z.gear_ratio }}
@@ -170,7 +170,7 @@ stepper_z2:
     {% if stepper_z.drive_type == 'leadscrew' %}
     rotation_distance: {{ stepper_z.leadscrew_pitch }}
     {% else %}
-    rotation_distance: {{ stepper_z.belt_pitch * stepper_z.pulley_teeth }}
+    rotation_distance: {{ (stepper_z.belt_pitch | default(2)) * (stepper_z.pulley_teeth | default(20)) }}
     {% endif %}
     {% if stepper_z.gear_ratio %}
     gear_ratio: {{ stepper_z.gear_ratio }}
@@ -188,7 +188,7 @@ stepper_z3:
     {% if stepper_z.drive_type == 'leadscrew' %}
     rotation_distance: {{ stepper_z.leadscrew_pitch }}
     {% else %}
-    rotation_distance: {{ stepper_z.belt_pitch * stepper_z.pulley_teeth }}
+    rotation_distance: {{ (stepper_z.belt_pitch | default(2)) * (stepper_z.pulley_teeth | default(20)) }}
     {% endif %}
     {% if stepper_z.gear_ratio %}
     gear_ratio: {{ stepper_z.gear_ratio }}

@@ -4133,6 +4133,9 @@ class GschpooziWizard:
         if drive_type is None:
             return
 
+        pitch = None
+        belt_pitch = None
+        pulley_teeth = None
         if drive_type == "leadscrew":
             pitch = self.ui.radiolist(
                 "Leadscrew pitch:",
@@ -4146,7 +4149,34 @@ class GschpooziWizard:
             if pitch is None:
                 return
         else:
-            pitch = "2"  # Belt driven uses belt pitch
+            # Belt-driven Z requires belt pitch + pulley teeth for rotation_distance.
+            current_belt = self.state.get("stepper_z.belt_pitch", 2)
+            belt_pitch = self.ui.radiolist(
+                "Belt pitch for Z axis:",
+                [
+                    ("2", "2mm GT2 (most common)", current_belt == 2),
+                    ("3", "3mm HTD3M", current_belt == 3),
+                    ("1.5", "1.5mm GT1.5", current_belt == 1.5),
+                ],
+                title="Z Axis - Belt Pitch"
+            )
+            if belt_pitch is None:
+                return
+
+            current_pulley = self.state.get("stepper_z.pulley_teeth", 20)
+            pulley_teeth = self.ui.radiolist(
+                "Pulley teeth for Z axis:",
+                [
+                    ("16", "16 tooth", current_pulley == 16),
+                    ("20", "20 tooth (most common)", current_pulley == 20),
+                    ("24", "24 tooth", current_pulley == 24),
+                    ("32", "32 tooth", current_pulley == 32),
+                    ("40", "40 tooth", current_pulley == 40),
+                ],
+                title="Z Axis - Pulley"
+            )
+            if pulley_teeth is None:
+                return
 
         # Endstop
         endstop_type = self.ui.radiolist(
@@ -4202,7 +4232,18 @@ class GschpooziWizard:
         self.state.set("stepper_z.driver_type", driver_type)
         self.state.set("stepper_z.driver_protocol", driver_protocol)
         self.state.set("stepper_z.drive_type", drive_type)
-        self.state.set("stepper_z.leadscrew_pitch", int(pitch or 8))
+        if drive_type == "leadscrew":
+            self.state.set("stepper_z.leadscrew_pitch", int(pitch or 8))
+        else:
+            # Required for belt-driven Z rotation_distance
+            try:
+                self.state.set("stepper_z.belt_pitch", float(belt_pitch or 2))
+            except Exception:
+                self.state.set("stepper_z.belt_pitch", 2.0)
+            try:
+                self.state.set("stepper_z.pulley_teeth", int(pulley_teeth or 20))
+            except Exception:
+                self.state.set("stepper_z.pulley_teeth", 20)
         self.state.set("stepper_z.endstop_type", endstop_type)
         self.state.set("stepper_z.position_max", int(position_max or bed_z))
         self.state.set("stepper_z.run_current", float(run_current or 0.8))
@@ -4216,7 +4257,7 @@ class GschpooziWizard:
         self.ui.msgbox(
             f"Z Axis configured!\n\n"
             f"Motors: {z_count}\n"
-            f"Drive: {drive_type} ({pitch}mm)\n"
+            + (f"Drive: leadscrew ({pitch}mm)\n" if drive_type == "leadscrew" else f"Drive: belt ({belt_pitch}mm × {pulley_teeth}T)\n")
             f"Endstop: {endstop_type}\n"
             f"Height: {position_max}mm\n"
             f"Current: {run_current}A",
