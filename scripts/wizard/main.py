@@ -10448,16 +10448,16 @@ read -r _
             elif choice == "FIXNGINX":
                 # Fix nginx configuration and restart
                 import subprocess
-                
+
                 # Test nginx config
                 self.ui.infobox("Testing nginx configuration...", title="Nginx Fix")
-                
+
                 test_result = subprocess.run(
                     ["sudo", "nginx", "-t"],
                     capture_output=True,
                     text=True,
                 )
-                
+
                 if test_result.returncode != 0:
                     # Config has errors
                     self.ui.msgbox(
@@ -10475,14 +10475,14 @@ read -r _
                         capture_output=True,
                         text=True,
                     )
-                    
+
                     # Check if nginx is now running
                     status_result = subprocess.run(
                         ["systemctl", "is-active", "nginx"],
                         capture_output=True,
                         text=True,
                     )
-                    
+
                     if status_result.stdout.strip() == "active":
                         self.ui.msgbox(
                             "Nginx restarted successfully!\n\n"
@@ -10499,7 +10499,7 @@ read -r _
                             height=14,
                             width=80,
                         )
-            
+
             elif choice == "REMOVE":
                 instance_id = self._pick_instance("Remove Instance (WARNING)")
                 if instance_id and self.ui.yesno(
@@ -10508,7 +10508,7 @@ read -r _
                     f"remove nginx sites, and optionally delete all data.",
                     title="Confirm Removal",
                     default_no=True,
-                ):                
+                ):
                     self._run_tty_command(["bash", str(tool), "remove", instance_id])
 
     # -------------------------------------------------------------------------

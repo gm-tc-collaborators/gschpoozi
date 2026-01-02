@@ -281,21 +281,24 @@ do_create_instance() {
 
     # 2. Create instance-specific moonraker.conf
     create_moonraker_conf_for_instance "$printer_data_path" "$moonraker_port" || return 1
-
-    # 3. Create Klipper service
+    
+    # 3. Create basic printer.cfg (so Klipper can start)
+    create_basic_printer_cfg_for_instance "$printer_data_path" || return 1
+    
+    # 4. Create Klipper service
     local klipper_template="${SERVICE_TEMPLATES}/klipper.service"
     export PRINTER_DATA="$printer_data_path"
     create_systemd_service_for_instance "$klipper_service" "$klipper_template" "$printer_data_path" || return 1
 
-    # 4. Create Moonraker service
+    # 5. Create Moonraker service
     local moonraker_template="${SERVICE_TEMPLATES}/moonraker.service"
     create_systemd_service_for_instance "$moonraker_service" "$moonraker_template" "$printer_data_path" || return 1
-
-    # 5. Enable services
+    
+    # 6. Enable services
     enable_service "${klipper_service}" || true
     enable_service "${moonraker_service}" || return 1
 
-    # 6. Setup nginx for web UI
+    # 7. Setup nginx for web UI
     local site_name="${webui_kind}-${instance_id}"
     if [[ "$instance_id" == "default" ]]; then
         site_name="$webui_kind"
