@@ -10471,12 +10471,12 @@ read -r _
                             default_no=False,
                         ):
                             self.ui.infobox("Fixing nginx configurations...", title="Auto-Fix")
-                            
+
                             # Remove default_server from ALL mainsail/fluidd sites
                             # (nginx will auto-assign one as default)
                             sites_dir = Path("/etc/nginx/sites-available")
                             fixed_count = 0
-                            
+
                             for site_file in list(sites_dir.glob("mainsail*")) + list(sites_dir.glob("fluidd*")):
                                 try:
                                     content = site_file.read_text()
@@ -10498,7 +10498,7 @@ read -r _
                                 except Exception as e:
                                     self._log_wizard(f"Failed to fix {site_file}: {e}")
                                     pass
-                            
+
                             self.ui.infobox(f"Fixed {fixed_count} nginx site(s)...", title="Auto-Fix")
 
                             # Retry nginx test
