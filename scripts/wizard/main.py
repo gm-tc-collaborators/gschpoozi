@@ -1613,7 +1613,7 @@ class GschpooziWizard:
             match = re.search(r'printer_data-([a-zA-Z0-9_-]+)', instance_display)
             if match:
                 instance_suffix = f"-{match.group(1)}"
-        
+
         # Component paths and service names
         component_info = {
             "klipper": {"path": Path.home() / "klipper", "service": f"klipper{instance_suffix}"},
@@ -10122,6 +10122,7 @@ read -r _
                     ("START", "Start instance services"),
                     ("STOP", "Stop instance services"),
                     ("RESTART", "Restart instance services"),
+                    ("STATUS", "Check instance status (services + web)"),
                     ("REMOVE", "Remove instance"),
                     ("B", "Back"),
                 ],
@@ -10382,6 +10383,76 @@ read -r _
                             width=60,
                         )
 
+            elif choice == "STATUS":
+                instance_id = self.ui.inputbox(
+                    "Enter instance ID to check:",
+                    title="Check Instance Status"
+                )
+                if instance_id:
+                    # Build status report
+                    import subprocess
+                    
+                    if instance_id == "default":
+                        k_svc = "klipper"
+                        m_svc = "moonraker"
+                        pd_path = Path.home() / "printer_data"
+                    else:
+                        k_svc = f"klipper-{instance_id}"
+                        m_svc = f"moonraker-{instance_id}"
+                        pd_path = Path.home() / f"printer_data-{instance_id}"
+                    
+                    status_lines = []
+                    status_lines.append(f"Instance: {instance_id}")
+                    status_lines.append(f"Directory: {pd_path}")
+                    status_lines.append("")
+                    
+                    # Check Klipper service
+                    try:
+                        r = subprocess.run(["systemctl", "is-active", k_svc], capture_output=True, text=True, timeout=5)
+                        k_status = r.stdout.strip()
+                    except:
+                        k_status = "unknown"
+                    status_lines.append(f"Klipper: {k_status}")
+                    
+                    # Check Moonraker service
+                    try:
+                        r = subprocess.run(["systemctl", "is-active", m_svc], capture_output=True, text=True, timeout=5)
+                        m_status = r.stdout.strip()
+                    except:
+                        m_status = "unknown"
+                    status_lines.append(f"Moonraker: {m_status}")
+                    
+                    # Check nginx sites
+                    nginx_sites = []
+                    for ui in ["mainsail", "fluidd"]:
+                        site = f"{ui}-{instance_id}" if instance_id != "default" else ui
+                        if Path(f"/etc/nginx/sites-enabled/{site}").exists():
+                            nginx_sites.append(site)
+                    
+                    if nginx_sites:
+                        status_lines.append(f"Nginx sites: {', '.join(nginx_sites)}")
+                    else:
+                        status_lines.append("Nginx sites: NONE (web UI not configured!)")
+                    
+                    # Check if nginx is running
+                    try:
+                        r = subprocess.run(["systemctl", "is-active", "nginx"], capture_output=True, text=True, timeout=5)
+                        nginx_status = r.stdout.strip()
+                    except:
+                        nginx_status = "unknown"
+                    status_lines.append(f"Nginx: {nginx_status}")
+                    
+                    # Check printer.cfg exists
+                    cfg_exists = (pd_path / "config" / "printer.cfg").exists()
+                    status_lines.append(f"printer.cfg: {'exists' if cfg_exists else 'MISSING'}")
+                    
+                    self.ui.msgbox(
+                        "\n".join(status_lines),
+                        title=f"Instance Status: {instance_id}",
+                        height=18,
+                        width=70,
+                    )
+            
             elif choice == "REMOVE":
                 instance_id = self.ui.inputbox(
                     "Enter instance ID to remove:\n\n"
