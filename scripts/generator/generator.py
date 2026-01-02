@@ -1058,7 +1058,7 @@ class ConfigGenerator:
             lines.append(f"[include {inc}]")
         for include in includes:
             lines.append(f"[include {include}]")
-        
+
         # Add instance identification macro (displayed in Mainsail UI title)
         if instance_name != "Klipper":
             lines.append("")
