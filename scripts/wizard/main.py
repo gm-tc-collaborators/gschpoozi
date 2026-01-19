@@ -10520,6 +10520,8 @@ read -r _
                 load_temp = self.state.get("macros.load_temp", 220)
                 load_len = self.state.get("macros.load_length", 100)
                 load_speed = self.state.get("macros.load_speed", 5.0)
+                load_prime = self.state.get("macros.load_prime", 50)
+                load_prime_speed = self.state.get("macros.load_prime_speed", 2.5)
                 unload_len = self.state.get("macros.unload_length", 100)
                 unload_speed = self.state.get("macros.unload_speed", 30.0)
                 tip_shape = self.state.get("macros.unload_tip_shape", True)
@@ -10544,8 +10546,8 @@ read -r _
                 choice = self.ui.menu(
                     "Filament Macros (LOAD / UNLOAD)\n\n"
                     f"  Load temp:        {load_temp}C\n"
-                    f"  Load length:      {load_len}mm\n"
-                    f"  Load speed:       {load_speed_mm_s:g} mm/s\n"
+                    f"  Load length:      {load_len}mm @ {load_speed_mm_s:g} mm/s\n"
+                    f"  Load prime:       {load_prime}mm @ {load_prime_speed:g} mm/s\n"
                     f"  Unload length:    {unload_len}mm\n"
                     f"  Unload speed:     {unload_speed_mm_s:g} mm/s\n"
                     f"  Tip shaping:      {'Enabled' if tip_shape else 'Disabled'}\n",
@@ -10591,6 +10593,32 @@ read -r _
                         try:
                             f = float(ls)
                             self.state.set("macros.load_speed", _maybe_int(f))
+                        except ValueError:
+                            pass
+
+                    lp = self.ui.inputbox(
+                        "Load prime length (mm):\n\n"
+                        "Slow extrusion after fast load to prime nozzle.\n"
+                        "Direct drive: 20-30mm, Bowden: 30-50mm",
+                        default=str(load_prime),
+                        title="Load Prime",
+                    )
+                    if lp:
+                        try:
+                            self.state.set("macros.load_prime", int(lp))
+                        except ValueError:
+                            pass
+
+                    lps = self.ui.inputbox(
+                        "Load prime speed (mm/s):\n\n"
+                        "Slow speed for priming. Typical: 2.5",
+                        default=str(load_prime_speed),
+                        title="Load Prime Speed",
+                    )
+                    if lps:
+                        try:
+                            f = float(lps)
+                            self.state.set("macros.load_prime_speed", _maybe_int(f))
                         except ValueError:
                             pass
 
