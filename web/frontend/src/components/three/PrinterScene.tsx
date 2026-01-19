@@ -838,9 +838,25 @@ function SceneContent({ modelType }: { modelType: string }) {
 
 export function PrinterScene({ modelType }: PrinterSceneProps) {
   const setActivePanel = useWizardStore((state) => state.setActivePanel);
+  const activePanel = useWizardStore((state) => state.activePanel);
   
   // Close panel when clicking on empty space in the 3D viewer
-  const handlePointerMissed = useCallback(() => {
+  // But NOT when clicking on the board schematic HTML overlay
+  const handlePointerMissed = useCallback((event: MouseEvent) => {
+    // Check if the click was on an HTML element inside the canvas
+    // (like the board schematic overlay)
+    const target = event.target as HTMLElement;
+    if (target && target.closest && target.closest('[data-board-schematic]')) {
+      // Click was inside board schematic, don't close
+      return;
+    }
+    
+    // Also don't close if clicked on any interactive HTML overlay
+    if (target && target.tagName !== 'CANVAS') {
+      // Click was on an HTML element overlaid on the canvas, don't close
+      return;
+    }
+    
     setActivePanel(null);
   }, [setActivePanel]);
 
