@@ -3992,6 +3992,28 @@ class GschpooziWizard:
             # Keep previous value if user input isn't parseable; final validation will catch if needed.
             pass
 
+        # Hold current (optional)
+        current_hold = self.state.get(f"{state_key}.hold_current", "")
+        hold_current = self.ui.inputbox(
+            f"TMC hold current for {axis_upper} (A):\n\n"
+            "Current when motor is idle. Leave empty to use run_current.\n"
+            "Typical: 50-70% of run_current (reduces heat).",
+            default=str(current_hold) if current_hold else "",
+            title=f"Stepper {axis_upper} - Hold Current"
+        )
+        if hold_current is None:
+            return
+        if hold_current.strip():
+            try:
+                self.state.set(f"{state_key}.hold_current", float(hold_current))
+                self.state.save()
+            except ValueError:
+                pass
+        else:
+            # Clear hold_current if empty (use run_current)
+            self.state.delete(f"{state_key}.hold_current")
+            self.state.save()
+
         # SPI-specific settings
         sense_resistor = None
         if driver_protocol == "spi":
@@ -4545,6 +4567,24 @@ class GschpooziWizard:
         if run_current is None:
             return
 
+        # Hold current (optional)
+        current_hold = self.state.get("stepper_z.hold_current", "")
+        hold_current = self.ui.inputbox(
+            "TMC hold current for Z (A):\n\n"
+            "Current when motor is idle. Leave empty to use run_current.\n"
+            "Typical: 50-70% of run_current (reduces heat).",
+            default=str(current_hold) if current_hold else "",
+            title="Z Axis - Hold Current"
+        )
+        if hold_current is None:
+            return
+        z_hold_current = None
+        if hold_current.strip():
+            try:
+                z_hold_current = float(hold_current)
+            except ValueError:
+                pass
+
         # Motor port selection for primary Z stepper
         pin_manager = self._get_pin_manager()
         current_z_port = self.state.get("stepper_z.motor_port", "")
@@ -4594,6 +4634,10 @@ class GschpooziWizard:
         self.state.set("stepper_z.endstop_type", endstop_type)
         self.state.set("stepper_z.position_max", int(position_max or bed_z))
         self.state.set("stepper_z.run_current", float(run_current or 0.8))
+        if z_hold_current is not None:
+            self.state.set("stepper_z.hold_current", z_hold_current)
+        else:
+            self.state.delete("stepper_z.hold_current")
         self.state.set("stepper_z.motor_port", z_motor_port)
         self.state.save()
 
@@ -4819,6 +4863,54 @@ class GschpooziWizard:
         )
         if full_steps is None:
             return
+
+        # TMC driver configuration
+        current_driver = self.state.get("extruder.driver_type", "TMC2209")
+        driver_type = self.ui.radiolist(
+            "Extruder TMC driver type:",
+            [
+                ("TMC2209", "TMC2209 (most common)", current_driver == "TMC2209"),
+                ("TMC2208", "TMC2208", current_driver == "TMC2208"),
+                ("TMC2226", "TMC2226", current_driver == "TMC2226"),
+                ("TMC5160", "TMC5160", current_driver == "TMC5160"),
+            ],
+            title="Extruder Motor - Driver"
+        )
+        if driver_type is None:
+            return
+
+        # Run current
+        current_run = self.state.get("extruder.run_current", 0.6)
+        run_current = self.ui.inputbox(
+            "TMC run current for extruder (A):\n\n"
+            "Typical: 0.4-0.8A for most extruder motors.",
+            default=str(current_run),
+            title="Extruder Motor - Run Current"
+        )
+        if run_current is None:
+            return
+        try:
+            extruder_run_current = float(run_current)
+        except ValueError:
+            extruder_run_current = 0.6
+
+        # Hold current (optional)
+        current_hold = self.state.get("extruder.hold_current", "")
+        hold_current = self.ui.inputbox(
+            "TMC hold current for extruder (A):\n\n"
+            "Current when motor is idle. Leave empty to use run_current.\n"
+            "Typical: 50-70% of run_current (reduces heat).",
+            default=str(current_hold) if current_hold else "",
+            title="Extruder Motor - Hold Current"
+        )
+        if hold_current is None:
+            return
+        extruder_hold_current = None
+        if hold_current.strip():
+            try:
+                extruder_hold_current = float(hold_current)
+            except ValueError:
+                pass
 
         # Nozzle and filament
         nozzle_diameter = self.ui.radiolist(
@@ -5080,6 +5172,12 @@ class GschpooziWizard:
         self.state.set("extruder.dir_pin_inverted", dir_pin_inverted)
         self.state.set("extruder.microsteps", int(microsteps or 16))
         self.state.set("extruder.full_steps_per_rotation", int(full_steps or 200))
+        self.state.set("extruder.driver_type", driver_type)
+        self.state.set("extruder.run_current", extruder_run_current)
+        if extruder_hold_current is not None:
+            self.state.set("extruder.hold_current", extruder_hold_current)
+        else:
+            self.state.delete("extruder.hold_current")
         self.state.set("extruder.nozzle_diameter", float(nozzle_diameter or 0.4))
         self.state.set("extruder.filament_diameter", float(filament_diameter or 1.75))
         self.state.set("extruder.heater_location", heater_location)
