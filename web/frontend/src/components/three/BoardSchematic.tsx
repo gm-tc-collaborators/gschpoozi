@@ -258,7 +258,7 @@ export function BoardSchematic({ position, boardData, onPortClick, scale = 1 }: 
     <group position={position}>
       {/* Board backing */}
       <mesh ref={meshRef}>
-        <boxGeometry args={[0.28 * scale, 0.22 * scale, 0.01]} />
+        <boxGeometry args={[0.32 * scale, 0.26 * scale, 0.01]} />
         <meshStandardMaterial color="#0c1222" metalness={0.1} roughness={0.8} />
       </mesh>
 
@@ -266,10 +266,9 @@ export function BoardSchematic({ position, boardData, onPortClick, scale = 1 }: 
       <Html
         center
         transform
-        occlude
-        distanceFactor={1.5}
+        distanceFactor={1.2}
         style={{
-          width: `${260 * scale}px`,
+          width: `${280 * scale}px`,
           pointerEvents: 'auto',
         }}
       >
