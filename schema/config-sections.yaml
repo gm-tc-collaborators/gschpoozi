@@ -73,9 +73,6 @@ stepper_x:
     endstop_pin: {{ pins.stepper_x.endstop }}
     {% endif %}
     position_endstop: {{ stepper_x.position_endstop }}
-    # Klipper requires position_endstop to be between position_min and position_max.
-    # When position_min is missing, only default it to position_endstop if the endstop is negative
-    # (common for wipe zones). Otherwise default to 0 to avoid unintentionally shrinking travel.
     {% if stepper_x.position_min is defined %}
     position_min: {{ stepper_x.position_min }}
     {% else %}
@@ -84,11 +81,10 @@ stepper_x:
     {% endif %}
     position_max: {{ stepper_x.position_max | default(printer.bed_size_x) }}
     homing_speed: {{ stepper_x.homing_speed | default(50) }}
-    {% if stepper_x.endstop_type != 'sensorless' %}
-    # Allow explicit 0 (required for some probe/virtual-endstop homing behaviors)
-    homing_retract_dist: {{ stepper_x.homing_retract_dist if (stepper_x.homing_retract_dist is defined) else 5 }}
+    {% if stepper_x.endstop_type == 'sensorless' %}
+    homing_retract_dist: 0
     {% else %}
-    homing_retract_dist: {{ stepper_x.homing_retract_dist | default(0) }}
+    homing_retract_dist: {{ stepper_x.homing_retract_dist | default(5) }}
     {% endif %}
     {% if stepper_x.second_homing_speed %}
     second_homing_speed: {{ stepper_x.second_homing_speed }}
@@ -109,9 +105,6 @@ stepper_y:
     endstop_pin: {{ pins.stepper_y.endstop }}
     {% endif %}
     position_endstop: {{ stepper_y.position_endstop }}
-    # Klipper requires position_endstop to be between position_min and position_max.
-    # When position_min is missing, only default it to position_endstop if the endstop is negative
-    # (common for wipe zones). Otherwise default to 0 to avoid unintentionally shrinking travel.
     {% if stepper_y.position_min is defined %}
     position_min: {{ stepper_y.position_min }}
     {% else %}
@@ -120,11 +113,10 @@ stepper_y:
     {% endif %}
     position_max: {{ stepper_y.position_max | default(printer.bed_size_y) }}
     homing_speed: {{ stepper_y.homing_speed | default(50) }}
-    {% if stepper_y.endstop_type != 'sensorless' %}
-    # Allow explicit 0 (required for some probe/virtual-endstop homing behaviors)
-    homing_retract_dist: {{ stepper_y.homing_retract_dist if (stepper_y.homing_retract_dist is defined) else 5 }}
+    {% if stepper_y.endstop_type == 'sensorless' %}
+    homing_retract_dist: 0
     {% else %}
-    homing_retract_dist: {{ stepper_y.homing_retract_dist | default(0) }}
+    homing_retract_dist: {{ stepper_y.homing_retract_dist | default(5) }}
     {% endif %}
 
 stepper_z:
