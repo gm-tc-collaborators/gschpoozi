@@ -838,7 +838,6 @@ function SceneContent({ modelType }: { modelType: string }) {
 
 export function PrinterScene({ modelType }: PrinterSceneProps) {
   const setActivePanel = useWizardStore((state) => state.setActivePanel);
-  const activePanel = useWizardStore((state) => state.activePanel);
   
   // Close panel when clicking on empty space in the 3D viewer
   // But NOT when clicking on the board schematic HTML overlay
