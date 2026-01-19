@@ -78,7 +78,7 @@ export function KinematicsSelect() {
       <div className="relative z-10 flex flex-col items-center justify-center min-h-screen p-4 sm:p-8">
         {/* Logo / Title */}
         <div className="text-center mb-12">
-          <h1 className="text-5xl sm:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-400 to-violet-400 mb-4">
+          <h1 className="text-5xl sm:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-400 to-violet-400 mb-4 leading-tight pb-1">
             gschpoozi
           </h1>
           <p className="text-xl text-slate-400 font-light">
