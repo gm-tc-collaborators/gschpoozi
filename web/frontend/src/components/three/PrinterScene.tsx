@@ -837,11 +837,19 @@ function SceneContent({ modelType }: { modelType: string }) {
 }
 
 export function PrinterScene({ modelType }: PrinterSceneProps) {
+  const setActivePanel = useWizardStore((state) => state.setActivePanel);
+  
+  // Close panel when clicking on empty space in the 3D viewer
+  const handlePointerMissed = useCallback(() => {
+    setActivePanel(null);
+  }, [setActivePanel]);
+
   return (
     <Canvas
       camera={{ position: [2, 1.5, 2], fov: 50 }}
       shadows
       dpr={[1, 2]}
+      onPointerMissed={handlePointerMissed}
     >
       <SceneContent modelType={modelType} />
     </Canvas>
