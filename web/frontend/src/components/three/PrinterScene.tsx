@@ -628,9 +628,9 @@ function SceneContent({ modelType }: { modelType: string }) {
             {/* Dynamic Z Motors */}
             <ZMotors size={size} zMotorCount={zMotorCount} onClick={handleClick} />
 
-            {/* MCU Board - upright on back wall */}
+            {/* MCU Board - outside back wall */}
             <MCUBoard 
-              position={[0, size.z * 0.4, -size.y / 2 + 0.03]} 
+              position={[0, size.z * 0.4, -size.y / 2 - 0.08]} 
               boardData={boardData}
               onMcuClick={() => handleClick('mcu')} 
               onPortClick={handlePortClick}
@@ -658,9 +658,9 @@ function SceneContent({ modelType }: { modelType: string }) {
             {/* Dynamic Z Motors */}
             <ZMotors size={size} zMotorCount={zMotorCount} onClick={handleClick} />
 
-            {/* MCU Board - upright on back wall */}
+            {/* MCU Board - outside back wall */}
             <MCUBoard 
-              position={[0, size.z * 0.4, -size.y / 2 + 0.03]} 
+              position={[0, size.z * 0.4, -size.y / 2 - 0.08]} 
               boardData={boardData}
               onMcuClick={() => handleClick('mcu')} 
               onPortClick={handlePortClick}
@@ -711,9 +711,9 @@ function SceneContent({ modelType }: { modelType: string }) {
               );
             })}
 
-            {/* MCU Board - upright on back */}
+            {/* MCU Board - outside back */}
             <MCUBoard 
-              position={[0, size.z * 0.3, -0.55]} 
+              position={[0, size.z * 0.3, -0.7]} 
               boardData={boardData}
               onMcuClick={() => handleClick('mcu')} 
               onPortClick={handlePortClick}
@@ -761,9 +761,9 @@ function SceneContent({ modelType }: { modelType: string }) {
             {/* Dynamic Z Motors */}
             <ZMotors size={size} zMotorCount={zMotorCount} onClick={handleClick} />
 
-            {/* MCU Board - upright on back wall */}
+            {/* MCU Board - outside back wall */}
             <MCUBoard 
-              position={[0, size.z * 0.4, -size.y / 2 + 0.03]} 
+              position={[0, size.z * 0.4, -size.y / 2 - 0.08]} 
               boardData={boardData}
               onMcuClick={() => handleClick('mcu')} 
               onPortClick={handlePortClick}
