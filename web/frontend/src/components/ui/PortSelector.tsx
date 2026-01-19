@@ -176,7 +176,9 @@ export function PortSelector({
 
   const handleClear = (e: React.MouseEvent) => {
     e.stopPropagation();
+    e.preventDefault();
     onChange('', undefined);
+    setIsOpen(false);
   };
 
   if (!boardData) {
@@ -233,9 +235,11 @@ export function PortSelector({
             <button
               type="button"
               onClick={handleClear}
-              className="p-1 text-slate-400 hover:text-white rounded transition-colors"
+              onMouseDown={handleClear}
+              className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-600 rounded transition-colors"
+              aria-label="Clear selection"
             >
-              <span className="text-xs">✕</span>
+              <span className="text-sm font-bold">×</span>
             </button>
           )}
           <ChevronDown
