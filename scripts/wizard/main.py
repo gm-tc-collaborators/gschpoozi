@@ -3588,6 +3588,86 @@ class GschpooziWizard:
                     self.state.delete(f"{state_key}.endstop_config")
                     self.state.save()
 
+                    # Sensorless homing configuration
+                    driver_protocol = self.state.get(f"{state_key}.driver_protocol", "uart")
+                    driver_type = self.state.get(f"{state_key}.driver_type", "TMC2209")
+
+                    if driver_protocol == "spi":
+                        # SPI drivers (TMC5160, etc.) use driver_SGT: range -64 to 63
+                        current_sgt = self.state.get(f"{state_key}.driver_SGT", 1)
+                        sgt_value = self.ui.inputbox(
+                            f"StallGuard threshold (driver_SGT) for {axis_upper}:\n\n"
+                            f"Driver: {driver_type} (SPI)\n"
+                            f"Range: -64 to 63\n"
+                            f"Lower = more sensitive (triggers earlier)\n"
+                            f"Higher = less sensitive (needs more resistance)\n\n"
+                            f"Typical starting values: 0 to 3\n"
+                            f"Tune by running FIND_SGT_{axis_upper} macro after config generation.",
+                            default=str(current_sgt),
+                            title=f"Stepper {axis_upper} - Sensorless Threshold",
+                            height=18,
+                            width=70,
+                        )
+                        if sgt_value is not None:
+                            try:
+                                val = int(sgt_value)
+                                val = max(-64, min(63, val))  # Clamp to valid range
+                                self.state.set(f"{state_key}.driver_SGT", val)
+                            except ValueError:
+                                pass
+                    else:
+                        # UART drivers (TMC2209, etc.) use driver_SGTHRS: range 0 to 255
+                        current_sgthrs = self.state.get(f"{state_key}.driver_SGTHRS", 70)
+                        sgthrs_value = self.ui.inputbox(
+                            f"StallGuard threshold (driver_SGTHRS) for {axis_upper}:\n\n"
+                            f"Driver: {driver_type} (UART)\n"
+                            f"Range: 0 to 255\n"
+                            f"Higher = more sensitive (triggers earlier)\n"
+                            f"Lower = less sensitive (needs more resistance)\n\n"
+                            f"Typical starting values: 50 to 100\n"
+                            f"Tune by running FIND_SGTHRS_{axis_upper} macro after config generation.",
+                            default=str(current_sgthrs),
+                            title=f"Stepper {axis_upper} - Sensorless Threshold",
+                            height=18,
+                            width=70,
+                        )
+                        if sgthrs_value is not None:
+                            try:
+                                val = int(sgthrs_value)
+                                val = max(0, min(255, val))  # Clamp to valid range
+                                self.state.set(f"{state_key}.driver_SGTHRS", val)
+                            except ValueError:
+                                pass
+
+                    # Homing current (optional - reduced current for gentler homing)
+                    run_current = self.state.get(f"{state_key}.run_current", 1.0)
+                    current_homing_current = self.state.get(f"{state_key}.homing_current")
+                    default_homing = str(current_homing_current) if current_homing_current else ""
+
+                    homing_current = self.ui.inputbox(
+                        f"Homing current for {axis_upper} (optional):\n\n"
+                        f"Run current: {run_current}A\n\n"
+                        f"Leave empty to use run_current for homing.\n"
+                        f"Set lower (e.g., 0.5-0.7) for gentler sensorless homing.\n"
+                        f"This reduces motor torque during homing to improve StallGuard sensitivity.\n\n"
+                        f"Typical: 50-70% of run_current",
+                        default=default_homing,
+                        title=f"Stepper {axis_upper} - Homing Current",
+                        height=16,
+                        width=70,
+                    )
+                    if homing_current is not None:
+                        homing_current = homing_current.strip()
+                        if homing_current:
+                            try:
+                                self.state.set(f"{state_key}.homing_current", float(homing_current))
+                            except ValueError:
+                                pass
+                        else:
+                            self.state.delete(f"{state_key}.homing_current")
+
+                    self.state.save()
+
                 bed_size = self.state.get(f"printer.bed_size_{axis}", 350)
                 current_position_max = self.state.get(f"{state_key}.position_max", bed_size)
                 position_max = self._inputbox_debug(
@@ -4044,6 +4124,86 @@ class GschpooziWizard:
                 self.state.delete(f"{state_key}.endstop_pullup")
                 self.state.delete(f"{state_key}.endstop_invert")
                 self.state.delete(f"{state_key}.endstop_config")
+                self.state.save()
+
+                # Sensorless homing configuration
+                driver_protocol = self.state.get(f"{state_key}.driver_protocol", "uart")
+                driver_type = self.state.get(f"{state_key}.driver_type", "TMC2209")
+
+                if driver_protocol == "spi":
+                    # SPI drivers (TMC5160, etc.) use driver_SGT: range -64 to 63
+                    current_sgt = self.state.get(f"{state_key}.driver_SGT", 1)
+                    sgt_value = self.ui.inputbox(
+                        f"StallGuard threshold (driver_SGT) for {axis_upper}:\n\n"
+                        f"Driver: {driver_type} (SPI)\n"
+                        f"Range: -64 to 63\n"
+                        f"Lower = more sensitive (triggers earlier)\n"
+                        f"Higher = less sensitive (needs more resistance)\n\n"
+                        f"Typical starting values: 0 to 3\n"
+                        f"Tune by running FIND_SGT_{axis_upper} macro after config generation.",
+                        default=str(current_sgt),
+                        title=f"Stepper {axis_upper} - Sensorless Threshold",
+                        height=18,
+                        width=70,
+                    )
+                    if sgt_value is not None:
+                        try:
+                            val = int(sgt_value)
+                            val = max(-64, min(63, val))  # Clamp to valid range
+                            self.state.set(f"{state_key}.driver_SGT", val)
+                        except ValueError:
+                            pass
+                else:
+                    # UART drivers (TMC2209, etc.) use driver_SGTHRS: range 0 to 255
+                    current_sgthrs = self.state.get(f"{state_key}.driver_SGTHRS", 70)
+                    sgthrs_value = self.ui.inputbox(
+                        f"StallGuard threshold (driver_SGTHRS) for {axis_upper}:\n\n"
+                        f"Driver: {driver_type} (UART)\n"
+                        f"Range: 0 to 255\n"
+                        f"Higher = more sensitive (triggers earlier)\n"
+                        f"Lower = less sensitive (needs more resistance)\n\n"
+                        f"Typical starting values: 50 to 100\n"
+                        f"Tune by running FIND_SGTHRS_{axis_upper} macro after config generation.",
+                        default=str(current_sgthrs),
+                        title=f"Stepper {axis_upper} - Sensorless Threshold",
+                        height=18,
+                        width=70,
+                    )
+                    if sgthrs_value is not None:
+                        try:
+                            val = int(sgthrs_value)
+                            val = max(0, min(255, val))  # Clamp to valid range
+                            self.state.set(f"{state_key}.driver_SGTHRS", val)
+                        except ValueError:
+                            pass
+
+                # Homing current (optional - reduced current for gentler homing)
+                run_current = self.state.get(f"{state_key}.run_current", 1.0)
+                current_homing_current = self.state.get(f"{state_key}.homing_current")
+                default_homing = str(current_homing_current) if current_homing_current else ""
+
+                homing_current = self.ui.inputbox(
+                    f"Homing current for {axis_upper} (optional):\n\n"
+                    f"Run current: {run_current}A\n\n"
+                    f"Leave empty to use run_current for homing.\n"
+                    f"Set lower (e.g., 0.5-0.7) for gentler sensorless homing.\n"
+                    f"This reduces motor torque during homing to improve StallGuard sensitivity.\n\n"
+                    f"Typical: 50-70% of run_current",
+                    default=default_homing,
+                    title=f"Stepper {axis_upper} - Homing Current",
+                    height=16,
+                    width=70,
+                )
+                if homing_current is not None:
+                    homing_current = homing_current.strip()
+                    if homing_current:
+                        try:
+                            self.state.set(f"{state_key}.homing_current", float(homing_current))
+                        except ValueError:
+                            pass
+                    else:
+                        self.state.delete(f"{state_key}.homing_current")
+
                 self.state.save()
 
             bed_size = self.state.get(f"printer.bed_size_{axis}", 350)

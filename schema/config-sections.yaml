@@ -234,6 +234,9 @@ tmc_stepper_x:
     uart_pin: {{ pins.stepper_x.uart }}
     {% endif %}
     run_current: {{ stepper_x.run_current }}
+    {% if stepper_x.homing_current %}
+    homing_current: {{ stepper_x.homing_current }}
+    {% endif %}
     interpolate: {{ stepper_x.interpolate | default(false) | lower }}
     {% if stepper_x.driver_protocol == 'spi' %}
     sense_resistor: {{ stepper_x.sense_resistor | default(0.075) }}
@@ -267,6 +270,9 @@ tmc_stepper_y:
     uart_pin: {{ pins.stepper_y.uart }}
     {% endif %}
     run_current: {{ stepper_y.run_current }}
+    {% if stepper_y.homing_current %}
+    homing_current: {{ stepper_y.homing_current }}
+    {% endif %}
     interpolate: {{ stepper_y.interpolate | default(false) | lower }}
     {% if stepper_y.driver_protocol == 'spi' %}
     sense_resistor: {{ stepper_y.sense_resistor | default(0.075) }}
