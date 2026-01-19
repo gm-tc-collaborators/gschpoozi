@@ -486,8 +486,12 @@ extruder:
     step_pin: {{ pins.extruder.step }}
     dir_pin: {{ pins.extruder.dir }}
     enable_pin: {{ pins.extruder.enable }}
-    rotation_distance: {{ extruder_presets[extruder.extruder_type].rotation_distance }}
+    rotation_distance: {{ extruder.rotation_distance | default(extruder_presets[extruder.extruder_type].rotation_distance) }}
+    {% if extruder.gear_ratio %}
+    gear_ratio: {{ extruder.gear_ratio }}
+    {% elif extruder_presets[extruder.extruder_type].gear_ratio %}
     gear_ratio: {{ extruder_presets[extruder.extruder_type].gear_ratio }}
+    {% endif %}
     microsteps: {{ extruder.microsteps | default(16) }}
     full_steps_per_rotation: {{ extruder.full_steps_per_rotation | default(200) }}
     nozzle_diameter: {{ extruder.nozzle_diameter | default(0.4) }}

@@ -4887,6 +4887,44 @@ class GschpooziWizard:
         if extruder_type is None:
             return
 
+        # Custom extruder settings (rotation_distance and gear_ratio)
+        custom_rotation_distance = None
+        custom_gear_ratio = None
+        if extruder_type == "custom":
+            current_rotation = self.state.get("extruder.rotation_distance", 22.6789511)
+            rotation_dist = self.ui.inputbox(
+                "Rotation distance (mm):\n\n"
+                "Distance filament moves per full motor rotation.\n"
+                "Common values:\n"
+                "• 22.67 (hobbed gear, no reduction)\n"
+                "• 4.637 (Orbiter style planetary)\n"
+                "• 8 (LGX style)",
+                default=str(current_rotation),
+                title="Custom Extruder - Rotation Distance"
+            )
+            if rotation_dist is None:
+                return
+            try:
+                custom_rotation_distance = float(rotation_dist)
+            except ValueError:
+                custom_rotation_distance = 22.6789511
+
+            current_gear = self.state.get("extruder.gear_ratio", "")
+            gear_ratio = self.ui.inputbox(
+                "Gear ratio (leave empty if none):\n\n"
+                "Format: driven:driver (e.g., 50:10)\n"
+                "Leave EMPTY for extruders without gear reduction.\n\n"
+                "Common values:\n"
+                "• 50:10 (Sherpa, CW2, Hextrudort)\n"
+                "• 7.5:1 (Orbiter)\n"
+                "• Empty = no reduction",
+                default=str(current_gear) if current_gear else "",
+                title="Custom Extruder - Gear Ratio"
+            )
+            if gear_ratio is None:
+                return
+            custom_gear_ratio = gear_ratio.strip() if gear_ratio else None
+
         # === 2.6.3: Extruder Config ===
         # Motor configuration
         dir_pin_inverted = self.ui.yesno(
@@ -5234,6 +5272,15 @@ class GschpooziWizard:
         # Save all settings with correct state keys (extruder.* for everything)
         # State keys must match config-sections.yaml template expectations
         self.state.set("extruder.extruder_type", extruder_type)
+        # Custom extruder settings (only for custom type)
+        if custom_rotation_distance is not None:
+            self.state.set("extruder.rotation_distance", custom_rotation_distance)
+        else:
+            self.state.delete("extruder.rotation_distance")
+        if custom_gear_ratio:
+            self.state.set("extruder.gear_ratio", custom_gear_ratio)
+        else:
+            self.state.delete("extruder.gear_ratio")
         self.state.set("extruder.location", motor_location)
         # Save motor port to specific key based on location (template expects motor_port_mainboard or motor_port_toolboard)
         if motor_location == "toolboard":

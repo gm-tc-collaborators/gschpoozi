@@ -800,7 +800,7 @@ class ConfigGenerator:
             },
             'custom': {
                 'rotation_distance': 22.6789511,
-                'gear_ratio': '50:10',
+                'gear_ratio': None,  # No gear ratio by default for custom
                 'default_pa': 0.04,
             },
         }
