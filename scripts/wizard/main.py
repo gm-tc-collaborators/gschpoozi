@@ -8622,6 +8622,100 @@ read -r _
 
         self.state.save()
 
+    def _configure_chopper_tuning(self) -> None:
+        """Configure TMC chopper tuning macros."""
+        # Check if gcode_shell_command is installed
+        def _check_gcode_shell_command() -> bool:
+            extras_file = Path.home() / "klipper" / "klippy" / "extras" / "gcode_shell_command.py"
+            return extras_file.exists()
+
+        def _install_gcode_shell_command() -> bool:
+            """Install gcode_shell_command extension."""
+            target_dir = Path.home() / "klipper" / "klippy" / "extras"
+            target_file = target_dir / "gcode_shell_command.py"
+            source_file = REPO_ROOT / "scripts" / "tools" / "gcode_shell_command.py"
+
+            if not target_dir.exists():
+                self.ui.msgbox(
+                    "Klipper extras directory not found.\n\n"
+                    "Install Klipper first.",
+                    title="Cannot Install"
+                )
+                return False
+
+            try:
+                # Remove old file if exists
+                if target_file.exists():
+                    target_file.unlink()
+
+                # Copy from repo or download
+                if source_file.exists():
+                    import shutil
+                    shutil.copy2(source_file, target_file)
+                else:
+                    # Download from KIAUH
+                    import urllib.request
+                    url = "https://raw.githubusercontent.com/dw-0/kiauh/master/resources/gcode_shell_command.py"
+                    urllib.request.urlretrieve(url, target_file)
+
+                return True
+            except Exception as e:
+                self.ui.msgbox(f"Installation failed:\n\n{e}", title="Error")
+                return False
+
+        enabled = self.ui.yesno(
+            "Enable Chopper Tuning?\n\n"
+            "This adds macros for TMC driver chopper optimization:\n"
+            "- TMC_CHOPPER_TUNE - Auto-tune chopper settings\n"
+            "- CHOPPER_ANALYZE - Analyze tuning results\n\n"
+            "Requires gcode_shell_command extension (will install if needed).\n\n"
+            "Best for advanced users who want to optimize motor noise/performance.",
+            title="Chopper Tuning",
+            default_no=not bool(self.state.get("tuning.chopper_tuning_enabled", False)),
+            height=18,
+            width=88,
+        )
+        if enabled is None:
+            return
+
+        if enabled:
+            # Check and install gcode_shell_command if needed
+            if not _check_gcode_shell_command():
+                install = self.ui.yesno(
+                    "gcode_shell_command extension not found.\n\n"
+                    "This is required for chopper tuning.\n\n"
+                    "Install it now?",
+                    title="Install Extension",
+                    default_no=False,
+                )
+                if install:
+                    self.ui.infobox("Installing gcode_shell_command...", title="Installing")
+                    if _install_gcode_shell_command():
+                        restart = self.ui.yesno(
+                            "Extension installed!\n\n"
+                            "Restart Klipper to load it?",
+                            title="Restart Klipper",
+                            default_no=False,
+                        )
+                        if restart:
+                            import subprocess
+                            subprocess.run(["sudo", "systemctl", "restart", "klipper"], capture_output=True)
+                            self.ui.msgbox("Klipper restarted.", title="Done")
+                    else:
+                        self.ui.msgbox("Installation failed. Chopper tuning not enabled.", title="Error")
+                        return
+                else:
+                    self.ui.msgbox("Chopper tuning requires gcode_shell_command.\n\nNot enabled.", title="Cancelled")
+                    return
+
+            self.state.set("tuning.chopper_tuning_enabled", True)
+            self.ui.msgbox("Chopper tuning enabled!\n\nRegenerate config to add the macros.", title="Saved")
+        else:
+            self.state.set("tuning.chopper_tuning_enabled", False)
+            self.ui.msgbox("Chopper tuning disabled.", title="Saved")
+
+        self.state.save()
+
     def _configure_accelerometer(self) -> None:
         """Configure accelerometer for input shaper calibration."""
         # Check for gcode_shell_command extension (required for shaper graph commands)
@@ -10150,6 +10244,13 @@ read -r _
             else:
                 arc_menu_label = "Arc Support         (G2/G3 commands)"
 
+            # Check Chopper Tuning status
+            chopper_enabled = self.state.get("tuning.chopper_tuning_enabled", False)
+            if chopper_enabled:
+                chopper_menu_label = self._format_menu_item("Chopper Tuning", "Enabled")
+            else:
+                chopper_menu_label = "Chopper Tuning       (TMC driver optimization)"
+
             choice = self.ui.menu(
                 "Tuning & Optimization\n\n"
                 "Configure advanced features and calibration.",
@@ -10157,6 +10258,7 @@ read -r _
                     ("3.1", tmc_menu_label),
                     ("3.2", input_shaper_menu_label),
                     ("3.3", accel_menu_label),
+                    ("3.4", chopper_menu_label),
                     ("3.6", macros_menu_label),
                     ("3.9", exclude_menu_label),
                     ("3.10", arc_menu_label),
@@ -10173,6 +10275,8 @@ read -r _
                 self._configure_input_shaper()
             elif choice == "3.3":
                 self._configure_accelerometer()
+            elif choice == "3.4":
+                self._configure_chopper_tuning()
             elif choice == "3.6":
                 self._configure_macros()
             elif choice == "3.10":
