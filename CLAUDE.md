@@ -6,19 +6,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **gschpoozi** is a wizard-based Klipper configuration generator for 3D printers. It generates clean, modular config files without requiring manual editing - a simpler alternative to Klippain.
 
-**Stack:** Bash (main wizard), Python (hardware setup/config generation), JSON (templates), Klipper INI-style configs
+**Stack:** Python (wizard + config generation), Bash (bootstrap), JSON (templates), Klipper INI-style configs
 
 ## Key Commands
 
 ```bash
-# Run the interactive wizard
-~/gschpoozi/scripts/configure.sh
+# Run the interactive CLI wizard
+~/gschpoozi/scripts/configure.sh [--dark]
 
-# Hardware port assignment
-~/gschpoozi/scripts/setup-hardware.py [--board|--toolboard|--list-boards]
-
-# Generate config files
-~/gschpoozi/scripts/generate-config.py --output-dir ~/printer_data/config/gschpoozi
+# Run the web wizard (for development)
+cd ~/gschpoozi/web && docker compose up
 
 # Validation (run before commits affecting .cfg files)
 bash .cursor/scripts/validate-config.sh path/to/config.cfg
@@ -36,20 +33,28 @@ python3 -m pytest tests/           # Run full test suite
 ## Architecture
 
 ```
-User → [configure.sh] → [setup-hardware.py] → [generate-config.py] → Output configs
-           ↓                    ↓                      ↓
-    .wizard-state      .hardware-state.json      templates/*.json
+User → [configure.sh] → [scripts/wizard/main.py] → [scripts/generator/] → Output configs
+           ↓                      ↓                        ↓
+    Dependency check     .gschpoozi_state.json       templates/*.json
+                         (repo root)
 ```
 
 - **configure.sh** - Bootstrap script that checks dependencies and launches Python wizard
-- **setup-hardware.py** - Port/pin assignment with conflict detection
-- **generate-config.py** - Merges templates to produce Klipper configs
+- **scripts/wizard/** - Interactive CLI wizard (whiptail-based UI)
+  - `main.py` - Entry point, `GschpooziWizard` class
+  - `ui.py` - Whiptail-based terminal UI
+  - `state.py` - Persistent wizard state management (saves to repo root)
+  - `pins.py` - Pin conflict detection and capability filtering
+- **scripts/generator/** - Config generation (ConfigGenerator, TemplateRenderer classes)
+  - `generator.py` - Main config file generator
+  - `templates.py` - Template loading and rendering
+- **web/** - Web-based wizard (React frontend + FastAPI backend)
+  - State transfers between web and CLI via `.gschpoozi_state.json`
 - **templates/** - JSON definitions for boards (28), toolboards (17), probes (9), extruders, kinematics
 - **schema/config-sections.yaml** - Jinja2 template library for all Klipper config sections
 
-**State files:**
-- `.wizard-state` - Key=value text file with user selections (tracked in git)
-- `.hardware-state.json` - JSON pin mappings (machine-specific, not tracked)
+**State file:**
+- `.gschpoozi_state.json` - Wizard state in repo root (shared by CLI and web wizards)
 
 **Output structure:**
 ```
@@ -65,20 +70,6 @@ User → [configure.sh] → [setup-hardware.py] → [generate-config.py] → Out
     ├── calibration.cfg   # Calibration macros
     └── tuning.cfg        # Optional features (input_shaper, etc.)
 ```
-
-**Python modules:**
-- `scripts/wizard/` - Interactive UI (WizardUI, WizardState, PinManager classes)
-  - `main.py` - Entry point, `GschpooziWizard` class
-  - `ui.py` - Whiptail-based terminal UI
-  - `state.py` - Persistent wizard state management
-  - `pins.py` - Pin conflict detection and capability filtering
-- `scripts/generator/` - Config generation (ConfigGenerator, TemplateRenderer classes)
-  - `generator.py` - Main config file generator
-  - `templates.py` - Template loading and rendering
-
-**Template system:**
-- `schema/config-sections.yaml` - Jinja2 templates for all Klipper config sections
-- Template variables come from wizard state and are rendered with Jinja2
 
 ## Critical Klipper Syntax Rules
 

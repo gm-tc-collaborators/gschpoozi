@@ -41,9 +41,9 @@ The wizard is now almost fully functional and ready for real-world testing!
 ## ✅ Completed Features
 
 ### Core Framework
-- [x] Interactive configuration wizard (`scripts/configure.sh`)
-- [x] Hardware setup Python script (`scripts/setup-hardware.py`)
-- [x] Config generator (`scripts/generate-config.py`)
+- [x] Interactive configuration wizard (`scripts/configure.sh` + `scripts/wizard/`)
+- [x] Config generator (`scripts/generator/`)
+- [x] Web wizard (`web/` - React + FastAPI)
 - [x] Klippain board importer (`scripts/import-klippain-boards.py`)
 - [x] Moonraker update manager integration
 
@@ -236,10 +236,15 @@ The wizard is now almost fully functional and ready for real-world testing!
 ```
 gschpoozi/
 ├── scripts/
-│   ├── configure.sh           # Main wizard
-│   ├── setup-hardware.py      # Port assignment
-│   ├── generate-config.py     # Config generator
-│   └── import-klippain-boards.py
+│   ├── configure.sh           # Bootstrap, launches Python wizard
+│   ├── wizard/                # CLI wizard (Python/whiptail)
+│   │   ├── main.py            # Entry point
+│   │   ├── ui.py              # Whiptail UI
+│   │   ├── state.py           # State management
+│   │   └── pins.py            # Pin conflict detection
+│   ├── generator/             # Config generation
+│   │   └── generator.py       # Template rendering
+│   └── tools/                 # Utility scripts
 ├── templates/
 │   ├── boards/                # 27 main boards
 │   ├── toolboards/            # 17 toolhead boards

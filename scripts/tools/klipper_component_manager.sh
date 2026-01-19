@@ -125,8 +125,10 @@ confirm() {
 }
 
 # Read Klipper variant from state file
-# State file is at ~/printer_data/config/.gschpoozi_state.json
-STATE_FILE="${HOME}/printer_data/config/.gschpoozi_state.json"
+# State file is in repo root (same location as wizard uses)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+STATE_FILE="${REPO_ROOT}/.gschpoozi_state.json"
 KLIPPER_VARIANT="standard"  # Default
 
 if [[ -f "${STATE_FILE}" ]]; then
