@@ -351,9 +351,20 @@ function MCUBoard({
   onMcuClick: () => void;
   onPortClick: (portType: string, portId: string, portData: any) => void;
 }) {
-  // Always show the board schematic if board data is available
-  // This keeps the board visible as context while configuring
-  if (boardData) {
+  const activePanel = useWizardStore((state) => state.activePanel);
+  
+  // Only show expanded board schematic when in a port-assignment panel
+  const shouldShowExpandedBoard = activePanel && (
+    activePanel.startsWith('stepper_') ||
+    activePanel === 'fans' ||
+    activePanel === 'heater_bed' ||
+    activePanel === 'hotend' ||
+    activePanel === 'probe' ||
+    activePanel === 'extruder'
+  );
+
+  // Show expanded board schematic when in relevant panel AND board is selected
+  if (shouldShowExpandedBoard && boardData) {
     return (
       <BoardSchematic
         position={position}
@@ -364,7 +375,7 @@ function MCUBoard({
     );
   }
 
-  // Show simple MCU representation when no board is selected
+  // Show simple MCU representation otherwise
   return (
     <group position={position}>
       {/* Board - upright against back wall */}
@@ -396,10 +407,10 @@ function MCUBoard({
         </mesh>
       ))}
       
-      {/* Prompt to select board */}
+      {/* Board name or prompt */}
       <Html position={[0, 0.08, 0.02]} center distanceFactor={4}>
-        <div className="text-[8px] text-slate-400 bg-slate-900/80 px-1 rounded whitespace-nowrap">
-          Select a mainboard
+        <div className="text-[8px] text-cyan-400 bg-slate-900/80 px-1 rounded whitespace-nowrap">
+          {boardData ? boardData.name : 'Select a mainboard'}
         </div>
       </Html>
     </group>
