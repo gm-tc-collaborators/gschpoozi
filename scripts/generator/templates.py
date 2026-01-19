@@ -270,6 +270,7 @@ class TemplateRenderer:
             ('cartographer', None),
             ('btt_eddy', None),
             # Homing and leveling
+            ('sensorless_homing_override', None),
             ('safe_z_home', None),
             ('bed_mesh', None),
             ('z_tilt', None),
