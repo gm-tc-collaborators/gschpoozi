@@ -67,7 +67,11 @@ stepper_x:
     rotation_distance: {{ stepper_x.belt_pitch * stepper_x.pulley_teeth }}
     microsteps: {{ stepper_x.microsteps | default(16) }}
     full_steps_per_rotation: {{ stepper_x.full_steps_per_rotation | default(200) }}
+    {% if stepper_x.endstop_type == 'sensorless' %}
+    endstop_pin: {{ stepper_x.driver_type | lower }}_stepper_x:virtual_endstop
+    {% else %}
     endstop_pin: {{ pins.stepper_x.endstop }}
+    {% endif %}
     position_endstop: {{ stepper_x.position_endstop }}
     # Klipper requires position_endstop to be between position_min and position_max.
     # When position_min is missing, only default it to position_endstop if the endstop is negative
@@ -99,7 +103,11 @@ stepper_y:
     rotation_distance: {{ stepper_y.belt_pitch * stepper_y.pulley_teeth }}
     microsteps: {{ stepper_y.microsteps | default(16) }}
     full_steps_per_rotation: {{ stepper_y.full_steps_per_rotation | default(200) }}
+    {% if stepper_y.endstop_type == 'sensorless' %}
+    endstop_pin: {{ stepper_y.driver_type | lower }}_stepper_y:virtual_endstop
+    {% else %}
     endstop_pin: {{ pins.stepper_y.endstop }}
+    {% endif %}
     position_endstop: {{ stepper_y.position_endstop }}
     # Klipper requires position_endstop to be between position_min and position_max.
     # When position_min is missing, only default it to position_endstop if the endstop is negative
@@ -248,7 +256,11 @@ tmc_stepper_x:
     {% endif %}
     {% if stepper_x.endstop_type == 'sensorless' %}
     diag_pin: {{ pins.stepper_x.diag }}
+    {% if stepper_x.driver_protocol == 'spi' %}
+    driver_SGT: {{ stepper_x.driver_SGT | default(1) }}
+    {% else %}
     driver_SGTHRS: {{ stepper_x.driver_SGTHRS | default(70) }}
+    {% endif %}
     {% endif %}
 
 tmc_stepper_y:
@@ -277,7 +289,11 @@ tmc_stepper_y:
     {% endif %}
     {% if stepper_y.endstop_type == 'sensorless' %}
     diag_pin: {{ pins.stepper_y.diag }}
+    {% if stepper_y.driver_protocol == 'spi' %}
+    driver_SGT: {{ stepper_y.driver_SGT | default(1) }}
+    {% else %}
     driver_SGTHRS: {{ stepper_y.driver_SGTHRS | default(70) }}
+    {% endif %}
     {% endif %}
 
 tmc_stepper_z:
@@ -567,7 +583,7 @@ probe:
     pin: {{ pins.probe.pin }}
     x_offset: {{ probe.x_offset | default(0) }}
     y_offset: {{ probe.y_offset | default(0) }}
-    z_offset: 0  # Calibrate with PROBE_CALIBRATE, stored in SAVE_CONFIG
+    z_offset: {{ probe.z_offset | default(0) }}  # Fine-tune with PROBE_CALIBRATE
     speed: {{ probe.speed | default(5) }}
     samples: {{ probe.samples | default(3) }}
     sample_retract_dist: {{ probe.sample_retract_dist | default(2) }}
@@ -583,7 +599,7 @@ bltouch:
     control_pin: {{ pins.probe.control }}
     x_offset: {{ probe.x_offset | default(0) }}
     y_offset: {{ probe.y_offset | default(0) }}
-    z_offset: 0  # Calibrate with PROBE_CALIBRATE, stored in SAVE_CONFIG
+    z_offset: {{ probe.z_offset | default(0) }}  # Fine-tune with PROBE_CALIBRATE
     speed: {{ probe.speed | default(5) }}
     samples: {{ probe.samples | default(3) }}
     sample_retract_dist: {{ probe.sample_retract_dist | default(3) }}
