@@ -4014,6 +4014,32 @@ class GschpooziWizard:
             self.state.delete(f"{state_key}.hold_current")
             self.state.save()
 
+        # StealthChop threshold
+        current_stealth = self.state.get(f"{state_key}.stealthchop_threshold", "")
+        stealthchop = self.ui.inputbox(
+            f"StealthChop threshold for {axis_upper} (mm/s):\n\n"
+            "Velocity below which stealthChop (quiet) is used.\n"
+            "Above this velocity, spreadCycle (more torque) is used.\n\n"
+            "Common values:\n"
+            "• 0 = always spreadCycle (noisy, max torque)\n"
+            "• 100-200 = quiet at low speed, torque at high speed\n"
+            "• 999999 = always stealthChop (quietest)\n\n"
+            "Leave empty to disable (spreadCycle only).",
+            default=str(current_stealth) if current_stealth else "",
+            title=f"Stepper {axis_upper} - StealthChop"
+        )
+        if stealthchop is None:
+            return
+        if stealthchop.strip():
+            try:
+                self.state.set(f"{state_key}.stealthchop_threshold", int(stealthchop))
+                self.state.save()
+            except ValueError:
+                pass
+        else:
+            self.state.delete(f"{state_key}.stealthchop_threshold")
+            self.state.save()
+
         # SPI-specific settings
         sense_resistor = None
         if driver_protocol == "spi":
@@ -4585,6 +4611,29 @@ class GschpooziWizard:
             except ValueError:
                 pass
 
+        # StealthChop threshold
+        current_stealth = self.state.get("stepper_z.stealthchop_threshold", "")
+        stealthchop = self.ui.inputbox(
+            "StealthChop threshold for Z (mm/s):\n\n"
+            "Velocity below which stealthChop (quiet) is used.\n"
+            "Above this velocity, spreadCycle (more torque) is used.\n\n"
+            "Common values:\n"
+            "• 0 = always spreadCycle (noisy, max torque)\n"
+            "• 100-200 = quiet at low speed, torque at high speed\n"
+            "• 999999 = always stealthChop (quietest)\n\n"
+            "Leave empty to disable (spreadCycle only).",
+            default=str(current_stealth) if current_stealth else "",
+            title="Z Axis - StealthChop"
+        )
+        if stealthchop is None:
+            return
+        z_stealthchop = None
+        if stealthchop.strip():
+            try:
+                z_stealthchop = int(stealthchop)
+            except ValueError:
+                pass
+
         # Motor port selection for primary Z stepper
         pin_manager = self._get_pin_manager()
         current_z_port = self.state.get("stepper_z.motor_port", "")
@@ -4638,6 +4687,10 @@ class GschpooziWizard:
             self.state.set("stepper_z.hold_current", z_hold_current)
         else:
             self.state.delete("stepper_z.hold_current")
+        if z_stealthchop is not None:
+            self.state.set("stepper_z.stealthchop_threshold", z_stealthchop)
+        else:
+            self.state.delete("stepper_z.stealthchop_threshold")
         self.state.set("stepper_z.motor_port", z_motor_port)
         self.state.save()
 
@@ -4912,6 +4965,27 @@ class GschpooziWizard:
             except ValueError:
                 pass
 
+        # StealthChop threshold
+        current_stealth = self.state.get("extruder.stealthchop_threshold", "")
+        stealthchop = self.ui.inputbox(
+            "StealthChop threshold for extruder (mm/s):\n\n"
+            "Velocity below which stealthChop (quiet) is used.\n\n"
+            "Common values:\n"
+            "• 0 = always spreadCycle (noisy, max torque)\n"
+            "• 999999 = always stealthChop (quietest)\n\n"
+            "Leave empty to disable (spreadCycle only).",
+            default=str(current_stealth) if current_stealth else "",
+            title="Extruder Motor - StealthChop"
+        )
+        if stealthchop is None:
+            return
+        extruder_stealthchop = None
+        if stealthchop.strip():
+            try:
+                extruder_stealthchop = int(stealthchop)
+            except ValueError:
+                pass
+
         # Nozzle and filament
         nozzle_diameter = self.ui.radiolist(
             "Nozzle diameter (mm):",
@@ -5178,6 +5252,10 @@ class GschpooziWizard:
             self.state.set("extruder.hold_current", extruder_hold_current)
         else:
             self.state.delete("extruder.hold_current")
+        if extruder_stealthchop is not None:
+            self.state.set("extruder.stealthchop_threshold", extruder_stealthchop)
+        else:
+            self.state.delete("extruder.stealthchop_threshold")
         self.state.set("extruder.nozzle_diameter", float(nozzle_diameter or 0.4))
         self.state.set("extruder.filament_diameter", float(filament_diameter or 1.75))
         self.state.set("extruder.heater_location", heater_location)

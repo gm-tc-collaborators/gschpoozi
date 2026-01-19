@@ -257,6 +257,9 @@ tmc_stepper_x:
     driver_SGTHRS: {{ stepper_x.driver_SGTHRS | default(70) }}
     {% endif %}
     {% endif %}
+    {% if stepper_x.stealthchop_threshold is defined %}
+    stealthchop_threshold: {{ stepper_x.stealthchop_threshold }}
+    {% endif %}
 
 tmc_stepper_y:
   template: |
@@ -293,6 +296,9 @@ tmc_stepper_y:
     driver_SGTHRS: {{ stepper_y.driver_SGTHRS | default(70) }}
     {% endif %}
     {% endif %}
+    {% if stepper_y.stealthchop_threshold is defined %}
+    stealthchop_threshold: {{ stepper_y.stealthchop_threshold }}
+    {% endif %}
 
 tmc_stepper_z:
   template: |
@@ -316,6 +322,9 @@ tmc_stepper_z:
     driver_toff: {{ stepper_z.driver_toff | default(3) }}
     driver_diss2g: {{ stepper_z.driver_diss2g | default(1) }}
     driver_diss2vs: {{ stepper_z.driver_diss2vs | default(1) }}
+    {% endif %}
+    {% if stepper_z.stealthchop_threshold is defined %}
+    stealthchop_threshold: {{ stepper_z.stealthchop_threshold }}
     {% endif %}
 
 # Multi-Z TMC Drivers
@@ -343,6 +352,9 @@ tmc_stepper_z1:
     driver_diss2g: {{ stepper_z.driver_diss2g | default(1) }}
     driver_diss2vs: {{ stepper_z.driver_diss2vs | default(1) }}
     {% endif %}
+    {% if stepper_z.stealthchop_threshold is defined %}
+    stealthchop_threshold: {{ stepper_z.stealthchop_threshold }}
+    {% endif %}
 
 tmc_stepper_z2:
   condition: "stepper_z.z_motor_count >= 3"
@@ -368,6 +380,9 @@ tmc_stepper_z2:
     driver_diss2g: {{ stepper_z.driver_diss2g | default(1) }}
     driver_diss2vs: {{ stepper_z.driver_diss2vs | default(1) }}
     {% endif %}
+    {% if stepper_z.stealthchop_threshold is defined %}
+    stealthchop_threshold: {{ stepper_z.stealthchop_threshold }}
+    {% endif %}
 
 tmc_stepper_z3:
   condition: "stepper_z.z_motor_count >= 4"
@@ -392,6 +407,9 @@ tmc_stepper_z3:
     driver_toff: {{ stepper_z.driver_toff | default(3) }}
     driver_diss2g: {{ stepper_z.driver_diss2g | default(1) }}
     driver_diss2vs: {{ stepper_z.driver_diss2vs | default(1) }}
+    {% endif %}
+    {% if stepper_z.stealthchop_threshold is defined %}
+    stealthchop_threshold: {{ stepper_z.stealthchop_threshold }}
     {% endif %}
 
 # AWD TMC Drivers
@@ -423,6 +441,9 @@ tmc_stepper_x1:
     driver_diss2g: {{ stepper_x1.driver_diss2g | default(1) }}
     driver_diss2vs: {{ stepper_x1.driver_diss2vs | default(1) }}
     {% endif %}
+    {% if stepper_x1.stealthchop_threshold is defined %}
+    stealthchop_threshold: {{ stepper_x1.stealthchop_threshold }}
+    {% endif %}
 
 tmc_stepper_y1:
   condition: "printer.awd_enabled"
@@ -451,6 +472,9 @@ tmc_stepper_y1:
     driver_toff: {{ stepper_y1.driver_toff | default(3) }}
     driver_diss2g: {{ stepper_y1.driver_diss2g | default(1) }}
     driver_diss2vs: {{ stepper_y1.driver_diss2vs | default(1) }}
+    {% endif %}
+    {% if stepper_y1.stealthchop_threshold is defined %}
+    stealthchop_threshold: {{ stepper_y1.stealthchop_threshold }}
     {% endif %}
 
 # -----------------------------------------------------------------------------
@@ -502,6 +526,9 @@ tmc_extruder:
     {% endif %}
     interpolate: {{ extruder.interpolate | default(false) | lower }}
     sense_resistor: {{ extruder.sense_resistor | default(0.110) }}
+    {% if extruder.stealthchop_threshold is defined %}
+    stealthchop_threshold: {{ extruder.stealthchop_threshold }}
+    {% endif %}
 
 # -----------------------------------------------------------------------------
 # Heater Bed
