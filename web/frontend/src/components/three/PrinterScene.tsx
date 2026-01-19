@@ -245,11 +245,6 @@ function PrintBed({
         <meshStandardMaterial color="#1f2937" metalness={0.4} roughness={0.6} />
       </mesh>
 
-      {/* Grid lines on bed surface */}
-      <lineSegments position={[0, 0.004, 0]}>
-        <edgesGeometry args={[new THREE.PlaneGeometry(size.x * 0.9, size.y * 0.9, 10, 10)]} />
-        <lineBasicMaterial color="#475569" transparent opacity={0.3} />
-      </lineSegments>
 
       {/* Label */}
       {(hovered || isSelected) && (
