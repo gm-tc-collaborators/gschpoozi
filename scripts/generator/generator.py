@@ -7,6 +7,7 @@ Orchestrates loading state, rendering templates, and writing config files.
 import os
 import sys
 import json
+import re
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from datetime import datetime
