@@ -211,5 +211,12 @@
       "label": "Power Supply Control",
       "pin": "PD14"
     }
+  },
+  "spi_config": {
+    "spi1": {
+      "mosi_pin": "PA7",
+      "miso_pin": "PA6",
+      "sck_pin": "PA5"
+    }
   }
 }
