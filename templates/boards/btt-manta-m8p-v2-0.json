@@ -9,7 +9,7 @@
       "step_pin": "PE6",
       "dir_pin": "PE5",
       "enable_pin": "PC14",
-      "cs_pin": "PC11",
+      "cs_pin": "PC13",
       "uart_pin": "PC13",
       "diag_pin": "PF4"
     },
