@@ -93,6 +93,7 @@ class ConfigGenerator:
             'common.virtual_sdcard': 'gschpoozi/tuning.cfg',
             'common.idle_timeout': 'gschpoozi/tuning.cfg',
             'common.pause_resume': 'gschpoozi/tuning.cfg',
+            'common.display_status': 'gschpoozi/tuning.cfg',
             'common.exclude_object': 'gschpoozi/tuning.cfg',
             'common.tmc_autotune': 'gschpoozi/tuning.cfg',
             'common.input_shaper': 'gschpoozi/tuning.cfg',

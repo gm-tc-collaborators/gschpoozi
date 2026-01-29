@@ -916,6 +916,10 @@ common:
       [pause_resume]
       recover_velocity: {{ tuning.pause_resume.recover_velocity | default(50) }}
 
+  display_status:
+    template: |
+      [display_status]
+
   exclude_object:
     condition: "tuning.exclude_object.enabled"
     template: |
