@@ -250,7 +250,11 @@ tmc_stepper_x:
     driver_diss2vs: {{ stepper_x.driver_diss2vs | default(1) }}
     {% endif %}
     {% if stepper_x.endstop_type == 'sensorless' %}
+    {% if stepper_x.driver_type in ['TMC5160', 'TMC2240', 'TMC2130'] %}
+    diag1_pin: {{ pins.stepper_x.diag }}
+    {% else %}
     diag_pin: {{ pins.stepper_x.diag }}
+    {% endif %}
     {% if stepper_x.driver_protocol == 'spi' %}
     driver_SGT: {{ stepper_x.driver_SGT | default(1) }}
     {% else %}
@@ -289,7 +293,11 @@ tmc_stepper_y:
     driver_diss2vs: {{ stepper_y.driver_diss2vs | default(1) }}
     {% endif %}
     {% if stepper_y.endstop_type == 'sensorless' %}
+    {% if stepper_y.driver_type in ['TMC5160', 'TMC2240', 'TMC2130'] %}
+    diag1_pin: {{ pins.stepper_y.diag }}
+    {% else %}
     diag_pin: {{ pins.stepper_y.diag }}
+    {% endif %}
     {% if stepper_y.driver_protocol == 'spi' %}
     driver_SGT: {{ stepper_y.driver_SGT | default(1) }}
     {% else %}
