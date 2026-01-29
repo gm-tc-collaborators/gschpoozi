@@ -665,6 +665,8 @@ beacon:
     {% if probe.homing_mode == 'contact' %}
     contact_max_hotend_temperature: {{ probe.contact_max_hotend_temperature | default(180) }}
     {% endif %}
+    {% set sensorless_override = (stepper_x.endstop_type == 'sensorless' and stepper_x.homing_current) or (stepper_y.endstop_type == 'sensorless' and stepper_y.homing_current) %}
+    {% if not sensorless_override %}
     home_xy_position: {{ homing.home_xy_position | default(printer.bed_size_x / 2 ~ ', ' ~ printer.bed_size_y / 2) }}
     home_z_hop: {{ probe.home_z_hop | default(5) }}
     home_z_hop_speed: {{ probe.home_z_hop_speed | default(30) }}
@@ -672,6 +674,7 @@ beacon:
     home_method: {{ probe.homing_mode | default('contact') }}
     home_method_when_homed: proximity
     home_autocalibrate: {{ probe.home_autocalibrate | default('unhomed') }}
+    {% endif %}
     mesh_main_direction: {{ probe.bed_mesh.mesh_main_direction | default('x') if probe.bed_mesh else 'x' }}
     mesh_runs: {{ probe.bed_mesh.mesh_runs | default(2) if probe.bed_mesh else 2 }}
 
