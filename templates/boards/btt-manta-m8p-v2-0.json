@@ -9,7 +9,7 @@
       "step_pin": "PE6",
       "dir_pin": "PE5",
       "enable_pin": "PC14",
-      "cs_pin": "PC13",
+      "cs_pin": "PC11",
       "uart_pin": "PC13",
       "diag_pin": "PF4"
     },
@@ -214,9 +214,9 @@
   },
   "spi_config": {
     "spi1": {
-      "mosi_pin": "PA7",
-      "miso_pin": "PA6",
-      "sck_pin": "PA5"
+      "mosi_pin": "PG6",
+      "miso_pin": "PG7",
+      "sck_pin": "PG8"
     }
   }
 }
