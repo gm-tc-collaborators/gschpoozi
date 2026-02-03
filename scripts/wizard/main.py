@@ -28,6 +28,7 @@ from wizard.macro_defaults import (
     get_mesh_method,
     get_z_calibration_gcode,
 )
+from wizard.drivers import KLIPPER_TMC_SECTION, SPI_DRIVERS, NO_STALLGUARD_DRIVERS
 
 
 # Find repo root (where templates/ lives)
@@ -3480,14 +3481,24 @@ class GschpooziWizard:
             if not is_secondary:
                 # Load saved endstop type
                 current_endstop_type = self.state.get(f"{state_key}.endstop_type", "physical")
-                endstop_type = self.ui.radiolist(
-                    f"Endstop type for {axis_upper} axis:",
-                    [
-                        ("physical", "Physical switch", current_endstop_type == "physical"),
-                        ("sensorless", "Sensorless (StallGuard)", current_endstop_type == "sensorless"),
-                    ],
-                    title=f"Stepper {axis_upper} - Endstop"
-                )
+                inherited_driver = self.state.get(f"{state_key}.driver_type", "TMC2209")
+                if inherited_driver in NO_STALLGUARD_DRIVERS:
+                    self.ui.msgbox(
+                        f"{inherited_driver} does not support StallGuard.\n"
+                        "Sensorless homing is not available with this driver.\n"
+                        "Using physical endstop.",
+                        title=f"Stepper {axis_upper} - Endstop"
+                    )
+                    endstop_type = "physical"
+                else:
+                    endstop_type = self.ui.radiolist(
+                        f"Endstop type for {axis_upper} axis:",
+                        [
+                            ("physical", "Physical switch", current_endstop_type == "physical"),
+                            ("sensorless", "Sensorless (StallGuard)", current_endstop_type == "sensorless"),
+                        ],
+                        title=f"Stepper {axis_upper} - Endstop"
+                    )
                 if endstop_type is None:
                     return
                 # Persist immediately so cancelling later doesn't lose it.
@@ -3989,12 +4000,11 @@ class GschpooziWizard:
         if driver_type is None:
             return
         self.state.set(f"{state_key}.driver_type", driver_type)
-        self.state.set(f"{state_key}.driver_protocol", "spi" if driver_type in ["TMC5160", "TMC2130", "TMC2660"] else "uart")
+        self.state.set(f"{state_key}.driver_protocol", "spi" if driver_type in SPI_DRIVERS else "uart")
         self.state.save()
 
         # Determine protocol from driver type
-        spi_drivers = ["TMC5160", "TMC2130", "TMC2660"]
-        driver_protocol = "spi" if driver_type in spi_drivers else "uart"
+        driver_protocol = "spi" if driver_type in SPI_DRIVERS else "uart"
 
         # Run current
         current_current = self.state.get(f"{state_key}.run_current", 1.0)
@@ -4116,14 +4126,23 @@ class GschpooziWizard:
 
         if not is_secondary:
             current_endstop = self.state.get(f"{state_key}.endstop_type", "physical")
-            endstop_type = self.ui.radiolist(
-                f"Endstop type for {axis_upper} axis:",
-                [
-                    ("physical", "Physical switch", current_endstop == "physical"),
-                    ("sensorless", "Sensorless (StallGuard)", current_endstop == "sensorless"),
-                ],
-                title=f"Stepper {axis_upper} - Endstop"
-            )
+            if driver_type in NO_STALLGUARD_DRIVERS:
+                self.ui.msgbox(
+                    f"{driver_type} does not support StallGuard.\n"
+                    "Sensorless homing is not available with this driver.\n"
+                    "Using physical endstop.",
+                    title=f"Stepper {axis_upper} - Endstop"
+                )
+                endstop_type = "physical"
+            else:
+                endstop_type = self.ui.radiolist(
+                    f"Endstop type for {axis_upper} axis:",
+                    [
+                        ("physical", "Physical switch", current_endstop == "physical"),
+                        ("sensorless", "Sensorless (StallGuard)", current_endstop == "sensorless"),
+                    ],
+                    title=f"Stepper {axis_upper} - Endstop"
+                )
             if endstop_type is None:
                 return
             # Persist immediately.
@@ -4557,6 +4576,7 @@ class GschpooziWizard:
                 ("TMC2208", "TMC2208 (UART)", current_driver_type == "TMC2208"),
                 ("TMC2226", "TMC2226 (UART)", current_driver_type == "TMC2226"),
                 ("TMC5160", "TMC5160 (SPI)", current_driver_type == "TMC5160"),
+                ("TMC2240", "TMC2240 (SPI/UART)", current_driver_type == "TMC2240"),
                 ("TMC2130", "TMC2130 (SPI)", current_driver_type == "TMC2130"),
             ],
             title="Z Axis - Driver Type"
@@ -4565,8 +4585,7 @@ class GschpooziWizard:
             return
 
         # Determine driver protocol based on driver type
-        spi_drivers = ["TMC5160", "TMC2130", "TMC2160"]
-        driver_protocol = "spi" if driver_type in spi_drivers else "uart"
+        driver_protocol = "spi" if driver_type in SPI_DRIVERS else "uart"
 
         # Drive type
         drive_type = self.ui.radiolist(
@@ -5047,7 +5066,9 @@ class GschpooziWizard:
                 ("TMC2209", "TMC2209 (most common)", current_driver == "TMC2209"),
                 ("TMC2208", "TMC2208", current_driver == "TMC2208"),
                 ("TMC2226", "TMC2226", current_driver == "TMC2226"),
-                ("TMC5160", "TMC5160", current_driver == "TMC5160"),
+                ("TMC5160", "TMC5160 (SPI)", current_driver == "TMC5160"),
+                ("TMC2240", "TMC2240 (SPI/UART)", current_driver == "TMC2240"),
+                ("TMC2130", "TMC2130 (SPI)", current_driver == "TMC2130"),
             ],
             title="Extruder Motor - Driver"
         )
@@ -5420,6 +5441,7 @@ class GschpooziWizard:
         self.state.set("extruder.microsteps", int(microsteps or 16))
         self.state.set("extruder.full_steps_per_rotation", int(full_steps or 200))
         self.state.set("extruder.driver_type", driver_type)
+        self.state.set("extruder.driver_protocol", "spi" if driver_type in SPI_DRIVERS else "uart")
         self.state.set("extruder.run_current", extruder_run_current)
         if extruder_hold_current is not None:
             self.state.set("extruder.hold_current", extruder_hold_current)

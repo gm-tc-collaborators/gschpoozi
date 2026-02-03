@@ -29,6 +29,9 @@ class TemplateRenderer:
 
         # Add custom filters
         self.env.filters['abs'] = abs
+        self.env.filters['klipper_tmc_section'] = lambda dt: {
+            "TMC2226": "tmc2209",
+        }.get(dt, dt.lower())
 
     def _find_templates_file(self) -> Path:
         """Find config-sections.yaml in the schema directory."""

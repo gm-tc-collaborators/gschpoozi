@@ -12,6 +12,8 @@ const DRIVER_TYPES = [
   { id: 'tmc2208', name: 'TMC2208', description: 'UART, StealthChop, quieter but less features' },
   { id: 'tmc2226', name: 'TMC2226', description: 'UART, StealthChop, improved TMC2209' },
   { id: 'tmc5160', name: 'TMC5160', description: 'SPI, high current capability' },
+  { id: 'tmc2240', name: 'TMC2240', description: 'SPI/UART, newest generation' },
+  { id: 'tmc2130', name: 'TMC2130', description: 'SPI, StealthChop, classic choice' },
 ];
 
 export function ExtruderPanel() {

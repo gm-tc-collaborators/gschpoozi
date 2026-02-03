@@ -16,6 +16,7 @@ from datetime import datetime
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from wizard.state import WizardState, get_state
+from wizard.drivers import KLIPPER_TMC_SECTION, SPI_DRIVERS
 from generator.templates import TemplateRenderer
 
 
@@ -565,16 +566,20 @@ class ConfigGenerator:
             pins[stepper_name]['uart'] = _get_pin(board_pins, motor_port, 'uart')
             pins[stepper_name]['cs'] = _get_pin(board_pins, motor_port, 'cs')
 
-            # Diag pin for sensorless homing (pullup)
-            pins[stepper_name]['diag'] = _get_pin(board_pins, motor_port, 'diag', pullup=True)
+            # Diag pin for sensorless homing (pullup, and invert for SPI drivers)
+            driver_type = stepper.get('driver_type', 'TMC2209')
+            if driver_type in SPI_DRIVERS:
+                pins[stepper_name]['diag'] = _get_pin(board_pins, motor_port, 'diag', pullup=True, invert=True)
+            else:
+                pins[stepper_name]['diag'] = _get_pin(board_pins, motor_port, 'diag', pullup=True)
 
             # Endstop pin handling
             endstop_type = stepper.get('endstop_type', '')
 
             if endstop_type == 'sensorless':
-                # Virtual endstop - handled in template
-                driver_type = stepper.get('driver_type', 'tmc2209').lower()
-                pins[stepper_name]['endstop'] = f"{driver_type}_{stepper_name}:virtual_endstop"
+                # Virtual endstop - use Klipper TMC section name mapping
+                klipper_section = KLIPPER_TMC_SECTION.get(driver_type, driver_type.lower())
+                pins[stepper_name]['endstop'] = f"{klipper_section}_{stepper_name}:virtual_endstop"
             elif endstop_type == 'probe':
                 pins[stepper_name]['endstop'] = 'probe:z_virtual_endstop'
             else:
@@ -618,6 +623,7 @@ class ConfigGenerator:
                     pins['extruder']['dir'] = _get_pin(toolboard_pins, motor_port, 'dir', mcu_prefix='toolboard', invert=dir_invert)
                     pins['extruder']['enable'] = _get_pin(toolboard_pins, motor_port, 'enable', mcu_prefix='toolboard', invert=True)
                     pins['extruder']['uart'] = _get_pin(toolboard_pins, motor_port, 'uart', mcu_prefix='toolboard')
+                    pins['extruder']['cs'] = _get_pin(toolboard_pins, motor_port, 'cs', mcu_prefix='toolboard')
             else:
                 motor_port = extruder.get('motor_port_mainboard')
                 if motor_port:
@@ -626,6 +632,7 @@ class ConfigGenerator:
                     pins['extruder']['dir'] = _get_pin(board_pins, motor_port, 'dir', invert=dir_invert)
                     pins['extruder']['enable'] = _get_pin(board_pins, motor_port, 'enable', invert=True)
                     pins['extruder']['uart'] = _get_pin(board_pins, motor_port, 'uart')
+                    pins['extruder']['cs'] = _get_pin(board_pins, motor_port, 'cs')
 
             # Heater pin
             heater_loc = extruder.get('heater_location', 'mainboard')
