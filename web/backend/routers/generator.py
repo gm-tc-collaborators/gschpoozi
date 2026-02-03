@@ -82,6 +82,22 @@ def transform_web_state_to_wizard_state(web_state: Dict[str, Any]) -> Dict[str, 
         if parts:
             current[parts[-1]] = value
 
+    # Compute driver_protocol from driver_type for all steppers and extruder.
+    # The web frontend doesn't set this, but templates need it for SPI/UART branching.
+    try:
+        from wizard.drivers import SPI_DRIVERS
+    except ImportError:
+        SPI_DRIVERS = {"TMC5160", "TMC2130", "TMC2240", "TMC2660"}
+
+    for section in ['stepper_x', 'stepper_y', 'stepper_z',
+                    'stepper_x1', 'stepper_y1',
+                    'stepper_z1', 'stepper_z2', 'stepper_z3',
+                    'extruder']:
+        if section in result and isinstance(result[section], dict):
+            dt = result[section].get('driver_type', '')
+            if dt:
+                result[section]['driver_protocol'] = 'spi' if dt.upper() in SPI_DRIVERS else 'uart'
+
     return result
 
 
