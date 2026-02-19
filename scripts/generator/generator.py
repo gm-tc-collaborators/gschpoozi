@@ -581,7 +581,15 @@ class ConfigGenerator:
                 klipper_section = KLIPPER_TMC_SECTION.get(driver_type, driver_type.lower())
                 pins[stepper_name]['endstop'] = f"{klipper_section}_{stepper_name}:virtual_endstop"
             elif endstop_type == 'probe':
-                pins[stepper_name]['endstop'] = 'probe:z_virtual_endstop'
+                probe = context.get('probe', {})
+                probe_type = probe.get('probe_type', '') if isinstance(probe, dict) else ''
+                probe_endstop_map = {
+                    'btt_eddy': 'btt_eddy:z_virtual_endstop',
+                    'btt-eddy': 'btt_eddy:z_virtual_endstop',
+                }
+                pins[stepper_name]['endstop'] = probe_endstop_map.get(
+                    probe_type, 'probe:z_virtual_endstop'
+                )
             else:
                 # Physical endstop
                 # Check for new-style pullup/invert flags first

@@ -93,13 +93,16 @@ Cartographer is an eddy current probe with touch mode support.
 
 **Key Configuration:**
 ```ini
-[cartographer]
+[mcu cartographer]
 serial: /dev/serial/by-id/usb-cartographer_...
 # Or for CAN: canbus_uuid: YOUR_UUID
+restart_method: command
+
+[cartographer]
+mcu: cartographer
 x_offset: 0
 y_offset: 20
-mesh_main_direction: x
-mesh_runs: 2
+verbose: no
 ```
 
 **Calibration Commands:**
@@ -108,7 +111,8 @@ CARTOGRAPHER_CALIBRATE        # Initial calibration
 ```
 
 **Important Notes:**
-- `stepper_z` must use `endstop_pin: cartographer:z_virtual_endstop`
+- `stepper_z` must use `endstop_pin: probe:z_virtual_endstop`
+- Requires the Cartographer3D Klipper plugin (not the legacy scanner plugin)
 - For touch mode setup, refer to official documentation
 
 ---

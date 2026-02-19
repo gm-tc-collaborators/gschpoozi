@@ -750,15 +750,15 @@ beacon:
 cartographer:
   condition: "probe.probe_type == 'cartographer'"
   template: |
-    [scanner]
+    [mcu cartographer]
     serial: {{ probe.serial }}
+    restart_method: command
+
+    [cartographer]
+    mcu: cartographer
     x_offset: {{ probe.x_offset | default(0) }}
     y_offset: {{ probe.y_offset | default(0) }}
-    calibration_method: {{ probe.homing_mode | default('touch') }}
-    {% if probe.homing_mode == 'touch' %}
-    scanner_touch_z_offset: {{ probe.scanner_touch_z_offset | default(0.05) }}
-    {% endif %}
-    backlash_comp: {{ probe.backlash_comp | default(0.5) }}
+    verbose: no
 
 btt_eddy:
   condition: "probe.probe_type == 'btt_eddy'"
