@@ -26,7 +26,8 @@ CROWSNEST_REPO="https://github.com/mainsail-crew/crowsnest.git"
 SONAR_REPO="https://github.com/mainsail-crew/sonar.git"
 TIMELAPSE_REPO="https://github.com/mainsail-crew/moonraker-timelapse.git"
 BEACON_REPO="https://github.com/beacon3d/beacon_klipper.git"
-CARTOGRAPHER_REPO="https://github.com/Cartographer3D/cartographer-klipper.git"
+CARTOGRAPHER_INSTALL_SCRIPT="https://raw.githubusercontent.com/Cartographer3D/cartographer3d-plugin/refs/heads/main/scripts/install.sh"
+CARTOGRAPHER_LEGACY_DIR="${HOME}/cartographer-klipper"
 
 # Installation paths
 KLIPPER_DIR="${HOME}/klipper"
@@ -37,7 +38,7 @@ CROWSNEST_DIR="${HOME}/crowsnest"
 SONAR_DIR="${HOME}/sonar"
 TIMELAPSE_DIR="${HOME}/moonraker-timelapse"
 BEACON_DIR="${HOME}/beacon_klipper"
-CARTOGRAPHER_DIR="${HOME}/cartographer-klipper"
+CARTOGRAPHER_PIP_PACKAGE="cartographer3d-plugin"
 
 KLIPPY_ENV="${HOME}/klippy-env"
 MOONRAKER_ENV="${HOME}/moonraker-env"
@@ -161,7 +162,7 @@ is_beacon_installed() {
 }
 
 is_cartographer_installed() {
-    [[ -d "${CARTOGRAPHER_DIR}" && -f "${KLIPPER_DIR}/klippy/extras/cartographer.py" ]]
+    "${KLIPPY_ENV}/bin/pip" show "${CARTOGRAPHER_PIP_PACKAGE}" &>/dev/null 2>&1
 }
 
 # Check if running as root (we don't want that)
@@ -1747,15 +1748,15 @@ is_system_service: False"
     return 0
 }
 
-# Install Cartographer Klipper module
+# Install Cartographer Klipper module (new cartographer3d-plugin via pip)
 do_install_cartographer() {
     clear_screen
-    print_header "Installing Cartographer Klipper Module"
+    print_header "Installing Cartographer Klipper Plugin"
 
     echo -e "${BCYAN}${BOX_V}${NC}"
     echo -e "${BCYAN}${BOX_V}${NC}  This will install:"
-    echo -e "${BCYAN}${BOX_V}${NC}  - Cartographer Klipper module (eddy current probe)"
-    echo -e "${BCYAN}${BOX_V}${NC}  - Links module into Klipper extras"
+    echo -e "${BCYAN}${BOX_V}${NC}  - Cartographer3D plugin (pip package into ~/klippy-env)"
+    echo -e "${BCYAN}${BOX_V}${NC}  - Moonraker update manager entry"
     echo -e "${BCYAN}${BOX_V}${NC}"
 
     if ! is_klipper_installed; then
@@ -1767,7 +1768,7 @@ do_install_cartographer() {
     fi
 
     if is_cartographer_installed; then
-        echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}Cartographer is already installed.${NC}"
+        echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}Cartographer plugin is already installed.${NC}"
         echo -e "${BCYAN}${BOX_V}${NC}  ${YELLOW}Use update to get the latest version.${NC}"
         print_footer
         wait_for_key
@@ -1782,34 +1783,46 @@ do_install_cartographer() {
 
     echo ""
 
-    # Clone repository
-    clone_repo "$CARTOGRAPHER_REPO" "$CARTOGRAPHER_DIR" || return 1
+    # Remove legacy cartographer-klipper if present (old [scanner] plugin)
+    if [[ -d "${CARTOGRAPHER_LEGACY_DIR}" ]]; then
+        status_msg "Removing legacy cartographer-klipper install..."
+        rm -f "${KLIPPER_DIR}/klippy/extras/cartographer.py"
+        rm -f "${KLIPPER_DIR}/klippy/extras/idm.py"
+        rm -rf "${CARTOGRAPHER_LEGACY_DIR}"
+        ok_msg "Legacy install removed"
+    fi
 
-    # Link cartographer.py into Klipper extras
-    local klipper_extras="${KLIPPER_DIR}/klippy/extras"
-    status_msg "Linking Cartographer module into Klipper extras..."
-
-    # Cartographer has multiple files to link
-    local files_to_link=("cartographer.py" "idm.py")
-    for fname in "${files_to_link[@]}"; do
-        if [[ -f "${CARTOGRAPHER_DIR}/${fname}" ]]; then
-            rm -f "${klipper_extras}/${fname}"
-            ln -sf "${CARTOGRAPHER_DIR}/${fname}" "${klipper_extras}/${fname}"
-            ok_msg "Linked ${fname}"
-        fi
-    done
-
-    if [[ -f "${klipper_extras}/cartographer.py" ]]; then
-        ok_msg "Cartographer module linked successfully"
-    else
-        error_msg "Failed to link cartographer.py"
+    # Install via official Cartographer3D install script
+    status_msg "Installing Cartographer3D plugin..."
+    if ! curl -s -L "${CARTOGRAPHER_INSTALL_SCRIPT}" | bash -s -- --klipper "${KLIPPER_DIR}" --klippy-env "${KLIPPY_ENV}"; then
+        error_msg "Cartographer plugin installation failed"
         return 1
     fi
 
-    # Add update manager entry
-    add_update_manager_entry "cartographer" "git_repo" "${CARTOGRAPHER_DIR}" "origin: https://github.com/Cartographer3D/cartographer-klipper.git
-primary_branch: master
-is_system_service: False"
+    if ! is_cartographer_installed; then
+        error_msg "Plugin not found after installation"
+        return 1
+    fi
+
+    ok_msg "Cartographer3D plugin installed successfully"
+
+    # Add Moonraker update manager entry (python type for pip packages)
+    local conf_file="${PRINTER_DATA}/config/moonraker.conf"
+    if [[ -f "$conf_file" ]] && ! grep -q "\[update_manager cartographer_plugin\]" "$conf_file" 2>/dev/null; then
+        status_msg "Adding update_manager entry for cartographer_plugin..."
+        cat >> "$conf_file" << 'CARTO_EOF'
+
+[update_manager cartographer_plugin]
+type: python
+channel: stable
+virtualenv: ~/klippy-env
+project_name: cartographer3d-plugin
+is_system_service: False
+managed_services: klipper
+info_tags: desc=Cartographer Plugin
+CARTO_EOF
+        ok_msg "Added update_manager entry for cartographer_plugin"
+    fi
 
     # Restart Klipper to load the module
     status_msg "Restarting Klipper..."
@@ -1817,12 +1830,15 @@ is_system_service: False"
 
     echo ""
     echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
-    echo -e "${GREEN}  Cartographer Klipper module installation complete!${NC}"
+    echo -e "${GREEN}  Cartographer3D plugin installation complete!${NC}"
     echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
     echo ""
     echo -e "  ${WHITE}Configure your cartographer in printer.cfg:${NC}"
-    echo -e "  ${CYAN}[cartographer]${NC}"
+    echo -e "  ${CYAN}[mcu cartographer]${NC}"
     echo -e "  ${CYAN}serial: /dev/serial/by-id/usb-Cartographer_...${NC}"
+    echo -e ""
+    echo -e "  ${CYAN}[cartographer]${NC}"
+    echo -e "  ${CYAN}mcu: cartographer${NC}"
     echo ""
     echo -e "  Documentation: ${CYAN}https://docs.cartographer3d.com/${NC}"
     echo ""
@@ -2262,20 +2278,12 @@ do_update_cartographer() {
 
     echo ""
 
-    # Update repository
-    status_msg "Pulling latest changes..."
-    cd "$CARTOGRAPHER_DIR"
-    git pull
-
-    # Re-link in case file structure changed
-    local klipper_extras="${KLIPPER_DIR}/klippy/extras"
-    local files_to_link=("cartographer.py" "idm.py")
-    for fname in "${files_to_link[@]}"; do
-        if [[ -f "${CARTOGRAPHER_DIR}/${fname}" ]]; then
-            rm -f "${klipper_extras}/${fname}"
-            ln -sf "${CARTOGRAPHER_DIR}/${fname}" "${klipper_extras}/${fname}"
-        fi
-    done
+    # Update pip package
+    status_msg "Updating Cartographer3D plugin..."
+    "${KLIPPY_ENV}/bin/pip" install --upgrade "${CARTOGRAPHER_PIP_PACKAGE}" || {
+        error_msg "Failed to update Cartographer plugin"
+        return 1
+    }
 
     # Restart Klipper to reload the module
     status_msg "Restarting Klipper..."
@@ -2390,15 +2398,9 @@ do_update_all() {
 
     if is_cartographer_installed; then
         echo -e "\n${BWHITE}=== Updating Cartographer ===${NC}"
-        cd "$CARTOGRAPHER_DIR" && git pull
-        local klipper_extras="${KLIPPER_DIR}/klippy/extras"
-        for fname in cartographer.py idm.py; do
-            if [[ -f "${CARTOGRAPHER_DIR}/${fname}" ]]; then
-                rm -f "${klipper_extras}/${fname}"
-                ln -sf "${CARTOGRAPHER_DIR}/${fname}" "${klipper_extras}/${fname}"
-            fi
-        done
-        ok_msg "Cartographer updated"
+        "${KLIPPY_ENV}/bin/pip" install --upgrade "${CARTOGRAPHER_PIP_PACKAGE}" && \
+            ok_msg "Cartographer updated" || \
+            error_msg "Cartographer update failed"
     fi
 
     # Restart Klipper if any probe modules were updated
@@ -2860,8 +2862,8 @@ do_remove_cartographer() {
 
     echo -e "${BCYAN}${BOX_V}${NC}"
     echo -e "${BCYAN}${BOX_V}${NC}  This will remove:"
-    echo -e "${BCYAN}${BOX_V}${NC}  - Cartographer Klipper module (~/cartographer-klipper)"
-    echo -e "${BCYAN}${BOX_V}${NC}  - Module symlinks from Klipper extras"
+    echo -e "${BCYAN}${BOX_V}${NC}  - Cartographer3D plugin from ~/klippy-env"
+    echo -e "${BCYAN}${BOX_V}${NC}  - Moonraker update manager entry"
     echo -e "${BCYAN}${BOX_V}${NC}"
     echo -e "${BCYAN}${BOX_V}${NC}  ${WHITE}Your cartographer config in printer.cfg will be preserved.${NC}"
     echo -e "${BCYAN}${BOX_V}${NC}"
@@ -2873,18 +2875,22 @@ do_remove_cartographer() {
 
     echo ""
 
-    # Remove symlinks from Klipper extras
-    status_msg "Removing cartographer module symlinks..."
-    rm -f "${KLIPPER_DIR}/klippy/extras/cartographer.py"
-    rm -f "${KLIPPER_DIR}/klippy/extras/idm.py"
+    # Uninstall pip package
+    status_msg "Removing Cartographer3D plugin..."
+    "${KLIPPY_ENV}/bin/pip" uninstall -y "${CARTOGRAPHER_PIP_PACKAGE}" 2>/dev/null || true
 
-    # Remove repository
-    status_msg "Removing Cartographer repository..."
-    rm -rf "$CARTOGRAPHER_DIR"
+    # Clean up legacy install if it exists
+    if [[ -d "${CARTOGRAPHER_LEGACY_DIR}" ]]; then
+        status_msg "Removing legacy cartographer-klipper directory..."
+        rm -f "${KLIPPER_DIR}/klippy/extras/cartographer.py"
+        rm -f "${KLIPPER_DIR}/klippy/extras/idm.py"
+        rm -rf "${CARTOGRAPHER_LEGACY_DIR}"
+    fi
 
-    # Remove update manager entry
+    # Remove update manager entries (both old and new naming)
     if [[ -f "${PRINTER_DATA}/config/moonraker.conf" ]]; then
         sed -i '/\[update_manager cartographer\]/,/^$/d' "${PRINTER_DATA}/config/moonraker.conf" 2>/dev/null || true
+        sed -i '/\[update_manager cartographer_plugin\]/,/^$/d' "${PRINTER_DATA}/config/moonraker.conf" 2>/dev/null || true
     fi
 
     # Restart Klipper

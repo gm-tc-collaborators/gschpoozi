@@ -194,27 +194,31 @@ class GschpooziWizard:
         if probe_type == "beacon":
             module_file = klipper_extras / "beacon.py"
             module_name = "Beacon"
-            repo_dir = Path.home() / "beacon_klipper"
+            install_description = (
+                "- Clone the Beacon repo to ~/beacon_klipper\n"
+                "- Link the module into ~/klipper/klippy/extras/\n"
+                "- Restart Klipper to load the module"
+            )
+            is_installed = module_file.exists()
         elif probe_type == "cartographer":
-            module_file = klipper_extras / "cartographer.py"
             module_name = "Cartographer"
-            repo_dir = Path.home() / "cartographer-klipper"
+            install_description = (
+                "- Install the Cartographer3D plugin into ~/klippy-env\n"
+                "- Restart Klipper to load the module"
+            )
+            is_installed = self._is_cartographer_plugin_installed()
         else:
             return
 
-        # Check if already installed
-        if module_file.exists():
+        if is_installed:
             return
 
-        # Module not installed - offer to install
         install_now = self.ui.yesno(
             f"{module_name} Klipper module is NOT installed.\n\n"
             f"The {module_name} probe requires a Klipper module to function.\n\n"
             f"Would you like to install it now?\n\n"
             f"This will:\n"
-            f"- Clone the {module_name} repo to ~/{repo_dir.name}\n"
-            f"- Link the module into ~/klipper/klippy/extras/\n"
-            f"- Restart Klipper to load the module",
+            f"{install_description}",
             title=f"Install {module_name} Module",
             default_no=False,
             height=18,
@@ -265,6 +269,22 @@ class GschpooziWizard:
                 f"Debug log: {self._wizard_log_path()}",
                 title="Error"
             )
+
+    @staticmethod
+    def _is_cartographer_plugin_installed() -> bool:
+        """Check if the new Cartographer3D pip plugin is installed in klippy-env."""
+        import subprocess
+        klippy_pip = Path.home() / "klippy-env" / "bin" / "pip"
+        if not klippy_pip.exists():
+            return False
+        try:
+            result = subprocess.run(
+                [str(klippy_pip), "show", "cartographer3d-plugin"],
+                capture_output=True, text=True, timeout=10,
+            )
+            return result.returncode == 0
+        except Exception:
+            return False
 
     def _load_board_data(self, board_id: str, board_type: str = "boards") -> dict:
         """Load full board JSON data.
