@@ -835,9 +835,9 @@ bed_mesh:
     speed: {{ probe.bed_mesh.speed | default(300) if probe.bed_mesh else 300 }}
     horizontal_move_z: {{ probe.bed_mesh.horizontal_move_z | default(2) if probe.bed_mesh else 2 }}
     {% elif probe.probe_type == 'cartographer' %}
-    # Cartographer: fast scanning with zero reference at bed center
-    speed: {{ probe.bed_mesh.speed | default(300) if probe.bed_mesh else 300 }}
-    horizontal_move_z: {{ probe.bed_mesh.horizontal_move_z | default(2) if probe.bed_mesh else 2 }}
+    # Cartographer (new plugin): standard point-by-point probing with zero reference
+    speed: {{ probe.bed_mesh.speed | default(200) if probe.bed_mesh else 200 }}
+    horizontal_move_z: {{ probe.bed_mesh.horizontal_move_z | default(3) if probe.bed_mesh else 3 }}
     zero_reference_position: {{ (printer.bed_size_x / 2) | int }}, {{ (printer.bed_size_y / 2) | int }}
     {% else %}
     speed: {{ probe.bed_mesh.speed | default(200) if probe.bed_mesh else 200 }}
@@ -857,25 +857,19 @@ bed_mesh:
     {% else %}
     mesh_max: {{ (printer.bed_size_x - probe.x_offset | abs - 10) | int }}, {{ (printer.bed_size_y - probe.y_offset | abs - 10) | int }}
     {% endif %}
-    # Probe count: eddy probes are fast, use higher density for better mesh
-    {% if probe.probe_type == 'cartographer' %}
-    probe_count: {{ probe.bed_mesh.probe_count | default('20, 20', true) if probe.bed_mesh else '20, 20' }}
-    {% elif probe.probe_type in ['beacon', 'btt_eddy'] %}
+    # Probe count: eddy/scanner probes are fast, use higher density for better mesh
+    {% if probe.probe_type in ['beacon', 'btt_eddy'] %}
     probe_count: {{ probe.bed_mesh.probe_count | default('9, 9', true) if probe.bed_mesh else '9, 9' }}
     {% else %}
     probe_count: {{ probe.bed_mesh.probe_count | default('5, 5', true) if probe.bed_mesh else '5, 5' }}
     {% endif %}
     algorithm: bicubic
-    {% if probe.probe_type in ['beacon', 'cartographer', 'btt_eddy']
+    {% if probe.probe_type in ['beacon', 'btt_eddy']
           and probe.bed_mesh
           and probe.bed_mesh.supports_scan_overshoot is defined
           and probe.bed_mesh.supports_scan_overshoot %}
     # scan_overshoot: only emitted when the installed Klipper/Kalico supports it
     scan_overshoot: {{ probe.bed_mesh.scan_overshoot | default(8) if probe.bed_mesh else 8 }}
-    {% endif %}
-    {% if probe.probe_type == 'cartographer' %}
-    # mesh_pps: disable interpolation for scan mode (Cartographer recommendation)
-    mesh_pps: 0, 0
     {% endif %}
     fade_start: {{ probe.bed_mesh.fade_start | default(0.6) if probe.bed_mesh else 0.6 }}
     fade_end: {{ probe.bed_mesh.fade_end | default(10.0) if probe.bed_mesh else 10.0 }}
@@ -1946,9 +1940,6 @@ common:
       {% if probe.probe_type == 'beacon' %}
       # Beacon only supports METHOD=beacon - hardcoded
       variable_eddy_mesh_method: "beacon"
-      {% elif probe.probe_type == 'cartographer' %}
-      # Cartographer: scan method (touch mode uses scan for mesh)
-      variable_eddy_mesh_method: "{{ probe.bed_mesh.mesh_method | default('scan') if probe.bed_mesh else 'scan' }}"
       {% elif probe.probe_type == 'btt_eddy' %}
       # BTT Eddy: rapid_scan by default for fastest scanning
       variable_eddy_mesh_method: "{{ probe.bed_mesh.mesh_method | default('rapid_scan') if probe.bed_mesh else 'rapid_scan' }}"
@@ -2155,14 +2146,14 @@ common:
               BED_MESH_PROFILE LOAD=default
           {% elif MODE == "adaptive" %}
               # Adaptive mesh - only mesh print area
-              {% if cfg.probe_type in ['beacon', 'cartographer', 'btt_eddy'] %}
+              {% if cfg.probe_type in ['beacon', 'btt_eddy'] %}
                   BED_MESH_CALIBRATE METHOD={cfg.eddy_mesh_method} ADAPTIVE=1
               {% else %}
                   BED_MESH_CALIBRATE ADAPTIVE=1
               {% endif %}
           {% else %}
               # Full mesh
-              {% if cfg.probe_type in ['beacon', 'cartographer', 'btt_eddy'] %}
+              {% if cfg.probe_type in ['beacon', 'btt_eddy'] %}
                   BED_MESH_CALIBRATE METHOD={cfg.eddy_mesh_method}
               {% else %}
                   BED_MESH_CALIBRATE
