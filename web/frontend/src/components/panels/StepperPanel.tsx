@@ -637,23 +637,42 @@ export function StepperPanel({ stepperName }: StepperPanelProps) {
           </div>
         )}
 
-        {/* Position Max */}
+        {/* Axis Limits */}
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">
-            Position Max (mm)
+            Axis Limits (mm)
           </label>
-          <input
-            type="number"
-            step="1"
-            min="1"
-            value={getValue('position_max') ?? ''}
-            onChange={(e) => {
-              const val = e.target.value;
-              setValue('position_max', val ? parseInt(val) : undefined);
-            }}
-            placeholder={isZAxis ? '250' : '235'}
-            className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white placeholder-slate-500 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
-          />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1">Position Min</label>
+              <input
+                type="number"
+                step="1"
+                value={getValue('position_min') ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setValue('position_min', val !== '' ? parseInt(val) : undefined);
+                }}
+                placeholder="0"
+                className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1.5 text-sm text-white placeholder-slate-500 font-mono focus:border-cyan-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1">Position Max</label>
+              <input
+                type="number"
+                step="1"
+                min="1"
+                value={getValue('position_max') ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setValue('position_max', val ? parseInt(val) : undefined);
+                }}
+                placeholder={isZAxis ? '250' : '235'}
+                className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1.5 text-sm text-white placeholder-slate-500 font-mono focus:border-cyan-500"
+              />
+            </div>
+          </div>
         </div>
 
         {/* Homing Direction for non-Z */}

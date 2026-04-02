@@ -4,7 +4,7 @@ import { useBoard } from '../../hooks/useTemplates';
 import { usePortRegistry } from '../../hooks/usePortRegistry';
 import { PortSelector } from '../ui/PortSelector';
 import type { SimplePort, MotorPort, ProbePort } from '../ui/PortSelector';
-import { Thermometer } from 'lucide-react';
+import { Thermometer, Ruler } from 'lucide-react';
 
 const BED_SENSORS = [
   { id: 'Generic 3950', name: 'Generic 3950 (most common)' },
@@ -55,6 +55,66 @@ export function HeaterBedPanel() {
               <p className="text-xs text-red-200/70 mt-1">
                 Configure bed heater and temperature sensor settings.
               </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Bed Dimensions */}
+        <div className="bg-slate-800/50 rounded-lg border border-slate-700 p-4 space-y-3">
+          <div className="flex items-start gap-2">
+            <Ruler size={16} className="text-cyan-400 shrink-0 mt-0.5" />
+            <div>
+              <div className="text-sm font-medium text-slate-300">Bed Dimensions</div>
+              <p className="text-xs text-slate-500 mt-1">
+                Printable area in mm. Used for homing, bed mesh, z-tilt, and motor position scaling.
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1">X (mm)</label>
+              <input
+                type="number"
+                step="1"
+                min="1"
+                value={state['printer.bed_size_x'] ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setField('printer.bed_size_x', val ? parseInt(val) : undefined);
+                }}
+                placeholder="235"
+                className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1.5 text-sm text-white placeholder-slate-500 font-mono focus:border-cyan-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1">Y (mm)</label>
+              <input
+                type="number"
+                step="1"
+                min="1"
+                value={state['printer.bed_size_y'] ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setField('printer.bed_size_y', val ? parseInt(val) : undefined);
+                }}
+                placeholder="235"
+                className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1.5 text-sm text-white placeholder-slate-500 font-mono focus:border-cyan-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-400 mb-1">Z (mm)</label>
+              <input
+                type="number"
+                step="1"
+                min="1"
+                value={state['printer.bed_size_z'] ?? ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setField('printer.bed_size_z', val ? parseInt(val) : undefined);
+                }}
+                placeholder="250"
+                className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1.5 text-sm text-white placeholder-slate-500 font-mono focus:border-cyan-500"
+              />
             </div>
           </div>
         </div>
