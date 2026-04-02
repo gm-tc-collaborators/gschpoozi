@@ -424,7 +424,23 @@ function CameraController({ targetPosition: _targetPosition, enabled: _enabled }
 // Z stepper names by index
 const Z_STEPPER_NAMES = ['stepper_z', 'stepper_z1', 'stepper_z2', 'stepper_z3'];
 
-// Dynamic Z-motors positioned from user-entered coordinates
+// 8 snap positions: 4 corners + 4 edge midpoints of the motor placement square
+function getSnapPositions(size: { x: number; y: number }) {
+  const hx = size.x / 2 - 0.1;
+  const hz = size.y / 2 - 0.1;
+  return [
+    { x: -hx, z: -hz }, // back-left
+    { x:  hx, z: -hz }, // back-right
+    { x: -hx, z:  hz }, // front-left
+    { x:  hx, z:  hz }, // front-right
+    { x:   0, z: -hz }, // back-center
+    { x:   0, z:  hz }, // front-center
+    { x: -hx, z:   0 }, // left-center
+    { x:  hx, z:   0 }, // right-center
+  ];
+}
+
+// Dynamic Z-motors snapped to nearest frame position
 function ZMotors({
   size,
   zMotorCount,
@@ -438,10 +454,11 @@ function ZMotors({
 }) {
   const bedX = wizardState['printer.bed_size_x'] || 235;
   const bedY = wizardState['printer.bed_size_y'] || 235;
+  const snapPoints = getSnapPositions(size);
 
   const positions: { pos: [number, number, number]; name: string; label: string }[] = [];
-  const offset = 0.1;
-  const edgeInset = 0.1;
+  const yOffset = 0.1;
+  const usedSnaps = new Set<number>();
 
   for (let i = 0; i < zMotorCount; i++) {
     const name = Z_STEPPER_NAMES[i];
@@ -454,10 +471,21 @@ function ZMotors({
     const sceneX = ((posX / bedX) - 0.5) * size.x;
     const sceneZ = -((posY / bedY) - 0.5) * size.y;
 
-    const clampedX = Math.max(-size.x / 2 + edgeInset, Math.min(size.x / 2 - edgeInset, sceneX));
-    const clampedZ = Math.max(-size.y / 2 + edgeInset, Math.min(size.y / 2 - edgeInset, sceneZ));
+    let bestIdx = 0;
+    let bestDist = Infinity;
+    for (let s = 0; s < snapPoints.length; s++) {
+      if (usedSnaps.has(s)) continue;
+      const dx = sceneX - snapPoints[s].x;
+      const dz = sceneZ - snapPoints[s].z;
+      const dist = dx * dx + dz * dz;
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestIdx = s;
+      }
+    }
+    usedSnaps.add(bestIdx);
 
-    positions.push({ pos: [clampedX, offset, clampedZ], name, label });
+    positions.push({ pos: [snapPoints[bestIdx].x, yOffset, snapPoints[bestIdx].z], name, label });
   }
 
   return (
