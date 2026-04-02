@@ -1,0 +1,124 @@
+{
+  "id": "ldo-nitehawk-sb-v2",
+  "name": "LDO Nitehawk-SB V2",
+  "manufacturer": "LDO Motors",
+  "mcu": "stm32g0b1xx",
+  "mcu_name": "toolboard",
+  "connections": ["USB", "CAN"],
+  "source": "https://github.com/MotorDynamicsLab/Nitehawk-SB-V2",
+  "description": "STM32G0B1 toolhead board with TMC2209, ADXL345 accelerometer, RGBW LEDs, chamber thermistor",
+
+  "motor_ports": {
+    "EXTRUDER": {
+      "label": "Extruder (TMC2209)",
+      "step_pin": "PB8",
+      "dir_pin": "PB9",
+      "enable_pin": "PC14",
+      "uart_pin": "PB7",
+      "tx_pin": "PB6",
+      "diag_pin": "PC13",
+      "notes": "Onboard TMC2209, recommend below 0.7A"
+    }
+  },
+
+  "heater_ports": {
+    "HE": {
+      "label": "Hotend Heater",
+      "pin": "PA7"
+    }
+  },
+
+  "thermistor_ports": {
+    "TH0": {
+      "label": "Hotend Thermistor",
+      "pin": "PB12",
+      "pullup": "2.2K"
+    },
+    "TH_CHAMBER": {
+      "label": "Chamber Thermistor",
+      "pin": "PB2",
+      "pullup": "4.7K"
+    }
+  },
+
+  "fan_ports": {
+    "FAN0": {
+      "label": "Part Cooling Fan",
+      "pin": "PA15",
+      "pwm": true,
+      "tachometer_pin": "PD2",
+      "tachometer_ppr": 2
+    },
+    "FAN1": {
+      "label": "Hotend Fan",
+      "pin": "PD0",
+      "pwm": true,
+      "tachometer_pin": "PD1",
+      "tachometer_ppr": 2
+    }
+  },
+
+  "endstop_ports": {
+    "X_STOP": {
+      "label": "X Endstop",
+      "pin": "PB0"
+    },
+    "Y_STOP": {
+      "label": "Y Endstop",
+      "pin": "PB1"
+    }
+  },
+
+  "probe_ports": {
+    "PROBE": {
+      "label": "Probe Input",
+      "pin": "PC15"
+    }
+  },
+
+  "misc_ports": {
+    "NEOPIXEL": {
+      "label": "Stealthburner LEDs (RGBW)",
+      "pin": "PD3",
+      "chain_count": 3,
+      "color_order": "GRBW"
+    },
+    "ACT_LED": {
+      "label": "Activity LED",
+      "pin": "PC6"
+    },
+    "I2C": {
+      "label": "I2C Header",
+      "scl_pin": "PB3",
+      "sda_pin": "PB4"
+    }
+  },
+
+  "accelerometer": {
+    "type": "ADXL345",
+    "cs_pin": "PB10",
+    "spi_software_sclk_pin": "PA5",
+    "spi_software_mosi_pin": "PA2",
+    "spi_software_miso_pin": "PA6"
+  },
+
+  "klipper_config": {
+    "mcu": {
+      "serial": "/dev/serial/by-id/usb-Klipper_STM32G0B1_XXXX-if00",
+      "restart_method": "command"
+    },
+    "tmc2209": {
+      "sense_resistor": 0.100,
+      "interpolate": false,
+      "run_current_max": 0.7
+    }
+  },
+
+  "default_assignments": {
+    "extruder": "EXTRUDER",
+    "heater_extruder": "HE",
+    "thermistor_extruder": "TH0",
+    "fan_part_cooling": "FAN0",
+    "fan_hotend": "FAN1"
+  }
+}
