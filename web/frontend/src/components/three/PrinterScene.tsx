@@ -441,7 +441,7 @@ function ZMotors({
 
   const positions: { pos: [number, number, number]; name: string; label: string }[] = [];
   const offset = 0.1;
-  const clampMargin = 0.15;
+  const edgeInset = 0.05;
 
   for (let i = 0; i < zMotorCount; i++) {
     const name = Z_STEPPER_NAMES[i];
@@ -454,8 +454,8 @@ function ZMotors({
     const sceneX = ((posX / bedX) - 0.5) * size.x;
     const sceneZ = -((posY / bedY) - 0.5) * size.y;
 
-    const clampedX = Math.max(-size.x / 2 - clampMargin, Math.min(size.x / 2 + clampMargin, sceneX));
-    const clampedZ = Math.max(-size.y / 2 - clampMargin, Math.min(size.y / 2 + clampMargin, sceneZ));
+    const clampedX = Math.max(-size.x / 2 + edgeInset, Math.min(size.x / 2 - edgeInset, sceneX));
+    const clampedZ = Math.max(-size.y / 2 + edgeInset, Math.min(size.y / 2 - edgeInset, sceneZ));
 
     positions.push({ pos: [clampedX, offset, clampedZ], name, label });
   }
