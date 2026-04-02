@@ -441,7 +441,7 @@ function ZMotors({
 
   const positions: { pos: [number, number, number]; name: string; label: string }[] = [];
   const offset = 0.1;
-  const edgeInset = 0.05;
+  const edgeInset = 0.1;
 
   for (let i = 0; i < zMotorCount; i++) {
     const name = Z_STEPPER_NAMES[i];
