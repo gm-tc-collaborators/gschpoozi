@@ -70,7 +70,7 @@ export function HeaterBedPanel() {
               </p>
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-slate-400 mb-1">X (mm)</label>
               <input
@@ -98,21 +98,6 @@ export function HeaterBedPanel() {
                   setField('printer.bed_size_y', val ? parseInt(val) : undefined);
                 }}
                 placeholder="235"
-                className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1.5 text-sm text-white placeholder-slate-500 font-mono focus:border-cyan-500"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1">Z (mm)</label>
-              <input
-                type="number"
-                step="1"
-                min="1"
-                value={state['printer.bed_size_z'] ?? ''}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setField('printer.bed_size_z', val ? parseInt(val) : undefined);
-                }}
-                placeholder="250"
                 className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1.5 text-sm text-white placeholder-slate-500 font-mono focus:border-cyan-500"
               />
             </div>
