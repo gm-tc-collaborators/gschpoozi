@@ -5,7 +5,7 @@ import { usePortRegistry } from '../../hooks/usePortRegistry';
 import { PortSelector } from '../ui/PortSelector';
 import { PinEditor } from '../ui/PinEditor';
 import type { MotorPort, SimplePort, ProbePort } from '../ui/PortSelector';
-import { Settings, Info, Cpu, CircuitBoard, Crosshair, MapPin } from 'lucide-react';
+import { Settings, Info, Cpu, CircuitBoard, Crosshair, MapPin, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface StepperPanelProps {
   stepperName: string;
@@ -679,6 +679,46 @@ export function StepperPanel({ stepperName }: StepperPanelProps) {
             </div>
           </div>
         )}
+
+        {/* Z stepper navigation */}
+        {isZAxis && (() => {
+          const zMotorCount = state['z_config.motor_count'] ?? 1;
+          if (zMotorCount <= 1) return null;
+          const zNames = Array.from({ length: zMotorCount }, (_, i) => i === 0 ? 'stepper_z' : `stepper_z${i}`);
+          const currentIdx = zNames.indexOf(stepperName);
+          const prevName = currentIdx > 0 ? zNames[currentIdx - 1] : null;
+          const nextName = currentIdx < zNames.length - 1 ? zNames[currentIdx + 1] : null;
+          return (
+            <div className="border-t border-slate-700 pt-4 flex items-center justify-between">
+              <button
+                onClick={() => prevName && setActivePanel(prevName)}
+                disabled={!prevName}
+                className={`flex items-center gap-1 px-3 py-2 rounded-lg text-sm transition-colors ${
+                  prevName ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-slate-800 text-slate-600 cursor-not-allowed'
+                }`}
+              >
+                <ChevronLeft size={16} />
+                {prevName ? (currentIdx - 1 === 0 ? 'Z Stepper' : `Z${currentIdx - 1} Stepper`) : ''}
+              </button>
+              <button
+                onClick={() => setActivePanel('z_config')}
+                className="px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-slate-300 hover:bg-slate-700 transition-colors"
+              >
+                Z Config
+              </button>
+              <button
+                onClick={() => nextName && setActivePanel(nextName)}
+                disabled={!nextName}
+                className={`flex items-center gap-1 px-3 py-2 rounded-lg text-sm transition-colors ${
+                  nextName ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' : 'bg-slate-800 text-slate-600 cursor-not-allowed'
+                }`}
+              >
+                {nextName ? (currentIdx + 1 === 0 ? 'Z Stepper' : `Z${currentIdx + 1} Stepper`) : ''}
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          );
+        })()}
       </div>
     </ConfigPanel>
   );

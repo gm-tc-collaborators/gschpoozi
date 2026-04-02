@@ -436,8 +436,8 @@ function ZMotors({
   wizardState: Record<string, any>;
   onClick: (name: string) => void;
 }) {
-  const bedX = wizardState['printer.bed_size_x'];
-  const bedY = wizardState['printer.bed_size_y'];
+  const bedX = wizardState['printer.bed_size_x'] || 235;
+  const bedY = wizardState['printer.bed_size_y'] || 235;
 
   const positions: { pos: [number, number, number]; name: string; label: string }[] = [];
   const offset = 0.1;
@@ -449,7 +449,7 @@ function ZMotors({
     const posX = wizardState[`${name}.position_x`];
     const posY = wizardState[`${name}.position_y`];
 
-    if (posX == null || posY == null || !bedX || !bedY) continue;
+    if (posX == null || posY == null) continue;
 
     const sceneX = ((posX / bedX) - 0.5) * size.x;
     const sceneZ = -((posY / bedY) - 0.5) * size.y;
