@@ -273,7 +273,7 @@ export function StepperPanel({ stepperName }: StepperPanelProps) {
                   Diag Pin {selectedDriver.interface === 'spi' ? '(Required for SPI)' : '(Optional)'}
                 </div>
                 <p className="text-xs text-slate-500 mt-1">
-                  {selectedDriver.interface === 'spi' 
+                  {selectedDriver.interface === 'spi'
                     ? 'SPI drivers need the diag pin for sensorless homing AND TMC chopper tuning (StallGuard).'
                     : 'UART drivers can use diag pin for sensorless homing. Connect to an endstop input.'}
                 </p>
@@ -369,7 +369,7 @@ export function StepperPanel({ stepperName }: StepperPanelProps) {
             {/* No diag pin available warning */}
             {!motorPortData?.diag_pin && (
               <div className="text-xs text-amber-400">
-                ⚠️ Selected motor port doesn't have a diag pin defined. 
+                ⚠️ Selected motor port doesn't have a diag pin defined.
                 You may need to wire the diag output to a free GPIO.
               </div>
             )}
