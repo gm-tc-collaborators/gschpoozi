@@ -421,93 +421,48 @@ function CameraController({ targetPosition: _targetPosition, enabled: _enabled }
   return null;
 }
 
-// Dynamic Z-motors based on count from state
+// Z stepper names by index
+const Z_STEPPER_NAMES = ['stepper_z', 'stepper_z1', 'stepper_z2', 'stepper_z3'];
+
+// Dynamic Z-motors positioned from user-entered coordinates
 function ZMotors({
   size,
   zMotorCount,
+  wizardState,
   onClick
 }: {
   size: { x: number; y: number; z: number };
   zMotorCount: number;
+  wizardState: Record<string, any>;
   onClick: (name: string) => void;
 }) {
-  const getZMotorPositions = () => {
-    const offset = 0.1;
-    const positions: { pos: [number, number, number]; name: string; label: string }[] = [];
+  const bedX = wizardState['printer.bed_size_x'];
+  const bedY = wizardState['printer.bed_size_y'];
 
-    switch (zMotorCount) {
-      case 1:
-        positions.push({
-          pos: [0, offset, -size.y / 2 + offset],
-          name: 'stepper_z',
-          label: 'Z Stepper'
-        });
-        break;
-      case 2:
-        positions.push({
-          pos: [-size.x / 2 + offset, offset, -size.y / 2 + offset],
-          name: 'stepper_z',
-          label: 'Z Stepper (Left)'
-        });
-        positions.push({
-          pos: [size.x / 2 - offset, offset, -size.y / 2 + offset],
-          name: 'stepper_z1',
-          label: 'Z1 Stepper (Right)'
-        });
-        break;
-      case 3:
-        positions.push({
-          pos: [-size.x / 2 + offset, offset, -size.y / 2 + offset],
-          name: 'stepper_z',
-          label: 'Z Stepper (Rear Left)'
-        });
-        positions.push({
-          pos: [size.x / 2 - offset, offset, -size.y / 2 + offset],
-          name: 'stepper_z1',
-          label: 'Z1 Stepper (Rear Right)'
-        });
-        positions.push({
-          pos: [0, offset, size.y / 2 - offset],
-          name: 'stepper_z2',
-          label: 'Z2 Stepper (Front)'
-        });
-        break;
-      case 4:
-        positions.push({
-          pos: [-size.x / 2 + offset, offset, -size.y / 2 + offset],
-          name: 'stepper_z',
-          label: 'Z Stepper (Rear Left)'
-        });
-        positions.push({
-          pos: [size.x / 2 - offset, offset, -size.y / 2 + offset],
-          name: 'stepper_z1',
-          label: 'Z1 Stepper (Rear Right)'
-        });
-        positions.push({
-          pos: [-size.x / 2 + offset, offset, size.y / 2 - offset],
-          name: 'stepper_z2',
-          label: 'Z2 Stepper (Front Left)'
-        });
-        positions.push({
-          pos: [size.x / 2 - offset, offset, size.y / 2 - offset],
-          name: 'stepper_z3',
-          label: 'Z3 Stepper (Front Right)'
-        });
-        break;
-      default:
-        positions.push({
-          pos: [0, offset, -size.y / 2 + offset],
-          name: 'stepper_z',
-          label: 'Z Stepper'
-        });
-    }
+  const positions: { pos: [number, number, number]; name: string; label: string }[] = [];
+  const offset = 0.1;
+  const clampMargin = 0.15;
 
-    return positions;
-  };
+  for (let i = 0; i < zMotorCount; i++) {
+    const name = Z_STEPPER_NAMES[i];
+    const label = i === 0 ? 'Z Stepper' : `Z${i} Stepper`;
+    const posX = wizardState[`${name}.position_x`];
+    const posY = wizardState[`${name}.position_y`];
+
+    if (posX == null || posY == null || !bedX || !bedY) continue;
+
+    const sceneX = ((posX / bedX) - 0.5) * size.x;
+    const sceneZ = -((posY / bedY) - 0.5) * size.y;
+
+    const clampedX = Math.max(-size.x / 2 - clampMargin, Math.min(size.x / 2 + clampMargin, sceneX));
+    const clampedZ = Math.max(-size.y / 2 - clampMargin, Math.min(size.y / 2 + clampMargin, sceneZ));
+
+    positions.push({ pos: [clampedX, offset, clampedZ], name, label });
+  }
 
   return (
     <>
-      {getZMotorPositions().map(({ pos, name, label }) => (
+      {positions.map(({ pos, name, label }) => (
         <Stepper
           key={name}
           position={pos}
@@ -632,7 +587,7 @@ function SceneContent({ modelType }: { modelType: string }) {
             <Stepper position={[size.x / 2 - 0.1, size.z - 0.1, -size.y / 2 + 0.1]} name="stepper_y" label="Y Stepper (B belt)" onClick={() => handleClick('stepper_y')} />
 
             {/* Dynamic Z Motors */}
-            <ZMotors size={size} zMotorCount={zMotorCount} onClick={handleClick} />
+            <ZMotors size={size} zMotorCount={zMotorCount} wizardState={state} onClick={handleClick} />
 
             {/* MCU Board - outside back wall */}
             <MCUBoard 
@@ -662,7 +617,7 @@ function SceneContent({ modelType }: { modelType: string }) {
             <Stepper position={[0, 0.1, size.y / 2 - 0.1]} name="stepper_y" label="Y Stepper" onClick={() => handleClick('stepper_y')} />
 
             {/* Dynamic Z Motors */}
-            <ZMotors size={size} zMotorCount={zMotorCount} onClick={handleClick} />
+            <ZMotors size={size} zMotorCount={zMotorCount} wizardState={state} onClick={handleClick} />
 
             {/* MCU Board - outside back wall */}
             <MCUBoard 
@@ -765,7 +720,7 @@ function SceneContent({ modelType }: { modelType: string }) {
             />
 
             {/* Dynamic Z Motors */}
-            <ZMotors size={size} zMotorCount={zMotorCount} onClick={handleClick} />
+            <ZMotors size={size} zMotorCount={zMotorCount} wizardState={state} onClick={handleClick} />
 
             {/* MCU Board - outside back wall */}
             <MCUBoard 

@@ -5,7 +5,7 @@ import { usePortRegistry } from '../../hooks/usePortRegistry';
 import { PortSelector } from '../ui/PortSelector';
 import { PinEditor } from '../ui/PinEditor';
 import type { MotorPort, SimplePort, ProbePort } from '../ui/PortSelector';
-import { Settings, Info, Cpu, CircuitBoard, Crosshair } from 'lucide-react';
+import { Settings, Info, Cpu, CircuitBoard, Crosshair, MapPin } from 'lucide-react';
 
 interface StepperPanelProps {
   stepperName: string;
@@ -166,6 +166,52 @@ export function StepperPanel({ stepperName }: StepperPanelProps) {
             </div>
           </div>
         </div>
+
+        {/* Z Motor Position (z-tilt / QGL pivot point) */}
+        {isZAxis && (
+          <div className="bg-slate-800/50 rounded-lg border border-slate-700 p-4 space-y-3">
+            <div className="flex items-start gap-2">
+              <MapPin size={16} className="text-violet-400 shrink-0 mt-0.5" />
+              <div>
+                <div className="text-sm font-medium text-slate-300">Motor Position</div>
+                <p className="text-xs text-slate-500 mt-1">
+                  Physical location of this Z lead screw in mm. Used for z-tilt / QGL calibration.
+                  Values outside the bed area (e.g. negative) are normal. (0,0) = front-left of bed.
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1">X Position (mm)</label>
+                <input
+                  type="number"
+                  step="1"
+                  value={getValue('position_x') ?? ''}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setValue('position_x', val !== '' ? parseFloat(val) : undefined);
+                  }}
+                  placeholder="e.g. -50"
+                  className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1.5 text-sm text-white placeholder-slate-500 font-mono focus:border-violet-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-400 mb-1">Y Position (mm)</label>
+                <input
+                  type="number"
+                  step="1"
+                  value={getValue('position_y') ?? ''}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setValue('position_y', val !== '' ? parseFloat(val) : undefined);
+                  }}
+                  placeholder="e.g. -50"
+                  className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1.5 text-sm text-white placeholder-slate-500 font-mono focus:border-violet-500"
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Motor Port Selection */}
         <PortSelector

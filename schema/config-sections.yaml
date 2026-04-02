@@ -882,32 +882,48 @@ z_tilt:
   condition: "bed_leveling.leveling_type == 'z_tilt'"
   template: |
     [z_tilt]
-    # Z motor positions (outside bed, where steppers are located)
-    # Auto-generated defaults based on Z motor count - adjust to match your hardware!
-    {% if bed_leveling.z_tilt and bed_leveling.z_tilt.z_positions %}
+    {% set has_stepper_positions = stepper_z.position_x is defined and stepper_z.position_x is not none %}
+    {% if has_stepper_positions %}
+    z_positions:
+        {{ stepper_z.position_x | int }}, {{ stepper_z.position_y | int }}
+        {% if stepper_z1 is defined and stepper_z1.position_x is defined and stepper_z1.position_x is not none %}
+        {{ stepper_z1.position_x | int }}, {{ stepper_z1.position_y | int }}
+        {% endif %}
+        {% if stepper_z2 is defined and stepper_z2.position_x is defined and stepper_z2.position_x is not none %}
+        {{ stepper_z2.position_x | int }}, {{ stepper_z2.position_y | int }}
+        {% endif %}
+    {% elif bed_leveling.z_tilt and bed_leveling.z_tilt.z_positions %}
     z_positions: {{ bed_leveling.z_tilt.z_positions }}
     {% elif stepper_z.z_motor_count == 2 %}
-    # 2 Z motors: Left-right pattern (common for dual-Z bed leveling)
+    # 2 Z motors: Left-right default - set motor positions in wizard for accurate values
     z_positions:
         -50, {{ (printer.bed_size_y / 2) | int }}                                    # Left (stepper)
         {{ printer.bed_size_x | int + 50 }}, {{ (printer.bed_size_y / 2) | int }}    # Right (stepper)
     {% else %}
-    # 3 Z motors: Triangle pattern (Voron Trident style)
+    # 3 Z motors: Triangle default - set motor positions in wizard for accurate values
     z_positions:
         {{ (printer.bed_size_x / 2) | int }}, {{ printer.bed_size_y | int + 50 }}    # Front center (stepper)
         -50, -50                                                                      # Back left (stepper)
         {{ printer.bed_size_x | int + 50 }}, -50                                     # Back right (stepper)
     {% endif %}
-    # Probe points (inside bed, where nozzle/probe can reach)
-    {% if bed_leveling.z_tilt and bed_leveling.z_tilt.points %}
+    # Probe points (inside bed, near each Z motor)
+    {% if has_stepper_positions %}
+    {% set margin = 30 %}
+    points:
+        {{ [margin, [stepper_z.position_x | int, printer.bed_size_x | int - margin] | min] | max }}, {{ [margin, [stepper_z.position_y | int, printer.bed_size_y | int - margin] | min] | max }}
+        {% if stepper_z1 is defined and stepper_z1.position_x is defined and stepper_z1.position_x is not none %}
+        {{ [margin, [stepper_z1.position_x | int, printer.bed_size_x | int - margin] | min] | max }}, {{ [margin, [stepper_z1.position_y | int, printer.bed_size_y | int - margin] | min] | max }}
+        {% endif %}
+        {% if stepper_z2 is defined and stepper_z2.position_x is defined and stepper_z2.position_x is not none %}
+        {{ [margin, [stepper_z2.position_x | int, printer.bed_size_x | int - margin] | min] | max }}, {{ [margin, [stepper_z2.position_y | int, printer.bed_size_y | int - margin] | min] | max }}
+        {% endif %}
+    {% elif bed_leveling.z_tilt and bed_leveling.z_tilt.points %}
     points: {{ bed_leveling.z_tilt.points }}
     {% elif stepper_z.z_motor_count == 2 %}
-    # 2 probe points for 2 Z motors
     points:
         30, {{ (printer.bed_size_y / 2) | int }}                                     # Left
         {{ (printer.bed_size_x - 30) | int }}, {{ (printer.bed_size_y / 2) | int }}  # Right
     {% else %}
-    # 3 probe points for 3 Z motors
     points:
         {{ (printer.bed_size_x / 2) | int }}, {{ (printer.bed_size_y - 30) | int }}  # Front center
         30, 30                                                                        # Back left
@@ -922,11 +938,20 @@ quad_gantry_level:
   condition: "bed_leveling.leveling_type == 'qgl'"
   template: |
     [quad_gantry_level]
-    # Gantry corners (outside bed, where gantry pivots are located)
-    # Auto-generated defaults for Voron-style QGL - adjust to match your hardware!
-    {% if bed_leveling.qgl and bed_leveling.qgl.gantry_corners %}
+    {% set has_stepper_positions = stepper_z.position_x is defined and stepper_z.position_x is not none
+       and stepper_z1 is defined and stepper_z1.position_x is defined and stepper_z1.position_x is not none
+       and stepper_z2 is defined and stepper_z2.position_x is defined and stepper_z2.position_x is not none
+       and stepper_z3 is defined and stepper_z3.position_x is defined and stepper_z3.position_x is not none %}
+    {% if has_stepper_positions %}
+    gantry_corners:
+        {{ stepper_z.position_x | int }}, {{ stepper_z.position_y | int }}
+        {{ stepper_z1.position_x | int }}, {{ stepper_z1.position_y | int }}
+        {{ stepper_z2.position_x | int }}, {{ stepper_z2.position_y | int }}
+        {{ stepper_z3.position_x | int }}, {{ stepper_z3.position_y | int }}
+    {% elif bed_leveling.qgl and bed_leveling.qgl.gantry_corners %}
     gantry_corners: {{ bed_leveling.qgl.gantry_corners }}
     {% else %}
+    # Default gantry corners - set motor positions in wizard for accurate values
     gantry_corners:
         -60, -10                                                                      # Front left
         {{ printer.bed_size_x | int + 60 }}, -10                                     # Front right
@@ -934,7 +959,14 @@ quad_gantry_level:
         -60, {{ printer.bed_size_y | int + 60 }}                                     # Back left
     {% endif %}
     # Probe points (inside bed corners)
-    {% if bed_leveling.qgl and bed_leveling.qgl.points %}
+    {% if has_stepper_positions %}
+    {% set margin = 50 %}
+    points:
+        {{ [margin, [stepper_z.position_x | int, printer.bed_size_x | int - margin] | min] | max }}, {{ [margin, [stepper_z.position_y | int, printer.bed_size_y | int - margin] | min] | max }}
+        {{ [margin, [stepper_z1.position_x | int, printer.bed_size_x | int - margin] | min] | max }}, {{ [margin, [stepper_z1.position_y | int, printer.bed_size_y | int - margin] | min] | max }}
+        {{ [margin, [stepper_z2.position_x | int, printer.bed_size_x | int - margin] | min] | max }}, {{ [margin, [stepper_z2.position_y | int, printer.bed_size_y | int - margin] | min] | max }}
+        {{ [margin, [stepper_z3.position_x | int, printer.bed_size_x | int - margin] | min] | max }}, {{ [margin, [stepper_z3.position_y | int, printer.bed_size_y | int - margin] | min] | max }}
+    {% elif bed_leveling.qgl and bed_leveling.qgl.points %}
     points: {{ bed_leveling.qgl.points }}
     {% else %}
     points:

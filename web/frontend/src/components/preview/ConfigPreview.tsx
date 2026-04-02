@@ -251,19 +251,47 @@ stealthchop_threshold: 999999
     }
 
     // Add Z tilt or quad gantry level if multiple Z motors
-    if (zMotorCount === 3) {
+    const bedX = state['printer.bed_size_x'] || 235;
+    const bedY = state['printer.bed_size_y'] || 235;
+    const zNames = ['stepper_z', 'stepper_z1', 'stepper_z2', 'stepper_z3'];
+    const clampProbe = (v: number, max: number, margin: number) => Math.max(margin, Math.min(max - margin, Math.round(v)));
+
+    const getZPositions = (count: number) => {
+      const positions: { x: number; y: number }[] = [];
+      for (let i = 0; i < count; i++) {
+        const px = state[`${zNames[i]}.position_x`];
+        const py = state[`${zNames[i]}.position_y`];
+        if (px == null || py == null) return null;
+        positions.push({ x: Math.round(px), y: Math.round(py) });
+      }
+      return positions;
+    };
+
+    if (zMotorCount === 3 || zMotorCount === 2) {
+      const positions = getZPositions(zMotorCount);
+      const margin = 30;
+      let zPosStr: string;
+      let probeStr: string;
+
+      if (positions) {
+        zPosStr = positions.map(p => `    ${p.x}, ${p.y}`).join('\n');
+        probeStr = positions.map(p => `    ${clampProbe(p.x, bedX, margin)}, ${clampProbe(p.y, bedY, margin)}`).join('\n');
+      } else if (zMotorCount === 2) {
+        zPosStr = `    -50, ${Math.round(bedY / 2)}    # Left\n    ${bedX + 50}, ${Math.round(bedY / 2)}    # Right`;
+        probeStr = `    30, ${Math.round(bedY / 2)}\n    ${bedX - 30}, ${Math.round(bedY / 2)}`;
+      } else {
+        zPosStr = `    -50, -13    # Rear left\n    ${bedX + 50}, -13    # Rear right\n    ${Math.round(bedX / 2)}, ${bedY + 50}    # Front center`;
+        probeStr = `    30, 30\n    ${bedX - 30}, 30\n    ${Math.round(bedX / 2)}, ${bedY - 30}`;
+      }
+
       hardwareCfg += `# ─────────────────────────────────────────────────────────────────────────────
-# Z Tilt Adjustment (3 Z motors)
+# Z Tilt Adjustment (${zMotorCount} Z motors)
 # ─────────────────────────────────────────────────────────────────────────────
 [z_tilt]
 z_positions:
-    -50, -13    # Rear left
-    ${(state['printer.bed_size_x'] || 235) + 50}, -13    # Rear right
-    ${(state['printer.bed_size_x'] || 235) / 2}, ${(state['printer.bed_size_y'] || 235) + 50}    # Front center
+${zPosStr}
 points:
-    30, 30
-    ${(state['printer.bed_size_x'] || 235) - 30}, 30
-    ${(state['printer.bed_size_x'] || 235) / 2}, ${(state['printer.bed_size_y'] || 235) - 30}
+${probeStr}
 speed: 200
 horizontal_move_z: 10
 retries: 5
@@ -271,35 +299,27 @@ retry_tolerance: 0.0075
 
 `;
     } else if (zMotorCount === 4) {
+      const positions = getZPositions(4);
+      const margin = 50;
+      let cornersStr: string;
+      let probeStr: string;
+
+      if (positions) {
+        cornersStr = positions.map(p => `    ${p.x}, ${p.y}`).join('\n');
+        probeStr = positions.map(p => `    ${clampProbe(p.x, bedX, margin)}, ${clampProbe(p.y, bedY, margin)}`).join('\n');
+      } else {
+        cornersStr = `    -60, -10\n    ${bedX + 60}, ${bedY + 60}`;
+        probeStr = `    50, 25\n    50, ${bedY - 25}\n    ${bedX - 50}, ${bedY - 25}\n    ${bedX - 50}, 25`;
+      }
+
       hardwareCfg += `# ─────────────────────────────────────────────────────────────────────────────
 # Quad Gantry Level (4 Z motors)
 # ─────────────────────────────────────────────────────────────────────────────
 [quad_gantry_level]
 gantry_corners:
-    -60, -10
-    ${(state['printer.bed_size_x'] || 235) + 60}, ${(state['printer.bed_size_y'] || 235) + 60}
+${cornersStr}
 points:
-    50, 25
-    50, ${(state['printer.bed_size_y'] || 235) - 25}
-    ${(state['printer.bed_size_x'] || 235) - 50}, ${(state['printer.bed_size_y'] || 235) - 25}
-    ${(state['printer.bed_size_x'] || 235) - 50}, 25
-speed: 200
-horizontal_move_z: 10
-retries: 5
-retry_tolerance: 0.0075
-
-`;
-    } else if (zMotorCount === 2) {
-      hardwareCfg += `# ─────────────────────────────────────────────────────────────────────────────
-# Z Tilt Adjustment (2 Z motors)
-# ─────────────────────────────────────────────────────────────────────────────
-[z_tilt]
-z_positions:
-    -50, ${(state['printer.bed_size_y'] || 235) / 2}    # Left
-    ${(state['printer.bed_size_x'] || 235) + 50}, ${(state['printer.bed_size_y'] || 235) / 2}    # Right
-points:
-    30, ${(state['printer.bed_size_y'] || 235) / 2}
-    ${(state['printer.bed_size_x'] || 235) - 30}, ${(state['printer.bed_size_y'] || 235) / 2}
+${probeStr}
 speed: 200
 horizontal_move_z: 10
 retries: 5

@@ -2,55 +2,13 @@ import { ConfigPanel } from './ConfigPanel';
 import useWizardStore from '../../stores/wizardStore';
 import { ArrowDown } from 'lucide-react';
 
+const Z_STEPPER_NAMES = ['stepper_z', 'stepper_z1', 'stepper_z2', 'stepper_z3'];
+
 const Z_MOTOR_COUNTS = [
-  {
-    count: 1,
-    name: 'Single Z',
-    description: 'One motor, center back',
-    diagram: `
-      ┌─────────┐
-      │         │
-      │    Z    │
-      │         │
-      └─────────┘
-    `
-  },
-  {
-    count: 2,
-    name: 'Dual Z',
-    description: 'Two motors, left & right back',
-    diagram: `
-      ┌─────────┐
-      │ Z    Z1 │
-      │         │
-      │         │
-      └─────────┘
-    `
-  },
-  {
-    count: 3,
-    name: 'Triple Z',
-    description: 'Trident-style: 2 back, 1 front',
-    diagram: `
-      ┌─────────┐
-      │ Z    Z1 │
-      │         │
-      │   Z2    │
-      └─────────┘
-    `
-  },
-  {
-    count: 4,
-    name: 'Quad Z',
-    description: 'Four corners',
-    diagram: `
-      ┌─────────┐
-      │ Z    Z1 │
-      │         │
-      │Z2    Z3 │
-      └─────────┘
-    `
-  },
+  { count: 1, name: 'Single Z', description: 'One Z motor' },
+  { count: 2, name: 'Dual Z', description: 'Two Z motors (e.g. left & right)' },
+  { count: 3, name: 'Triple Z', description: 'Three Z motors (e.g. Trident)' },
+  { count: 4, name: 'Quad Z', description: 'Four Z motors (e.g. QGL)' },
 ];
 
 export function ZConfigPanel() {
@@ -70,7 +28,8 @@ export function ZConfigPanel() {
             <div>
               <div className="text-sm font-medium text-indigo-300">Z-Motor Configuration</div>
               <p className="text-xs text-indigo-200/70 mt-1">
-                Select how many Z motors your printer uses. The 3D model will update to show motor positions.
+                Select how many Z motors your printer uses, then set the physical position
+                of each motor. The 3D model updates as you enter coordinates.
               </p>
             </div>
           </div>
@@ -85,7 +44,13 @@ export function ZConfigPanel() {
             {Z_MOTOR_COUNTS.map((option) => (
               <button
                 key={option.count}
-                onClick={() => setField('z_config.motor_count', option.count)}
+                onClick={() => {
+                  setField('z_config.motor_count', option.count);
+                  for (let i = option.count; i < 4; i++) {
+                    setField(`${Z_STEPPER_NAMES[i]}.position_x`, undefined);
+                    setField(`${Z_STEPPER_NAMES[i]}.position_y`, undefined);
+                  }
+                }}
                 className={`p-4 rounded-lg border text-left transition-all ${
                   currentCount === option.count
                     ? 'bg-indigo-600/30 border-indigo-500 ring-1 ring-indigo-500'
@@ -105,13 +70,6 @@ export function ZConfigPanel() {
                   </span>
                 </div>
                 <p className="text-xs text-slate-500">{option.description}</p>
-
-                {/* ASCII diagram */}
-                <pre className={`mt-2 text-xs font-mono leading-tight ${
-                  currentCount === option.count ? 'text-indigo-400' : 'text-slate-600'
-                }`}>
-                  {option.diagram}
-                </pre>
               </button>
             ))}
           </div>
@@ -123,8 +81,11 @@ export function ZConfigPanel() {
             <h3 className="text-sm font-medium text-slate-300 mb-3">Configure Individual Steppers</h3>
             <div className="space-y-2">
               {Array.from({ length: currentCount }, (_, i) => {
-                const name = i === 0 ? 'stepper_z' : `stepper_z${i}`;
+                const name = Z_STEPPER_NAMES[i];
                 const label = i === 0 ? 'Z Stepper' : `Z${i} Stepper`;
+                const posX = state[`${name}.position_x`];
+                const posY = state[`${name}.position_y`];
+                const hasPos = posX != null && posY != null;
                 return (
                   <button
                     key={name}
@@ -132,7 +93,9 @@ export function ZConfigPanel() {
                     className="w-full flex items-center justify-between px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm transition-colors"
                   >
                     <span className="text-slate-300">{label}</span>
-                    <span className="text-slate-500">→</span>
+                    <span className={`text-xs font-mono ${hasPos ? 'text-violet-400' : 'text-amber-400/70'}`}>
+                      {hasPos ? `(${posX}, ${posY})` : 'position not set'}
+                    </span>
                   </button>
                 );
               })}
@@ -141,15 +104,15 @@ export function ZConfigPanel() {
         )}
 
         {/* Z Tilt / Quad Gantry Level info */}
-        {currentCount >= 3 && (
+        {currentCount >= 2 && (
           <div className="bg-slate-800 rounded-lg p-4">
             <h4 className="text-sm font-medium text-slate-300 mb-2">
               {currentCount === 4 ? 'Quad Gantry Level' : 'Z Tilt Adjust'}
             </h4>
             <p className="text-xs text-slate-500">
               {currentCount === 4
-                ? 'With 4 Z motors, you can use [quad_gantry_level] for automatic gantry leveling.'
-                : 'With 3 Z motors, you can use [z_tilt] for automatic bed tramming.'}
+                ? 'With 4 Z motors, you can use [quad_gantry_level] for automatic gantry leveling. Set each motor\'s physical position to generate correct gantry corners.'
+                : `With ${currentCount} Z motors, you can use [z_tilt] for automatic bed tramming. Set each motor's physical position to generate correct z_positions.`}
             </p>
           </div>
         )}
