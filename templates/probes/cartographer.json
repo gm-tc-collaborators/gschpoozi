@@ -47,6 +47,7 @@
       "max_temp": 105
     },
     "adxl345": {
+      "_comment": "cs_pin depends on hardware revision: V3 = cartographer:PA3, V4 = cartographer:PA0. Wrong pin causes an endless bootloop.",
       "cs_pin": "cartographer:PA3",
       "spi_bus": "spi1"
     },

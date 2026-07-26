@@ -11,3 +11,4 @@ export * from './ZConfigPanel';
 export * from './ToolingPanel';
 export * from './HomingPanel';
 export * from './BedLevelingPanel';
+export * from './LightingPanel';

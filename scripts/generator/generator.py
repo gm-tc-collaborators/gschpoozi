@@ -34,6 +34,7 @@ class ConfigGenerator:
         "gschpoozi/macros-config.cfg": "Macro configuration variables",
         "gschpoozi/calibration.cfg": "Calibration and stepper identification macros",
         "gschpoozi/tuning.cfg": "Tuning and optional features",
+        "gschpoozi/lighting.cfg": "Case light and LED effects",
     }
 
     def __init__(
@@ -91,6 +92,8 @@ class ConfigGenerator:
             'temperature_sensor': 'gschpoozi/hardware.cfg',
             'neopixel': 'gschpoozi/hardware.cfg',
             'filament_switch_sensor': 'gschpoozi/hardware.cfg',
+            'lighting.case_light': 'gschpoozi/lighting.cfg',
+            'lighting.led_effects': 'gschpoozi/lighting.cfg',
             'common.virtual_sdcard': 'gschpoozi/tuning.cfg',
             'common.idle_timeout': 'gschpoozi/tuning.cfg',
             'common.pause_resume': 'gschpoozi/tuning.cfg',
@@ -989,6 +992,7 @@ class ConfigGenerator:
             "gschpoozi/macros.cfg",
             "gschpoozi/calibration.cfg",
             "gschpoozi/tuning.cfg",
+            "gschpoozi/lighting.cfg",
         ]
         for p in expected_cfgs:
             if p not in result:
@@ -1042,6 +1046,7 @@ class ConfigGenerator:
             "gschpoozi/macros.cfg",
             "gschpoozi/calibration.cfg",
             "gschpoozi/tuning.cfg",
+            "gschpoozi/lighting.cfg",
             "user-overrides.cfg",
         ]
 

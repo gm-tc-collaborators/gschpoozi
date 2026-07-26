@@ -2233,6 +2233,8 @@ class GschpooziWizard:
             leds_status = None
             if leds_count > 0:
                 leds_status = f"{leds_count} LED{'s' if leds_count != 1 else ''}"
+            if self.state.get("lighting.case_light.enabled", False):
+                leds_status = f"{leds_status} + case light" if leds_status else "case light"
 
             # Filament Sensors
             filament_sensors = self.state.get("filament_sensors", [])
@@ -2309,7 +2311,7 @@ class GschpooziWizard:
                 ("2.10", self._format_menu_item("Homing", homing_status) if homing_status else "Homing               (Safe Z home, sensorless)"),
                 ("2.11", self._format_menu_item("Bed Leveling", leveling_status) if leveling_status else "Bed Leveling         (Mesh, Z tilt, QGL)"),
                 ("2.12", self._format_menu_item("Temperature Sensors", temp_sensors_status) if temp_sensors_status else "Temperature Sensors  (MCU, chamber, etc.)"),
-                ("2.13", self._format_menu_item("LEDs", leds_status) if leds_status else "LEDs                 (Neopixel, case light)"),
+                ("2.13", self._format_menu_item("Lighting", leds_status) if leds_status else "Lighting             (Case light, LEDs, effects)"),
                 ("2.14", self._format_menu_item("Filament Sensors", filament_sensors_status) if filament_sensors_status else "Filament Sensors     (Runout detection)"),
                 ("2.15", self._format_menu_item("Display", display_status) if display_status else "Display              (LCD, OLED, KlipperScreen)"),
                 ("2.16", self._format_menu_item("Advanced", advanced_status) if advanced_status else "Advanced             (Servo, buttons, etc.)"),
@@ -2356,7 +2358,7 @@ class GschpooziWizard:
             elif choice == "2.12":
                 self._temperature_sensors_setup()
             elif choice == "2.13":
-                self._leds_setup()
+                self._lighting_setup()
             elif choice == "2.14":
                 self._filament_sensors_setup()
             elif choice == "2.15":
@@ -6716,6 +6718,22 @@ class GschpooziWizard:
                 if homing_mode is None:
                     return
 
+                current_carto_version = self.state.get("probe.cartographer_version", "")
+                carto_version = self.ui.radiolist(
+                    "Cartographer hardware version:\n\n"
+                    "Determines the built-in accelerometer cs_pin.\n"
+                    "Selecting the wrong version causes an endless\n"
+                    "bootloop of the probe!",
+                    [
+                        ("v4", "V4 (accelerometer on PA0)", current_carto_version == "v4" or not current_carto_version),
+                        ("v3", "V3 (accelerometer on PA3)", current_carto_version == "v3"),
+                    ],
+                    title="Cartographer - Version"
+                )
+                if carto_version is None:
+                    return
+                self.state.set("probe.cartographer_version", carto_version)
+
             elif probe_type == "btt_eddy":
                 current_mesh_method = self.state.get("probe.bed_mesh.mesh_method", "rapid_scan")
                 mesh_method = self.ui.radiolist(
@@ -7691,6 +7709,250 @@ class GschpooziWizard:
             f"Temperature sensors configured!\n\n"
             f"Sensors: {', '.join(sensor_names) if sensor_names else 'None'}",
             title="Configuration Saved"
+        )
+
+    def _lighting_setup(self) -> None:
+        """Lighting menu: case light, LED strips, LED effects."""
+        while True:
+            cl_enabled = self.state.get("lighting.case_light.enabled", False)
+            cl_type = self.state.get("lighting.case_light.type", "")
+            cl_status = f"enabled ({cl_type})" if cl_enabled else "disabled"
+            leds = self.state.get("leds", [])
+            strips_status = f"{len(leds)} strip(s)" if isinstance(leds, list) and leds else "none"
+            fx_status = "enabled" if self.state.get("lighting.effects.enabled", False) else "disabled"
+
+            choice = self.ui.menu(
+                "Lighting Configuration",
+                [
+                    ("CASE", f"Case Light            ({cl_status})"),
+                    ("STRIPS", f"LED Strips (Neopixel) ({strips_status})"),
+                    ("EFFECTS", f"LED Effects           ({fx_status})"),
+                    ("B", "Back"),
+                ],
+                title="2.13 Lighting"
+            )
+            if choice is None or choice == "B":
+                break
+            elif choice == "CASE":
+                self._case_light_setup()
+            elif choice == "STRIPS":
+                self._leds_setup()
+            elif choice == "EFFECTS":
+                self._led_effects_setup()
+
+    def _case_light_setup(self) -> None:
+        """Configure case lighting (PWM/on-off strip or neopixel)."""
+        if not self.ui.yesno(
+            "Enable case lighting?\n\n"
+            "PWM white strips get a brightness slider in\n"
+            "Mainsail/Fluidd. Fan and heater ports work great\n"
+            "for LED strips (MOSFET-switched at supply voltage).",
+            title="Case Light"
+        ):
+            self.state.set("lighting.case_light.enabled", False)
+            self.state.save()
+            return
+
+        current_type = self.state.get("lighting.case_light.type", "pwm")
+        cl_type = self.ui.radiolist(
+            "Case light type:",
+            [
+                ("pwm", "PWM LED strip (dimmable, slider in UI)", current_type == "pwm" or not current_type),
+                ("onoff", "On/Off LED strip (switch in UI)", current_type == "onoff"),
+                ("neopixel", "Neopixel RGB(W) strip", current_type == "neopixel"),
+            ],
+            title="Case Light - Type"
+        )
+        if cl_type is None:
+            return
+
+        has_toolboard = bool(self.state.get("mcu.toolboard.connection_type"))
+        current_location = self.state.get("lighting.case_light.location", "mainboard")
+        if has_toolboard:
+            location = self.ui.radiolist(
+                "Case light connected to:",
+                [
+                    ("mainboard", "Mainboard", current_location != "toolboard"),
+                    ("toolboard", "Toolboard", current_location == "toolboard"),
+                ],
+                title="Case Light - Location"
+            )
+            if location is None:
+                return
+        else:
+            location = "mainboard"
+
+        # Neopixels need a data pin (GPIO); dumb strips want a MOSFET output,
+        # so prefer fan/heater ports for those.
+        if cl_type == "neopixel":
+            preferred = ["misc_ports", "endstop_ports", "probe_ports"]
+            pin_prompt = "Data pin for case light neopixel:"
+        else:
+            preferred = ["fan_ports", "heater_ports", "misc_ports"]
+            pin_prompt = (
+                "Output pin for case light strip:\n\n"
+                "Fan ports (~1A) suit most strips; heater ports\n"
+                "handle long high-power strips."
+            )
+        pin = self._pick_pin_from_known_ports(
+            location=location,
+            default_pin=self.state.get("lighting.case_light.pin", ""),
+            title="Case Light - Pin",
+            prompt=pin_prompt,
+            preferred_groups=preferred,
+        )
+        if pin is None:
+            return
+        if not isinstance(pin, str) or not pin.strip():
+            self.ui.msgbox("Case light pin cannot be empty.", title="Invalid Pin")
+            return
+
+        if cl_type == "neopixel":
+            chain_count = self.ui.inputbox(
+                "Number of LEDs in the chain:",
+                default=str(self.state.get("lighting.case_light.chain_count", 10)),
+                title="Case Light - LED Count"
+            )
+            if chain_count is None:
+                return
+            current_order = self.state.get("lighting.case_light.color_order", "GRB")
+            color_order = self.ui.radiolist(
+                "Color order:",
+                [
+                    ("GRB", "GRB (most common)", current_order == "GRB"),
+                    ("RGB", "RGB", current_order == "RGB"),
+                    ("GRBW", "GRBW (RGBW, green first)", current_order == "GRBW"),
+                    ("RGBW", "RGBW", current_order == "RGBW"),
+                ],
+                title="Case Light - Color Order"
+            )
+            if color_order is None:
+                return
+            self.state.set("lighting.case_light.chain_count", int(chain_count or 10))
+            self.state.set("lighting.case_light.color_order", color_order)
+
+        self.state.set("lighting.case_light.enabled", True)
+        self.state.set("lighting.case_light.type", cl_type)
+        self.state.set("lighting.case_light.location", location)
+        self.state.set("lighting.case_light.pin", pin)
+        self.state.save()
+
+        ui_control = {
+            "pwm": "a brightness slider",
+            "onoff": "an on/off switch",
+            "neopixel": "LED controls",
+        }[cl_type]
+        self.ui.msgbox(
+            f"Case light configured!\n\n"
+            f"Mainsail/Fluidd will show {ui_control} for it\n"
+            f"after the config is generated and Klipper restarts.",
+            title="Case Light"
+        )
+
+    @staticmethod
+    def _is_led_effect_plugin_installed() -> bool:
+        """Detect the klipper-led_effect plugin (led_effect.py in Klipper extras)."""
+        try:
+            base = Path.home() / "klipper" / "klippy" / "extras"
+            return (base / "led_effect.py").exists() or (base / "led_effect.pyc").exists()
+        except Exception:
+            return False
+
+    def _led_effects_setup(self) -> None:
+        """Configure LED effect presets (requires klipper-led_effect plugin)."""
+        # Collect available neopixel strips as effect targets
+        targets = []
+        if (self.state.get("lighting.case_light.enabled", False)
+                and self.state.get("lighting.case_light.type") == "neopixel"):
+            targets.append(("neopixel:case_light", "Case light"))
+        for led in self.state.get("leds", []) or []:
+            name = led.get("name")
+            if name:
+                targets.append((f"neopixel:{name}", f"LED strip '{name}'"))
+
+        if not targets:
+            self.ui.msgbox(
+                "No addressable (Neopixel) strips configured yet.\n\n"
+                "LED effects need at least one Neopixel strip -\n"
+                "add one under Case Light or LED Strips first.\n"
+                "(PWM/on-off strips cannot show effects.)",
+                title="LED Effects"
+            )
+            return
+
+        if not self.ui.yesno(
+            "Enable LED effect presets?\n\n"
+            "Requires the klipper-led_effect plugin.\n"
+            "Presets: idle breathing (autostart), error flash\n"
+            "(on shutdown), plus optional heating and printing\n"
+            "effects for macro integration.",
+            title="LED Effects"
+        ):
+            self.state.set("lighting.effects.enabled", False)
+            self.state.save()
+            return
+
+        if not self._is_led_effect_plugin_installed():
+            self.ui.msgbox(
+                "klipper-led_effect plugin not detected!\n\n"
+                "Klipper will fail to start with [led_effect]\n"
+                "sections until it is installed:\n\n"
+                "cd ~ && git clone https://github.com/julianschill/klipper-led_effect.git\n"
+                "cd klipper-led_effect && ./install-led_effect.sh\n\n"
+                "Continuing anyway - install before restarting Klipper.",
+                title="LED Effects - Plugin Missing",
+                height=16
+            )
+
+        current_targets = self.state.get("lighting.effects.targets", []) or []
+        selected = self.ui.checklist(
+            "Which strips should show effects?",
+            [(t, label, t in current_targets or not current_targets) for t, label in targets],
+            title="LED Effects - Strips"
+        )
+        if not selected:
+            return
+
+        presets = self.ui.checklist(
+            "Which effect presets to generate?",
+            [
+                ("idle", "Idle breathing (starts automatically)", self.state.get("lighting.effects.idle", True)),
+                ("error", "Error flash (runs on Klipper shutdown)", self.state.get("lighting.effects.error", True)),
+                ("heating", "Heating gradient (manual/macro activation)", self.state.get("lighting.effects.heating", False)),
+                ("printing", "Printing white (manual/macro activation)", self.state.get("lighting.effects.printing", False)),
+            ],
+            title="LED Effects - Presets"
+        )
+        if presets is None:
+            return
+
+        if "heating" in presets:
+            current_heater = self.state.get("lighting.effects.heater", "heater_bed")
+            heater = self.ui.radiolist(
+                "Heater for the heating gradient:",
+                [
+                    ("heater_bed", "Heated bed", current_heater == "heater_bed"),
+                    ("extruder", "Hotend", current_heater == "extruder"),
+                ],
+                title="LED Effects - Heater"
+            )
+            if heater is None:
+                return
+            self.state.set("lighting.effects.heater", heater)
+
+        self.state.set("lighting.effects.enabled", True)
+        self.state.set("lighting.effects.targets", list(selected))
+        for p in ["idle", "error", "heating", "printing"]:
+            self.state.set(f"lighting.effects.{p}", p in presets)
+        self.state.save()
+
+        self.ui.msgbox(
+            "LED effects configured!\n\n"
+            "Generated into gschpoozi/lighting.cfg.\n"
+            "Activate manual effects with:\n"
+            "SET_LED_EFFECT EFFECT=lighting_heating\n"
+            "SET_LED_EFFECT EFFECT=lighting_printing STOP=1 (to stop)",
+            title="LED Effects"
         )
 
     def _leds_setup(self) -> None:
@@ -10017,7 +10279,9 @@ read -r _
             self.state.set("tuning.accelerometer.source", "cartographer")
             self.state.set("tuning.accelerometer.type", "ADXL345")
             self.state.set("tuning.accelerometer.mcu_prefix", "cartographer:")
-            self.state.set("tuning.accelerometer.cs_pin", "PA3")
+            # cs_pin depends on probe hardware revision: V3=PA3, V4=PA0
+            carto_version = self.state.get("probe.cartographer_version", "v3")
+            self.state.set("tuning.accelerometer.cs_pin", "PA0" if carto_version == "v4" else "PA3")
             self.state.set("tuning.accelerometer.spi_bus", "spi1")
 
         self.state.save()

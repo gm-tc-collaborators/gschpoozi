@@ -282,6 +282,118 @@ def test_cartographer_probe():
         return False
 
 
+def test_cartographer_accelerometer_versions():
+    """Test: Cartographer built-in accelerometer generates [adxl345] with version-correct cs_pin."""
+    print("Test: Cartographer accelerometer V3/V4 cs_pin...", end=" ")
+    try:
+        for version, expected_pin in [('v3', 'cartographer:PA3'), ('v4', 'cartographer:PA0'), (None, 'cartographer:PA3')]:
+            state = create_base_state()
+            state.set('probe.probe_type', 'cartographer')
+            state.set('probe.serial', '/dev/serial/by-id/usb-Cartographer')
+            state.set('probe.x_offset', 0)
+            state.set('probe.y_offset', 20)
+            state.set('probe.homing_mode', 'touch')
+            if version:
+                state.set('probe.cartographer_version', version)
+            state.set('tuning.accelerometer.enabled', True)
+            state.set('tuning.accelerometer.source', 'cartographer')
+            state.set('tuning.accelerometer.type', 'ADXL345')
+
+            gen = ConfigGenerator(state)
+            files = gen.generate()
+            all_cfg = '\n'.join(files.values())
+            assert '[adxl345]' in all_cfg, f"[adxl345] section missing (version={version})"
+            assert f'cs_pin: {expected_pin}' in all_cfg, \
+                f"expected cs_pin {expected_pin} for version={version}"
+            # resonance_tester references adxl345, which must now be defined
+            assert 'accel_chip: adxl345' in all_cfg, f"resonance_tester missing (version={version})"
+
+        print("PASS")
+        return True
+    except Exception as e:
+        print(f"FAIL: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+def test_case_light_pwm_on_fan_port():
+    """Test: PWM case light on a fan port pin generates slider-controllable output_pin."""
+    print("Test: Case light PWM on fan port...", end=" ")
+    try:
+        state = create_base_state()
+        state.set('lighting.case_light.enabled', True)
+        state.set('lighting.case_light.type', 'pwm')
+        state.set('lighting.case_light.location', 'mainboard')
+        state.set('lighting.case_light.pin', 'PD13')  # Octopus FAN2
+
+        files = ConfigGenerator(state).generate()
+        cfg = files['gschpoozi/lighting.cfg']
+        assert '[output_pin caselight]' in cfg, "output_pin section missing"
+        assert 'pin: PD13' in cfg
+        assert 'pwm: True' in cfg, "pwm missing - no slider in Mainsail/Fluidd"
+        assert 'cycle_time: 0.01' in cfg, "cycle_time missing"
+        assert 'shutdown_value: 0' in cfg
+        assert 'gschpoozi/lighting.cfg' in files['printer.cfg'], "lighting.cfg not included"
+
+        # On/off variant: no pwm
+        state.set('lighting.case_light.type', 'onoff')
+        cfg = ConfigGenerator(state).generate()['gschpoozi/lighting.cfg']
+        assert '[output_pin caselight]' in cfg and 'pwm: True' not in cfg
+
+        # Toolboard location gets prefix
+        state.set('lighting.case_light.type', 'pwm')
+        state.set('lighting.case_light.location', 'toolboard')
+        cfg = ConfigGenerator(state).generate()['gschpoozi/lighting.cfg']
+        assert 'pin: toolboard:PD13' in cfg
+
+        print("PASS")
+        return True
+    except Exception as e:
+        print(f"FAIL: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+def test_case_light_neopixel_with_effects():
+    """Test: Neopixel case light with led_effect presets, correct section ordering."""
+    print("Test: Neopixel case light + LED effects...", end=" ")
+    try:
+        state = create_base_state()
+        state.set('lighting.case_light.enabled', True)
+        state.set('lighting.case_light.type', 'neopixel')
+        state.set('lighting.case_light.location', 'mainboard')
+        state.set('lighting.case_light.pin', 'PB0')
+        state.set('lighting.case_light.chain_count', 20)
+        state.set('lighting.case_light.color_order', 'GRBW')
+        state.set('lighting.effects.enabled', True)
+        state.set('lighting.effects.targets', ['neopixel:case_light'])
+        state.set('lighting.effects.heating', True)
+        state.set('lighting.effects.printing', True)
+
+        cfg = ConfigGenerator(state).generate()['gschpoozi/lighting.cfg']
+        assert '[neopixel case_light]' in cfg
+        assert 'initial_WHITE' in cfg, "RGBW strip missing initial_WHITE"
+        for name in ['lighting_idle', 'lighting_heating', 'lighting_printing', 'lighting_error']:
+            assert f'[led_effect {name}]' in cfg, f"{name} preset missing"
+        # led definitions must precede effects referencing them
+        assert cfg.index('[neopixel case_light]') < cfg.index('[led_effect lighting_idle]')
+        assert 'run_on_error: true' in cfg
+
+        # Disabled lighting -> no sections generated
+        cfg = ConfigGenerator(create_base_state()).generate().get('gschpoozi/lighting.cfg', '')
+        assert '[output_pin' not in cfg and '[neopixel' not in cfg
+
+        print("PASS")
+        return True
+    except Exception as e:
+        print(f"FAIL: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
 def test_triple_z_with_beacon():
     """Test: Triple Z with Z-Tilt and Beacon probe."""
     print("Test: Triple Z with Z-Tilt and Beacon...", end=" ")
@@ -343,6 +455,9 @@ def main():
         test_beacon_probe_minimal,
         test_beacon_probe_with_bed_mesh,
         test_cartographer_probe,
+        test_cartographer_accelerometer_versions,
+        test_case_light_pwm_on_fan_port,
+        test_case_light_neopixel_with_effects,
         test_triple_z_with_beacon,
     ]
     

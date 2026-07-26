@@ -1303,6 +1303,14 @@ categories:
                 type: "text"
                 auto_detect: true
                 required: true
+              # Hardware revision - determines built-in accelerometer cs_pin
+              # (V3 = PA3, V4 = PA0; wrong pin causes endless probe bootloop)
+              - name: "cartographer_version"
+                type: "choice"
+                options: ["v3", "v4"]
+                default: "v4"
+                required: true
+                description: "Probe hardware revision (V3: accel on PA3, V4: accel on PA0)"
               - name: "x_offset"
                 type: "float"
                 default: 0
@@ -1635,9 +1643,9 @@ categories:
                 type: "text"
                 condition: "sensor_type in ['BME280', 'AHT10']"
 
-      # 2.13 LEDs
+      # 2.13 Lighting
       - id: "2.13"
-        name: "LEDs"
+        name: "Lighting"
         sections:
           - id: "2.13.1"
             name: "Toolhead LEDs"
@@ -1705,9 +1713,16 @@ categories:
                     label: "On/Off LED"
                     klipper_section: "[output_pin case_light]"
                 condition: "enabled == true"
+              - name: "location"
+                type: "choice"
+                options: ["mainboard", "toolboard"]
+                default: "mainboard"
+                condition: "enabled == true"
+              # PWM/on-off strips: fan and heater ports are ideal (MOSFET outputs
+              # at supply voltage). Neopixel needs a GPIO data pin.
               - name: "pin"
                 type: "select"
-                source: "board.gpio_ports"
+                source: "board.fan_ports + board.heater_ports + board.gpio_ports"
                 condition: "enabled == true"
               - name: "chain_count"
                 type: "int"
@@ -1720,14 +1735,44 @@ categories:
                 condition: "type == 'neopixel'"
 
           - id: "2.13.3"
-            name: "LED Effects Plugin"
+            name: "LED Effects"
             plugin_required: "led_effect"
             required: false
             parameters:
               - name: "enabled"
                 type: "bool"
                 default: false
-                description: "Enable LED_Effect plugin for animations"
+                description: "Enable LED_Effect plugin presets"
+              - name: "targets"
+                type: "multiselect"
+                source: "configured_neopixel_strips"
+                condition: "enabled == true"
+                description: "Which addressable strips show effects"
+              - name: "idle"
+                type: "bool"
+                default: true
+                condition: "enabled == true"
+                description: "Idle breathing (autostart)"
+              - name: "error"
+                type: "bool"
+                default: true
+                condition: "enabled == true"
+                description: "Error flash (run_on_error)"
+              - name: "heating"
+                type: "bool"
+                default: false
+                condition: "enabled == true"
+                description: "Heating gradient (manual/macro activation)"
+              - name: "printing"
+                type: "bool"
+                default: false
+                condition: "enabled == true"
+                description: "Printing white (manual/macro activation)"
+              - name: "heater"
+                type: "choice"
+                options: ["heater_bed", "extruder"]
+                default: "heater_bed"
+                condition: "heating == true"
 
       # 2.14 Filament Sensors
       - id: "2.14"

@@ -283,6 +283,9 @@ class TemplateRenderer:
             ('temperature_sensor', None),
             ('neopixel', None),
             ('filament_switch_sensor', None),
+            # Lighting (case light must precede led_effects that reference it)
+            ('lighting', 'case_light'),
+            ('lighting', 'led_effects'),
         ]
 
         for section_name, subsection in section_order:

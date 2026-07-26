@@ -16,6 +16,7 @@ import {
   ToolingPanel,
   HomingPanel,
   BedLevelingPanel,
+  LightingPanel,
 } from '../components/panels';
 import { MacrosPanel } from '../components/panels/MacrosPanel';
 import { ConfigPreview } from '../components/preview/ConfigPreview';
@@ -42,6 +43,7 @@ import {
   Home,
   Layers,
   Play,
+  Lightbulb,
 } from 'lucide-react';
 
 interface SidebarItem {
@@ -72,6 +74,9 @@ const BASE_SIDEBAR_ITEMS: SidebarItem[] = [
 
   // Cooling
   { id: 'fans', name: 'Fans', icon: Fan, color: 'text-sky-400', section: 'Cooling' },
+
+  // Extras
+  { id: 'lighting', name: 'Lighting', icon: Lightbulb, color: 'text-yellow-400', section: 'Extras' },
 
   // Workflow
   { id: 'macros', name: 'Macros', icon: Play, color: 'text-purple-400', section: 'Workflow' },
@@ -188,6 +193,8 @@ export function Configurator() {
         return <BedLevelingPanel />;
       case 'fans':
         return <FanPanel />;
+      case 'lighting':
+        return <LightingPanel />;
       case 'macros':
         return <MacrosPanel />;
       default:

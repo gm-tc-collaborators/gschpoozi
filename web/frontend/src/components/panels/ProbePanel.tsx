@@ -64,6 +64,13 @@ export function ProbePanel() {
   const handleProbeTypeChange = (newType: string) => {
     setValue('probe_type', newType || undefined);
 
+    // Cartographer needs a hardware version (accelerometer cs_pin differs: V3=PA3, V4=PA0)
+    if (newType === 'cartographer') {
+      if (!getValue('cartographer_version')) setValue('cartographer_version', 'v4');
+    } else {
+      setValue('cartographer_version', undefined);
+    }
+
     // Auto-set connection type based on probe
     if (USB_CAN_PROBES.includes(newType)) {
       setValue('connection', 'usb');
@@ -200,6 +207,33 @@ export function ProbePanel() {
                 )}
               </div>
             </div>
+
+            {/* Cartographer hardware version (determines accelerometer cs_pin) */}
+            {probeType === 'cartographer' && (
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Hardware Version
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(['v3', 'v4'] as const).map((v) => (
+                    <button
+                      key={v}
+                      onClick={() => setValue('cartographer_version', v)}
+                      className={`py-2 rounded-lg text-sm font-medium transition-colors ${
+                        (getValue('cartographer_version') || 'v4') === v
+                          ? 'bg-violet-600 text-white'
+                          : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                      }`}
+                    >
+                      {v === 'v3' ? 'V3 (accel on PA3)' : 'V4 (accel on PA0)'}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-amber-400/80 mt-1">
+                  Wrong version causes an endless bootloop of the probe — check your hardware revision.
+                </p>
+              </div>
+            )}
 
             {/* Serial ID (USB) */}
             {connection === 'usb' && (

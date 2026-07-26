@@ -1073,13 +1073,24 @@ common:
   # ─────────────────────────────────────────────────────────────────────────────
   # Accelerometer Configuration
   # Source: toolboard accelerometer or probe with built-in accelerometer
-  # Note: Probes with built-in accelerometers (beacon, cartographer) provide their own
-  # accelerometer sections via klipper_config, so we only generate toolboard sections here.
+  # Note: Beacon provides its own accel_chip via the [beacon] section, but
+  # Cartographer needs an explicit [adxl345] section. The cs_pin depends on the
+  # probe hardware revision: V3 uses PA3, V4 uses PA0 (the wrong pin causes an
+  # endless bootloop of the probe MCU).
   # ─────────────────────────────────────────────────────────────────────────────
   accelerometer:
-    condition: "tuning.accelerometer.enabled and tuning.accelerometer.source == 'toolboard'"
+    condition: "tuning.accelerometer.enabled and (tuning.accelerometer.source == 'toolboard' or tuning.accelerometer.source == 'cartographer')"
     template: |
-      {% if tuning.accelerometer.type == 'ADXL345' %}
+      {% if tuning.accelerometer.source == 'cartographer' %}
+      # Cartographer built-in accelerometer (cs_pin depends on hardware revision)
+      [adxl345]
+      {% if probe.cartographer_version | default('v3') == 'v4' %}
+      cs_pin: cartographer:PA0
+      {% else %}
+      cs_pin: cartographer:PA3
+      {% endif %}
+      spi_bus: spi1
+      {% elif tuning.accelerometer.type == 'ADXL345' %}
       [adxl345]
       {% if tuning.accelerometer.spi_bus %}
       cs_pin: {{ tuning.accelerometer.mcu_prefix }}{{ tuning.accelerometer.cs_pin }}
@@ -3684,6 +3695,100 @@ neopixel:
     initial_BLUE: 0.2
 
     {% endfor %}
+
+# -----------------------------------------------------------------------------
+# Lighting (case light, LED effects) -> gschpoozi/lighting.cfg
+# -----------------------------------------------------------------------------
+lighting:
+  # Case light: PWM white strip / on-off / neopixel RGB(W).
+  # PWM and on-off variants use [output_pin caselight], which Mainsail/Fluidd
+  # render as a slider (pwm) or switch (on-off). Fan and heater ports are
+  # valid targets - they are MOSFET-switched outputs at supply voltage.
+  case_light:
+    condition: "lighting.case_light.enabled"
+    template: |
+      {% set cl = lighting.case_light %}
+      {% set prefix = 'toolboard:' if cl.location == 'toolboard' else '' %}
+      {% if cl.type == 'neopixel' %}
+      [neopixel case_light]
+      pin: {{ prefix }}{{ cl.pin }}
+      chain_count: {{ cl.chain_count | default(10) }}
+      color_order: {{ cl.color_order | default('GRB') }}
+      initial_RED: {{ cl.initial_red | default(0.5) }}
+      initial_GREEN: {{ cl.initial_green | default(0.5) }}
+      initial_BLUE: {{ cl.initial_blue | default(0.5) }}
+      {% if cl.color_order | default('GRB') in ['GRBW', 'RGBW'] %}
+      initial_WHITE: {{ cl.initial_white | default(0.5) }}
+      {% endif %}
+      {% else %}
+      # Shown as a {{ 'slider' if cl.type == 'pwm' else 'switch' }} in Mainsail/Fluidd
+      [output_pin caselight]
+      pin: {{ prefix }}{{ cl.pin }}
+      {% if cl.type == 'pwm' %}
+      pwm: True
+      # Soft PWM at ~100 Hz - safe for fan/heater port MOSFETs, above visible flicker
+      cycle_time: {{ cl.cycle_time | default(0.01) }}
+      {% endif %}
+      value: {{ cl.initial_value | default(0) }}
+      shutdown_value: 0
+      {% endif %}
+
+  # LED effects presets (requires klipper-led_effect plugin).
+  # idle auto-starts, error triggers on shutdown; heating/printing are defined
+  # for manual activation (SET_LED_EFFECT EFFECT=<name>) or macro integration.
+  led_effects:
+    condition: "lighting.effects.enabled and lighting.effects.targets"
+    template: |
+      {% set fx = lighting.effects %}
+      {% if fx.idle | default(true) %}
+      [led_effect lighting_idle]
+      autostart: true
+      frame_rate: 24
+      leds:
+      {% for target in fx.targets %}
+          {{ target }}
+      {% endfor %}
+      layers:
+          breathing 10 1 top (0.3, 0.3, 0.35)
+      {% endif %}
+      {% if fx.heating | default(false) %}
+
+      [led_effect lighting_heating]
+      autostart: false
+      frame_rate: 24
+      heater: {{ fx.heater | default('heater_bed') }}
+      leds:
+      {% for target in fx.targets %}
+          {{ target }}
+      {% endfor %}
+      layers:
+          temperature 25 {{ 110 if fx.heater | default('heater_bed') == 'heater_bed' else 250 }} add (0, 0, 1), (1, 0, 0)
+      {% endif %}
+      {% if fx.printing | default(false) %}
+
+      [led_effect lighting_printing]
+      autostart: false
+      frame_rate: 24
+      leds:
+      {% for target in fx.targets %}
+          {{ target }}
+      {% endfor %}
+      layers:
+          static 0 0 top (0.8, 0.8, 0.8)
+      {% endif %}
+      {% if fx.error | default(true) %}
+
+      [led_effect lighting_error]
+      autostart: false
+      run_on_error: true
+      frame_rate: 24
+      leds:
+      {% for target in fx.targets %}
+          {{ target }}
+      {% endfor %}
+      layers:
+          strobe 1 1.5 add (1, 0, 0)
+      {% endif %}
 
 # -----------------------------------------------------------------------------
 # Filament Sensors
