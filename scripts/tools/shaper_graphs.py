@@ -41,13 +41,18 @@ except ImportError as e:
     print("Install with: pip3 install numpy matplotlib")
     sys.exit(1)
 
-# Klipper's shaper calibration imports
+# Klipper's shaper calibration imports.
+# ShaperCalibrate lives in klippy/extras/shaper_calibrate.py (scripts/calibrate_shaper.py
+# is only a CLI wrapper around it), so klippy/ must be on the path.
+sys.path.insert(0, os.path.join(KLIPPER_PATH, 'klippy'))
 try:
-    from calibrate_shaper import ShaperCalibrate
+    from extras import shaper_calibrate as _shaper_calibrate_mod
+    ShaperCalibrate = _shaper_calibrate_mod.ShaperCalibrate
 except ImportError:
-    # Fallback: minimal implementation if Klipper scripts not available
+    # Fallback: minimal implementation if Klipper sources not available
+    _shaper_calibrate_mod = None
     ShaperCalibrate = None
-    print("WARNING: Klipper calibrate_shaper.py not found, using basic analysis")
+    print("WARNING: Klipper shaper_calibrate module not found, using basic analysis")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -134,30 +139,47 @@ def calculate_shaper_recommendations(freq: np.ndarray, psd: np.ndarray,
     if ShaperCalibrate is not None:
         # Use Klipper's native calibration
         try:
-            calibrate = ShaperCalibrate(None)
-            # Create calibration data in the format Klipper expects
-            calibration_data = [(freq, psd)]
+            helper = ShaperCalibrate(printer=None)
+            # Build a CalibrationData object the way Klipper's own CLI does.
+            # We only have the combined PSD, so use it for all components.
+            try:
+                # Current Klipper: CalibrationData(name, freq_bins, psd_sum, psd_x, psd_y, psd_z)
+                calibration_data = _shaper_calibrate_mod.CalibrationData(
+                    'axis', freq, psd, psd, psd, psd)
+            except TypeError:
+                # Older Klipper: no name argument
+                calibration_data = _shaper_calibrate_mod.CalibrationData(
+                    freq, psd, psd, psd, psd)
+            calibration_data.set_numpy(np)
 
-            for shaper_type in ['zv', 'mzv', 'zvd', 'ei', '2hump_ei', '3hump_ei']:
-                try:
-                    best_freq, vals, vibrs, smoothing = \
-                        calibrate.find_best_shaper(calibration_data, max_accel, shaper_type)
+            # Keyword args work across old (max_smoothing, logger) and new
+            # (many-kwarg) find_best_shaper signatures. scv=5 matches the
+            # default of Klipper's own calibrate_shaper.py CLI.
+            try:
+                result = helper.find_best_shaper(
+                    calibration_data, scv=5., max_smoothing=None,
+                    logger=lambda *a: None)
+            except TypeError:
+                # Very old Klipper without scv parameter
+                result = helper.find_best_shaper(
+                    calibration_data, max_smoothing=None, logger=lambda *a: None)
+            best, all_shapers = result if isinstance(result, tuple) else (result, [result])
 
-                    # vals contains (shaper_freq, vibration, smoothing, score) or similar
-                    if best_freq > 0:
-                        recommendations.append({
-                            'type': shaper_type,
-                            'freq': round(best_freq, 1),
-                            'vibration': round(min(vibrs) * 100, 1) if vibrs else 0,
-                            'smoothing': round(smoothing, 4) if smoothing else 0,
-                            'max_accel': int(max_accel),
-                        })
-                except Exception as e:
-                    print(f"  Warning: Could not calculate {shaper_type}: {e}")
+            for s in all_shapers:
+                recommendations.append({
+                    'type': s.name,
+                    'freq': round(s.freq, 1),
+                    'vibration': round(s.vibrs * 100, 1),
+                    'smoothing': round(s.smoothing, 4),
+                    'max_accel': int(s.max_accel),
+                    'recommended': best is not None and s.name == best.name,
+                })
+            # Put the recommended shaper first (graphs highlight entry 0)
+            recommendations.sort(key=lambda r: not r.get('recommended', False))
 
         except Exception as e:
             print(f"Klipper calibration failed, using basic method: {e}")
-            ShaperCalibrate = None  # Fall through to basic method
+            recommendations = []
 
     if not recommendations:
         # Basic fallback: use peak frequency with standard multipliers
@@ -314,10 +336,12 @@ def process_axis(args) -> dict:
         recommendations = calculate_shaper_recommendations(freq, psd, args.max_accel)
 
         if recommendations:
-            # Sort by vibration reduction (lower is better), prefer MZV if close
+            # Klipper's own recommendation (recommended flag) wins outright;
+            # fall back to vibration/type ordering for the basic method
             def sort_key(r):
                 type_priority = {'mzv': 0, 'ei': 1, 'zvd': 2, 'zv': 3, '2hump_ei': 4, '3hump_ei': 5}
-                return (r.get('vibration', 0), type_priority.get(r['type'], 99))
+                return (not r.get('recommended', False),
+                        r.get('vibration', 0), type_priority.get(r['type'], 99))
 
             recommendations.sort(key=sort_key)
 
