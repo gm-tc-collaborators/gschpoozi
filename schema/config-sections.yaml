@@ -1111,16 +1111,22 @@ common:
       # tuning_goal: auto
       {% endif %}
 
+  # Shaper frequencies are only emitted when the user entered known values.
+  # Otherwise the section stays bare so SAVE_CONFIG (after CALIBRATE_SHAPER)
+  # can write the calibrated values without an include conflict
+  # (same pattern as PID values).
   input_shaper:
     condition: "tuning.input_shaper.enabled"
     template: |
       [input_shaper]
+      {% if tuning.input_shaper.shaper_freq_x | default(0) > 0 %}
       shaper_type_x: {{ tuning.input_shaper.shaper_type_x | default('mzv') }}
-      shaper_freq_x: {{ tuning.input_shaper.shaper_freq_x | default(0) }}
+      shaper_freq_x: {{ tuning.input_shaper.shaper_freq_x }}
       damping_ratio_x: {{ tuning.input_shaper.damping_ratio_x | default(0.1) }}
-      {% if tuning.input_shaper.enable_y | default(false) %}
+      {% endif %}
+      {% if tuning.input_shaper.enable_y | default(false) and tuning.input_shaper.shaper_freq_y | default(0) > 0 %}
       shaper_type_y: {{ tuning.input_shaper.shaper_type_y | default('mzv') }}
-      shaper_freq_y: {{ tuning.input_shaper.shaper_freq_y | default(0) }}
+      shaper_freq_y: {{ tuning.input_shaper.shaper_freq_y }}
       damping_ratio_y: {{ tuning.input_shaper.damping_ratio_y | default(0.1) }}
       {% endif %}
 
@@ -1192,17 +1198,17 @@ common:
     condition: "tuning.accelerometer.enabled"
     template: |
       [gcode_shell_command shaper_graph_x]
-      command: python3 $HOME/printer_data/config/gschpoozi/scripts/tools/shaper_graphs.py axis x
+      command: sh -c "python3 ~/gschpoozi/scripts/tools/shaper_graphs.py axis x"
       timeout: 120
       verbose: True
 
       [gcode_shell_command shaper_graph_y]
-      command: python3 $HOME/printer_data/config/gschpoozi/scripts/tools/shaper_graphs.py axis y
+      command: sh -c "python3 ~/gschpoozi/scripts/tools/shaper_graphs.py axis y"
       timeout: 120
       verbose: True
 
       [gcode_shell_command shaper_graph_belts]
-      command: python3 $HOME/printer_data/config/gschpoozi/scripts/tools/shaper_graphs.py belts
+      command: sh -c "python3 ~/gschpoozi/scripts/tools/shaper_graphs.py belts"
       timeout: 120
       verbose: True
 
@@ -1221,7 +1227,7 @@ common:
     render: raw
     template: |
       [gcode_shell_command chopper_analyze]
-      command: python3 $HOME/printer_data/config/gschpoozi/scripts/tools/chopper_analyze.py
+      command: sh -c "python3 ~/gschpoozi/scripts/tools/chopper_analyze.py"
       timeout: 300
       verbose: True
 
@@ -3600,14 +3606,14 @@ common:
 
           {% if axis == 'x' or axis == 'both' %}
               M118 Testing X axis resonances...
-              TEST_RESONANCES AXIS=X
+              SHAPER_CALIBRATE AXIS=X
               M118 Generating X axis graph...
               RUN_SHELL_COMMAND CMD=shaper_graph_x
           {% endif %}
 
           {% if axis == 'y' or axis == 'both' %}
               M118 Testing Y axis resonances...
-              TEST_RESONANCES AXIS=Y
+              SHAPER_CALIBRATE AXIS=Y
               M118 Generating Y axis graph...
               RUN_SHELL_COMMAND CMD=shaper_graph_y
           {% endif %}
@@ -3658,14 +3664,14 @@ common:
           M118 APPLY INPUT SHAPER SETTINGS
           M118 ════════════════════════════════════════════════════════════════════
           M118
-          M118 NOTE: This macro shows recommended settings.
-          M118 To permanently apply them, use Mainsail/Fluidd console:
+          M118 CALIBRATE_SHAPER already staged the calibrated values.
+          M118 To permanently apply them, run:
           M118
           M118   SAVE_CONFIG
           M118
-          M118 Or manually edit printer.cfg [input_shaper] section.
+          M118 (This restarts Klipper and writes the values to printer.cfg.)
           M118
-          M118 View recommendations: config/plots/shaper_recommendations.json
+          M118 View graphs and details: config/plots/shaper_recommendations.json
           M118 ════════════════════════════════════════════════════════════════════
 
       [gcode_macro SHAPER_CALIBRATION_WIZARD]
