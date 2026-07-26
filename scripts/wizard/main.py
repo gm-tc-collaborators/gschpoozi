@@ -4007,8 +4007,11 @@ class GschpooziWizard:
         self.state.set(f"{state_key}.full_steps_per_rotation", int(full_steps))
         self.state.save()
 
-        # TMC Driver Type
-        current_driver = self.state.get(f"{state_key}.driver_type", "TMC2209")
+        # TMC Driver Type (default to the board's onboard drivers when fixed,
+        # e.g. Duet 2 has soldered TMC2660s)
+        board_data = self._load_board_data(self.state.get("mcu.main.board_type", ""), "boards")
+        onboard_driver = (board_data or {}).get("onboard_drivers", "")
+        current_driver = self.state.get(f"{state_key}.driver_type", onboard_driver or "TMC2209")
         driver_type = self.ui.radiolist(
             f"TMC driver type for {axis_upper}:",
             [
@@ -4016,6 +4019,7 @@ class GschpooziWizard:
                 ("TMC5160", "TMC5160 (SPI)", current_driver == "TMC5160"),
                 ("TMC2240", "TMC2240 (SPI/UART)", current_driver == "TMC2240"),
                 ("TMC2130", "TMC2130 (SPI)", current_driver == "TMC2130"),
+                ("TMC2660", "TMC2660 (SPI, Duet 2 onboard)", current_driver == "TMC2660"),
             ],
             title=f"Stepper {axis_upper} - Driver Type"
         )
@@ -4129,6 +4133,7 @@ class GschpooziWizard:
                     ("0.033", "0.033Ω (high current boards)", current_sense == 0.033),
                     ("0.022", "0.022Ω (very high current)", current_sense == 0.022),
                     ("0.110", "0.110Ω (TMC2240 default)", current_sense == 0.110),
+                    ("0.051", "0.051Ω (Duet 2 onboard TMC2660)", current_sense == 0.051),
                 ],
                 title=f"Stepper {axis_upper} - Sense Resistor"
             )

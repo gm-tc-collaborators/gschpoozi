@@ -227,19 +227,25 @@ tmc_stepper_x:
     [{{ stepper_x.driver_type | klipper_tmc_section }} stepper_x]
     {% if stepper_x.driver_protocol == 'spi' %}
     cs_pin: {{ pins.stepper_x.cs }}
+    {% if board.spi.bus %}
+    spi_bus: {{ board.spi.bus }}
+    {% else %}
     spi_software_miso_pin: {{ board.spi.miso }}
     spi_software_mosi_pin: {{ board.spi.mosi }}
     spi_software_sclk_pin: {{ board.spi.sclk }}
+    {% endif %}
     {% else %}
     uart_pin: {{ pins.stepper_x.uart }}
     {% endif %}
     run_current: {{ stepper_x.run_current }}
-    {% if stepper_x.hold_current %}
+    {% if stepper_x.hold_current and stepper_x.driver_type != 'TMC2660' %}
     hold_current: {{ stepper_x.hold_current }}
     {% endif %}
     interpolate: {{ stepper_x.interpolate | default(false) | lower }}
     {% if stepper_x.driver_type == 'TMC5160' %}
     sense_resistor: {{ stepper_x.sense_resistor | default(0.075) }}
+    {% elif stepper_x.driver_type == 'TMC2660' %}
+    sense_resistor: {{ stepper_x.sense_resistor | default(0.051) }}
     {% elif stepper_x.driver_type == 'TMC2226' %}
     sense_resistor: {{ stepper_x.sense_resistor | default(0.150) }}
     {% else %}
@@ -274,19 +280,25 @@ tmc_stepper_y:
     [{{ stepper_y.driver_type | klipper_tmc_section }} stepper_y]
     {% if stepper_y.driver_protocol == 'spi' %}
     cs_pin: {{ pins.stepper_y.cs }}
+    {% if board.spi.bus %}
+    spi_bus: {{ board.spi.bus }}
+    {% else %}
     spi_software_miso_pin: {{ board.spi.miso }}
     spi_software_mosi_pin: {{ board.spi.mosi }}
     spi_software_sclk_pin: {{ board.spi.sclk }}
+    {% endif %}
     {% else %}
     uart_pin: {{ pins.stepper_y.uart }}
     {% endif %}
     run_current: {{ stepper_y.run_current }}
-    {% if stepper_y.hold_current %}
+    {% if stepper_y.hold_current and stepper_y.driver_type != 'TMC2660' %}
     hold_current: {{ stepper_y.hold_current }}
     {% endif %}
     interpolate: {{ stepper_y.interpolate | default(false) | lower }}
     {% if stepper_y.driver_type == 'TMC5160' %}
     sense_resistor: {{ stepper_y.sense_resistor | default(0.075) }}
+    {% elif stepper_y.driver_type == 'TMC2660' %}
+    sense_resistor: {{ stepper_y.sense_resistor | default(0.051) }}
     {% elif stepper_y.driver_type == 'TMC2226' %}
     sense_resistor: {{ stepper_y.sense_resistor | default(0.150) }}
     {% else %}
@@ -321,19 +333,25 @@ tmc_stepper_z:
     [{{ stepper_z.driver_type | default('TMC2209') | klipper_tmc_section }} stepper_z]
     {% if stepper_z.driver_protocol == 'spi' %}
     cs_pin: {{ pins.stepper_z.cs }}
+    {% if board.spi.bus %}
+    spi_bus: {{ board.spi.bus }}
+    {% else %}
     spi_software_miso_pin: {{ board.spi.miso }}
     spi_software_mosi_pin: {{ board.spi.mosi }}
     spi_software_sclk_pin: {{ board.spi.sclk }}
+    {% endif %}
     {% else %}
     uart_pin: {{ pins.stepper_z.uart }}
     {% endif %}
     run_current: {{ stepper_z.run_current | default(0.8) }}
-    {% if stepper_z.hold_current %}
+    {% if stepper_z.hold_current and stepper_z.driver_type != 'TMC2660' %}
     hold_current: {{ stepper_z.hold_current }}
     {% endif %}
     interpolate: {{ stepper_z.interpolate | default(false) | lower }}
     {% if stepper_z.driver_type == 'TMC5160' %}
     sense_resistor: {{ stepper_z.sense_resistor | default(0.075) }}
+    {% elif stepper_z.driver_type == 'TMC2660' %}
+    sense_resistor: {{ stepper_z.sense_resistor | default(0.051) }}
     {% elif stepper_z.driver_type == 'TMC2226' %}
     sense_resistor: {{ stepper_z.sense_resistor | default(0.150) }}
     {% else %}
@@ -356,19 +374,25 @@ tmc_stepper_z1:
     [{{ stepper_z.driver_type | default('TMC2209') | klipper_tmc_section }} stepper_z1]
     {% if stepper_z.driver_protocol == 'spi' %}
     cs_pin: {{ pins.stepper_z1.cs }}
+    {% if board.spi.bus %}
+    spi_bus: {{ board.spi.bus }}
+    {% else %}
     spi_software_miso_pin: {{ board.spi.miso }}
     spi_software_mosi_pin: {{ board.spi.mosi }}
     spi_software_sclk_pin: {{ board.spi.sclk }}
+    {% endif %}
     {% else %}
     uart_pin: {{ pins.stepper_z1.uart }}
     {% endif %}
     run_current: {{ stepper_z.run_current | default(0.8) }}
-    {% if stepper_z.hold_current %}
+    {% if stepper_z.hold_current and stepper_z.driver_type != 'TMC2660' %}
     hold_current: {{ stepper_z.hold_current }}
     {% endif %}
     interpolate: {{ stepper_z.interpolate | default(false) | lower }}
     {% if stepper_z.driver_type == 'TMC5160' %}
     sense_resistor: {{ stepper_z.sense_resistor | default(0.075) }}
+    {% elif stepper_z.driver_type == 'TMC2660' %}
+    sense_resistor: {{ stepper_z.sense_resistor | default(0.051) }}
     {% elif stepper_z.driver_type == 'TMC2226' %}
     sense_resistor: {{ stepper_z.sense_resistor | default(0.150) }}
     {% else %}
@@ -390,19 +414,25 @@ tmc_stepper_z2:
     [{{ stepper_z.driver_type | default('TMC2209') | klipper_tmc_section }} stepper_z2]
     {% if stepper_z.driver_protocol == 'spi' %}
     cs_pin: {{ pins.stepper_z2.cs }}
+    {% if board.spi.bus %}
+    spi_bus: {{ board.spi.bus }}
+    {% else %}
     spi_software_miso_pin: {{ board.spi.miso }}
     spi_software_mosi_pin: {{ board.spi.mosi }}
     spi_software_sclk_pin: {{ board.spi.sclk }}
+    {% endif %}
     {% else %}
     uart_pin: {{ pins.stepper_z2.uart }}
     {% endif %}
     run_current: {{ stepper_z.run_current | default(0.8) }}
-    {% if stepper_z.hold_current %}
+    {% if stepper_z.hold_current and stepper_z.driver_type != 'TMC2660' %}
     hold_current: {{ stepper_z.hold_current }}
     {% endif %}
     interpolate: {{ stepper_z.interpolate | default(false) | lower }}
     {% if stepper_z.driver_type == 'TMC5160' %}
     sense_resistor: {{ stepper_z.sense_resistor | default(0.075) }}
+    {% elif stepper_z.driver_type == 'TMC2660' %}
+    sense_resistor: {{ stepper_z.sense_resistor | default(0.051) }}
     {% elif stepper_z.driver_type == 'TMC2226' %}
     sense_resistor: {{ stepper_z.sense_resistor | default(0.150) }}
     {% else %}
@@ -424,19 +454,25 @@ tmc_stepper_z3:
     [{{ stepper_z.driver_type | default('TMC2209') | klipper_tmc_section }} stepper_z3]
     {% if stepper_z.driver_protocol == 'spi' %}
     cs_pin: {{ pins.stepper_z3.cs }}
+    {% if board.spi.bus %}
+    spi_bus: {{ board.spi.bus }}
+    {% else %}
     spi_software_miso_pin: {{ board.spi.miso }}
     spi_software_mosi_pin: {{ board.spi.mosi }}
     spi_software_sclk_pin: {{ board.spi.sclk }}
+    {% endif %}
     {% else %}
     uart_pin: {{ pins.stepper_z3.uart }}
     {% endif %}
     run_current: {{ stepper_z.run_current | default(0.8) }}
-    {% if stepper_z.hold_current %}
+    {% if stepper_z.hold_current and stepper_z.driver_type != 'TMC2660' %}
     hold_current: {{ stepper_z.hold_current }}
     {% endif %}
     interpolate: {{ stepper_z.interpolate | default(false) | lower }}
     {% if stepper_z.driver_type == 'TMC5160' %}
     sense_resistor: {{ stepper_z.sense_resistor | default(0.075) }}
+    {% elif stepper_z.driver_type == 'TMC2660' %}
+    sense_resistor: {{ stepper_z.sense_resistor | default(0.051) }}
     {% elif stepper_z.driver_type == 'TMC2226' %}
     sense_resistor: {{ stepper_z.sense_resistor | default(0.150) }}
     {% else %}
@@ -459,19 +495,25 @@ tmc_stepper_x1:
     [{{ stepper_x1.driver_type | klipper_tmc_section }} stepper_x1]
     {% if stepper_x1.driver_protocol == 'spi' %}
     cs_pin: {{ pins.stepper_x1.cs }}
+    {% if board.spi.bus %}
+    spi_bus: {{ board.spi.bus }}
+    {% else %}
     spi_software_miso_pin: {{ board.spi.miso }}
     spi_software_mosi_pin: {{ board.spi.mosi }}
     spi_software_sclk_pin: {{ board.spi.sclk }}
+    {% endif %}
     {% else %}
     uart_pin: {{ pins.stepper_x1.uart }}
     {% endif %}
     run_current: {{ stepper_x1.run_current }}
-    {% if stepper_x1.hold_current %}
+    {% if stepper_x1.hold_current and stepper_x1.driver_type != 'TMC2660' %}
     hold_current: {{ stepper_x1.hold_current }}
     {% endif %}
     interpolate: {{ stepper_x1.interpolate | default(false) | lower }}
     {% if stepper_x1.driver_type == 'TMC5160' %}
     sense_resistor: {{ stepper_x1.sense_resistor | default(0.075) }}
+    {% elif stepper_x1.driver_type == 'TMC2660' %}
+    sense_resistor: {{ stepper_x1.sense_resistor | default(0.051) }}
     {% elif stepper_x1.driver_type == 'TMC2226' %}
     sense_resistor: {{ stepper_x1.sense_resistor | default(0.150) }}
     {% else %}
@@ -493,19 +535,25 @@ tmc_stepper_y1:
     [{{ stepper_y1.driver_type | klipper_tmc_section }} stepper_y1]
     {% if stepper_y1.driver_protocol == 'spi' %}
     cs_pin: {{ pins.stepper_y1.cs }}
+    {% if board.spi.bus %}
+    spi_bus: {{ board.spi.bus }}
+    {% else %}
     spi_software_miso_pin: {{ board.spi.miso }}
     spi_software_mosi_pin: {{ board.spi.mosi }}
     spi_software_sclk_pin: {{ board.spi.sclk }}
+    {% endif %}
     {% else %}
     uart_pin: {{ pins.stepper_y1.uart }}
     {% endif %}
     run_current: {{ stepper_y1.run_current }}
-    {% if stepper_y1.hold_current %}
+    {% if stepper_y1.hold_current and stepper_y1.driver_type != 'TMC2660' %}
     hold_current: {{ stepper_y1.hold_current }}
     {% endif %}
     interpolate: {{ stepper_y1.interpolate | default(false) | lower }}
     {% if stepper_y1.driver_type == 'TMC5160' %}
     sense_resistor: {{ stepper_y1.sense_resistor | default(0.075) }}
+    {% elif stepper_y1.driver_type == 'TMC2660' %}
+    sense_resistor: {{ stepper_y1.sense_resistor | default(0.051) }}
     {% elif stepper_y1.driver_type == 'TMC2226' %}
     sense_resistor: {{ stepper_y1.sense_resistor | default(0.150) }}
     {% else %}
@@ -574,20 +622,26 @@ tmc_extruder:
     spi_software_mosi_pin: {{ toolboard.spi.mosi }}
     spi_software_sclk_pin: {{ toolboard.spi.sclk }}
     {% else %}
+    {% if board.spi.bus %}
+    spi_bus: {{ board.spi.bus }}
+    {% else %}
     spi_software_miso_pin: {{ board.spi.miso }}
     spi_software_mosi_pin: {{ board.spi.mosi }}
     spi_software_sclk_pin: {{ board.spi.sclk }}
+    {% endif %}
     {% endif %}
     {% else %}
     uart_pin: {{ pins.extruder.uart }}
     {% endif %}
     run_current: {{ extruder.run_current | default(0.6) }}
-    {% if extruder.hold_current %}
+    {% if extruder.hold_current and extruder.driver_type != 'TMC2660' %}
     hold_current: {{ extruder.hold_current }}
     {% endif %}
     interpolate: {{ extruder.interpolate | default(false) | lower }}
     {% if extruder.driver_type == 'TMC5160' %}
     sense_resistor: {{ extruder.sense_resistor | default(0.075) }}
+    {% elif extruder.driver_type == 'TMC2660' %}
+    sense_resistor: {{ extruder.sense_resistor | default(0.051) }}
     {% elif extruder.driver_type == 'TMC2226' %}
     sense_resistor: {{ extruder.sense_resistor | default(0.150) }}
     {% else %}

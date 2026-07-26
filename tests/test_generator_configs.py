@@ -394,6 +394,51 @@ def test_case_light_neopixel_with_effects():
         return False
 
 
+def test_duet2_tmc2660_hardware_spi():
+    """Test: Duet 2 WiFi/Ethernet with onboard TMC2660 drivers on hardware SPI bus."""
+    print("Test: Duet 2 TMC2660 hardware SPI...", end=" ")
+    try:
+        state = create_base_state()
+        state.set('mcu.main.board_type', 'duet2-wifi-ethernet')
+        state.set('mcu.main.serial', '/dev/serial/by-id/usb-Klipper_sam4e8e_test')
+        state.set('printer.kinematics', 'cartesian')
+        for axis, port in [('x', 'DRIVE_0'), ('y', 'DRIVE_1'), ('z', 'DRIVE_2')]:
+            state.set(f'stepper_{axis}.motor_port', port)
+            state.set(f'stepper_{axis}.driver_type', 'TMC2660')
+            state.set(f'stepper_{axis}.driver_protocol', 'spi')
+            state.set(f'stepper_{axis}.hold_current', 0.5)  # must be dropped for TMC2660
+        # Extruder on DRIVE_3, Duet heater/thermistor/fan ports
+        state.set('extruder.motor_port_mainboard', 'DRIVE_3')
+        state.set('extruder.driver_type', 'TMC2660')
+        state.set('extruder.driver_protocol', 'spi')
+        state.set('extruder.heater_port_mainboard', 'E0_OUT')
+        state.set('extruder.sensor_port_mainboard', 'E0_TEMP')
+        state.set('heater_bed.heater_pin', 'BED_OUT')
+        state.set('heater_bed.sensor_port', 'BED_TEMP')
+        state.set('fans.part_cooling.pin_mainboard', 'PC23')
+        state.set('fans.hotend.pin_mainboard', 'PC26')
+
+        files = ConfigGenerator(state).generate()
+        hw = files['gschpoozi/hardware.cfg']
+
+        assert '[tmc2660 stepper_x]' in hw, "tmc2660 section missing"
+        assert 'cs_pin: PD14' in hw and 'cs_pin: PC9' in hw and 'cs_pin: PC10' in hw
+        assert 'spi_bus: usart1' in hw, "hardware SPI bus missing"
+        assert 'spi_software_miso_pin' not in hw, "software SPI emitted despite hardware bus"
+        assert 'sense_resistor: 0.051' in hw, "TMC2660 sense_resistor default wrong"
+        assert 'hold_current' not in hw, "hold_current emitted for TMC2660 (unsupported)"
+        assert 'enable_pin: !PC6' in hw, "shared inverted enable pin missing"
+        assert 'step_pin: PD6' in hw and 'step_pin: PD7' in hw and 'step_pin: PD8' in hw
+
+        print("PASS")
+        return True
+    except Exception as e:
+        print(f"FAIL: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
 def test_triple_z_with_beacon():
     """Test: Triple Z with Z-Tilt and Beacon probe."""
     print("Test: Triple Z with Z-Tilt and Beacon...", end=" ")
@@ -458,6 +503,7 @@ def main():
         test_cartographer_accelerometer_versions,
         test_case_light_pwm_on_fan_port,
         test_case_light_neopixel_with_effects,
+        test_duet2_tmc2660_hardware_spi,
         test_triple_z_with_beacon,
     ]
     

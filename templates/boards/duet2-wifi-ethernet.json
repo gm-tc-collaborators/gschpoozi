@@ -1,0 +1,150 @@
+{
+  "id": "duet2-wifi-ethernet",
+  "name": "Duet 2 WiFi / Ethernet",
+  "manufacturer": "Duet3D",
+  "mcu": "sam4e8e",
+  "source": "Pin mappings from Klipper's config/generic-duet2.cfg",
+  "flash_command": "make flash FLASH_DEVICE=/dev/ttyACM0",
+  "flash_notes": "Erase existing RepRapFirmware first: fit the Erase jumper, power on, remove jumper, reboot. Then flash Klipper via USB (bossac).",
+  "onboard_drivers": "TMC2660",
+  "motor_ports": {
+    "DRIVE_0": {
+      "label": "Drive 0 (typically X)",
+      "step_pin": "PD6",
+      "dir_pin": "PD11",
+      "enable_pin": "PC6",
+      "cs_pin": "PD14",
+      "notes": "Onboard TMC2660 (SPI on usart1). Enable pin is shared by all drives."
+    },
+    "DRIVE_1": {
+      "label": "Drive 1 (typically Y)",
+      "step_pin": "PD7",
+      "dir_pin": "PD12",
+      "enable_pin": "PC6",
+      "cs_pin": "PC9",
+      "notes": "Onboard TMC2660 (SPI on usart1). Enable pin is shared by all drives."
+    },
+    "DRIVE_2": {
+      "label": "Drive 2 (typically Z)",
+      "step_pin": "PD8",
+      "dir_pin": "PD13",
+      "enable_pin": "PC6",
+      "cs_pin": "PC10",
+      "notes": "Onboard TMC2660 (SPI on usart1). Enable pin is shared by all drives."
+    },
+    "DRIVE_3": {
+      "label": "Drive 3 (typically E0)",
+      "step_pin": "PD5",
+      "dir_pin": "PA1",
+      "enable_pin": "PC6",
+      "cs_pin": "PC17",
+      "notes": "Onboard TMC2660 (SPI on usart1). Enable pin is shared by all drives."
+    },
+    "DRIVE_4": {
+      "label": "Drive 4 (typically E1)",
+      "step_pin": "PD4",
+      "dir_pin": "PD9",
+      "enable_pin": "PC6",
+      "cs_pin": "PC25",
+      "notes": "Onboard TMC2660 (SPI on usart1). Enable pin is shared by all drives."
+    }
+  },
+  "heater_ports": {
+    "BED_OUT": {
+      "label": "Bed Heater",
+      "pin": "!PA19",
+      "max_current_amps": 18,
+      "notes": "Active-low output (pin is inverted)"
+    },
+    "E0_OUT": {
+      "label": "E0 Heater",
+      "pin": "!PA20",
+      "notes": "Active-low output (pin is inverted)"
+    },
+    "E1_OUT": {
+      "label": "E1 Heater",
+      "pin": "!PA16",
+      "notes": "Active-low output (pin is inverted). Usable as a spare output if E1 is unused."
+    }
+  },
+  "fan_ports": {
+    "FAN0": {
+      "label": "Fan 0 (Part Cooling)",
+      "pin": "PC23",
+      "pwm": true,
+      "notes": "PWM capable"
+    },
+    "FAN1": {
+      "label": "Fan 1 (typically Hotend)",
+      "pin": "PC26",
+      "pwm": true,
+      "notes": "PWM capable"
+    },
+    "FAN2": {
+      "label": "Fan 2",
+      "pin": "PA0",
+      "pwm": true,
+      "notes": "PWM capable"
+    }
+  },
+  "thermistor_ports": {
+    "BED_TEMP": {
+      "label": "Bed Thermistor",
+      "pin": "PC13",
+      "pullup": "4.7k"
+    },
+    "E0_TEMP": {
+      "label": "E0 Thermistor",
+      "pin": "PC15",
+      "pullup": "4.7k"
+    },
+    "E1_TEMP": {
+      "label": "E1 Thermistor",
+      "pin": "PC12",
+      "pullup": "4.7k"
+    }
+  },
+  "endstop_ports": {
+    "X_STOP": {
+      "label": "X Endstop",
+      "pin": "PC14"
+    },
+    "Y_STOP": {
+      "label": "Y Endstop",
+      "pin": "PA2"
+    },
+    "Z_STOP": {
+      "label": "Z Endstop",
+      "pin": "PD29"
+    },
+    "E0_STOP": {
+      "label": "E0 Endstop",
+      "pin": "PD10",
+      "notes": "Usable as a spare input (e.g. filament sensor)"
+    },
+    "E1_STOP": {
+      "label": "E1 Endstop",
+      "pin": "PC16",
+      "notes": "Usable as a spare input (e.g. filament sensor)"
+    }
+  },
+  "spi_config": {
+    "bus": "usart1"
+  },
+  "default_assignments": {
+    "stepper_x": "DRIVE_0",
+    "stepper_y": "DRIVE_1",
+    "stepper_z": "DRIVE_2",
+    "extruder": "DRIVE_3",
+    "heater_bed": "BED_OUT",
+    "extruder_heater": "E0_OUT",
+    "bed_thermistor": "BED_TEMP",
+    "extruder_thermistor": "E0_TEMP"
+  },
+  "notes": [
+    "Onboard TMC2660 drivers - select TMC2660 as driver type for every stepper (sense resistor 0.051)",
+    "All drives share one enable pin (!PC6); ignore duplicate-pin warnings for it",
+    "Heater outputs are active-low - keep the '!' prefix on heater pins",
+    "Z-probe and expansion header pins are not listed; enter them as raw pins if needed"
+  ]
+}

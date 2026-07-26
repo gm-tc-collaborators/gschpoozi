@@ -397,11 +397,15 @@ class ConfigGenerator:
         # Boards can represent SPI in two formats:
         # 1) Direct TMC pins (Mellow style): spi_config.tmc_mosi/tmc_miso/tmc_sck
         # 2) Named buses (BTT style): spi_config.<bus_name>.{mosi_pin,miso_pin,sck_pin}
+        # 3) Hardware bus (Duet style): spi_config.bus = "usart1" -> emits spi_bus:
         spi_config = {}
         raw_spi = board_data.get('spi_config', {})
         if isinstance(raw_spi, dict) and raw_spi:
+            # Format 3: explicit hardware bus name
+            if isinstance(raw_spi.get('bus'), str):
+                spi_config = {'bus': raw_spi['bus']}
             # Format 1: direct pins
-            if 'tmc_mosi' in raw_spi or 'tmc_miso' in raw_spi or 'tmc_sck' in raw_spi:
+            elif 'tmc_mosi' in raw_spi or 'tmc_miso' in raw_spi or 'tmc_sck' in raw_spi:
                 spi_config = {
                     'miso': raw_spi.get('tmc_miso'),
                     'mosi': raw_spi.get('tmc_mosi'),
