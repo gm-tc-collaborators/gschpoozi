@@ -897,19 +897,26 @@ bed_mesh:
     speed: {{ probe.bed_mesh.speed | default(200) if probe.bed_mesh else 200 }}
     horizontal_move_z: {{ probe.bed_mesh.horizontal_move_z | default(5) if probe.bed_mesh else 5 }}
     {% endif %}
-    {% if probe.bed_mesh and probe.bed_mesh.mesh_min == 'auto' %}
-    mesh_min: {{ (probe.x_offset | abs + 10) | int }}, {{ (probe.y_offset | abs + 10) | int }}
-    {% elif probe.bed_mesh and probe.bed_mesh.mesh_min %}
-    mesh_min: {{ probe.bed_mesh.mesh_min }}
+    {# Mesh bounds: CLI stores 'x, y' strings (or 'auto') in mesh_min/mesh_max;
+       the web wizard stores separate mesh_min_x/_y and mesh_max_x/_y numbers. #}
+    {% set bm = probe.bed_mesh or {} %}
+    {% set auto_min_x = (probe.x_offset | abs + 10) | int %}
+    {% set auto_min_y = (probe.y_offset | abs + 10) | int %}
+    {% set auto_max_x = (printer.bed_size_x - probe.x_offset | abs - 10) | int %}
+    {% set auto_max_y = (printer.bed_size_y - probe.y_offset | abs - 10) | int %}
+    {% if bm.mesh_min and bm.mesh_min != 'auto' %}
+    mesh_min: {{ bm.mesh_min }}
+    {% elif bm.mesh_min_x is not none and bm.mesh_min_y is not none %}
+    mesh_min: {{ bm.mesh_min_x | int }}, {{ bm.mesh_min_y | int }}
     {% else %}
-    mesh_min: {{ (probe.x_offset | abs + 10) | int }}, {{ (probe.y_offset | abs + 10) | int }}
+    mesh_min: {{ auto_min_x }}, {{ auto_min_y }}
     {% endif %}
-    {% if probe.bed_mesh and probe.bed_mesh.mesh_max == 'auto' %}
-    mesh_max: {{ (printer.bed_size_x - probe.x_offset | abs - 10) | int }}, {{ (printer.bed_size_y - probe.y_offset | abs - 10) | int }}
-    {% elif probe.bed_mesh and probe.bed_mesh.mesh_max %}
-    mesh_max: {{ probe.bed_mesh.mesh_max }}
+    {% if bm.mesh_max and bm.mesh_max != 'auto' %}
+    mesh_max: {{ bm.mesh_max }}
+    {% elif bm.mesh_max_x is not none and bm.mesh_max_y is not none %}
+    mesh_max: {{ bm.mesh_max_x | int }}, {{ bm.mesh_max_y | int }}
     {% else %}
-    mesh_max: {{ (printer.bed_size_x - probe.x_offset | abs - 10) | int }}, {{ (printer.bed_size_y - probe.y_offset | abs - 10) | int }}
+    mesh_max: {{ auto_max_x }}, {{ auto_max_y }}
     {% endif %}
     # Probe count: eddy/scanner probes are fast, use higher density for better mesh
     {% if probe.probe_type in ['beacon', 'btt_eddy'] %}

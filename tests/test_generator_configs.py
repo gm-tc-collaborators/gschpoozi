@@ -252,6 +252,50 @@ def test_beacon_probe_with_bed_mesh():
         return False
 
 
+def test_bed_mesh_bounds_web_keys():
+    """Test: bed_mesh bounds from web wizard's separate mesh_min_x/_y keys."""
+    print("Test: bed_mesh bounds (web keys)...", end=" ")
+    state = create_base_state()
+    state.set('probe.probe_type', 'bltouch')
+    state.set('probe.x_offset', -40)
+    state.set('probe.y_offset', -10)
+    state.set('probe.bed_mesh.enabled', True)
+    state.set('probe.bed_mesh.mesh_min_x', 15)
+    state.set('probe.bed_mesh.mesh_min_y', 20)
+    state.set('probe.bed_mesh.mesh_max_x', 300)
+    state.set('probe.bed_mesh.mesh_max_y', 310)
+
+    try:
+        gen = ConfigGenerator(state)
+        files = gen.generate()
+        leveling_cfg = files.get('gschpoozi/leveling.cfg', '')
+        assert 'mesh_min: 15, 20' in leveling_cfg, f"mesh_min wrong:\n{leveling_cfg}"
+        assert 'mesh_max: 300, 310' in leveling_cfg, f"mesh_max wrong:\n{leveling_cfg}"
+
+        # Explicit CLI-style string should also work
+        state.set('probe.bed_mesh.mesh_min', '30, 30')
+        state.set('probe.bed_mesh.mesh_max', '320, 320')
+        leveling_cfg = ConfigGenerator(state).generate().get('gschpoozi/leveling.cfg', '')
+        assert 'mesh_min: 30, 30' in leveling_cfg, "CLI mesh_min should take precedence"
+        assert 'mesh_max: 320, 320' in leveling_cfg, "CLI mesh_max should take precedence"
+
+        # 'auto' with no web keys falls back to offset-based calculation
+        state.set('probe.bed_mesh.mesh_min', 'auto')
+        state.set('probe.bed_mesh.mesh_max', 'auto')
+        for k in ('mesh_min_x', 'mesh_min_y', 'mesh_max_x', 'mesh_max_y'):
+            state.set(f'probe.bed_mesh.{k}', None)
+        leveling_cfg = ConfigGenerator(state).generate().get('gschpoozi/leveling.cfg', '')
+        assert 'mesh_min: 50, 20' in leveling_cfg, f"auto mesh_min wrong:\n{leveling_cfg}"
+
+        print(f"PASS ({len(files)} files)")
+        return True
+    except Exception as e:
+        print(f"FAIL: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
 def test_cartographer_probe():
     """Test: Cartographer probe."""
     print("Test: Cartographer probe...", end=" ")
@@ -499,6 +543,7 @@ def main():
         test_quad_z_with_qgl,
         test_beacon_probe_minimal,
         test_beacon_probe_with_bed_mesh,
+        test_bed_mesh_bounds_web_keys,
         test_cartographer_probe,
         test_cartographer_accelerometer_versions,
         test_case_light_pwm_on_fan_port,
