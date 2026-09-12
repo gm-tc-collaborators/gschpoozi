@@ -296,6 +296,50 @@ def test_bed_mesh_bounds_web_keys():
         return False
 
 
+def test_bed_mesh_auto_bounds_cli_only_state():
+    """
+    Regression: a CLI-generated state contains mesh_min/mesh_max only (never the
+    web wizard's mesh_min_x/_y keys). Attribute access on those absent keys used
+    to raise under StrictUndefined and abort config generation entirely, so any
+    standard (non-eddy) probe configured via the CLI could not generate a config.
+
+    This must use a FRESH state with the web keys never set - setting them to
+    None afterwards masks the bug.
+
+    NOTE: unlike the older tests in this file, this one deliberately does NOT
+    swallow exceptions in a try/except that returns False. pytest treats a
+    returned False as a PASS (see PytestReturnNotNoneWarning), so a swallowing
+    test cannot fail under `pytest` and would not have caught this bug.
+    """
+    print("Test: bed_mesh auto bounds (CLI-only state)...", end=" ")
+    state = create_base_state()
+    state.set('probe.probe_type', 'bltouch')
+    state.set('probe.x_offset', -30.0)
+    state.set('probe.y_offset', 5.0)
+    state.set('probe.z_offset', 2.0)
+    state.set('probe.bed_mesh.enabled', True)
+    state.set('probe.bed_mesh.probe_count', '5, 5')
+    state.set('probe.bed_mesh.mesh_min', 'auto')
+    state.set('probe.bed_mesh.mesh_max', 'auto')
+
+    # Must not raise: this is the exact shape of state the CLI wizard writes.
+    files = ConfigGenerator(state).generate()
+    leveling_cfg = files.get('gschpoozi/leveling.cfg', '')
+    # bed 350x350, offsets 30/5 -> offset+10 and bed-offset-10
+    assert 'mesh_min: 40, 15' in leveling_cfg, f"auto mesh_min wrong:\n{leveling_cfg}"
+    assert 'mesh_max: 310, 335' in leveling_cfg, f"auto mesh_max wrong:\n{leveling_cfg}"
+
+    # Explicit CLI bounds on a non-eddy probe (the wizard now prompts for these)
+    state.set('probe.bed_mesh.mesh_min', '25, 25')
+    state.set('probe.bed_mesh.mesh_max', '270, 280')
+    leveling_cfg = ConfigGenerator(state).generate().get('gschpoozi/leveling.cfg', '')
+    assert 'mesh_min: 25, 25' in leveling_cfg, f"custom mesh_min wrong:\n{leveling_cfg}"
+    assert 'mesh_max: 270, 280' in leveling_cfg, f"custom mesh_max wrong:\n{leveling_cfg}"
+
+    print(f"PASS ({len(files)} files)")
+    return True
+
+
 def test_cartographer_probe():
     """Test: Cartographer probe."""
     print("Test: Cartographer probe...", end=" ")
@@ -544,6 +588,7 @@ def main():
         test_beacon_probe_minimal,
         test_beacon_probe_with_bed_mesh,
         test_bed_mesh_bounds_web_keys,
+        test_bed_mesh_auto_bounds_cli_only_state,
         test_cartographer_probe,
         test_cartographer_accelerometer_versions,
         test_case_light_pwm_on_fan_port,

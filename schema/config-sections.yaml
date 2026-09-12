@@ -898,23 +898,32 @@ bed_mesh:
     horizontal_move_z: {{ probe.bed_mesh.horizontal_move_z | default(5) if probe.bed_mesh else 5 }}
     {% endif %}
     {# Mesh bounds: CLI stores 'x, y' strings (or 'auto') in mesh_min/mesh_max;
-       the web wizard stores separate mesh_min_x/_y and mesh_max_x/_y numbers. #}
+       the web wizard stores separate mesh_min_x/_y and mesh_max_x/_y numbers.
+       Use bm.get(...) rather than attribute access: the web-only keys are absent
+       entirely in CLI-generated state, and attribute access on a missing key
+       raises under StrictUndefined, aborting config generation. #}
     {% set bm = probe.bed_mesh or {} %}
     {% set auto_min_x = (probe.x_offset | abs + 10) | int %}
     {% set auto_min_y = (probe.y_offset | abs + 10) | int %}
     {% set auto_max_x = (printer.bed_size_x - probe.x_offset | abs - 10) | int %}
     {% set auto_max_y = (printer.bed_size_y - probe.y_offset | abs - 10) | int %}
-    {% if bm.mesh_min and bm.mesh_min != 'auto' %}
-    mesh_min: {{ bm.mesh_min }}
-    {% elif bm.mesh_min_x is not none and bm.mesh_min_y is not none %}
-    mesh_min: {{ bm.mesh_min_x | int }}, {{ bm.mesh_min_y | int }}
+    {% set cli_min = bm.get('mesh_min') %}
+    {% set cli_max = bm.get('mesh_max') %}
+    {% set web_min_x = bm.get('mesh_min_x') %}
+    {% set web_min_y = bm.get('mesh_min_y') %}
+    {% set web_max_x = bm.get('mesh_max_x') %}
+    {% set web_max_y = bm.get('mesh_max_y') %}
+    {% if cli_min and cli_min != 'auto' %}
+    mesh_min: {{ cli_min }}
+    {% elif web_min_x is not none and web_min_y is not none %}
+    mesh_min: {{ web_min_x | int }}, {{ web_min_y | int }}
     {% else %}
     mesh_min: {{ auto_min_x }}, {{ auto_min_y }}
     {% endif %}
-    {% if bm.mesh_max and bm.mesh_max != 'auto' %}
-    mesh_max: {{ bm.mesh_max }}
-    {% elif bm.mesh_max_x is not none and bm.mesh_max_y is not none %}
-    mesh_max: {{ bm.mesh_max_x | int }}, {{ bm.mesh_max_y | int }}
+    {% if cli_max and cli_max != 'auto' %}
+    mesh_max: {{ cli_max }}
+    {% elif web_max_x is not none and web_max_y is not none %}
+    mesh_max: {{ web_max_x | int }}, {{ web_max_y | int }}
     {% else %}
     mesh_max: {{ auto_max_x }}, {{ auto_max_y }}
     {% endif %}

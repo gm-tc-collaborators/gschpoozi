@@ -72,12 +72,21 @@ export function BedLevelingPanel() {
   const selectedType = getBedLevelingValue('leveling_type') ?? 
     (zMotorCount === 4 ? 'qgl' : zMotorCount >= 2 ? 'z_tilt' : 'none');
 
-  // Bed mesh values with auto-calculation
+  // Bed mesh values with auto-calculation.
+  // NOTE: these fallbacks must mirror the generator's `auto` formula in
+  // schema/config-sections.yaml (probe offset + 10mm margin), otherwise the
+  // greyed-out placeholder shows a different number than the config that
+  // actually gets generated when the field is left blank.
+  const autoMeshMinX = Math.round(Math.abs(probeXOffset) + 10);
+  const autoMeshMinY = Math.round(Math.abs(probeYOffset) + 10);
+  const autoMeshMaxX = bedSizeX ? Math.round(bedSizeX - Math.abs(probeXOffset) - 10) : undefined;
+  const autoMeshMaxY = bedSizeY ? Math.round(bedSizeY - Math.abs(probeYOffset) - 10) : undefined;
+
   const meshEnabled = getBedMeshValue('enabled', true);
-  const meshMinX = getBedMeshValue('mesh_min_x') ?? Math.max(5, Math.ceil(probeXOffset) + 5);
-  const meshMinY = getBedMeshValue('mesh_min_y') ?? Math.max(5, Math.ceil(probeYOffset) + 5);
-  const meshMaxX = getBedMeshValue('mesh_max_x') ?? (bedSizeX ? bedSizeX - 5 : undefined);
-  const meshMaxY = getBedMeshValue('mesh_max_y') ?? (bedSizeY ? bedSizeY - 5 : undefined);
+  const meshMinX = getBedMeshValue('mesh_min_x') ?? autoMeshMinX;
+  const meshMinY = getBedMeshValue('mesh_min_y') ?? autoMeshMinY;
+  const meshMaxX = getBedMeshValue('mesh_max_x') ?? autoMeshMaxX;
+  const meshMaxY = getBedMeshValue('mesh_max_y') ?? autoMeshMaxY;
   const probeCount = getBedMeshValue('probe_count', isEddyProbe ? '25,25' : '5,5');
 
   return (
@@ -226,7 +235,7 @@ export function BedLevelingPanel() {
                         onChange={(e) =>
                           setBedMeshValue('mesh_min_x', e.target.value ? parseInt(e.target.value) : undefined)
                         }
-                        placeholder="5"
+                        placeholder={String(autoMeshMinX)}
                         className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm placeholder-slate-500 focus:border-cyan-500"
                       />
                     </div>
@@ -239,7 +248,7 @@ export function BedLevelingPanel() {
                         onChange={(e) =>
                           setBedMeshValue('mesh_min_y', e.target.value ? parseInt(e.target.value) : undefined)
                         }
-                        placeholder="5"
+                        placeholder={String(autoMeshMinY)}
                         className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm placeholder-slate-500 focus:border-cyan-500"
                       />
                     </div>
@@ -252,7 +261,7 @@ export function BedLevelingPanel() {
                         onChange={(e) =>
                           setBedMeshValue('mesh_max_x', e.target.value ? parseInt(e.target.value) : undefined)
                         }
-                        placeholder={bedSizeX ? String(bedSizeX - 5) : '295'}
+                        placeholder={autoMeshMaxX !== undefined ? String(autoMeshMaxX) : '290'}
                         className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm placeholder-slate-500 focus:border-cyan-500"
                       />
                     </div>
@@ -265,7 +274,7 @@ export function BedLevelingPanel() {
                         onChange={(e) =>
                           setBedMeshValue('mesh_max_y', e.target.value ? parseInt(e.target.value) : undefined)
                         }
-                        placeholder={bedSizeY ? String(bedSizeY - 5) : '295'}
+                        placeholder={autoMeshMaxY !== undefined ? String(autoMeshMaxY) : '290'}
                         className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm placeholder-slate-500 focus:border-cyan-500"
                       />
                     </div>

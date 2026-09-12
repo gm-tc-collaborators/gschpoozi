@@ -7057,58 +7057,133 @@ class GschpooziWizard:
         current_mesh_min = self.state.get("probe.bed_mesh.mesh_min", "auto")
         current_mesh_max = self.state.get("probe.bed_mesh.mesh_max", "auto")
 
-        if is_eddy_probe:
-            # Eddy probes: prompt for mesh boundaries since rapid scanning needs precise bounds
-            mesh_min = self.ui.inputbox(
-                "Mesh minimum (X, Y):\n\n"
-                "Lower-left corner of the mesh area (in mm).\n"
-                "Must account for probe offset from nozzle!\n\n"
-                "The auto-calculated value includes:\n"
-                "• Probe X/Y offset + 10mm safety margin\n\n"
-                f"Calculated: {default_mesh_min}\n"
-                "(Adjust if you want to probe closer to bed edges)",
-                default=current_mesh_min if current_mesh_min != "auto" else default_mesh_min,
-                title="Bed Mesh - Mesh Min",
-                height=14,
-                width=55
-            )
-            if mesh_min is None:
-                return
+        def _parse_mesh_point(raw: str):
+            """
+            Parse a mesh bound entered as "X, Y" (or "X Y" / "X;Y").
+            Returns (x, y) floats, or None if the value is not a valid pair.
+            """
+            if raw is None:
+                return None
+            parts = [p for p in re.split(r"[,;\s]+", str(raw).strip()) if p]
+            if len(parts) != 2:
+                return None
+            try:
+                return float(parts[0]), float(parts[1])
+            except ValueError:
+                return None
 
-            mesh_max = self.ui.inputbox(
-                "Mesh maximum (X, Y):\n\n"
-                "Upper-right corner of the mesh area (in mm).\n"
-                "Must stay within bed minus probe offset!\n\n"
-                "The auto-calculated value includes:\n"
-                "• Bed size - probe offset - 10mm safety margin\n\n"
-                f"Calculated: {default_mesh_max}\n"
-                "(Adjust if you want to probe closer to bed edges)",
-                default=current_mesh_max if current_mesh_max != "auto" else default_mesh_max,
-                title="Bed Mesh - Mesh Max",
-                height=14,
-                width=55
-            )
-            if mesh_max is None:
-                return
-
-            # Scan overshoot (only if supported by installed Klipper/Kalico)
-            if supports_scan_overshoot:
-                current_overshoot = self.state.get("probe.bed_mesh.scan_overshoot", 8)
-                scan_overshoot = self.ui.inputbox(
-                    "Scan overshoot (mm):\n\n"
-                    "Extra travel outside mesh for scan path optimization.\n"
-                    "Recommended: 8mm (minimum: 1mm)",
-                    default=str(current_overshoot),
-                    title="Bed Mesh - Scan Overshoot"
+        def _prompt_mesh_bound(label: str, title: str, body: str, calculated: str, current: str):
+            """
+            Prompt for a mesh bound, accepting either "auto" or an explicit "X, Y" pair.
+            Re-prompts on malformed input; warns (but allows) values outside the bed.
+            Returns the accepted string, or None if the user cancelled.
+            """
+            default = current if current and current != "auto" else calculated
+            while True:
+                value = self.ui.inputbox(
+                    f"{label}\n\n"
+                    f"{body}\n\n"
+                    f"Auto-calculated: {calculated}\n"
+                    "Enter 'auto' to let gschpoozi compute it at generation time,\n"
+                    "or an explicit 'X, Y' pair to probe closer to / further from\n"
+                    "the bed edges.",
+                    default=default,
+                    title=title,
+                    height=17,
+                    width=60
                 )
-                if scan_overshoot is None:
-                    return
-                if scan_overshoot:
-                    self.state.set("probe.bed_mesh.scan_overshoot", int(scan_overshoot))
-        else:
-            # Standard probes: use auto for mesh boundaries
-            mesh_min = "auto"
-            mesh_max = "auto"
+                if value is None:
+                    return None
+                value = value.strip()
+                if value.lower() in ("", "auto"):
+                    return "auto"
+                point = _parse_mesh_point(value)
+                if point is None:
+                    self.ui.msgbox(
+                        f"'{value}' is not a valid mesh bound.\n\n"
+                        "Enter two numbers separated by a comma (e.g. '25, 25'),\n"
+                        "or 'auto'.",
+                        title=f"{title} - Invalid Input",
+                        height=10,
+                        width=60
+                    )
+                    default = value
+                    continue
+                px, py = point
+                if not (0 <= px <= bed_x and 0 <= py <= bed_y):
+                    keep = self.ui.yesno(
+                        f"{px:g}, {py:g} lies outside the configured bed\n"
+                        f"({bed_x:g} x {bed_y:g} mm).\n\n"
+                        "Klipper will abort BED_MESH_CALIBRATE if the probe is\n"
+                        "commanded beyond the machine limits.\n\n"
+                        "Keep this value anyway?",
+                        title=f"{title} - Outside Bed",
+                        height=12,
+                        width=62,
+                        default_no=True
+                    )
+                    if keep is None:
+                        return None
+                    if not keep:
+                        default = calculated
+                        continue
+                return f"{px:g}, {py:g}"
+
+        # Mesh boundaries - prompted for every probe type (DIY flexibility:
+        # users with bed clips, purge buckets or insets need explicit control).
+        mesh_min = _prompt_mesh_bound(
+            "Mesh minimum (X, Y):",
+            "Bed Mesh - Mesh Min",
+            "Lower-left corner of the mesh area (in mm).\n"
+            "Must account for the probe offset from the nozzle!\n"
+            "Auto = probe X/Y offset + 10mm safety margin.",
+            default_mesh_min,
+            current_mesh_min,
+        )
+        if mesh_min is None:
+            return
+
+        mesh_max = _prompt_mesh_bound(
+            "Mesh maximum (X, Y):",
+            "Bed Mesh - Mesh Max",
+            "Upper-right corner of the mesh area (in mm).\n"
+            "Must stay within bed minus the probe offset!\n"
+            "Auto = bed size - probe offset - 10mm safety margin.",
+            default_mesh_max,
+            current_mesh_max,
+        )
+        if mesh_max is None:
+            return
+
+        # Sanity-check the ordering of explicit bounds (auto is always consistent)
+        min_point = _parse_mesh_point(mesh_min)
+        max_point = _parse_mesh_point(mesh_max)
+        if min_point and max_point and (max_point[0] <= min_point[0] or max_point[1] <= min_point[1]):
+            self.ui.msgbox(
+                f"Mesh max ({mesh_max}) must be greater than mesh min ({mesh_min})\n"
+                "in both X and Y.\n\n"
+                "Nothing was saved - please re-open Bed Mesh and try again.",
+                title="Bed Mesh - Invalid Bounds",
+                height=11,
+                width=62
+            )
+            return
+
+        # Scan overshoot (eddy/scanner probes only, and only if supported
+        # by the installed Klipper/Kalico)
+        if is_eddy_probe and supports_scan_overshoot:
+            current_overshoot = self.state.get("probe.bed_mesh.scan_overshoot", 8)
+            scan_overshoot = self.ui.inputbox(
+                "Scan overshoot (mm):\n\n"
+                "Extra travel outside mesh for scan path optimization.\n"
+                "Recommended: 8mm (minimum: 1mm)",
+                default=str(current_overshoot),
+                title="Bed Mesh - Scan Overshoot"
+            )
+            if scan_overshoot is None:
+                return
+            if scan_overshoot:
+                self.state.set("probe.bed_mesh.scan_overshoot", int(scan_overshoot))
 
         # Save all mesh settings
         self.state.set("probe.bed_mesh.enabled", True)
